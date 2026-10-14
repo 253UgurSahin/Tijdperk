@@ -239,3 +239,21 @@ export const GLASS = new T3.MeshStandardMaterial({
   emissive: new T3.Color('#ffd79a'),
   emissiveIntensity: 0,
 });
+// Gloeiende materialen voor het Sterrentijdperk: paars sterrenmetaal en roze fusie
+export const VIOLETM = new T3.MeshStandardMaterial({
+  color: '#2a1f4a',
+  emissive: new T3.Color('#8a5cff'),
+  emissiveIntensity: 0.9,
+  flatShading: true,
+});
+export const PINKM = new T3.MeshStandardMaterial({
+  color: '#4a1238',
+  emissive: new T3.Color('#ff4fc0'),
+  emissiveIntensity: 1.0,
+  flatShading: true,
+});
+// Torus (ring) met cache, voor poorten, reactoren en koepels
+export function gTorus(r, t, rs = 8, ts = 24) {
+  const k = 't' + r + '_' + t + '_' + rs + '_' + ts;
+  return GC[k] || (GC[k] = new T3.TorusGeometry(r, t, rs, ts));
+}

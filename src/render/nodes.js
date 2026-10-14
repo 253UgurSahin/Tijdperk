@@ -49,6 +49,7 @@ export const FOL = {
   oak: foliage('#4f8a3c'),
   bush: foliage('#4d7d38'),
 };
+const STARGLOW = mat('#b49cff', { e: '#8a5cff', ei: 0.9 });
 const NVAR = {
   pine: [
     bakePart(gCyl(0.06, 0.07, 6), C.woodd, 0, 0, 0, 1, 0.4, 1),
@@ -79,6 +80,14 @@ const NVAR = {
     bakePart(gCyl(0.12, 0.12, 8), '#4d3d5c', 0.1, 0.02, 0.05, 1, 0.01, 1),
   ],
   sand: [bakePart(gIco(0), '#c9b07c', 0, -0.02, 0, 0.42, 0.1, 0.38)],
+  // Meteorietbrok: zwartgeblakerde steen in een kuiltje, met paars gloeiende kristallen
+  starmetal: [
+    bakePart(gCyl(0.42, 0.42, 10), '#3a3430', 0, 0, 0, 1, 0.02, 1),
+    bakePart(gDod(), '#2b2830', 0, 0.12, 0, 0.3, 0.24, 0.27),
+    bakePart(gOct(), STARGLOW, 0.06, 0.32, 0.02, 0.08, 0.17, 0.08),
+    bakePart(gOct(), STARGLOW, -0.13, 0.24, 0.1, 0.06, 0.12, 0.06),
+    bakePart(gOct(), STARGLOW, 0.14, 0.18, -0.12, 0.05, 0.1, 0.05),
+  ],
 };
 for (const k of ['copper', 'tin', 'iron', 'gold', 'lithium'])
   NVAR[k] = [

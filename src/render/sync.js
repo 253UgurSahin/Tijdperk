@@ -74,14 +74,16 @@ export function syncBuildings() {
       const fires = [],
         flags = [],
         pumps = [],
-        lamps = [];
+        lamps = [],
+        spins = [];
       g.traverse(o => {
         if (o.userData.fire) fires.push(o);
         if (o.userData.flag) flags.push(o);
         if (o.userData.pump) pumps.push(o);
         if (o.userData.lamp) lamps.push(o);
+        if (o.userData.spin) spins.push(o);
       });
-      r = { g, m, key, h, fires, flags, pumps, lamps };
+      r = { g, m, key, h, fires, flags, pumps, lamps, spins };
       bRec.set(b.id, r);
       store.mapVersion++;
     }
@@ -98,6 +100,9 @@ export function syncBuildings() {
     }
     for (const f of r.flags) f.rotation.y = Math.sin(store.TM * 2 + b.id) * 0.25;
     for (const p of r.pumps) if (b.on && b.done) p.rotation.z = Math.sin(store.TM * 2.2 + b.id) * 0.25;
+    // Draaiende delen (molenwieken, waterrad, ringen) draaien alleen als het gebouw af is en aan staat
+    if (b.done && b.on !== false)
+      for (const o of r.spins) o.rotation[o.userData.axis || 'y'] = store.TM * o.userData.spin + b.id;
   }
   for (const [id, r] of bRec)
     if (!seen.has(id)) {
@@ -117,6 +122,17 @@ export function smoothPos(e) {
   return [e.prevX + (e.x - e.prevX) * a, e.prevY + (e.y - e.prevY) * a];
 }
 
+// Grote eenheden (paarden, wagens, geschut) krijgen een grotere selectiecirkel
+const BIG_RING = new Set([
+  'tank',
+  'knight',
+  'chariot',
+  'cuirassier',
+  'trebuchet',
+  'bombard',
+  'rocket',
+  'mech',
+]);
 function syncEnt(e, make) {
   let r = eRec.get(e.id);
   const key = entKey(e);
@@ -135,7 +151,7 @@ function syncEnt(e, make) {
       RINGG,
       new T3.MeshBasicMaterial({ color: '#9fe28a', transparent: true, opacity: 0.95, depthWrite: false }),
     );
-    r.ringSize = e.kind === 'u' && (e.k === 'tank' || e.k === 'knight') ? 0.42 : 0.28;
+    r.ringSize = e.kind === 'u' && BIG_RING.has(e.k) ? 0.42 : 0.28;
     ring.scale.setScalar(r.ringSize);
     // Gekleurde schijf onder elk figuur, zodat je in één oogopslag ziet wie wie is:
     // licht = dorpeling, blauw = jouw leger, rood = vijand
