@@ -12,6 +12,7 @@ import {
   canUpg,
   hasT,
   lvlOf,
+  researchTime,
   toolRows,
   upgradeRows,
   toolCost,
@@ -107,12 +108,12 @@ export function renderUpgrades() {
     h += `<div class="usub">Uitvindingen <span class="small">${done.length}/${TECH.length}</span></div>`;
     if (G.research) {
       const T = TK[G.research.k];
-      h += `<div class="ublock can"><div class="ut"><b>${ico(T.g)} ${T.n}</b><span>bezig · ${Math.ceil(T.t - G.research.t)}s</span></div><p>${T.d}</p><div class="bar acc"><i style="width:${(G.research.t / T.t) * 100}%"></i></div></div>`;
+      h += `<div class="ublock can"><div class="ut"><b>${ico(T.g)} ${T.n}</b><span>bezig · ${Math.ceil(researchTime(T) - G.research.t)}s</span></div><p>${T.d}</p><div class="bar acc"><i style="width:${(G.research.t / researchTime(T)) * 100}%"></i></div></div>`;
     }
     for (const T of now) {
       if (G.research && G.research.k === T.k) continue;
       const can = !G.research && has(T.cost);
-      h += `<button class="tech ${can ? '' : ''}" data-tech="${T.k}" ${can ? '' : 'disabled'} title="${esc(T.d)}"><span class="g">${ico(T.g)}</span><b>${T.n}</b><span class="d">${T.d} · ${T.t}s</span>${costHTML(T.cost)}</button>`;
+      h += `<button class="tech ${can ? '' : ''}" data-tech="${T.k}" ${can ? '' : 'disabled'} title="${esc(T.d)}"><span class="g">${ico(T.g)}</span><b>${T.n}</b><span class="d">${T.d} · ${Math.round(researchTime(T))}s</span>${costHTML(T.cost)}</button>`;
     }
     if (!now.length && !G.research)
       h += `<p class="small">Alle uitvindingen van dit tijdperk zijn klaar.</p>`;
@@ -132,7 +133,7 @@ $('#upgrades').addEventListener('click', e => {
     if (!G.research && has(T.cost)) {
       pay(T.cost);
       G.research = { k: T.k, t: 0 };
-      toast(`Onderzoek gestart: ${T.n} (${T.t}s).`);
+      toast(`Onderzoek gestart: ${T.n} (${Math.round(researchTime(T))}s).`);
     }
     sigs.upg = null;
     store.uiDirty = true;

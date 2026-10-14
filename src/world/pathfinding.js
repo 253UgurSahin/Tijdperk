@@ -1,7 +1,7 @@
 // Padvinding: hoe dorpelingen en soldaten om obstakels heen lopen (A*-zoekmethode).
 import { store } from '../core/store.js';
 import { H, W } from '../config.js';
-import { hasT } from '../game/upgrades.js';
+import { mul } from '../game/bonus.js';
 import { clamp } from '../util/math.js';
 import { foeWalk, freeWalk, passable, road, walkable } from './world.js';
 
@@ -101,7 +101,7 @@ export function findPath(sx, sy, tx, ty, free) {
 export function follow(e, dt, spd) {
   if (!e.path || !e.path.length) return true;
   const rt = road[(e.y | 0) * W + (e.x | 0)];
-  if (rt) spd *= 1 + (0.22 + rt * 0.12) * (hasT('rail') ? 1.4 : 1);
+  if (rt) spd *= 1 + (0.22 + rt * 0.12) * mul('road');
   const p = e.path[0],
     tx = p[0] + 0.5,
     ty = p[1] + 0.5,

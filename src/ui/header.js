@@ -7,7 +7,7 @@ import { TECH } from '../data/tech.js';
 import { powerDem, powerSup, wr } from '../game/caches.js';
 import { has } from '../game/economy.js';
 import { popCap, popNow } from '../game/entities.js';
-import { chunkCost, lackText } from '../game/placement.js';
+import { buildCost, chunkCost, lackText } from '../game/placement.js';
 import { G, sel } from '../game/state.js';
 import { isNight, raidNight, season } from '../game/time.js';
 import { armsCost, canUpg, hasT, toolCost, upgCost } from '../game/upgrades.js';
@@ -51,7 +51,7 @@ export function updateHeader() {
     if (b.done && d.pump) prod[d.pump.res] = (prod[d.pump.res] || 0) + 1;
   }
   // Wat je nu wilt bouwen: grondstoffen waar je te weinig van hebt, kleuren rood
-  const need = store.placing ? B[store.placing].cost : null;
+  const need = store.placing ? buildCost(store.placing) : null;
   for (const el of document.querySelectorAll('#resbar .res,#resPop .res')) {
     const k = el.dataset.k,
       num = el.querySelector('b'),
@@ -142,10 +142,11 @@ export function updateWorldTop() {
     hint = '',
     cls = '';
   if (store.placing) {
-    const d = B[store.placing];
+    const d = B[store.placing],
+      cost = buildCost(store.placing);
     txt = `${d.n} plaatsen`;
     hint =
-      (has(d.cost) ? `Kost ${costText(d.cost)}. ` : `Nog ${lackText(d.cost)} nodig. `) +
+      (has(cost) ? `Kost ${costText(cost)}. ` : `Nog ${lackText(cost)} nodig. `) +
       (d.wall || d.road
         ? TOUCH
           ? 'Tik op een vrij veld.'

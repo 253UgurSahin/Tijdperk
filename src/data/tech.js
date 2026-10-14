@@ -1,4 +1,5 @@
 // Onderzoek dat je volk sterker maakt.
+// `bonus` zegt wat het oplevert; de sleutels staan uitgelegd in src/data/bonus.js.
 export const TECH = [
   {
     k: 'agri',
@@ -8,6 +9,7 @@ export const TECH = [
     d: 'Akkers: +1 boer en +20% oogst',
     cost: { food: 80, wood: 80 },
     t: 30,
+    bonus: { farm: 0.2, 'farm.slots': 1 },
   },
   {
     k: 'fire',
@@ -17,6 +19,7 @@ export const TECH = [
     d: 'Lichtbronnen schijnen 1,5 verder',
     cost: { wood: 100 },
     t: 25,
+    bonus: { light: 1.5 },
   },
   {
     k: 'wheel',
@@ -26,6 +29,7 @@ export const TECH = [
     d: 'Dorpelingen lopen 15% sneller',
     cost: { wood: 150, bronze: 20 },
     t: 40,
+    bonus: { 'vill.speed': 0.15 },
   },
   {
     k: 'masonry',
@@ -35,6 +39,7 @@ export const TECH = [
     d: 'Gebouwen en muren +25% levenspunten',
     cost: { stone: 200, bronze: 15 },
     t: 45,
+    bonus: { 'bld.hp': 0.25 },
   },
   {
     k: 'ironplow',
@@ -44,6 +49,7 @@ export const TECH = [
     d: 'Akkers leveren 25% meer op',
     cost: { wood: 150, iron: 40 },
     t: 40,
+    bonus: { 'farm.plow': 0.25 },
   },
   {
     k: 'forging',
@@ -53,6 +59,7 @@ export const TECH = [
     d: 'Je leger doet 15% meer schade',
     cost: { food: 150, iron: 60 },
     t: 45,
+    bonus: { 'army.dmg': 0.15 },
   },
   {
     k: 'ballistics',
@@ -62,15 +69,17 @@ export const TECH = [
     d: 'Torens: +1 bereik en +20% schade',
     cost: { wood: 200, iron: 60 },
     t: 50,
+    bonus: { 'tower.range': 1, 'tower.dmg': 0.2 },
   },
   {
     k: 'medicine',
     age: 3,
     n: 'Kruidenkunde',
     g: '✚',
-    d: 'Volk en leger genezen vanzelf',
+    d: 'Volk geneest 1 levenspunt per seconde, leger 2',
     cost: { food: 250, gold: 40 },
     t: 50,
+    bonus: { heal: 1 },
   },
   {
     k: 'windpower',
@@ -80,6 +89,7 @@ export const TECH = [
     d: 'Windmolens en kruitmolens 50% sneller',
     cost: { wood: 250, gold: 60 },
     t: 50,
+    bonus: { 'mill.speed': 0.5 },
   },
   {
     k: 'charts',
@@ -89,6 +99,7 @@ export const TECH = [
     d: 'Gebied uitbreiden kost 25% minder',
     cost: { gold: 80, powder: 30 },
     t: 50,
+    bonus: { 'chunk.cost': -0.25 },
   },
   {
     k: 'steam',
@@ -98,6 +109,7 @@ export const TECH = [
     d: 'Fabrieken en pompen 25% sneller',
     cost: { coal: 150, steel: 60 },
     t: 60,
+    bonus: { 'conv.speed': 0.25 },
   },
   {
     k: 'rail',
@@ -107,6 +119,7 @@ export const TECH = [
     d: 'Wegen geven 40% meer snelheid',
     cost: { steel: 100, coal: 80 },
     t: 55,
+    bonus: { road: 0.4 },
   },
   {
     k: 'radio',
@@ -116,6 +129,7 @@ export const TECH = [
     d: 'Leger 20% sneller, aanvallen eerder gemeld',
     cost: { steel: 150, silicon: 40 },
     t: 60,
+    bonus: { 'army.speed': 0.2 }, // het eerder melden van aanvallen staat in game/time.js
   },
   {
     k: 'electric',
@@ -125,6 +139,7 @@ export const TECH = [
     d: 'Centrales leveren 25% meer stroom',
     cost: { steel: 200, fuel: 60 },
     t: 60,
+    bonus: { power: 0.25 },
   },
   {
     k: 'automation',
@@ -134,6 +149,7 @@ export const TECH = [
     d: 'Verzamelen gaat 25% sneller',
     cost: { chips: 40, steel: 200 },
     t: 70,
+    bonus: { 'gather.all': 0.25 },
   },
   {
     k: 'swarm',
@@ -143,6 +159,7 @@ export const TECH = [
     d: 'Drones, exo-soldaten en lasers +30% schade',
     cost: { chips: 60, battery: 60 },
     t: 70,
+    bonus: { 'robot.dmg': 0.3, 'laser.dmg': 0.3 },
   },
   {
     k: 'antigrav',
@@ -152,15 +169,17 @@ export const TECH = [
     d: 'Iedereen beweegt 25% sneller',
     cost: { starmetal: 80, fusion: 30 },
     t: 70,
+    bonus: { 'move.all': 0.25 },
   },
   {
     k: 'starcharts',
     age: 8,
     n: 'Sterrenkaarten',
     g: '☄',
-    d: 'Meteorieten vallen vaker en brengen meer erts',
+    d: 'Meteorieten 50% vaker, met 40% meer erts',
     cost: { chips: 80, fusion: 40 },
     t: 70,
+    bonus: { 'meteor.rate': 0.5, 'meteor.ore': 0.4 },
   },
 ];
 export const TK = {};

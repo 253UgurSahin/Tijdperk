@@ -7,7 +7,7 @@ import { B, BKEYS, CATS } from '../data/buildings.js';
 import { RES } from '../data/resources.js';
 import { UNITS } from '../data/units.js';
 import { has } from '../game/economy.js';
-import { lackText } from '../game/placement.js';
+import { buildCost, lackText } from '../game/placement.js';
 import { G, sel } from '../game/state.js';
 import { mouse } from '../input/input.js';
 import { clearSel } from '../input/selection.js';
@@ -109,7 +109,7 @@ function renderBuilds() {
     G.age +
     store.placing +
     store.coachTile +
-    avail.map(k => (has(B[k].cost) ? 1 : 0)).join('');
+    avail.map(k => (has(buildCost(k)) ? 1 : 0)).join('');
   setHTML(
     $('#cmdgrid'),
     'grid',
@@ -118,7 +118,7 @@ function renderBuilds() {
       avail
         .map(k => {
           const d = B[k];
-          return `<button class="gb ${store.placing === k ? 'active' : ''} ${has(d.cost) ? '' : 'poor'} ${store.coachTile === k && store.placing !== k ? 'hint' : ''}" data-b="${k}" aria-pressed="${store.placing === k}" aria-label="${d.n}">${d.age === G.age && G.age > 0 ? '<span class="nw">nieuw</span>' : ''}<img src="${iconFor(k)}" alt=""><b>${hy(d.n)}</b></button>`;
+          return `<button class="gb ${store.placing === k ? 'active' : ''} ${has(buildCost(k)) ? '' : 'poor'} ${store.coachTile === k && store.placing !== k ? 'hint' : ''}" data-b="${k}" aria-pressed="${store.placing === k}" aria-label="${d.n}">${d.age === G.age && G.age > 0 ? '<span class="nw">nieuw</span>' : ''}<img src="${iconFor(k)}" alt=""><b>${hy(d.n)}</b></button>`;
         })
         .join('') +
       (next.length && G.age < AGES.length - 1
@@ -158,8 +158,8 @@ function buildTileClick(c) {
   clearSel();
   keepV.forEach(id => sel.vs.add(id));
   hideTip();
-  if (store.placing && !has(B[k].cost))
-    toast(`Nog ${lackText(B[k].cost)} nodig. Je kunt alvast een plek zoeken.`);
+  if (store.placing && !has(buildCost(k)))
+    toast(`Nog ${lackText(buildCost(k))} nodig. Je kunt alvast een plek zoeken.`);
   sigs.grid = null;
   store.uiDirty = true;
 }
@@ -203,11 +203,12 @@ $('#cmdgrid').addEventListener('pointerover', e => {
     d = B[k],
     idx = [...document.querySelectorAll('#cmdgrid .gb[data-b]')].indexOf(c);
   const when = `<span>Beschikbaar in de ${AGES[d.age].n.toLowerCase()}.</span>`;
-  const lack = has(d.cost) ? '' : `<span class="lack">Nog ${lackText(d.cost)} nodig.</span>`;
+  const cost = buildCost(k);
+  const lack = has(cost) ? '' : `<span class="lack">Nog ${lackText(cost)} nodig.</span>`;
   const key = idx >= 0 && idx < 9 ? `<span class="key">Sneltoets <kbd>${idx + 1}</kbd></span>` : '';
   showTileTip(
     c,
-    `<b>${d.n}</b><span>${esc(bDesc(k))}</span>${d.age > G.age ? when : costHTML(d.cost) + lack}${key}`,
+    `<b>${d.n}</b><span>${esc(bDesc(k))}</span>${d.age > G.age ? when : costHTML(cost) + lack}${key}`,
   );
 });
 $('#cmdgrid').addEventListener('pointerout', e => {

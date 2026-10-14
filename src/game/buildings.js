@@ -10,7 +10,8 @@ import { popCap, popNow, spawnUnit, spawnVillager, trainCost } from './entities.
 import { floater } from './fx.js';
 import { fire, nearestFoe } from './military.js';
 import { G } from './state.js';
-import { bRate, hasT, lvlOf } from './upgrades.js';
+import { add, mul } from './bonus.js';
+import { bRate, lvlOf } from './upgrades.js';
 import { amt, node } from '../world/world.js';
 
 export function bUpdate(b, dt) {
@@ -19,8 +20,8 @@ export function bUpdate(b, dt) {
     pr = d.power ? powerRatio : 1;
   b.act -= dt;
   if (d.conv && b.on) {
-    const wind = hasT('windpower') && (b.type === 'windmill' || b.type === 'powdermill') ? 1.5 : 1;
-    b.ct += dt * pr * bRate(b) * wind * (hasT('steam') ? 1.25 : 1);
+    const mill = b.type === 'windmill' || b.type === 'powdermill' ? mul('mill.speed') : 1;
+    b.ct += dt * pr * bRate(b) * mill * mul('conv.speed');
     if (b.ct >= d.conv.t) {
       if (has(d.conv.in)) {
         pay(d.conv.in);
@@ -54,7 +55,7 @@ export function bUpdate(b, dt) {
   if (d.pump && b.on) {
     const i = b.y * W + b.x;
     if (node[i] === NI.oil && amt[i] > 0) {
-      b.ct += dt * pr * bRate(b) * (hasT('steam') ? 1.25 : 1);
+      b.ct += dt * pr * bRate(b) * mul('conv.speed');
       if (b.ct >= d.pump.t) {
         b.ct = 0;
         amt[i]--;
@@ -72,15 +73,15 @@ export function bUpdate(b, dt) {
         f = nearestFoe(
           x,
           y,
-          d.def.r + 0.5 * lvlOf(b) + (hasT('ballistics') && b.type !== 'townhall' ? 1 : 0),
+          d.def.r + 0.5 * lvlOf(b) + (b.type !== 'townhall' ? add('tower.range') : 0),
           d.def.air,
         );
       if (f) {
         const dmg =
           (b.type === 'townhall' ? d.def.dmg * (1 + G.age * 0.8) : d.def.dmg) *
           (1 + 0.4 * lvlOf(b)) *
-          (hasT('ballistics') ? 1.2 : 1) *
-          (hasT('swarm') && d.def.laser ? 1.3 : 1);
+          mul('tower.dmg') *
+          (d.def.laser ? mul('laser.dmg') : 1);
         fire(b, x, y, f, {
           dmg,
           splash: d.def.splash,

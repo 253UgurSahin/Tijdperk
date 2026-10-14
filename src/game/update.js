@@ -11,7 +11,8 @@ import { makeOffer, resolveEvent, spawnEvent, th } from './events.js';
 import { fUpdate, uUpdate, updateProj } from './military.js';
 import { G } from './state.js';
 import { advanceClock, isNight } from './time.js';
-import { bMaxHp, hasT } from './upgrades.js';
+import { add, applyBonusChange, mul } from './bonus.js';
+import { bMaxHp, researchTime } from './upgrades.js';
 import { vUpdate } from './villagers.js';
 import { sigs } from '../ui/header.js';
 import { note, toast } from '../ui/hud.js';
@@ -41,16 +42,18 @@ export function update(dt) {
   if (G.research) {
     G.research.t += dt;
     const T = TK[G.research.k];
-    if (G.research.t >= T.t) {
-      G.tech[T.k] = 1;
-      if (T.k === 'masonry') G.bs.forEach(b => (b.hp *= 1.25));
+    if (G.research.t >= researchTime(T)) {
+      // Via het bonusregister: geeft het onderzoek meer levens, dan groeit wat er al staat mee
+      applyBonusChange(() => (G.tech[T.k] = 1));
       G.research = null;
       toast(`Onderzoek klaar: ${T.n}. ${T.d}.`, 'good');
       sfx('upgrade');
       sigs.upg = null;
     }
   }
-  if (hasT('medicine')) for (const v of G.vs) if (!v.hidden) v.hp = Math.min(v.mhp, v.hp + dt);
+  // Genezen (bijv. door Kruidenkunde): je volk krijgt elke seconde levens terug
+  const heal = add('heal');
+  if (heal) for (const v of G.vs) if (!v.hidden) v.hp = Math.min(v.mhp, v.hp + dt * heal);
   if (!G.event && G.day >= 2 && !isNight() && G.t - G.lastEvent > 150 && Math.random() < dt / 220)
     spawnEvent();
   if (G.event && G.t > G.event.until) resolveEvent('b', true);
@@ -86,7 +89,12 @@ export function update(dt) {
   if (G.spawnQ.length) {
     const now = G.spawnQ.filter(s => s.at <= G.t);
     if (now.length) {
-      for (const s of now) spawnFoe(s.type, s.x, s.y, s.scale);
+      for (const s of now) {
+        const f = spawnFoe(s.type, s.x, s.y, s.scale);
+        // Bonussen kunnen aanvallers sterker of zwakker maken
+        f.hp *= mul('raid.hp');
+        f.mhp *= mul('raid.hp');
+      }
       G.spawnQ = G.spawnQ.filter(s => s.at > G.t);
     }
   }

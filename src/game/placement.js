@@ -10,7 +10,8 @@ import { has, pay } from './economy.js';
 import { placeBuilding } from './entities.js';
 import { fxRing } from './fx.js';
 import { G } from './state.js';
-import { hasT, roadTier } from './upgrades.js';
+import { mul } from './bonus.js';
+import { roadTier } from './upgrades.js';
 import { mouse } from '../input/input.js';
 import { resetV, selVills } from '../input/selection.js';
 import { fmt } from '../ui/format.js';
@@ -18,13 +19,23 @@ import { toast } from '../ui/hud.js';
 import { TER, bmap, inb, isUnl, node, nodeVis, road, ter } from '../world/world.js';
 import { SUCCESSOR, canMake } from '../data/succession.js';
 
+/** Wat een gebouw nu kost. Muren en poorten worden goedkoper door bonussen (zoals 'wall.cost'). */
+export function buildCost(type) {
+  const d = B[type];
+  const factor = d.wall ? mul('wall.cost') : 1;
+  if (factor === 1) return d.cost;
+  const cost = {};
+  for (const k in d.cost) cost[k] = Math.round(d.cost[k] * factor);
+  return cost;
+}
 export function chunkCost() {
   const m = 1 + G.bought * 0.55,
     c = { food: Math.round(80 * m), wood: Math.round(80 * m), stone: Math.round(40 * m) };
   if (G.age >= 3) c.gold = Math.round(12 * m);
   if (G.age >= 5) c.steel = Math.round(5 * m);
-  // Zeekaarten maken uitbreiden goedkoper
-  if (hasT('charts')) for (const k in c) c[k] = Math.round(c[k] * 0.75);
+  // Bonussen (zoals Zeekaarten) maken uitbreiden goedkoper
+  const factor = mul('chunk.cost');
+  if (factor !== 1) for (const k in c) c[k] = Math.round(c[k] * factor);
   return c;
 }
 export function canBuyChunk(cx, cy) {
@@ -84,7 +95,7 @@ export function canPlace(type, x, y, skipCost) {
     if (bmap[i]) return 'Hier staat al iets';
     if (nodeVis(i)) return NODES[node[i]].n + ' in de weg';
     if (road[i] >= roadTier()) return 'Hier ligt al een weg';
-    if (!skipCost && !has(d.cost)) return 'Nog ' + lackText(d.cost) + ' nodig';
+    if (!skipCost && !has(buildCost(type))) return 'Nog ' + lackText(buildCost(type)) + ' nodig';
     return null;
   }
   for (let dy = 0; dy < d.size; dy++)
@@ -107,7 +118,7 @@ export function canPlace(type, x, y, skipCost) {
     return 'Er kan maar één commandocentrum zijn';
   if (type === 'stargate' && G.bs.some(b => b.type === 'stargate'))
     return 'Er kan maar één sterrenpoort zijn';
-  if (!skipCost && !has(d.cost)) return 'Nog ' + lackText(d.cost) + ' nodig';
+  if (!skipCost && !has(buildCost(type))) return 'Nog ' + lackText(buildCost(type)) + ' nodig';
   if (d.wall && G.vs.some(v => !v.hidden && (v.x | 0) === x && (v.y | 0) === y)) return 'Er staat iemand';
   return null;
 }
@@ -130,7 +141,7 @@ export function placeLine(a, b) {
       why = why || err;
       continue;
     }
-    pay(d.cost);
+    pay(buildCost(store.placing));
     n++;
     if (d.road) {
       road[y * W + x] = roadTier();
@@ -166,7 +177,7 @@ export function tryPlace(keep) {
     toast(err + '.', 'bad');
     return;
   }
-  pay(B[store.placing].cost);
+  pay(buildCost(store.placing));
   const b = placeBuilding(store.placing, x, y, false);
   sfx('place');
   for (const v of selVills()) {

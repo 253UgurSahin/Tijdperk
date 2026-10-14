@@ -7,6 +7,7 @@ import { NAMES } from '../data/names.js';
 import { FOES, UNITS } from '../data/units.js';
 import { fxRing } from './fx.js';
 import { G, bById } from './state.js';
+import { add, mul } from './bonus.js';
 import { armsMul, bMaxHp, bPop } from './upgrades.js';
 import { toast } from '../ui/hud.js';
 import { showVictory } from '../ui/modals.js';
@@ -104,8 +105,8 @@ export function spawnUnit(k, x, y) {
     k,
     x,
     y,
-    hp: u.hp * armsMul(),
-    mhp: u.hp * armsMul(),
+    hp: u.hp * armsMul() * mul('army.hp'),
+    mhp: u.hp * armsMul() * mul('army.hp'),
     cd: 0,
     path: null,
     order: 'guard',
@@ -153,6 +154,6 @@ export function spawnFoe(type, x, y, scale, camp) {
   G.foes.push(f);
   return f;
 }
-export const popCap = () => G.bs.reduce((a, b) => a + (b.done ? bPop(b) : 0), 0);
+export const popCap = () => G.bs.reduce((a, b) => a + (b.done ? bPop(b) : 0), 0) + add('pop');
 export const popNow = () => G.vs.length + G.us.length;
 export const trainCost = () => 50 + G.age * 10;

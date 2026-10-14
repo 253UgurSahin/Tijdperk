@@ -51,3 +51,7 @@ window.__tp.setAge = n => {
 window.__tp.rich = (n = 5000) => RKEYS.forEach(k => (G.res[k] = n));
 window.__tp.unit = (k, x, y) => spawnUnit(k, x, y);
 window.__tp.foe = (type, x, y) => spawnFoe(type, x, y, 1);
+// Bonusregister bekijken, en onderzoek meteen klaar zetten: __tp.tech('forging')
+import * as bonus from './game/bonus.js';
+window.__tp.bonus = bonus;
+window.__tp.tech = k => bonus.applyBonusChange(() => (G.tech[k] = 1));

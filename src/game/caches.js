@@ -5,7 +5,8 @@ import { NI, NODES, RES_NODES } from '../data/nodes.js';
 import { GATHER, RES } from '../data/resources.js';
 import { G } from './state.js';
 import { darkness } from './time.js';
-import { bLight, bRate, hasT } from './upgrades.js';
+import { mul } from './bonus.js';
+import { bLight, bRate } from './upgrades.js';
 import { dist } from '../util/math.js';
 import { amt, claims, isUnl, node, nodeLists } from '../world/world.js';
 
@@ -19,7 +20,7 @@ export let lights = [],
   farmCnt = new Map(),
   demand = {};
 /** Hoeveel stroom centrale b levert als hij draait. */
-export const genPower = b => B[b.type].gen.power * bRate(b) * (hasT('electric') ? 1.25 : 1);
+export const genPower = b => B[b.type].gen.power * bRate(b) * mul('power');
 export function computeCaches() {
   powerSup = 0;
   powerDem = 0;

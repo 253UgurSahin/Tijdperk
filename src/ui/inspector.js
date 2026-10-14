@@ -19,6 +19,7 @@ import {
   bMaxHp,
   bPop,
   lvlOf,
+  marketPrices,
   maxLvl,
   toolCost,
   upgCost,
@@ -27,6 +28,7 @@ import {
   upgradeArms,
   upgradeTools,
 } from '../game/upgrades.js';
+import { buildCost } from '../game/placement.js';
 import { unhide } from '../game/villagers.js';
 import { clearSel, resetV, selUnits, selVills } from '../input/selection.js';
 import { centerOn } from '../render/camera.js';
@@ -390,8 +392,7 @@ export function renderInspector() {
         ['food', 'wood', 'stone', 'copper', 'iron', 'coal']
           .filter(r => RES[r].age <= G.age)
           .map(r => {
-            const buy = Math.round(20 * (1 + RES[r].age * 0.5) * (1 - 0.1 * lvlOf(b))),
-              sell = Math.round(8 * (1 + RES[r].age * 0.5) * (1 + 0.15 * lvlOf(b)));
+            const { buy, sell } = marketPrices(b, r);
             return `<span>${gem(r)}${RES[r].n}</span><button data-buy="${r}" ${G.res.gold >= buy ? '' : 'disabled'} title="Koop 100 voor ${buy} goud">Koop ${buy}</button><button data-sell="${r}" ${G.res[r] >= 100 ? '' : 'disabled'} title="Verkoop 100 voor ${sell} goud">Verkoop ${sell}</button>`;
           })
           .join('') +
@@ -556,14 +557,14 @@ export function insHandler(e) {
     }
   } else if (t.dataset.buy) {
     const r = t.dataset.buy,
-      c = Math.round(20 * (1 + RES[r].age * 0.5) * (1 - 0.1 * lvlOf(b)));
+      c = marketPrices(b, r).buy;
     if (G.res.gold >= c) {
       G.res.gold -= c;
       G.res[r] += 100;
     }
   } else if (t.dataset.sell) {
     const r = t.dataset.sell,
-      c = Math.round(8 * (1 + RES[r].age * 0.5) * (1 + 0.15 * lvlOf(b)));
+      c = marketPrices(b, r).sell;
     if (G.res[r] >= 100) {
       G.res[r] -= 100;
       G.res.gold += c;
@@ -577,7 +578,8 @@ export function demolish(b) {
   setBlk(b, false);
   const d = B[b.type],
     f = b.done ? 0.5 : 0.75;
-  for (const k in d.cost) G.res[k] += Math.floor(d.cost[k] * f);
+  const cost = buildCost(b.type); // terug wat het nu kost, dus met bonussen
+  for (const k in cost) G.res[k] += Math.floor(cost[k] * f);
   b.q.forEach(k => gain(UNITS[k].cost));
   b.dead = true;
   for (let dy = 0; dy < d.size; dy++) for (let dx = 0; dx < d.size; dx++) bmap[(b.y + dy) * W + b.x + dx] = 0;

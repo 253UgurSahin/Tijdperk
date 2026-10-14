@@ -10,7 +10,8 @@ import { completeBuilding } from './entities.js';
 import { chips, floater } from './fx.js';
 import { G, bById } from './state.js';
 import { isNight, season } from './time.js';
-import { bMaxHp, carryMax, farmSlots, hasT } from './upgrades.js';
+import { mul } from './bonus.js';
+import { bMaxHp, carryMax, farmSlots } from './upgrades.js';
 import { pulseRes } from '../ui/hud.js';
 import { clamp, dist } from '../util/math.js';
 import { findPath, follow } from '../world/pathfinding.js';
@@ -300,19 +301,13 @@ export function vUpdate(v, dt) {
       }
       decide(v);
       break;
-    case 'walk':
-      if (
-        follow(
-          v,
-          dt,
-          (v.carry.amt ? 1.9 : 2.3) *
-            (1 + G.age * 0.04) *
-            (hasT('wheel') ? 1.15 : 1) *
-            (hasT('antigrav') ? 1.25 : 1),
-        )
-      )
-        arrive(v);
+    case 'walk': {
+      // Sjouwen gaat trager; elk tijdperk loopt iets sneller
+      const loadSpeed = v.carry.amt ? 1.9 : 2.3;
+      const walkSpeed = loadSpeed * (1 + G.age * 0.04) * mul('vill.speed') * mul('move.all');
+      if (follow(v, dt, walkSpeed)) arrive(v);
       break;
+    }
     case 'gather':
       doGather(v, dt);
       break;
@@ -393,11 +388,11 @@ function doGather(v, dt) {
     HARD[v.res] *
     (night ? 0.75 : 1) *
     (G.hungry ? 0.5 : 1) *
-    (v.res === 'food' ? season().food : 1) *
+    (v.res === 'food' ? season().food * mul('gather.food') : 1) *
     (G.rain && t.k === 'node' ? 0.9 : 1) *
-    (t.k === 'farm' && hasT('agri') ? 1.2 : 1) *
-    (t.k === 'farm' && hasT('ironplow') ? 1.25 : 1) *
-    (hasT('automation') ? 1.25 : 1) *
+    (t.k === 'farm' ? mul('farm') : 1) *
+    (t.k === 'farm' ? mul('farm.plow') : 1) *
+    mul('gather.all') *
     (G.buff && G.buff.work > G.t ? 1.25 : 1);
   while (v.timer >= 1) {
     v.timer -= 1;
@@ -436,7 +431,7 @@ function doBuild(v, dt) {
     goHome(v);
     return;
   }
-  b.prog += dt * (1 + G.age * 0.1);
+  b.prog += dt * (1 + G.age * 0.1) * mul('build.speed');
   const mh = bMaxHp(b);
   b.hp = Math.min(mh, b.hp + (mh * 0.85 * dt) / b.bt);
   if (b.prog >= b.bt) {

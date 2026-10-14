@@ -4,7 +4,7 @@ import { sfx } from '../audio/sound.js';
 import { B } from '../data/buildings.js';
 import { has } from '../game/economy.js';
 import { th } from '../game/events.js';
-import { lackText } from '../game/placement.js';
+import { buildCost, lackText } from '../game/placement.js';
 import { G, bById, sel } from '../game/state.js';
 import { selectArmy, selectIdle, zoomTo } from '../input/input.js';
 import { clearSel } from '../input/selection.js';
@@ -84,7 +84,7 @@ $('#coachBtn').onclick = () => {
     store.expandMode = false;
     clearSel();
     sigs.grid = null;
-    if (!has(B[a.b].cost)) toast(`Nog ${lackText(B[a.b].cost)} nodig. Je kunt alvast een plek zoeken.`);
+    if (!has(buildCost(a.b))) toast(`Nog ${lackText(buildCost(a.b))} nodig. Je kunt alvast een plek zoeken.`);
   } else if (a.k === 'expand') setExpand(true);
   else if (a.k === 'age') ageUp();
   else if (a.k === 'alarm') {

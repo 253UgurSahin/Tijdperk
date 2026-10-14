@@ -10,7 +10,8 @@ import { computeAvail } from './caches.js';
 import { gain } from './economy.js';
 import { burst, floater } from './fx.js';
 import { G, bById, sel } from './state.js';
-import { armsMul, hasT } from './upgrades.js';
+import { add, mul } from './bonus.js';
+import { armsMul } from './upgrades.js';
 import { unhide } from './villagers.js';
 import { scrX } from '../render/scene.js';
 import { note, toast } from '../ui/hud.js';
@@ -106,7 +107,7 @@ function campDestroyed(c) {
     L.chips = 40;
     L.battery = 40;
   }
-  for (const k in L) L[k] = Math.round(L[k] * (1 + tier * 0.6));
+  for (const k in L) L[k] = Math.round(L[k] * (1 + tier * 0.6) * mul('loot'));
   gain(L);
   const ci = ((c.y + 1) >> 4) * CN + ((c.x + 1) >> 4);
   let extra = '';
@@ -196,20 +197,19 @@ function udmg(u, t) {
     UNITS[u.k].dmg *
     bonusMul(UNITS[u.k], t) *
     armsMul() *
-    (hasT('forging') ? 1.15 : 1) *
-    (hasT('swarm') && (u.k === 'drone' || u.k === 'exo') ? 1.3 : 1)
+    mul('army.dmg') *
+    (u.k === 'drone' || u.k === 'exo' ? mul('robot.dmg') : 1)
   );
 }
 export function uUpdate(u, dt) {
   const U = UNITS[u.k],
-    SP = U.spd * (hasT('radio') ? 1.2 : 1) * (hasT('antigrav') ? 1.25 : 1);
+    SP = U.spd * mul('army.speed') * mul('move.all');
   u.anim += dt;
   if (u.flash) u.flash -= dt;
   if (u.swing > 0) u.swing -= dt;
-  u.hp = Math.min(
-    u.mhp,
-    u.hp + dt * ((u.order === 'guard' && !u.tgt ? 1.5 : 0) + (hasT('medicine') ? 2 : 0)),
-  );
+  const restHeal = u.order === 'guard' && !u.tgt ? 1.5 : 0; // rusten op wacht
+  const bonusHeal = 2 * add('heal'); // het leger geneest dubbel zo snel als het volk
+  u.hp = Math.min(u.mhp, u.hp + dt * (restHeal + bonusHeal));
   if (u.tgt && isDead(u.tgt)) {
     u.tgt = null;
     u.path = null;
@@ -496,7 +496,10 @@ export function spawnRaid() {
 // Hoe groot de volgende aanval is: groeit met elke aanval en elk tijdperk, maar blijft te overzien.
 // (Latere vijanden zijn per stuk al veel sterker, dus het aantal groeit rustig.)
 export const raidSize = () =>
-  Math.min(30, Math.round((2 + Math.floor((G.raids + 1) * 0.9) + G.age) * (G.diff === 2 ? 1.4 : 1)));
+  Math.min(
+    30,
+    Math.round((2 + Math.floor((G.raids + 1) * 0.9) + G.age) * (G.diff === 2 ? 1.4 : 1) * mul('raid.size')),
+  );
 function compass(x, y) {
   const a = (Math.atan2(y - CY, x - CX) * 180) / Math.PI;
   const dirs = [

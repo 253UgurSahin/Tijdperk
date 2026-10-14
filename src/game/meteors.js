@@ -10,7 +10,8 @@ import { RES } from '../data/resources.js';
 import { avail, computeAvail } from './caches.js';
 import { burst } from './fx.js';
 import { G } from './state.js';
-import { bMaxHp, hasT } from './upgrades.js';
+import { mul } from './bonus.js';
+import { bMaxHp } from './upgrades.js';
 import { note, toast } from '../ui/hud.js';
 import { clamp, dist } from '../util/math.js';
 import {
@@ -61,8 +62,8 @@ function announce() {
   // Volgende: sneller als er grondstoffen op zijn, anders na 1,5 tot 3 dagen
   const scarce = scarceOres().length;
   const wait = scarce ? 1 + Math.random() : 1.5 + Math.random() * 1.5;
-  // Sterrentijdperk: vaker, en nog vaker met sterrenkaarten
-  const often = G.age >= 8 ? (hasT('starcharts') ? 0.4 : 0.6) : 1;
+  // Sterrentijdperk: vaker. Bonussen (zoals Sterrenkaarten) maken het nog vaker.
+  const often = (G.age >= 8 ? 0.6 : 1) / mul('meteor.rate');
   G.nextMeteor = G.t + DAYLEN * wait * often;
   if (!spot) return;
   G.meteor = { x: spot[0] + 0.5, y: spot[1] + 0.5, t: WARNING, falling: false };
@@ -151,7 +152,7 @@ function impact(m) {
       if (d < 1.5 || d > 5 || !inb(x, y)) continue;
       const i = y * W + x;
       if (!passable(i) || bmap[i] || road[i] || node[i]) continue;
-      const chance = (d < 3.5 ? 0.55 : 0.25) * (hasT('starcharts') ? 1.4 : 1);
+      const chance = (d < 3.5 ? 0.55 : 0.25) * mul('meteor.ore');
       if (Math.random() > chance) continue;
       const k = d < 3.5 ? main : Math.random() < 0.6 ? extra : 'rock';
       const t = NI[k];

@@ -3,6 +3,8 @@ import { store } from '../core/store.js';
 import { sfx } from '../audio/sound.js';
 import { AGES, AGE_MAT } from '../data/ages.js';
 import { B } from '../data/buildings.js';
+import { RES } from '../data/resources.js';
+import { add, mul } from './bonus.js';
 import { has, pay } from './economy.js';
 import { floater, fxRing } from './fx.js';
 import { G } from './state.js';
@@ -23,18 +25,27 @@ export const maxLvl = b => (UPG_OK(b.type) ? Math.max(0, G.age - B[b.type].age) 
 export const canUpg = b => b.done && lvlOf(b) < maxLvl(b);
 // Het stamhuis groeit mee met je tijdperk, anders is het in latere tijdperken te snel gesloopt
 const ageHp = b => (b.type === 'townhall' && G ? 1 + 0.3 * G.age : 1);
-export const bMaxHp = (b, l = lvlOf(b)) =>
-  B[b.type].hp * ageHp(b) * (1 + 0.35 * l) * (hasT('masonry') ? 1.25 : 1);
+export const bMaxHp = (b, l = lvlOf(b)) => B[b.type].hp * ageHp(b) * (1 + 0.35 * l) * mul('bld.hp');
 export const bPop = b => {
   const p = B[b.type].pop;
   return p ? Math.round(p * (1 + 0.4 * lvlOf(b))) : 0;
 };
 export const bLight = b => {
   const l = B[b.type].light;
-  return l ? l + lvlOf(b) + (hasT('fire') ? 1.5 : 0) : 0;
+  return l ? l + lvlOf(b) + add('light') : 0;
 };
 export const bRate = b => 1 + 0.25 * lvlOf(b);
-export const farmSlots = b => B.farm.work + lvlOf(b) + (hasT('agri') ? 1 : 0);
+export const farmSlots = b => B.farm.work + lvlOf(b) + add('farm.slots');
+/** Hoe lang onderzoek T duurt, in seconden. */
+export const researchTime = T => T.t * mul('research.time');
+/** Marktprijzen in goud voor 100 stuks van grondstof r, bij markt b. */
+export function marketPrices(b, r) {
+  const base = 1 + RES[r].age * 0.5;
+  return {
+    buy: Math.round((20 * base * (1 - 0.1 * lvlOf(b))) / mul('market')),
+    sell: Math.round(8 * base * (1 + 0.15 * lvlOf(b)) * mul('market')),
+  };
+}
 export function upgCost(b) {
   const d = B[b.type],
     l = lvlOf(b) + 1,
