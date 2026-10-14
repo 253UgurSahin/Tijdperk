@@ -13,3 +13,7 @@
 - Speldata in `src/data/` is puur (geen spelstand of DOM), zodat het te testen is.
 - Gedeelde toestand die meerdere modules aanpassen staat in `src/core/store.js`.
 - Controleer wijzigingen in de browser; in dev-modus staan hulpjes op `window.__tp`.
+
+## Artifact bijhouden (vaste regel)
+- Na elke afgeronde wijziging: `npm run build:artifact` en `dist-artifact/tijdperken.html` publiceren op
+  https://claude.ai/artifact/FKtjpDYdSNZfo86mL9hgeT (dezelfde link blijven gebruiken).
