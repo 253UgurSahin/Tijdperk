@@ -4,14 +4,18 @@ import { clamp, dist } from '../src/util/math.js';
 
 describe('random', () => {
   it('mulberry32 is deterministisch per seed', () => {
-    const a = mulberry32(42), b = mulberry32(42);
+    const a = mulberry32(42),
+      b = mulberry32(42);
     for (let i = 0; i < 20; i++) expect(a()).toBe(b());
   });
   it('ruis blijft tussen 0 en 1', () => {
     for (let i = 0; i < 200; i++) {
-      const v = fbm(i * .37, i * .11, 7), h = hash2(i, -i, 3);
-      expect(v).toBeGreaterThanOrEqual(0); expect(v).toBeLessThanOrEqual(1);
-      expect(h).toBeGreaterThanOrEqual(0); expect(h).toBeLessThan(1);
+      const v = fbm(i * 0.37, i * 0.11, 7),
+        h = hash2(i, -i, 3);
+      expect(v).toBeGreaterThanOrEqual(0);
+      expect(v).toBeLessThanOrEqual(1);
+      expect(h).toBeGreaterThanOrEqual(0);
+      expect(h).toBeLessThan(1);
     }
   });
 });

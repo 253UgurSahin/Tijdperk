@@ -16,7 +16,8 @@ npm run dev       # ontwikkelserver op http://localhost:5173
 npm run build     # productiebuild in dist/
 npm run preview   # bekijk de build lokaal
 npm test          # unittests (Vitest)
-npm run lint      # ESLint
+npm run lint      # ESLint + opmaakcontrole
+npm run format    # code netjes opmaken (Prettier)
 ```
 
 Bij elke push naar `main` draait de CI (lint, tests, build) en wordt `dist/` naar GitHub Pages gepubliceerd

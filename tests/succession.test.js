@@ -23,9 +23,18 @@ describe('opvolging per tijdperk', () => {
 
   it('in elk tijdperk blijft er een woning, een lichtbron en een kazerne-eenheid over', () => {
     for (let age = 0; age < 6; age++) {
-      expect(Object.keys(B).some(k => B[k].pop && !B[k].nobuild && canMake(k, age)), `woning ${age}`).toBe(true);
-      expect(Object.keys(B).some(k => B[k].light && !B[k].gen && canMake(k, age)), `licht ${age}`).toBe(true);
-      expect(Object.keys(UNITS).some(k => UNITS[k].src === 'barracks' && canMake(k, age)), `leger ${age}`).toBe(true);
+      expect(
+        Object.keys(B).some(k => B[k].pop && !B[k].nobuild && canMake(k, age)),
+        `woning ${age}`,
+      ).toBe(true);
+      expect(
+        Object.keys(B).some(k => B[k].light && !B[k].gen && canMake(k, age)),
+        `licht ${age}`,
+      ).toBe(true);
+      expect(
+        Object.keys(UNITS).some(k => UNITS[k].src === 'barracks' && canMake(k, age)),
+        `leger ${age}`,
+      ).toBe(true);
     }
   });
 

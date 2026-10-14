@@ -1,64 +1,137 @@
 <!doctype html>
 <html lang="nl">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Tijdperken</title>
-<link rel="icon" href="favicon.svg" type="image/svg+xml">
-<meta name="claude:viewport-fit-sides" content="cover">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&family=Instrument+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
-</head>
-<body>
-<div id="app" lang="nl">
-  <section id="world">
-    <canvas id="cv" tabindex="0" aria-label="Spelwereld"></canvas>
-    <canvas id="ov" aria-hidden="true"></canvas>
-    <div id="raidflash"></div>
-    <div id="top">
-      <div id="ageplate" class="hud">
-        <div class="day"><canvas id="dial" width="68" height="68"></canvas><div><b id="dayTxt">Dag 1</b><small id="timeTxt">07:00</small></div></div>
-        <div class="age" title="Huidig tijdperk"><b id="ageNum">I</b><small id="locEyebrow">Steentijd</small></div>
-        <div class="speed" id="speed" role="group" aria-label="Spelsnelheid"><button data-s="0" aria-label="Pauze">II</button><button data-s="1" class="on" aria-label="Normale snelheid">1×</button><button data-s="2" aria-label="Dubbele snelheid">2×</button><button data-s="4" aria-label="Viervoudige snelheid" hidden>4×</button></div>
-      </div>
-      <section id="resPanel" class="hud" aria-label="Grondstoffen">
-        <div class="poprow"><div class="pstat" id="popStat" title="Inwoners en plek in woningen"><i>⌂</i><b>5/5</b></div><div class="pstat" id="powStat" hidden title="Stroom: geleverd / nodig"><i>ϟ</i><b>0/0</b></div><span id="quick"></span></div>
-        <div id="resbar"></div>
-      </section>
-      <section id="objectives" class="hud" aria-label="Doelen">
-        <div id="step"><div class="oh">Volgende stap</div><b id="modeTxt"></b><p id="modeHint"></p><button class="primary" id="coachBtn" hidden></button></div>
-        <div id="mission"></div>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+    <title>Tijdperken</title>
+    <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+    <meta name="claude:viewport-fit-sides" content="cover" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&family=Instrument+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
+    />
+  </head>
+  <body>
+    <div id="app" lang="nl">
+      <section id="world">
+        <canvas id="cv" tabindex="0" aria-label="Spelwereld"></canvas>
+        <canvas id="ov" aria-hidden="true"></canvas>
+        <div id="raidflash"></div>
+        <div id="top">
+          <div id="ageplate" class="hud">
+            <div class="day">
+              <canvas id="dial" width="68" height="68"></canvas>
+              <div><b id="dayTxt">Dag 1</b><small id="timeTxt">07:00</small></div>
+            </div>
+            <div class="age" title="Huidig tijdperk">
+              <b id="ageNum">I</b><small id="locEyebrow">Steentijd</small>
+            </div>
+            <div class="speed" id="speed" role="group" aria-label="Spelsnelheid">
+              <button data-s="0" aria-label="Pauze">II</button
+              ><button data-s="1" class="on" aria-label="Normale snelheid">1×</button
+              ><button data-s="2" aria-label="Dubbele snelheid">2×</button
+              ><button data-s="4" aria-label="Viervoudige snelheid" hidden>4×</button>
+            </div>
+          </div>
+          <section id="resPanel" class="hud" aria-label="Grondstoffen">
+            <div class="poprow">
+              <div class="pstat" id="popStat" title="Inwoners en plek in woningen"><i>⌂</i><b>5/5</b></div>
+              <div class="pstat" id="powStat" hidden title="Stroom: geleverd / nodig"><i>ϟ</i><b>0/0</b></div>
+              <span id="quick"></span>
+            </div>
+            <div id="resbar"></div>
+          </section>
+          <section id="objectives" class="hud" aria-label="Doelen">
+            <div id="step">
+              <div class="oh">Volgende stap</div>
+              <b id="modeTxt"></b>
+              <p id="modeHint"></p>
+              <button class="primary" id="coachBtn" hidden></button>
+            </div>
+            <div id="mission"></div>
+          </section>
+        </div>
+        <div id="topright"><button id="menuBtn" class="hud">Menu</button></div>
+        <div id="resPop" class="hud" hidden></div>
+        <div id="notes">
+          <div id="toast" role="status" aria-live="polite"></div>
+          <div id="event" class="hud" hidden></div>
+          <div id="offer" class="hud" hidden></div>
+          <div id="feed"></div>
+        </div>
+        <nav id="sidebtns" aria-label="Panelen">
+          <button data-p="pop">Volk<i></i></button><button data-p="def" hidden>Leger<i></i></button
+          ><button data-p="upg" hidden>Onderzoek<i></i></button
+          ><button data-p="log" hidden>Logboek<i></i></button>
+        </nav>
+        <section id="panel" class="hud" hidden>
+          <div class="ph">
+            <b id="panelTitle">Volk</b><button class="quiet" id="panelClose">Sluiten</button>
+          </div>
+          <div class="pbody">
+            <div class="pane" data-pane="pop">
+              <div class="sect">Bevolking <span id="popSect"></span></div>
+              <div id="jobs"></div>
+            </div>
+            <div class="pane" data-pane="def">
+              <div class="sect">Verdediging <span id="defSect"></span></div>
+              <div id="defense"></div>
+            </div>
+            <div class="pane" data-pane="upg">
+              <div class="sect">Verbeteringen <span id="upgSect"></span></div>
+              <div id="upgrades"></div>
+            </div>
+            <div class="pane" data-pane="log">
+              <div class="sect">Voorraad <span>laatste 10 min</span></div>
+              <canvas
+                id="chart"
+                width="480"
+                height="120"
+                style="
+                  width: 100%;
+                  height: 60px;
+                  display: block;
+                  margin-bottom: 12px;
+                  border-radius: 3px;
+                  background: rgba(0, 0, 0, 0.25);
+                "
+              ></canvas>
+              <div class="sect">Veldnotities <span>Live</span></div>
+              <div class="log" id="log"></div>
+              <div class="saved" id="saved">
+                <i class="gem" style="--c: var(--faint)"></i>Voortgang wordt in deze browser bewaard
+              </div>
+            </div>
+          </div>
+        </section>
+        <div id="hintbar" class="hud" hidden>
+          <i class="dot" id="modeDot"></i><b id="hintTxt"></b><span id="hintSub"></span
+          ><button class="quiet" id="cancelBtn">Annuleren</button>
+        </div>
+        <footer id="bar">
+          <section id="selPanel" class="hud" aria-label="Selectie"><div id="inspector"></div></section>
+          <section id="cmdPanel" class="hud" aria-label="Opdrachten">
+            <div class="cats" id="cats" role="tablist"></div>
+            <div id="cmdgrid"></div>
+          </section>
+          <section id="mapPanel" class="hud" aria-label="Kaart">
+            <canvas id="mini" width="344" height="344" aria-label="Overzichtskaart"></canvas>
+            <div class="mapbtns">
+              <button id="zOut" aria-label="Uitzoomen" title="Uitzoomen">−</button
+              ><button id="zIn" aria-label="Inzoomen" title="Inzoomen">+</button
+              ><button id="zHome" aria-label="Naar het stamhuis" title="Naar het stamhuis">⌂</button
+              ><button id="expandBtn" title="Gebied uitbreiden"><span>Uitbreiden</span></button>
+            </div>
+          </section>
+        </footer>
+        <div id="hovertip" hidden></div>
+        <div id="banner" hidden></div>
       </section>
     </div>
-    <div id="topright"><button id="menuBtn" class="hud">Menu</button></div>
-    <div id="resPop" class="hud" hidden></div>
-    <div id="notes"><div id="toast" role="status" aria-live="polite"></div><div id="event" class="hud" hidden></div><div id="offer" class="hud" hidden></div><div id="feed"></div></div>
-    <nav id="sidebtns" aria-label="Panelen"><button data-p="pop">Volk<i></i></button><button data-p="def" hidden>Leger<i></i></button><button data-p="upg" hidden>Onderzoek<i></i></button><button data-p="log" hidden>Logboek<i></i></button></nav>
-    <section id="panel" class="hud" hidden>
-      <div class="ph"><b id="panelTitle">Volk</b><button class="quiet" id="panelClose">Sluiten</button></div>
-      <div class="pbody">
-        <div class="pane" data-pane="pop"><div class="sect">Bevolking <span id="popSect"></span></div><div id="jobs"></div></div>
-        <div class="pane" data-pane="def"><div class="sect">Verdediging <span id="defSect"></span></div><div id="defense"></div></div>
-        <div class="pane" data-pane="upg"><div class="sect">Verbeteringen <span id="upgSect"></span></div><div id="upgrades"></div></div>
-        <div class="pane" data-pane="log"><div class="sect">Voorraad <span>laatste 10 min</span></div><canvas id="chart" width="480" height="120" style="width:100%;height:60px;display:block;margin-bottom:12px;border-radius:3px;background:rgba(0,0,0,.25)"></canvas><div class="sect">Veldnotities <span>Live</span></div><div class="log" id="log"></div><div class="saved" id="saved"><i class="gem" style="--c:var(--faint)"></i>Voortgang wordt in deze browser bewaard</div></div>
-      </div>
-    </section>
-    <div id="hintbar" class="hud" hidden><i class="dot" id="modeDot"></i><b id="hintTxt"></b><span id="hintSub"></span><button class="quiet" id="cancelBtn">Annuleren</button></div>
-    <footer id="bar">
-      <section id="selPanel" class="hud" aria-label="Selectie"><div id="inspector"></div></section>
-      <section id="cmdPanel" class="hud" aria-label="Opdrachten"><div class="cats" id="cats" role="tablist"></div><div id="cmdgrid"></div></section>
-      <section id="mapPanel" class="hud" aria-label="Kaart">
-        <canvas id="mini" width="344" height="344" aria-label="Overzichtskaart"></canvas>
-        <div class="mapbtns"><button id="zOut" aria-label="Uitzoomen" title="Uitzoomen">−</button><button id="zIn" aria-label="Inzoomen" title="Inzoomen">+</button><button id="zHome" aria-label="Naar het stamhuis" title="Naar het stamhuis">⌂</button><button id="expandBtn" title="Gebied uitbreiden"><span>Uitbreiden</span></button></div>
-      </section>
-    </footer>
-    <div id="hovertip" hidden></div>
-    <div id="banner" hidden></div>
-  </section>
-</div>
-<div id="title" hidden></div>
-<div id="modal" hidden><div class="sheet" id="sheet" role="dialog" aria-modal="true"></div></div>
-<script type="module" src="/src/main.js"></script>
-</body>
+    <div id="title" hidden></div>
+    <div id="modal" hidden><div class="sheet" id="sheet" role="dialog" aria-modal="true"></div></div>
+    <script type="module" src="/src/main.js"></script>
+  </body>
 </html>

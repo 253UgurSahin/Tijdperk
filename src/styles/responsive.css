@@ -1,47 +1,225 @@
 /* ---- responsive ---- */
-@media (max-width:1240px){:root{--resw:196px}#cmdPanel{width:378px}#mapPanel{width:196px}#objectives{width:268px}}
-@media (max-width:1100px){#ageplate .day small{display:none}#ageplate .age{min-width:120px}}
-@media (max-width:980px) and (min-width:901px){#objectives{width:240px}#ageplate{left:auto;right:96px;transform:none}}
-@media (max-width:900px){
-  :root{--barh:auto}
-  #top{display:flex;flex-direction:column;gap:5px;position:absolute;z-index:10;top:calc(6px + env(safe-area-inset-top,0px));left:6px;right:6px;pointer-events:none}
-  #top>*{position:static!important;transform:none!important;width:auto!important;height:auto!important;pointer-events:auto;max-height:none}
-  #ageplate{align-self:flex-start;margin-right:84px;gap:6px;padding:4px 6px}
-  #ageplate .age{min-width:0;padding:0 8px}#ageplate .age b{font-size:20px}#ageplate .age b::before,#ageplate .age b::after{width:10px}
-  #topright{top:calc(6px + env(safe-area-inset-top,0px));right:6px}
-  #resPanel{flex-direction:row;flex-wrap:wrap;align-items:center;padding:4px 6px;gap:4px}
-  .poprow{border:0;margin:0;padding:0}
-  #resbar{flex-direction:row;flex-wrap:nowrap;gap:3px;flex:1;min-width:0}
-  .res{grid-template-columns:14px auto;gap:5px;padding:2px 6px;background:rgba(0,0,0,.22)}
-  .res .wk,.res em,.res small{display:none}
-  #resMore{margin:0}
-  #resPop{bottom:auto;top:calc(var(--topH,120px) + 4px)}
-  #objectives{padding:8px 10px}
-  #mission{display:none}
-  body.showgoal #mission{display:block}
-  #bar{left:6px;right:6px;bottom:calc(6px + env(safe-area-inset-bottom,0px));height:auto;align-items:flex-end}
-  #mapPanel{display:none}
-  body.showmap #mapPanel{display:flex;position:fixed;z-index:30;left:50%;top:50%;transform:translate(-50%,-50%);width:min(340px,calc(100% - 20px));height:auto}
-  body.showmap #mini{height:auto}
-  #selPanel{max-height:46vh;align-self:stretch}
-  #cmdPanel{width:min(400px,58%)}
-  #sidebtns{display:none}
-  #panel{position:fixed;left:6px;right:6px;top:calc(var(--topH,120px) + 6px);bottom:calc(var(--barH,240px) + 12px);width:auto;max-height:none}
-  #hintbar{bottom:calc(var(--barH,240px) + 12px)}
-  #notes{top:calc(var(--topH,120px) + 8px)}
-  #feed{display:none}
+@media (max-width: 1240px) {
+  :root {
+    --resw: 196px;
+  }
+  #cmdPanel {
+    width: 378px;
+  }
+  #mapPanel {
+    width: 196px;
+  }
+  #objectives {
+    width: 268px;
+  }
 }
-@media (max-width:620px){
-  #title{padding-left:16px;background:rgba(8,12,18,.88)}
-  #ageplate .day canvas{display:none}#ageplate .speed button[data-s="4"]{display:none}
-  #ageplate .age small{display:none}
-  #bar{flex-direction:column;align-items:stretch;gap:5px}
-  #selPanel{display:none;max-height:34vh;padding:10px 12px}
-  body.insp #selPanel{display:block}
-  #cmdPanel{width:auto}
-  #cmdgrid{grid-auto-rows:80px}
-  .port{width:56px;height:56px}
-  .selt{font-size:16px}
-  #hintbar{font-size:12px}
+@media (max-width: 1100px) {
+  #ageplate .day small {
+    display: none;
+  }
+  #ageplate .age {
+    min-width: 120px;
+  }
 }
-@media (prefers-reduced-motion:reduce){*{animation-duration:.01s!important;transition:none!important}}
+@media (max-width: 980px) and (min-width: 901px) {
+  #objectives {
+    width: 240px;
+  }
+  #ageplate {
+    left: auto;
+    right: 96px;
+    transform: none;
+  }
+}
+@media (max-width: 900px) {
+  :root {
+    --barh: auto;
+  }
+  #top {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    position: absolute;
+    z-index: 10;
+    top: calc(6px + env(safe-area-inset-top, 0px));
+    left: 6px;
+    right: 6px;
+    pointer-events: none;
+  }
+  #top > * {
+    position: static !important;
+    transform: none !important;
+    width: auto !important;
+    height: auto !important;
+    pointer-events: auto;
+    max-height: none;
+  }
+  #ageplate {
+    align-self: flex-start;
+    margin-right: 84px;
+    gap: 6px;
+    padding: 4px 6px;
+  }
+  #ageplate .age {
+    min-width: 0;
+    padding: 0 8px;
+  }
+  #ageplate .age b {
+    font-size: 20px;
+  }
+  #ageplate .age b::before,
+  #ageplate .age b::after {
+    width: 10px;
+  }
+  #topright {
+    top: calc(6px + env(safe-area-inset-top, 0px));
+    right: 6px;
+  }
+  #resPanel {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    padding: 4px 6px;
+    gap: 4px;
+  }
+  .poprow {
+    border: 0;
+    margin: 0;
+    padding: 0;
+  }
+  #resbar {
+    flex-direction: row;
+    flex-wrap: nowrap;
+    gap: 3px;
+    flex: 1;
+    min-width: 0;
+  }
+  .res {
+    grid-template-columns: 14px auto;
+    gap: 5px;
+    padding: 2px 6px;
+    background: rgba(0, 0, 0, 0.22);
+  }
+  .res .wk,
+  .res em,
+  .res small {
+    display: none;
+  }
+  #resMore {
+    margin: 0;
+  }
+  #resPop {
+    bottom: auto;
+    top: calc(var(--topH, 120px) + 4px);
+  }
+  #objectives {
+    padding: 8px 10px;
+  }
+  #mission {
+    display: none;
+  }
+  body.showgoal #mission {
+    display: block;
+  }
+  #bar {
+    left: 6px;
+    right: 6px;
+    bottom: calc(6px + env(safe-area-inset-bottom, 0px));
+    height: auto;
+    align-items: flex-end;
+  }
+  #mapPanel {
+    display: none;
+  }
+  body.showmap #mapPanel {
+    display: flex;
+    position: fixed;
+    z-index: 30;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    width: min(340px, calc(100% - 20px));
+    height: auto;
+  }
+  body.showmap #mini {
+    height: auto;
+  }
+  #selPanel {
+    max-height: 46vh;
+    align-self: stretch;
+  }
+  #cmdPanel {
+    width: min(400px, 58%);
+  }
+  #sidebtns {
+    display: none;
+  }
+  #panel {
+    position: fixed;
+    left: 6px;
+    right: 6px;
+    top: calc(var(--topH, 120px) + 6px);
+    bottom: calc(var(--barH, 240px) + 12px);
+    width: auto;
+    max-height: none;
+  }
+  #hintbar {
+    bottom: calc(var(--barH, 240px) + 12px);
+  }
+  #notes {
+    top: calc(var(--topH, 120px) + 8px);
+  }
+  #feed {
+    display: none;
+  }
+}
+@media (max-width: 620px) {
+  #title {
+    padding-left: 16px;
+    background: rgba(8, 12, 18, 0.88);
+  }
+  #ageplate .day canvas {
+    display: none;
+  }
+  #ageplate .speed button[data-s='4'] {
+    display: none;
+  }
+  #ageplate .age small {
+    display: none;
+  }
+  #bar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 5px;
+  }
+  #selPanel {
+    display: none;
+    max-height: 34vh;
+    padding: 10px 12px;
+  }
+  body.insp #selPanel {
+    display: block;
+  }
+  #cmdPanel {
+    width: auto;
+  }
+  #cmdgrid {
+    grid-auto-rows: 80px;
+  }
+  .port {
+    width: 56px;
+    height: 56px;
+  }
+  .selt {
+    font-size: 16px;
+  }
+  #hintbar {
+    font-size: 12px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01s !important;
+    transition: none !important;
+  }
+}

@@ -1,5 +1,5 @@
-// Development-only hooks (loaded by main.js under `vite dev`), handy in the browser console
-// and for automated smoke tests: window.__tp.G, __tp.place('hut', x, y), ...
+// Alleen tijdens ontwikkelen (npm run dev): handige hulpjes in de browserconsole
+// en voor automatische tests, bijv. window.__tp.G of __tp.place('hut', x, y).
 import { store } from './core/store.js';
 import { B } from './data/buildings.js';
 import { G, newGame } from './game/state.js';
@@ -9,7 +9,15 @@ import { centerOn } from './render/camera.js';
 import * as world from './world/world.js';
 
 window.__tp = {
-  get G() { return G; }, store, B, cam, world, newGame, centerOn,
+  get G() {
+    return G;
+  },
+  store,
+  B,
+  cam,
+  world,
+  newGame,
+  centerOn,
   place: (type, x, y) => placeBuilding(type, x, y, true),
 };
 import { GLOWS } from './render/decals.js';
