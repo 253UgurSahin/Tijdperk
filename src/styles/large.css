@@ -1,10 +1,14 @@
 /* Grote en ultrabrede schermen */
 
-/* Ultrabreed (breder dan 2,4 : 1, bijv. 5120×1440): de HUD blijft binnen een centraal gebied,
-   zodat je niet steeds naar de uiterste hoeken hoeft te kijken. De wereld vult wel het hele scherm. */
-@media (min-aspect-ratio: 12/5) and (min-width: 1800px) {
+/* Ultrabreed (21:9 en breder, bijv. 3440×1440, 5120×2160 of 5120×1440): de HUD blijft binnen een
+   centraal gebied van 2:1, zodat je niet steeds naar de uiterste hoeken hoeft te kijken.
+   De wereld vult wel het hele scherm. In de instellingen kan de HUD terug naar de volle breedte. */
+@media (min-aspect-ratio: 11/5) and (min-width: 1800px) {
   :root {
-    --edge: max(8px, calc((100vw - 240vh) / 2 / var(--hud-zoom, 1)));
+    --edge: max(8px, calc((100vw - 200vh) / 2 / var(--hud-zoom, 1)));
+  }
+  body.hudwide {
+    --edge: 8px;
   }
 }
 
@@ -32,5 +36,16 @@
   #title .tw,
   .sheet {
     zoom: var(--hud-zoom);
+  }
+}
+
+/* Groot scherm: het selectiepaneel niet eindeloos breed maken. De bouwknoppen en minikaart blijven
+   rechts staan, en daartussen zie je gewoon de wereld. */
+@media (min-width: 2300px) and (min-height: 1300px) {
+  #selPanel {
+    flex: 0 1 760px;
+  }
+  #cmdPanel {
+    margin-left: auto;
   }
 }

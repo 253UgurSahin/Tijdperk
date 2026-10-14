@@ -1,7 +1,7 @@
 // Schermen: titelscherm, pauze, instellingen, hulp, winst en verlies.
 import { store } from '../core/store.js';
 import { MG, setSound, sfx, sndOn } from '../audio/sound.js';
-import { SET, saveSet } from '../core/settings.js';
+import { SET, applyLayoutSettings, saveSet } from '../core/settings.js';
 import { AGES } from '../data/ages.js';
 import { SKEY, load, save, wipe } from '../game/save.js';
 import { G, newGame, placeName } from '../game/state.js';
@@ -79,6 +79,7 @@ $('#modal').addEventListener('click', e => {
     showSettings();
   } else if (t.dataset.set) {
     const k = t.dataset.set;
+    if (k === 'hudWide') setTimeout(applyLayoutSettings);
     SET[k] = !SET[k];
     saveSet();
     t.classList.toggle('on', SET[k]);
@@ -112,7 +113,7 @@ function showSettings() {
   <div class="setrow"><div><b>Volume</b><small>Effecten en signalen</small></div><input type="range" id="vol" min="0" max="100" value="${Math.round(SET.vol * 100)}" aria-label="Volume"></div>
   <div class="setrow"><div><b>Geluid</b><small>Effecten aan of uit</small></div><button class="tog ${sndOn ? 'on' : ''}" data-snd="1" aria-label="Geluid"></button></div>
   <div class="setrow"><div><b>Bovenaanzicht</b><small>Camera recht van boven in plaats van schuin</small></div><button class="tog ${store.V2 ? 'on' : ''}" data-view="1" aria-label="Bovenaanzicht"></button></div>
-  ${tg('edge', 'Randscrollen', 'Kaart schuift als de muis de rand van het scherm raakt')}${tg('hp', 'Levensbalken altijd tonen', 'Ook bij gezonde eenheden en gebouwen')}${tg('shake', 'Schermschudden', 'Bij instortende gebouwen')}${tg('dragSelect', 'Slepen = selecteren', 'Uit: linkermuis slepen verschuift de kaart')}
+  ${tg('edge', 'Randscrollen', 'Kaart schuift als de muis de rand van het scherm raakt')}${tg('hp', 'Levensbalken altijd tonen', 'Ook bij gezonde eenheden en gebouwen')}${tg('shake', 'Schermschudden', 'Bij instortende gebouwen')}${tg('dragSelect', 'Slepen = selecteren', 'Uit: linkermuis slepen verschuift de kaart')}${innerWidth / innerHeight > 2.15 ? tg('hudWide', 'HUD over volle breedte', 'Ultrabreed scherm: panelen in de hoeken in plaats van in het midden') : ''}
   <div class="setrow"><div><b>Beeldkwaliteit</b><small>${SET.quality === 'auto' ? `Automatisch past zich aan je apparaat aan (nu: ${LEVELS[store.quality].name.toLowerCase()})` : 'Vaste kwaliteit'}</small></div>
     <div class="seg">${[
       ['auto', 'Auto'],

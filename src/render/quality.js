@@ -10,6 +10,7 @@ export const LEVELS = {
   low: {
     name: 'Laag',
     scale: 0.7,
+    pixels: 3e6,
     shadows: false,
     shadowMap: 1024,
     post: false,
@@ -19,13 +20,23 @@ export const LEVELS = {
   mid: {
     name: 'Middel',
     scale: 0.85,
+    pixels: 6e6,
     shadows: true,
     shadowMap: 1024,
     post: true,
     bloom: false,
     outline: true,
   },
-  high: { name: 'Hoog', scale: 1, shadows: true, shadowMap: 2048, post: true, bloom: true, outline: true },
+  high: {
+    name: 'Hoog',
+    scale: 1,
+    pixels: 12e6,
+    shadows: true,
+    shadowMap: 2048,
+    post: true,
+    bloom: true,
+    outline: true,
+  },
 };
 const ORDER = ['low', 'mid', 'high'];
 const COARSE = matchMedia('(pointer:coarse)').matches; // telefoon/tablet: start een stapje lager
@@ -40,6 +51,7 @@ function apply(name) {
   level = name;
   const L = LEVELS[name];
   store.resScale = L.scale;
+  store.pixelBudget = L.pixels; // maximaal aantal pixels voor de 3D-wereld
   store.quality = name;
   sun.castShadow = L.shadows;
   if (sun.shadow.mapSize.x !== L.shadowMap) {

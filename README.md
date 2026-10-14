@@ -52,7 +52,9 @@ tests/                Vitest-tests voor data, wereldgeneratie en hulpfuncties
   weer op "kaart verschuiven" zetten.
 - **Beeldkwaliteit:** Automatisch (standaard), Laag, Middel of Hoog. Automatisch verlaagt zelf de resolutie en
   zware effecten als het spel hapert, zodat het vloeiend blijft.
-- **Grote schermen:** op ultrabrede schermen blijft de HUD in het midden; op 1440p en 4K wordt hij groter.
+- **Grote schermen:** op ultrabrede schermen (21:9 en breder, ook 5K2K) blijft de HUD in een centraal gebied
+  (instelbaar: volle breedte); op 1440p, 4K en 5K2K wordt hij groter. Elke kwaliteitsstand heeft een
+  maximum aantal pixels voor de 3D-wereld, zodat ook 5120×2160 vloeiend blijft.
 
 ## Op telefoon en tablet
 

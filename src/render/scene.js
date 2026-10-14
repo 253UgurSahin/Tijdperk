@@ -44,7 +44,10 @@ export function resize() {
   VW = Math.max(1, r.width);
   VH = Math.max(1, r.height);
   // De 3D-wereld mag op een lagere resolutie draaien (store.resScale, zie quality.js); de HUD blijft scherp
-  const gl = DPR * (store.resScale || 1);
+  // Plus een maximum aantal pixels per kwaliteitsstand: op een 5K2K- of 4K-scherm wordt de wereld
+  // zo nooit zwaarder dan de videokaart aankan (de HUD blijft altijd scherp)
+  const budget = store.pixelBudget || 12e6,
+    gl = Math.min(DPR * (store.resScale || 1), Math.sqrt(budget / (VW * VH)));
   R3.setPixelRatio(gl);
   R3.setSize(VW, VH, false);
   resizePost(VW, VH, gl);
