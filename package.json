@@ -1,0 +1,24 @@
+{
+  "name": "tijdperken",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Tijdperken: een realtime strategiespel in de browser, van de steentijd tot het dronetijdperk.",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "typecheck": "tsc",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "three": "~0.185.0"
+  },
+  "devDependencies": {
+    "@types/three": "~0.185.0",
+    "typescript": "~5.9.3",
+    "vite": "^8.3.4"
+  },
+  "engines": {
+    "node": ">=20.19"
+  }
+}
