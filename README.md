@@ -10,10 +10,36 @@ Een real-time strategiespel in de browser: leid je stam van de **steentijd** naa
 
 ## Spelen
 
-Open `index.html` in een moderne browser (Chrome, Edge, Firefox of Safari). Er is geen build-stap.
-Een internetverbinding is nodig voor three.js (jsDelivr) en de lettertypes (Google Fonts).
+```bash
+npm install
+npm run dev       # ontwikkelserver op http://localhost:5173
+npm run build     # productiebuild in dist/
+npm run preview   # bekijk de build lokaal
+npm test          # unittests (Vitest)
+npm run lint      # ESLint
+```
 
-Met GitHub Pages kun je het spel ook online zetten: *Settings → Pages → Deploy from branch → `main` / root*.
+Bij elke push naar `main` draait de CI (lint, tests, build) en wordt `dist/` naar GitHub Pages gepubliceerd
+(*Settings → Pages → Source: GitHub Actions*).
+
+## Projectstructuur
+
+```
+index.html            alleen de HUD-markup; laadt src/main.js
+src/
+  main.js             opstarten en de spellus (frame)
+  config.js           kaartgrootte en vaste getallen
+  core/               gedeelde mutabele toestand (store) en instellingen
+  data/               pure speldata: grondstoffen, gebouwen, eenheden, tijdperken, techniek
+  world/              kaartgeneratie, terreinlagen en padvinding
+  game/               spelregels: toestand, dorpelingen, leger, gebeurtenissen, opslaan
+  render/             three.js-wereld: camera, modellen, terrein, effecten, minikaart
+  input/              muis, toetsenbord, selectie en opdrachten
+  audio/              geluidseffecten (Web Audio)
+  ui/                 HUD-panelen, menu's, coach en tooltips
+  styles/             CSS per HUD-onderdeel
+tests/                Vitest-tests voor data, wereldgeneratie en hulpfuncties
+```
 
 ## Besturing
 
