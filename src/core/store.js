@@ -28,4 +28,5 @@ export const store = {
   missionOpen: true,
   coachTile: null,
   coachAct: null,
+  modalLocked: false, // het open venster gaat niet dicht met Esc of een klik ernaast
 };

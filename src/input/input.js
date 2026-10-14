@@ -188,7 +188,7 @@ addEventListener('keydown', e => {
   const k = e.key.toLowerCase();
   if ((e.metaKey || e.ctrlKey) && !/^f[1-5]$/.test(k)) return;
   if (!$('#modal').hidden) {
-    if (k === 'escape' && !G.over) closeModal();
+    if (k === 'escape' && !G.over && !store.modalLocked) closeModal();
     return;
   }
   if (!$('#title').hidden) return;

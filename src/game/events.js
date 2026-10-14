@@ -19,7 +19,8 @@ import { inb, isUnl, node, nodeLists } from '../world/world.js';
 import { canMake } from '../data/succession.js';
 
 export const th = () => G.bs.find(b => b.type === 'townhall');
-function bestMerc() {
+/** De beste soldaat die je kazerne nu kan trainen (voor huurlingen en zegeningen). */
+export function bestMerc() {
   return Object.keys(UNITS)
     .filter(k => UNITS[k].src === 'barracks' && canMake(k, G.age))
     .pop();

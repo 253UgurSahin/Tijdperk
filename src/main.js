@@ -53,6 +53,7 @@ import './input/selection.js';
 import './audio/sound.js';
 import './ui/format.js';
 import './ui/age.js';
+import './ui/blessings.js';
 import './ui/buildmenu.js';
 import './ui/coach.js';
 import './ui/event.js';
@@ -80,6 +81,7 @@ import { renderMini } from './render/minimap.js';
 import { render } from './render/render.js';
 import { cam, worldEl } from './render/scene.js';
 import { onAgeChange } from './ui/age.js';
+import { checkBlessing } from './ui/blessings.js';
 import { renderCmd } from './ui/buildmenu.js';
 import { updateHeader, updateWorldTop } from './ui/header.js';
 import { updateHover } from './ui/hover.js';
@@ -195,6 +197,7 @@ function frame(now) {
     renderLog();
     renderInspector();
     renderCmd();
+    checkBlessing(); // ligt er een zegening klaar om te kiezen?
   }
   measure('ui', t0);
   miniT -= rdt;

@@ -59,6 +59,38 @@ const PATHS = {
   '↻': '<path d="M19 12a7 7 0 1 1-2.1-5"/><path d="M19 4v4h-4"/>',
   // zon: niets te doen
   '☉': '<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="1.8" fill="currentColor"/>',
+
+  // Voor zegeningen en uitvindingen
+  // kiemplantje: akkers en oogst
+  '⚘': '<path d="M12 21v-9"/><path d="M12 12c0-4.5-2.5-7-7-7 0 4.5 2.5 7 7 7z"/><path d="M12 15c0-4 2.2-6.5 7-6.5 0 4-2.5 6.5-7 6.5z"/>',
+  // vis: jagen en vissen
+  '⋈': '<path d="M3 12c2.5-4 7.5-6 12-2.5L21 6v12l-6-3.5C10.5 18 5.5 16 3 12z"/><circle cx="8" cy="11.3" r=".5" fill="currentColor"/>',
+  // boom: hout
+  '♣': '<path d="M12 3l6 7h-3l4 5H5l4-5H6z"/><path d="M12 15v6"/>',
+  // houweel: steen en erts
+  '⛏': '<path d="M3 9c5-4.5 13-4.5 18 0"/><path d="M12 5.6V21"/>',
+  // mand: meer dragen
+  '◡': '<path d="M4 10h16l-1.8 9.2a1 1 0 0 1-1 .8H6.8a1 1 0 0 1-1-.8z"/><path d="M8 10a4 4 0 0 1 8 0"/><path d="M9 14v3M12 14v3M15 14v3"/>',
+  // pen: onderzoek
+  '✎': '<path d="M4 20l1.5-5L16 4.5a2.1 2.1 0 0 1 3 3L8.5 18z"/><path d="M14 6.5l3 3"/>',
+  // molenwieken
+  '✣': '<path d="M12 12V3h3M12 12h9v3M12 12v9H9M12 12H3V9"/>',
+  // hart: levens
+  '♥': '<path d="M12 20s-7.5-4.6-7.5-10.2A4.2 4.2 0 0 1 12 7.3a4.2 4.2 0 0 1 7.5 2.5C19.5 15.4 12 20 12 20z"/>',
+  // schatkist: buit
+  '⛁': '<rect x="3.5" y="10" width="17" height="10" rx="1.5"/><path d="M3.5 10V9a5 4 0 0 1 5-4h7a5 4 0 0 1 5 4v1"/><path d="M3.5 14h17M12 13v3"/>',
+  // akker met voren: meer boeren per akker
+  '▤': '<path d="M3 20l3.5-11h11L21 20z"/><path d="M10 9l-1.5 11M14 9l1.5 11"/><path d="M12 9V4M12 6.5c-1-1.6-2.4-2-3.5-2M12 6.5c1-1.6 2.4-2 3.5-2"/>',
+  // stukje muur met een munt: goedkopere muren
+  '⛀': '<path d="M3 11h12v9H3z"/><path d="M3 15.5h12M9 11v4.5M6 15.5V20M12 15.5V20"/><circle cx="18" cy="7" r="3.5"/><path d="M16.6 7h2.8"/>',
+  // bakstenen: muren
+  '▦': '<rect x="3" y="5" width="18" height="14" rx="1.5"/><path d="M3 9.7h18M3 14.3h18M9 5v4.7M15 5v4.7M12 9.7v4.6M9 14.3V19M15 14.3V19"/>',
+  // weg met een middenstreep
+  '═': '<path d="M9 3L5 21M15 3l4 18"/><path d="M12 5v2.5M12 11v2.5M12 17v2.5"/>',
+  // stralend licht
+  '✹': '<circle cx="12" cy="12" r="3.5"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1"/>',
+  // vallende ster
+  '☄': '<circle cx="15.5" cy="8.5" r="4"/><path d="M12.5 11.5L4 20M11.6 8.2L6 13.8M15.8 12.4L10.2 18"/>',
 };
 
 // Geeft een SVG-pictogram terug voor een bekend teken, of het teken zelf als we het niet kennen.

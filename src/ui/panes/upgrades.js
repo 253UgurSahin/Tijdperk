@@ -2,6 +2,7 @@
 import { store } from '../../core/store.js';
 import { sfx } from '../../audio/sound.js';
 import { AGES } from '../../data/ages.js';
+import { BLESSING } from '../../data/blessings.js';
 import { B } from '../../data/buildings.js';
 import { TECH, TK } from '../../data/tech.js';
 import { has, pay } from '../../game/economy.js';
@@ -21,6 +22,7 @@ import {
   upgradeArms,
   upgradeTools,
 } from '../../game/upgrades.js';
+import { blessingListHTML } from '../blessings.js';
 import { compareHTML, compareText, costHTML, esc } from '../format.js';
 import { iconFor } from '../../render/icons.js';
 import { ico } from '../glyphs.js';
@@ -41,6 +43,30 @@ function block(key, title, level, about, rows, cost, maxed) {
   }</div>`;
 }
 
+// Staat het lijstje met zegeningen open? null = nog niet aangeklikt: dan open bij weinig zegeningen,
+// zodat een lange lijst later in het spel de verbeteringen niet uit beeld duwt.
+const BLESSINGS_OPEN_KEY = 'tijdperken-zegeningen-open';
+let blessingsOpen = null;
+try {
+  const saved = localStorage.getItem(BLESSINGS_OPEN_KEY);
+  if (saved) blessingsOpen = saved === 'open';
+} catch {
+  // geen opslag (bijv. privévenster): dan gewoon de standaard
+}
+const showBlessingList = () => blessingsOpen ?? G.blessings.length <= 2;
+
+/** Bovenaan: de zegeningen die je koos, in een uitklapblok met de pictogrammen alvast zichtbaar. */
+function blessingsSection() {
+  const icons = G.blessings
+    .map(k => BLESSING[k])
+    .filter(Boolean)
+    .map(
+      b => `<span class="bchip ${b.risk ? 'risk' : ''}" title="${esc(`${b.n}: ${b.d}`)}">${ico(b.g)}</span>`,
+    )
+    .join('');
+  return `<details class="blessbox" ${showBlessingList() ? 'open' : ''}><summary class="usub">Zegeningen <span class="small">${G.blessings.length}</span><span class="bchips">${icons}</span></summary>${blessingListHTML()}</details>`;
+}
+
 export function renderUpgrades() {
   const up = G.bs.filter(canUpg),
     aff = up.filter(b => has(upgCost(b))),
@@ -58,10 +84,14 @@ export function renderUpgrades() {
     Object.keys(G.tech),
     G.research && [G.research.k, Math.floor(G.research.t / 2)],
     TECH.map(T => (has(T.cost) ? 1 : 0)).join(''),
+    G.blessings,
   ]);
   setHTML($('#upgrades'), 'upg', sig, () => {
+    // 0. Zegeningen die je koos
+    let h = blessingsSection();
+
     // 1. Werktuigen en wapens: gelden voor iedereen tegelijk
-    let h = block(
+    h += block(
       'tools',
       `${ico('⚒')} Werktuigen`,
       G.toolLvl,
@@ -125,6 +155,18 @@ export function renderUpgrades() {
   });
 }
 $('#upgrades').addEventListener('click', e => {
+  // Zegeningen open- of dichtklappen: onthouden voordat de browser het blok omzet
+  const summary = e.target.closest('.blessbox > summary');
+  if (summary) {
+    blessingsOpen = !summary.parentElement.open;
+    try {
+      localStorage.setItem(BLESSINGS_OPEN_KEY, blessingsOpen ? 'open' : 'dicht');
+    } catch {
+      // niet erg: dan staat het na herladen weer zoals standaard
+    }
+    sfx('tick');
+    return;
+  }
   const t = e.target.closest('button');
   if (!t || t.disabled) return;
   sfx('tick');

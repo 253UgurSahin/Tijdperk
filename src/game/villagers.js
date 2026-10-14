@@ -388,7 +388,7 @@ function doGather(v, dt) {
     HARD[v.res] *
     (night ? 0.75 : 1) *
     (G.hungry ? 0.5 : 1) *
-    (v.res === 'food' ? season().food * mul('gather.food') : 1) *
+    resourceBonus(v.res) *
     (G.rain && t.k === 'node' ? 0.9 : 1) *
     (t.k === 'farm' ? mul('farm') : 1) *
     (t.k === 'farm' ? mul('farm.plow') : 1) *
@@ -410,6 +410,12 @@ function doGather(v, dt) {
       return;
     }
   }
+}
+// Bonussen voor één soort grondstof: voedsel (ook het seizoen telt mee), hout, of steen en erts
+function resourceBonus(res) {
+  if (res === 'food') return season().food * mul('gather.food');
+  if (res === 'wood') return mul('gather.wood');
+  return mul('gather.mine');
 }
 function deplete(i) {
   const t = node[i];

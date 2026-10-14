@@ -8,4 +8,5 @@
 @import './large.css';
 @import './responsive.css';
 @import './clarity.css';
+@import './blessings.css';
 @import './settings.css'; /* als laatste: de grootte-instelling moet boven de rest winnen */

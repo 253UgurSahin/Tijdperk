@@ -55,3 +55,11 @@ window.__tp.foe = (type, x, y) => spawnFoe(type, x, y, 1);
 import * as bonus from './game/bonus.js';
 window.__tp.bonus = bonus;
 window.__tp.tech = k => bonus.applyBonusChange(() => (G.tech[k] = 1));
+// Zegeningen: meteen naar het volgende tijdperk (met banner en keuze), of nu een keuze krijgen
+import { enterNextAge } from './ui/age.js';
+import { earnBlessing } from './game/blessings.js';
+window.__tp.ageUp = () => enterNextAge();
+window.__tp.bless = () => earnBlessing();
+// Opslaan en laden testen zonder de opslag van de browser: __tp.saves.deserialize(__tp.saves.serialize())
+import * as saves from './game/save.js';
+window.__tp.saves = saves;

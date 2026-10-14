@@ -1,6 +1,7 @@
 // Opslaan en laden in de browser.
 import { store } from '../core/store.js';
 import { CX, CY, H, TH, TW, W } from '../config.js';
+import { BLESSING } from '../data/blessings.js';
 import { B } from '../data/buildings.js';
 import { RKEYS } from '../data/resources.js';
 import { computeAvail, computeCaches } from './caches.js';
@@ -65,6 +66,8 @@ export function serialize() {
     'forceRaid',
     'lastEvent',
     'nextMeteor',
+    'blessings',
+    'blessingQueue',
   ])
     g[k] = G[k];
   return JSON.stringify({
@@ -118,6 +121,14 @@ export function deserialize(str) {
   const fromOld = s.ages !== 9;
   if (fromOld) G.age = OLD_AGE[G.age] ?? G.age;
   G.groups = G.groups || {};
+  // Zegeningen: opslag van vóór de zegeningen mag er meteen één kiezen.
+  // Dit moet vóór het terugzetten van soldaten, want die krijgen hun levens mede door zegeningen.
+  if (!Array.isArray(s.g.blessings)) {
+    G.blessings = [];
+    G.blessingQueue = [{ age: G.age, at: 0 }];
+  }
+  G.blessings = G.blessings.filter(k => BLESSING[k]); // zegeningen die niet meer bestaan vallen weg
+  if (!Array.isArray(G.blessingQueue)) G.blessingQueue = [];
   // Grondstoffen die toen nog niet bestonden (buskruit, sterrenmetaal, ...) beginnen op 0;
   // anders telt 'undefined' als genoeg en wordt de voorraad NaN
   for (const k of RKEYS) if (!Number.isFinite(G.res[k])) G.res[k] = 0;

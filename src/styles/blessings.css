@@ -1,0 +1,371 @@
+/* Zegeningen: drie grote kaarten om uit te kiezen, en het lijstje bovenaan het paneel Verbeteren. */
+
+/* ---- het kiesvenster ---- */
+.sheet.blesssheet {
+  width: min(800px, 100%);
+}
+.blessgrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+  margin-top: 22px;
+}
+/* Eén kaart: een dik kartonnen tegeltje dat omhoog komt als je erover gaat en inzakt als je klikt */
+.bless,
+.bless:hover:not(:disabled) {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  min-height: 248px;
+  padding: 24px 16px 16px;
+  text-align: center;
+  border: 1px solid var(--rule-2);
+  border-top: 6px solid var(--acc);
+  border-radius: 16px;
+  background: var(--panel);
+  box-shadow:
+    0 5px 0 var(--paper-edge),
+    0 14px 28px rgba(30, 20, 10, 0.16);
+  transition:
+    transform 0.14s,
+    box-shadow 0.14s,
+    border-color 0.15s,
+    opacity 0.3s;
+}
+.bless:hover:not(:disabled) {
+  transform: translateY(-4px);
+  border-color: var(--acc-edge);
+  border-top-color: var(--acc);
+  box-shadow:
+    0 9px 0 var(--paper-edge),
+    0 20px 34px rgba(30, 20, 10, 0.22);
+}
+.bless:active:not(:disabled) {
+  transform: translateY(4px);
+  box-shadow: 0 1px 0 var(--paper-edge);
+}
+/* Kaarten met een nadeel krijgen bovenaan rood-witte strepen, als een afzetlint. Rood en strepen
+   gebruikt geen enkel tijdperk, dus je ziet het verschil in elke kleur van de interface. */
+.bless.risk {
+  --risk-stripes: repeating-linear-gradient(
+    -45deg,
+    var(--bad) 0 6px,
+    color-mix(in srgb, var(--bad) 22%, var(--paper-hi)) 6px 11px
+  );
+}
+.bless.risk,
+.bless.risk:hover:not(:disabled) {
+  border-top-color: transparent;
+  background:
+    var(--risk-stripes) left top / 100% 6px no-repeat border-box,
+    var(--panel);
+}
+/* Toetsdopje met het nummer van de kaart */
+.bless .bkey {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  min-width: 24px;
+  font: 600 12px var(--f-mono);
+  border: 1px solid var(--rule-2);
+  border-radius: 7px;
+  padding: 2px 7px;
+  background: var(--paper-hi);
+  box-shadow: 0 2px 0 var(--paper-edge);
+  color: var(--ink-2);
+}
+/* Rond medaillon met het pictogram */
+.bless .bic {
+  display: grid;
+  place-items: center;
+  width: 66px;
+  height: 66px;
+  margin-bottom: 4px;
+  border-radius: 50%;
+  background: var(--acc-soft);
+  color: var(--acc-ink);
+  box-shadow:
+    inset 0 0 0 2px color-mix(in srgb, var(--acc-edge) 45%, transparent),
+    0 3px 0 var(--paper-edge);
+  font-size: 30px;
+}
+.bless .bic .ico {
+  width: 34px;
+  height: 34px;
+}
+.bless.risk .bic {
+  background: color-mix(in srgb, var(--bad) 14%, var(--paper));
+  color: color-mix(in srgb, var(--bad) 75%, var(--ink));
+  box-shadow:
+    inset 0 0 0 2px color-mix(in srgb, var(--bad) 40%, transparent),
+    0 3px 0 var(--paper-edge);
+}
+/* Bovenregel: soort kaart, met de labels "Riskant" of "Meteen" ernaast */
+.bless .bhead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 4px 6px;
+}
+.bless .bcat {
+  font: italic 600 13px var(--f-display);
+  color: var(--acc-ink);
+}
+.bless b {
+  font: 700 20px/1.15 var(--f-display);
+  color: var(--ink);
+  letter-spacing: -0.01em;
+}
+.bless .bd {
+  font-size: 13.5px;
+  line-height: 1.45;
+  color: var(--ink-2);
+}
+.btag {
+  font: 600 11px var(--f-mono);
+  padding: 2px 9px;
+  border-radius: 99px;
+  border: 1px solid var(--rule-2);
+  background: var(--well);
+  color: var(--ink-2);
+}
+.btag.risk {
+  border-color: color-mix(in srgb, var(--bad) 55%, transparent);
+  background: color-mix(in srgb, var(--bad) 14%, var(--paper));
+  color: color-mix(in srgb, var(--bad) 75%, var(--ink));
+}
+.btag.now {
+  border-color: color-mix(in srgb, var(--good) 50%, transparent);
+  background: color-mix(in srgb, var(--good) 14%, var(--paper));
+  color: color-mix(in srgb, var(--good) 70%, var(--ink));
+}
+/* Na het kiezen: de gekozen kaart licht op, de andere vervagen */
+.blessgrid.done .bless {
+  pointer-events: none;
+}
+.blessgrid.done .bless:not(.picked) {
+  opacity: 0.3;
+  transform: scale(0.96);
+}
+.blessgrid .bless.picked {
+  border-color: var(--acc-edge);
+  transform: translateY(-6px);
+  box-shadow:
+    0 0 0 3px var(--acc),
+    0 10px 0 var(--paper-edge),
+    0 22px 36px rgba(30, 20, 10, 0.25);
+}
+
+/* Smal scherm (telefoon rechtop): kaarten onder elkaar, pictogram links */
+@media (max-width: 640px) and (min-height: 561px) {
+  .blessgrid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+  .bless,
+  .bless:hover:not(:disabled) {
+    display: grid;
+    grid-template-columns: 52px 1fr;
+    align-items: center;
+    gap: 2px 12px;
+    min-height: 0;
+    padding: 12px 14px;
+    text-align: left;
+    border-top-width: 1px;
+    border-left: 6px solid var(--acc);
+  }
+  /* De strepen staan hier links, waar de dikke rand zit */
+  .bless.risk,
+  .bless.risk:hover:not(:disabled) {
+    border-top-color: var(--bad);
+    border-left-color: transparent;
+    background:
+      var(--risk-stripes) left top / 6px 100% no-repeat border-box,
+      var(--panel);
+  }
+  .bless .bic {
+    grid-row: 1 / 4;
+    width: 52px;
+    height: 52px;
+    margin: 0;
+  }
+  .bless .bic .ico {
+    width: 26px;
+    height: 26px;
+  }
+  .bless .bkey {
+    left: auto;
+    right: 10px;
+  }
+  .bless .bhead {
+    justify-content: flex-start;
+  }
+  .bless b {
+    font-size: 17px;
+  }
+}
+
+/* Laag scherm (telefoon liggend): drie kaarten naast elkaar, maar plat, zodat alles in beeld past */
+@media (max-height: 560px) {
+  .sheet.blesssheet {
+    padding: 16px 20px 18px;
+  }
+  .sheet.blesssheet h1 {
+    font-size: 24px;
+    margin-top: 0;
+  }
+  .sheet.blesssheet p {
+    margin-top: 4px;
+    line-height: 1.45;
+  }
+  .blessgrid {
+    gap: 10px;
+    margin-top: 10px;
+  }
+  /* Pictogram links naast soort en naam; de uitleg eronder over de hele breedte */
+  .bless,
+  .bless:hover:not(:disabled) {
+    display: grid;
+    grid-template-columns: 40px 1fr;
+    align-content: start;
+    align-items: center;
+    gap: 3px 10px;
+    min-height: 0;
+    padding: 12px 12px 10px;
+    text-align: left;
+  }
+  .bless .bic {
+    grid-row: 1 / 3;
+    width: 40px;
+    height: 40px;
+    margin: 0;
+  }
+  .bless .bic .ico {
+    width: 22px;
+    height: 22px;
+  }
+  .bless .bhead {
+    justify-content: flex-start;
+  }
+  .bless b {
+    font-size: 16px;
+  }
+  .bless .bd {
+    grid-column: 1 / -1;
+    margin-top: 3px;
+    font-size: 12.5px;
+    line-height: 1.4;
+  }
+  .bless .bkey {
+    top: 8px;
+    left: auto;
+    right: 8px;
+  }
+}
+
+/* ---- paneel Verbeteren: de zegeningen die je koos ---- */
+.blessbox {
+  margin-bottom: 4px;
+}
+.blessbox > summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 0;
+  cursor: pointer;
+  list-style: none;
+}
+.blessbox > summary::-webkit-details-marker {
+  display: none;
+}
+/* Pijltje dat meedraait als het blok open- of dichtklapt */
+.blessbox > summary::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  rotate: -45deg;
+  transition: rotate 0.15s;
+  flex: none;
+}
+.blessbox[open] > summary::before {
+  rotate: 45deg;
+}
+.bchips {
+  display: flex;
+  gap: 3px;
+  margin-left: auto;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.bchip {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 7px;
+  background: var(--acc-soft);
+  color: var(--acc-ink);
+  font-size: 13px;
+  font-style: normal;
+}
+/* Zegeningen met een nadeel: rood, net als op de kaarten */
+.bchip.risk {
+  background: color-mix(in srgb, var(--bad) 14%, var(--paper));
+  color: color-mix(in srgb, var(--bad) 75%, var(--ink));
+}
+.blessbox[open] .bchips {
+  display: none;
+}
+.blesslist {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 5px;
+}
+.blesslist li {
+  display: grid;
+  grid-template-columns: 30px 1fr;
+  gap: 0 9px;
+  align-items: center;
+  padding: 6px 9px;
+  border: 1px solid var(--rule-2);
+  border-radius: 12px;
+  background: var(--paper-hi);
+}
+.blesslist .g {
+  grid-row: 1 / 3;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  background: var(--acc-soft);
+  color: var(--acc-ink);
+  font-size: 15px;
+}
+.blesslist .g .ico {
+  width: 17px;
+  height: 17px;
+}
+.blesslist b {
+  font-size: 12.5px;
+  font-weight: 600;
+}
+.blesslist .d {
+  font-size: 12px;
+  line-height: 1.3;
+  color: var(--ink-3);
+}
+.blesslist li.risk {
+  border-color: color-mix(in srgb, var(--bad) 45%, transparent);
+}
+.blesslist li.risk .g {
+  background: color-mix(in srgb, var(--bad) 14%, var(--paper));
+  color: color-mix(in srgb, var(--bad) 75%, var(--ink));
+}

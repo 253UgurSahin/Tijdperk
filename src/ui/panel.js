@@ -41,7 +41,7 @@ export function updateTabs() {
       G.raids > 0 ||
       G.bs.some(b => b.type === 'barracks' || (B[b.type].def && b.type !== 'townhall')) ||
       G.foes.some(f => !f.camp),
-    upg: G.age >= 1 || G.day >= 3 || Object.keys(G.tech).length,
+    upg: G.age >= 1 || G.day >= 3 || Object.keys(G.tech).length || G.blessings.length,
     log: G.day >= 2,
   };
   vis.map = vis.goal = 1;

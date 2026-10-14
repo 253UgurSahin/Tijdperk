@@ -1,4 +1,5 @@
 // Bonusregister: één plek die alle bonussen bij elkaar telt (onderzoek, volk, zegeningen, wonderen, regels).
+import { blessingBonuses } from '../data/blessings.js';
 import { bonusesIn, sumAll } from '../data/bonus.js';
 import { TECH } from '../data/tech.js';
 import { G } from './state.js';
@@ -12,9 +13,10 @@ import { G } from './state.js';
 const SOURCES = [
   // Onderzoek dat klaar is (het `bonus`-veld in src/data/tech.js)
   g => TECH.filter(T => T.bonus && g.tech && g.tech[T.k]).map(T => T.bonus),
+  // Gekozen zegeningen (G.blessings bewaart alleen de sleutels, zie src/data/blessings.js)
+  g => blessingBonuses(g.blessings),
   // Nog leeg: deze vullen latere onderdelen van het spel
   g => bonusesIn(g.people), // je volk
-  g => bonusesIn(g.blessings), // zegeningen
   g => bonusesIn(g.wonders), // wereldwonderen
   g => bonusesIn(g.mods), // spelregels, bijv. van een uitdaging
 ];

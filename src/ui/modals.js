@@ -16,18 +16,25 @@ import { $, isCompact } from '../util/dom.js';
 import { LEVELS, setQuality } from '../render/quality.js';
 
 let prevSpeed = 1;
-function openModal(html) {
+/**
+ * Open een venster en zet het spel stil. Met `locked` gaat het niet dicht met Esc of een klik
+ * ernaast: je moet echt iets kiezen (zoals een zegening). `cls` geeft het blad een extra class.
+ */
+export function openModal(html, { locked = false, cls = '' } = {}) {
   $('#sheet').innerHTML = html;
+  $('#sheet').className = cls ? `sheet ${cls}` : 'sheet';
+  store.modalLocked = locked;
   if ($('#modal').hidden) prevSpeed = G.speed;
   $('#modal').hidden = false;
   setSpeed(0);
 }
 export function closeModal() {
   $('#modal').hidden = true;
+  store.modalLocked = false;
   setSpeed($('#title').hidden ? prevSpeed : 0);
 }
 $('#modal').addEventListener('click', e => {
-  if (e.target.id === 'modal' && !G.over) {
+  if (e.target.id === 'modal' && !G.over && !store.modalLocked) {
     closeModal();
     return;
   }
@@ -120,7 +127,7 @@ $('#modal').addEventListener('change', e => {
 });
 export function openPause() {
   openModal(`<div class="eyebrow">${placeName()} · dag ${G.day} · ${AGES[G.age].n}</div><h1>Gepauzeerd</h1>
-  <p>${fmt(G.stats.gathered)} grondstoffen · ${G.stats.killed} vijanden verslagen · ${G.stats.camps} kampen veroverd · ${Object.keys(G.tech).length} uitvindingen</p>
+  <p>${fmt(G.stats.gathered)} grondstoffen · ${G.stats.killed} vijanden verslagen · ${G.stats.camps} kampen veroverd · ${Object.keys(G.tech).length} uitvindingen · ${G.blessings.length} ${G.blessings.length === 1 ? 'zegening' : 'zegeningen'}</p>
   <div class="mstack" style="margin-top:18px"><button class="mbtn primary" data-m="close"><span>Hervatten</span><small>terug naar het spel</small></button>${isCompact() ? `<button class="mbtn" data-m="pg"><span>Volgend tijdperk</span><small>wat er nog nodig is</small></button><button class="mbtn" data-m="pr"><span>Kaart</span><small>overzicht · uitbreiden</small></button><button class="mbtn" data-m="pl"><span>Volk en leger</span><small>dorpelingen · verdediging · onderzoek</small></button>` : ''}<button class="mbtn" data-m="save"><span>Opslaan</span><small>automatisch elke minuut</small></button><button class="mbtn" data-m="load"><span>Laden</span><small>laatste opslag</small></button><button class="mbtn" data-m="settings"><span>Instellingen</span><small>geluid · weergave</small></button><button class="mbtn" data-m="help"><span>Uitleg</span><small>besturing</small></button><button class="mbtn" data-m="title"><span>Hoofdmenu</span><small>slaat eerst op</small></button></div>`);
 }
 // Instellingen: vier tabbladen. Elke knop zegt met data-* wat hij verandert, zodat één
@@ -350,6 +357,7 @@ export function showHelp() {
   <p>Herken iedereen aan de schijf eronder: <b>blauw</b> is jouw leger, <b>rood</b> is de vijand, licht zijn je dorpelingen. Soms valt er een <b>meteoriet</b>: rond de krater liggen daarna nieuwe ertsen.</p>
   <p><b>Muren</b> houden vijanden echt tegen: ze moeten erdoorheen hakken. Bouw een <b>poort</b> zodat je eigen volk erdoor kan. <b>Wegen</b> laten iedereen sneller lopen. In het paneel <b>Verbeteren</b> zie je per verbetering precies wat ze oplevert (nu → straks): werktuigen, wapens, gebouwen en uitvindingen, en soms vraagt een <b>gebeurtenis</b> om een keuze.</p>
   <p>Elk nieuw tijdperk ontgrendelt <b>verbeteringen</b> voor wat je al hebt: gebouwen gaan een niveau omhoog, je volk krijgt betere werktuigen en je leger beter pantser. Een pijltje boven een gebouw betekent dat er een verbetering klaarstaat.</p>
+  <p>Na je eerste minuut en bij elk nieuw tijdperk kies je een <b>zegening</b>: één van drie kaarten met een voordeel voor de rest van het spel. Sommige hebben ook een nadeel. Je zegeningen staan bovenaan <b>Verbeteren</b>.</p>
   <div class="keys"><kbd>Slepen</kbd><span>Selectiekader (met Shift: erbij)</span><kbd>Rechts slepen · WASD</kbd><span>Kaart verschuiven · scroll om te zoomen</span><kbd>Klik</kbd><span>Bekijken en selecteren</span><kbd>Dubbelklik · Ctrl-klik</kbd><span>Alles van dat soort in beeld</span><kbd>Rechtsklik</kbd><span>Opdracht: lopen, aanvallen, verzamelen</span><kbd>Q · I</kbd><span>Hele leger · stilstaande dorpelingen</span><kbd>E</kbd><span>Gebied uitbreiden</span><kbd>V</kbd><span>Bovenaanzicht aan of uit</span><kbd>Spatie · [ ]</kbd><span>Pauze · langzamer / sneller</span><kbd>1 – 9</kbd><span>Gebouw uit de bouwbalk kiezen</span><kbd>Ctrl+F1 – F5 · F1 – F5</kbd><span>Groep instellen · groep selecteren (twee keer: ernaartoe)</span><kbd>S · F · R</kbd><span>Leger: stop · aanvalsmars · patrouille</span><kbd>Shift-klik trainen</kbd><span>Vijf eenheden tegelijk in de wachtrij</span><kbd>Slepen bij muur of weg</kbd><span>Hele lijn in één keer bouwen</span><kbd>Delete</kbd><span>Sloopmodus (of: geselecteerd gebouw afbreken)</span><kbd>Z X C B</kbd><span>Bouwcategorie wisselen</span><kbd>P · M</kbd><span>Paneel · geluid</span><kbd>Esc</kbd><span>Annuleren</span></div>
   <div class="row"><button class="primary" data-m="close">Op avontuur →</button></div>`);
 }

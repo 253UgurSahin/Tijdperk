@@ -16,6 +16,9 @@ export const BONUS_KEYS = {
   // Verzamelen
   'gather.all': { d: 'Al het verzamelwerk gaat sneller' },
   'gather.food': { d: 'Voedsel verzamelen gaat sneller' }, // struiken, vis, wild en akkers
+  'gather.wood': { d: 'Hout hakken gaat sneller' },
+  'gather.mine': { d: 'Steen, erts en zand winnen gaat sneller' }, // alles behalve voedsel en hout
+  carry: { d: 'Dorpelingen dragen meer per keer', flat: true },
   farm: { d: 'Akkers oogsten sneller' },
   'farm.plow': { d: 'Akkers oogsten sneller' }, // komt bovenop 'farm' (IJzeren ploeg)
   'farm.slots': { d: 'Meer boeren op elke akker', flat: true },
@@ -30,6 +33,7 @@ export const BONUS_KEYS = {
   'army.dmg': { d: 'Het leger doet meer schade' },
   'robot.dmg': { d: 'Drones en exo-soldaten doen meer schade' }, // bovenop 'army.dmg'
   'army.hp': { d: 'Soldaten hebben meer levenspunten' },
+  'train.speed': { d: 'Soldaten trainen sneller' }, // in kazernes en andere trainingsgebouwen
   heal: { d: 'Volk en leger genezen vanzelf', flat: true }, // levens per seconde; het leger krijgt het dubbele
   loot: { d: 'Meer buit uit veroverde kampen' },
 

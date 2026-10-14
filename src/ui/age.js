@@ -4,6 +4,7 @@ import { sfx } from '../audio/sound.js';
 import { AGES, AGE_UP } from '../data/ages.js';
 import { B, ROADS } from '../data/buildings.js';
 import { RES, RKEYS } from '../data/resources.js';
+import { earnBlessing } from '../game/blessings.js';
 import { computeAvail } from '../game/caches.js';
 import { CHAPTERS, built } from '../game/chapters.js';
 import { has, pay } from '../game/economy.js';
@@ -18,11 +19,16 @@ import { $ } from '../util/dom.js';
 import { retiredIn } from '../data/succession.js';
 import { UNITS } from '../data/units.js';
 
-// Naar het volgende tijdperk
+// Naar het volgende tijdperk, als je alles hebt wat ervoor nodig is
 export function ageUp() {
   const nx = AGE_UP[G.age + 1];
   if (!nx || !has(nx.cost) || popNow() < nx.pop || !nx.need.every(built)) return;
   pay(nx.cost);
+  enterNextAge();
+}
+
+/** Het volgende tijdperk begint: banner, melding, en na de banner een nieuwe zegening. */
+export function enterNextAge() {
   G.age++;
   const b = $('#banner');
   b.innerHTML = `<div class="in"><div class="eyebrow">Hoofdstuk ${AGES[G.age].r}</div><div class="t">${AGES[G.age].n}</div><div class="y">${AGES[G.age].y} · ${CHAPTERS[G.age].t}</div></div>`;
@@ -38,6 +44,7 @@ export function ageUp() {
   );
   computeAvail();
   onAgeChange();
+  earnBlessing(); // het kiesvenster komt pas als de banner weg is (zie ui/blessings.js)
   setTimeout(
     () =>
       document.querySelectorAll('#resbar .res').forEach(el => {

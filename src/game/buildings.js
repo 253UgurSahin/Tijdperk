@@ -100,7 +100,7 @@ export function bUpdate(b, dt) {
     const U = UNITS[b.q[0]];
     b.blocked = popNow() >= popCap();
     if (!b.blocked) {
-      b.qt += dt * pr * (1 + 0.2 * lvlOf(b));
+      b.qt += dt * pr * (1 + 0.2 * lvlOf(b)) * mul('train.speed');
       if (b.qt >= U.t) {
         b.qt = 0;
         const k = b.q.shift(),

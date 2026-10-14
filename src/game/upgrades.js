@@ -113,7 +113,7 @@ export const armsCost = () => {
   return c;
 };
 export const armsMul = () => 1 + 0.15 * (G ? G.armsLvl : 0);
-export const carryMax = () => G.carryCap + G.toolLvl * 2;
+export const carryMax = () => G.carryCap + G.toolLvl * 2 + add('carry');
 export function upgrade(b, silent) {
   if (!canUpg(b)) return false;
   const c = upgCost(b);

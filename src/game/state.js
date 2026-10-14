@@ -1,5 +1,6 @@
 // De spelstand (G): alles wat er nu in de wereld is. Ook een nieuw spel starten.
 import { CN, CX, CY, TAU, W } from '../config.js';
+import { FIRST_BLESSING_AT } from '../data/blessings.js';
 import { PLACES } from '../data/names.js';
 import { RKEYS } from '../data/resources.js';
 import { placeBuilding, spawnFoe, spawnVillager } from './entities.js';
@@ -51,6 +52,8 @@ export function baseState(seed) {
     diff: 1,
     tech: {},
     research: null,
+    blessings: [], // gekozen zegeningen (sleutels uit data/blessings.js)
+    blessingQueue: [], // zegeningen die je nog mag kiezen, zie game/blessings.js
     buff: {},
     forceRaid: 0,
     event: null,
@@ -72,6 +75,7 @@ export function newGame(seed, diff = 1) {
   G = baseState(seed);
   G.diff = diff;
   G.peaceful = diff === 0;
+  G.blessingQueue = [{ age: 0, at: FIRST_BLESSING_AT }];
   Object.assign(
     G.res,
     diff === 2 ? { food: 150, wood: 120, stone: 40 } : { food: 200, wood: 160, stone: 60 },
