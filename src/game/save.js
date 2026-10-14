@@ -2,6 +2,7 @@
 import { store } from '../core/store.js';
 import { CX, CY, H, TH, TW, W } from '../config.js';
 import { B } from '../data/buildings.js';
+import { RKEYS } from '../data/resources.js';
 import { computeAvail, computeCaches } from './caches.js';
 import { spawnFoe, spawnUnit, spawnVillager } from './entities.js';
 import { G, bById, baseState, setGame } from './state.js';
@@ -117,7 +118,11 @@ export function deserialize(str) {
   const fromOld = s.ages !== 9;
   if (fromOld) G.age = OLD_AGE[G.age] ?? G.age;
   G.groups = G.groups || {};
-  G.hist = G.hist || [];
+  // Grondstoffen die toen nog niet bestonden (buskruit, sterrenmetaal, ...) beginnen op 0;
+  // anders telt 'undefined' als genoeg en wordt de voorraad NaN
+  for (const k of RKEYS) if (!Number.isFinite(G.res[k])) G.res[k] = 0;
+  // De grafiek-geschiedenis had toen minder kolommen: begin die opnieuw
+  G.hist = fromOld ? [] : G.hist || [];
   G.offer = null;
   G.stats = Object.assign(baseState(0).stats, s.g.stats);
   G.log = s.g.log || [];

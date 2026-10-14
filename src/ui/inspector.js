@@ -283,7 +283,7 @@ export function renderInspector() {
             cost: lock ? `<span class="lk">${AGES[U.age].r}</span>` : costHTML(U.cost, true),
             tip: lock
               ? `Vanaf de ${AGES[U.age].n.toLowerCase()}`
-              : `${U.hp} leven · ${U.dmg} schade · bereik ${U.r}${U.air ? ' · raakt drones' : ''} · ${U.t}s · Shift-klik: 5 tegelijk`,
+              : `${U.hp} leven · ${U.dmg} schade · bereik ${U.r}${U.air ? ' · raakt drones' : ''}${U.bonus ? ' · ' + U.bonus.d : ''} · ${U.t}s · Shift-klik: 5 tegelijk`,
           });
         })
         .join('');
@@ -370,9 +370,9 @@ export function renderInspector() {
       h += `<div class="stats"><span><i>${ico('⚔')}</i>${Math.round(d.def.dmg * (1 + 0.4 * lvlOf(b)))} schade</span><span><i>${ico('◎')}</i>bereik ${d.def.r}</span></div>`;
     if (UPG_OK(b.type)) {
       const l = lvlOf(b),
-        top = 5 - B[b.type].age,
+        top = AGES.length - 1 - B[b.type].age,
         mx = maxLvl(b);
-      h += `<div class="lvrow"><span class="pips">${Array.from({ length: top + 1 }, (_, i) => `<i class="${i <= l ? 'on' : i <= mx ? 'av' : ''}"></i>`).join('')}</span><span>${l < mx ? 'verbetering klaar' : l < top ? 'volgend niveau in de ' + AGES[Math.min(5, B[b.type].age + l + 1)].n.toLowerCase() : 'max'}</span></div>`;
+      h += `<div class="lvrow"><span class="pips">${Array.from({ length: top + 1 }, (_, i) => `<i class="${i <= l ? 'on' : i <= mx ? 'av' : ''}"></i>`).join('')}</span><span>${l < mx ? 'verbetering klaar' : l < top ? 'volgend niveau in de ' + AGES[Math.min(AGES.length - 1, B[b.type].age + l + 1)].n.toLowerCase() : 'max'}</span></div>`;
     }
     if (d.market)
       h +=

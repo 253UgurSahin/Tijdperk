@@ -330,9 +330,9 @@ export const FOES = [
   { n: 'Roofridders', hp: 140, dmg: 12, spd: 2, r: 0.9, rate: 1.2, ride: 1 },
   { n: 'Kapers', snd: 'musket', hp: 120, dmg: 12, spd: 1.7, r: 4, rate: 1.5, proj: 1 },
   { n: 'Huurlingen', snd: 'musket', hp: 160, dmg: 12, spd: 1.6, r: 3.5, rate: 1.4, proj: 1 },
-  { n: 'Pantserwagens', snd: 'cannon', hp: 420, dmg: 28, spd: 1.3, r: 4.5, rate: 2.2, proj: 1, big: 1 },
-  { n: 'Vijandelijke drones', snd: 'gun', hp: 95, dmg: 11, spd: 3.1, r: 3, rate: 1, proj: 1, air: 1 },
-  { n: 'Ruimtepiraten', snd: 'laser', hp: 430, dmg: 18, spd: 2.2, r: 5, rate: 1, proj: 1 },
+  { n: 'Pantserwagens', snd: 'cannon', hp: 380, dmg: 22, spd: 1.3, r: 4.5, rate: 2.2, proj: 1, big: 1 },
+  { n: 'Vijandelijke drones', snd: 'gun', hp: 95, dmg: 9, spd: 3.1, r: 3, rate: 1, proj: 1, air: 1 },
+  { n: 'Ruimtepiraten', snd: 'laser', hp: 400, dmg: 18, spd: 2.2, r: 5, rate: 1, proj: 1 },
 ];
 
 /** Extra schade van eenheid `unit` tegen doel `target` (1 = geen bonus).

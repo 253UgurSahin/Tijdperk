@@ -75,7 +75,7 @@ export function bUpdate(b, dt) {
         );
       if (f) {
         const dmg =
-          (b.type === 'townhall' ? d.def.dmg * (1 + G.age * 0.5) : d.def.dmg) *
+          (b.type === 'townhall' ? d.def.dmg * (1 + G.age * 0.8) : d.def.dmg) *
           (1 + 0.4 * lvlOf(b)) *
           (hasT('ballistics') ? 1.2 : 1) *
           (hasT('swarm') && d.def.laser ? 1.3 : 1);
