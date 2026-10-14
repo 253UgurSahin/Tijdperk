@@ -9,7 +9,7 @@ export const DEFAULTS = {
   muteHidden: true, // stil als je naar een ander tabblad gaat
   // beeld
   quality: 'auto', // 'auto' | 'low' | 'mid' | 'high' | 'custom'
-  gfx: { scale: 1, shadows: true, bloom: true, outline: true },
+  gfx: { scale: 1, shadows: true, bloom: true, outline: true, particles: true },
   shake: true,
   motion: true, // animaties in de interface (uit = rustiger)
   fps: false, // beeldjes per seconde tonen

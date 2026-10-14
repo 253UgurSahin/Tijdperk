@@ -1,4 +1,5 @@
 // Goedkope deeltjes (rook, stof, vonken, vuurvliegjes): alles in twee getekende "stapels" (instancing).
+import { store } from '../core/store.js';
 import * as T3 from 'three';
 import { gIco } from './kit.js';
 import { S3 } from './scene.js';
@@ -67,6 +68,7 @@ export const LAYER = { soft: SOFT, glow: GLOW };
  * doorzichtigheid zakt van a naar 0. grav < 0 laat het vallen, > 0 laat het opstijgen.
  */
 export function emit(L, x, y, z, vx, vy, vz, life, s0, s1, color, a = 1, grav = 0) {
+  if (store.noParticles) return; // effecten uitgezet (instellingen of lage kwaliteit)
   const i = L.next;
   L.next = (i + 1) % MAX;
   L.pos[i * 3] = x;

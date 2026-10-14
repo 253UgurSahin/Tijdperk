@@ -4,7 +4,7 @@ import { W } from '../config.js';
 import { B } from '../data/buildings.js';
 import { NI } from '../data/nodes.js';
 import { UNITS } from '../data/units.js';
-import { powerDem, powerRatio } from './caches.js';
+import { genPower, powerDem, powerRatio, powerSup } from './caches.js';
 import { gain, has, pay } from './economy.js';
 import { popCap, popNow, spawnUnit, spawnVillager, trainCost } from './entities.js';
 import { floater } from './fx.js';
@@ -41,7 +41,9 @@ export function bUpdate(b, dt) {
       b.gt += dt;
       if (b.gt >= d.gen.t) {
         b.gt = 0;
-        if (powerDem > 0 && has(d.gen.in)) {
+        // Alleen stoken als de stroom echt nodig is: overbodige centrales staan stil en sparen brandstof
+        const needed = powerSup - (b.run ? genPower(b) : 0) < powerDem;
+        if (needed && has(d.gen.in)) {
           pay(d.gen.in);
           b.run = true;
           b.act = d.gen.t;

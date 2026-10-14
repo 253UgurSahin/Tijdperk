@@ -18,6 +18,8 @@ export let lights = [],
   siteCnt = new Map(),
   farmCnt = new Map(),
   demand = {};
+/** Hoeveel stroom centrale b levert als hij draait. */
+export const genPower = b => B[b.type].gen.power * bRate(b) * (hasT('electric') ? 1.25 : 1);
 export function computeCaches() {
   powerSup = 0;
   powerDem = 0;
@@ -25,7 +27,7 @@ export function computeCaches() {
     if (!b.done) continue;
     const d = B[b.type];
     if (d.gen && b.on) {
-      const pw = d.gen.power * bRate(b) * (hasT('electric') ? 1.25 : 1);
+      const pw = genPower(b);
       if (d.gen.solar) powerSup += pw * (darkness() > 0.3 ? 0.15 : 1);
       else if (b.run) powerSup += pw;
     }

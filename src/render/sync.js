@@ -271,6 +271,7 @@ function syncEnt(e, make) {
     base.position.y = 0.025;
     base.renderOrder = 2;
     g.add(base);
+    r.base = base;
     ring.position.y = 0.03;
     ring.renderOrder = 3;
     g.add(ring);

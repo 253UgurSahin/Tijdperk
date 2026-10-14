@@ -238,6 +238,7 @@ export function animEntity(r, e, moving, working, tool) {
 export function startDeath(r) {
   DG3.add(r.g);
   r.ring.visible = false;
+  if (r.base) r.base.visible = false;
   r.dieT = store.TM;
   r.machine = MACHINE.has(r.k);
   r.fallDir = Math.random() < 0.5 ? -1 : 1;

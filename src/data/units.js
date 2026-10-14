@@ -218,7 +218,7 @@ export const UNITS = {
     r: 5.5,
     rate: 0.35,
     spd: 2.4,
-    cost: { food: 70, steel: 15, fuel: 5 },
+    cost: { food: 70, steel: 15 }, // geen brandstof: zo kun je je ook zonder olie verdedigen
     t: 9,
     proj: 1,
     air: 1,

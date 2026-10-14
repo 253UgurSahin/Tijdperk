@@ -349,7 +349,7 @@ export const B = {
     size: 1,
     hp: 700,
     def: { r: 8, dmg: 9, rate: 0.25, air: 1 },
-    cost: { steel: 100, fuel: 20 },
+    cost: { steel: 100, stone: 60 },
     h: 22,
   },
   chipfab: {

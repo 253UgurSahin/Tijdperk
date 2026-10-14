@@ -203,7 +203,8 @@ function showSettings() {
             ) +
             tog('gfx.shadows', 'Schaduwen', 'Zon en gebouwen werpen schaduw', gfx.shadows) +
             tog('gfx.bloom', 'Gloed', 'Zachte gloed rond vuur en lampen', gfx.bloom) +
-            tog('gfx.outline', 'Omlijning', 'Rand om wat je selecteert of aanwijst', gfx.outline)
+            tog('gfx.outline', 'Omlijning', 'Rand om wat je selecteert of aanwijst', gfx.outline) +
+            tog('gfx.particles', 'Effecten', 'Rook, stof en vonken', gfx.particles !== false)
           }</div>`
         : '') +
       tog('V2', 'Bovenaanzicht', 'Camera recht van boven in plaats van schuin', store.V2) +

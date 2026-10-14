@@ -16,6 +16,7 @@ export const LEVELS = {
     post: false,
     bloom: false,
     outline: false,
+    particles: false,
   },
   mid: {
     name: 'Middel',
@@ -59,6 +60,7 @@ function customLevel() {
     post: !!(g.bloom || g.outline),
     bloom: !!g.bloom,
     outline: !!g.outline,
+    particles: g.particles !== false,
   };
 }
 
@@ -68,6 +70,7 @@ function apply(name) {
   store.resScale = L.scale;
   store.pixelBudget = L.pixels; // maximaal aantal pixels voor de 3D-wereld
   store.quality = name;
+  store.noParticles = L.particles === false;
   sun.castShadow = L.shadows;
   if (sun.shadow.mapSize.x !== L.shadowMap) {
     sun.shadow.mapSize.set(L.shadowMap, L.shadowMap);
