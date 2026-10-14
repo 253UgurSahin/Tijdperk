@@ -24,11 +24,15 @@ function person(g, o) {
   bx(lR, 0.06, 0.2, 0.07, o.pants || '#4a4038', 0, -0.2, 0);
   bx(g, 0.18, 0.2, 0.11, o.shirt, 0, 0.2, 0);
   if (o.sash) bx(g, 0.185, 0.05, 0.115, o.sash, 0, 0.32, 0);
+  // Soldaten en vijanden dragen een gekleurd borststuk: blauw = jouw leger, rood = vijand
+  if (o.tabard) bx(g, 0.19, 0.15, 0.118, o.tabard, 0, 0.21, 0);
   sp(g, 0.075, sk, 0, 0.47, 0, 0);
   if (o.hat === 'helmet') sp(g, 0.085, o.hatc || '#8e979f', 0, 0.5, 0, 0, 0.7);
   else if (o.hat === 'cap') bx(g, 0.15, 0.05, 0.15, o.hatc || '#5b6644', 0, 0.52, 0);
   else if (o.hat === 'hood') cn(g, 0.1, 0.16, o.hatc || '#6b5a40', 0, 0.48, 0, 6);
   else if (o.hat === 'hair') sp(g, 0.078, '#3b2a1a', 0, 0.5, -0.01, 0, 0.6);
+  else if (o.hat === 'straw') cn(g, 0.13, 0.08, '#d9c27a', 0, 0.5, 0, 8); // strohoed van dorpelingen
+  if (o.crest) bx(g, 0.03, 0.08, 0.12, o.crest, 0, 0.57, 0); // pluim op de helm, in legerkleur
   aL.position.set(-0.12, 0.38, 0);
   aR.position.set(0.12, 0.38, 0);
   bx(aL, 0.05, 0.18, 0.06, o.shirt, 0, -0.18, 0);
@@ -86,14 +90,15 @@ const JOBTOOL = {
   food: 'hoe',
   build: 'hammer',
 };
+// Dorpelingen: kleiner, gewone werkkleding in de kleur van hun taak, geen legerkleuren
 export function makeVillager(job) {
   const g = new T3.Group();
-  g.scale.setScalar(1.3);
+  g.scale.setScalar(1.12);
   person(g, {
     shirt: JOBCOL[job] || (RES[job] ? RES[job].c : '#cdbf9c'),
-    sash: TEAM,
+    pants: '#6b5a44',
     tool: JOBTOOL[job],
-    hat: job === 'build' ? 'cap' : 'hair',
+    hat: job === 'build' ? 'cap' : job === 'food' || job === 'auto' ? 'straw' : 'hair',
     hatc: '#c9a14a',
     skin: (job || '').length % 4,
   });
@@ -158,7 +163,7 @@ export function makeUnit(k, foe) {
     bx(g, 0.08, 0.18, 0.1, '#6b4a32', 0, 0.36, 0.22);
     const p = new T3.Group();
     p.position.y = 0.28;
-    person(p, { shirt: '#9aa3ae', sash: T, hat: 'helmet', tool: 'spear', shield: T });
+    person(p, { shirt: '#9aa3ae', tabard: T, crest: T, hat: 'helmet', tool: 'spear', shield: T });
     g.add(p);
     g.userData.rider = p;
     return g;
@@ -174,7 +179,15 @@ export function makeUnit(k, foe) {
       bx(g, 0.05, 0.24, 0.05, '#3a2a1e', x, 0, z);
     const p = new T3.Group();
     p.position.y = 0.28;
-    person(p, { shirt: '#7a3434', hat: 'helmet', hatc: '#5d5f63', tool: 'sword', shield: FOE });
+    person(p, {
+      shirt: '#7a3434',
+      tabard: FOE,
+      crest: FOE,
+      hat: 'helmet',
+      hatc: '#5d5f63',
+      tool: 'sword',
+      shield: FOE,
+    });
     g.add(p);
     return g;
   }
@@ -219,8 +232,9 @@ export function makeUnit(k, foe) {
     plunder: { shirt: '#8a4b37', tool: 'axe', hat: 'hood', hatc: '#5a3020' },
     merc: { shirt: '#6d4a3a', tool: 'gun', hat: 'cap', hatc: '#4a3a2a' },
   }[k] || { shirt: '#8a8a8a', tool: 'spear' };
-  person(g, Object.assign({ sash: T }, U));
-  g.scale.setScalar(k === 'exo' ? 1.6 : 1.3);
+  // Soldaten en vijanden: groter dan dorpelingen, met borststuk en pluim in hun kleur
+  person(g, Object.assign({ tabard: T, crest: U.hat === 'helmet' || U.hat === 'cap' ? T : null }, U));
+  g.scale.setScalar(k === 'exo' ? 1.75 : 1.45);
   return g;
 }
 export const FOEK = ['wolf', 'plunder', 'raider', 'merc', 'armored', 'drone'];

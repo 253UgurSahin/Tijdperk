@@ -9,6 +9,7 @@ import {
   FOE,
   GLASS,
   GLOWM,
+  TEAM,
   WIN,
   bx,
   chim,
@@ -113,7 +114,9 @@ const MODELS = {
       [0.36, 0.36],
     ])
       bx(g, 0.06, 0.5, 0.06, C.wood, x, 0, z);
-    gr(g, 0.95, 0.28, 0.95, C.thatch, 0, 0.5, 0);
+    gr(g, 0.95, 0.28, 0.95, '#6e4429', 0, 0.5, 0); // donker planken dak: anders dan de hutten
+    sp(g, 0.1, '#d8c79a', -0.28, 0.1, -0.25, 0, 0.8); // zakken graan
+    sp(g, 0.09, '#cbb98a', -0.12, 0.09, -0.3, 0, 0.8);
     bx(g, 0.22, 0.2, 0.22, '#a07a4c', -0.18, 0.06, 0.12);
     bx(g, 0.18, 0.16, 0.18, '#8b6a40', 0.15, 0.06, -0.12);
     for (let k = 0; k < 3; k++)
@@ -135,7 +138,9 @@ const MODELS = {
   barracks(g) {
     bx(g, 1.92, 0.04, 1.92, '#8d7856');
     bx(g, 1.2, 0.62, 0.7, C.wood, -0.25, 0, -0.45);
-    gr(g, 1.3, 0.42, 0.85, C.thatch, -0.25, 0.62, -0.45);
+    gr(g, 1.3, 0.42, 0.85, '#8f3d32', -0.25, 0.62, -0.45); // rood dak: legergebouw
+    banner(g, -0.6, 0.18, -0.08);
+    banner(g, 0.1, 0.18, -0.08);
     door(g, 1.2, -0.2, 0.24, 0.34, '#3b2a1a', -0.25);
     for (let i = 0; i < 8; i++) {
       const u = -0.9 + i * 0.257;
@@ -158,7 +163,8 @@ const MODELS = {
     bx(g, 0.7, 0.07, 0.7, C.woodd, 0, 1.1, 0);
     bx(g, 0.7, 0.18, 0.04, C.wood, 0, 1.17, 0.33);
     bx(g, 0.04, 0.18, 0.7, C.wood, 0.33, 1.17, 0);
-    pr(g, 0.85, 0.4, 0.85, C.thatch, 0, 1.45, 0);
+    pr(g, 0.85, 0.4, 0.85, '#4e3a2c', 0, 1.45, 0); // donker dak
+    banner(g, 0, 0.62, 0.37); // blauw doek: verdediging
     for (const [x, z] of [
       [-0.3, -0.3],
       [0.3, 0.3],
@@ -502,10 +508,24 @@ export function makeCamp(g, tier) {
   flagpole(g, 0, 0, 0, 1.2, FOE);
   if (tier >= 3) bx(g, 0.5, 0.4, 0.4, C.dmetal, 0.6, 0, 0.5);
 }
+// Een hangend doek in de legerkleur, zodat verdediging en leger direct opvallen
+function banner(g, x, y, z) {
+  bx(g, 0.16, 0.36, 0.02, TEAM, x, y, z);
+  bx(g, 0.16, 0.05, 0.022, '#e9d9a6', x, y + 0.31, z);
+}
+
+// Ondergrond per soort gebouw, zodat je ze ook van ver uit elkaar houdt:
+// wonen = lichte klinkers, economie = aangestampte aarde, leger = grijze steen
+const PLATE = { home: '#c4ad84', eco: '#8a7454', mil: '#5f6672' };
+const NO_PLATE = new Set(['farm', 'oilpump', 'campfire', 'lantern', 'streetlamp', 'road', 'townhall']);
+
 export function makeBuilding(type, age, b) {
   const g = new T3.Group(),
     d = B[type];
   if (d.wall) makeWall(g, type, b ? wallMask(b) : 0);
-  else (MODELS[type] || MODELS.storage)(g, age, b);
+  else {
+    if (PLATE[d.cat] && !NO_PLATE.has(type)) bx(g, d.size * 0.97, 0.03, d.size * 0.97, PLATE[d.cat]);
+    (MODELS[type] || MODELS.storage)(g, age, b);
+  }
   return mergeStatic(g);
 }

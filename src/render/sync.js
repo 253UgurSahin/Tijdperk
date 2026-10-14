@@ -107,6 +107,7 @@ export function syncBuildings() {
 function entKey(e) {
   return e.kind === 'v' ? 'v' + e.job : e.kind === 'u' ? 'u' + e.k : 'f' + e.type;
 }
+const BASEG = new T3.CircleGeometry(1, 20).rotateX(-Math.PI / 2);
 function syncEnt(e, make) {
   let r = eRec.get(e.id);
   const key = entKey(e);
@@ -124,6 +125,23 @@ function syncEnt(e, make) {
       new T3.MeshBasicMaterial({ color: '#9fe28a', transparent: true, opacity: 0.95, depthWrite: false }),
     );
     ring.scale.setScalar(e.kind === 'u' && (e.k === 'tank' || e.k === 'knight') ? 0.42 : 0.28);
+    // Gekleurde schijf onder elk figuur, zodat je in één oogopslag ziet wie wie is:
+    // licht = dorpeling, blauw = jouw leger, rood = vijand
+    const base = new T3.Mesh(
+      BASEG,
+      new T3.MeshBasicMaterial({
+        color: e.kind === 'v' ? '#f1e6c4' : e.kind === 'u' ? '#3d8bff' : '#ff4a3a',
+        transparent: true,
+        opacity: e.kind === 'v' ? 0.32 : 0.55,
+        depthWrite: false,
+      }),
+    );
+    base.scale.setScalar(
+      e.kind === 'v' ? 0.18 : e.kind === 'u' && (e.k === 'tank' || e.k === 'knight') ? 0.4 : 0.25,
+    );
+    base.position.y = 0.025;
+    base.renderOrder = 2;
+    g.add(base);
     ring.position.y = 0.03;
     ring.renderOrder = 3;
     g.add(ring);
