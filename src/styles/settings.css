@@ -69,8 +69,8 @@
 #fps {
   position: fixed;
   z-index: 60;
-  right: 10px;
-  bottom: 6px;
+  right: 12px;
+  top: 72px; /* onder de menuknop, vrij van de knoppen onderin */
   padding: 2px 8px;
   border-radius: 8px;
   background: rgba(43, 37, 32, 0.7);
