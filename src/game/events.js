@@ -15,9 +15,10 @@ import { sigs } from '../ui/header.js';
 import { note, pulseRes, toast } from '../ui/hud.js';
 import { dist } from '../util/math.js';
 import { inb, isUnl, node, nodeLists } from '../world/world.js';
+import { canMake } from '../data/succession.js';
 
 export const th=()=>G.bs.find(b=>b.type==='townhall');
-function bestMerc(){return Object.keys(UNITS).filter(k=>UNITS[k].src==='barracks'&&UNITS[k].age<=G.age).pop()}
+function bestMerc(){return Object.keys(UNITS).filter(k=>UNITS[k].src==='barracks'&&canMake(k,G.age)).pop()}
 export const EVENTS=[
  {id:'refugees',g:'☺',t:'Vluchtelingen',x:()=>`Drie reizigers vragen onderdak in ${placeName()}.`,a:{l:'Neem ze op',c:()=>({food:60+G.age*20}),f:()=>{const h=th();for(let k=0;k<3;k++)spawnVillager(h.x+.5+k*.6,h.y+2.4);toast('Drie nieuwe dorpelingen sluiten zich aan.','good')}},b:{l:'Stuur weg'}},
  {id:'feast',g:'✺',t:'Oogstfeest',x:()=>'Het volk vraagt om een feest. Het kost voedsel, maar iedereen werkt daarna een tijd harder.',a:{l:'Vier het',c:()=>({food:150+G.age*60}),f:()=>{G.buff.work=G.t+DAYLEN*1.5;toast('Feest! Iedereen werkt anderhalve dag 25% sneller.','good')}},b:{l:'Niet nu'}},

@@ -15,6 +15,7 @@ import { resetV, selVills } from '../input/selection.js';
 import { fmt } from '../ui/format.js';
 import { toast } from '../ui/hud.js';
 import { bmap, inb, isUnl, node, nodeVis, road, ter } from '../world/world.js';
+import { SUCCESSOR, canMake } from '../data/succession.js';
 
 export function chunkCost(){const m=1+G.bought*.55,c={food:Math.round(80*m),wood:Math.round(80*m),stone:Math.round(40*m)};if(G.age>=2)c.gold=Math.round(12*m);if(G.age>=3)c.steel=Math.round(10*m);return c}
 export function canBuyChunk(cx,cy){if(cx<0||cy<0||cx>=CN||cy>=CN||G.unl[cy*CN+cx])return false;return[[1,0],[-1,0],[0,1],[0,-1]].some(([dx,dy])=>{const x=cx+dx,y=cy+dy;return x>=0&&y>=0&&x<CN&&y<CN&&G.unl[y*CN+x]})}
@@ -25,7 +26,7 @@ const CLEAR=new Set(['tree','bush','rock','sand']);
 export function lackText(c){const m=Object.keys(c).filter(k=>G.res[k]<c[k]).map(k=>`${fmt(Math.ceil(c[k]-G.res[k]))} ${RES[k].n.toLowerCase()}`);return m.length>1?m.slice(0,-1).join(', ')+' en '+m[m.length-1]:m[0]||''}
 export function ghostPos(){const s=B[store.placing].size;return[Math.floor(mouse.tx-s/2+.5),Math.floor(mouse.ty-s/2+.5)]}
 export function canPlace(type,x,y,skipCost){
-  const d=B[type];if(G.age<d.age)return'Nog niet ontdekt';
+  const d=B[type];if(G.age<d.age)return'Nog niet ontdekt';if(!canMake(type,G.age))return'Verouderd: bouw een '+B[SUCCESSOR[type]].n.toLowerCase();
   if(d.road){if(!isUnl(x,y))return'Buiten je gebied';const i=y*W+x;if(ter[i]===1)return'Hier is water';if(bmap[i])return'Hier staat al iets';if(nodeVis(i))return NODES[node[i]].n+' in de weg';if(road[i]>=roadTier())return'Hier ligt al een weg';if(!skipCost&&!has(d.cost))return'Nog '+lackText(d.cost)+' nodig';return null}
   for(let dy=0;dy<d.size;dy++)for(let dx=0;dx<d.size;dx++){const xx=x+dx,yy=y+dy;if(!inb(xx,yy))return'Buiten de kaart';if(!isUnl(xx,yy))return'Buiten je gebied';const i=yy*W+xx;
     if(ter[i]===1)return'Hier is water';if(bmap[i])return'Hier staat al iets';

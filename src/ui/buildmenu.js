@@ -17,6 +17,7 @@ import { toast } from './hud.js';
 import { insHandler, selCmds, selCtx } from './inspector.js';
 import { $ } from '../util/dom.js';
 import { clamp } from '../util/math.js';
+import { canMake } from '../data/succession.js';
 
 export const costText=c=>Object.keys(c).map(k=>`${c[k]} ${RES[k].n.toLowerCase()}`).join(', ');
 
@@ -30,7 +31,7 @@ function renderCats(){const hc=store.coachTile&&B[store.coachTile].cat;setHTML($
 export function setTab(k){store.tab=k;sigs.cats=null;sigs.grid=null;renderCmd()}
 $('#cats').addEventListener('click',e=>{const b=e.target.closest('button[data-t]');if(!b)return;sfx('tick');setTab(b.dataset.t)});
 function renderBuilds(){
-  const avail=BKEYS.filter(k=>!B[k].nobuild&&B[k].cat===store.tab&&B[k].age<=G.age),next=BKEYS.filter(k=>!B[k].nobuild&&B[k].cat===store.tab&&B[k].age===G.age+1);
+  const avail=BKEYS.filter(k=>!B[k].nobuild&&B[k].cat===store.tab&&canMake(k,G.age)),next=BKEYS.filter(k=>!B[k].nobuild&&B[k].cat===store.tab&&B[k].age===G.age+1);
   const sig='b'+store.tab+G.age+store.placing+store.coachTile+avail.map(k=>has(B[k].cost)?1:0).join('');
   setHTML($('#cmdgrid'),'grid',sig,()=>avail.map(k=>{const d=B[k];return`<button class="gb ${store.placing===k?'active':''} ${has(d.cost)?'':'poor'} ${store.coachTile===k&&store.placing!==k?'hint':''}" data-b="${k}" aria-pressed="${store.placing===k}" aria-label="${d.n}">${d.age===G.age&&G.age>0?'<span class="nw">nieuw</span>':''}<img src="${iconFor(k)}" alt=""><b>${hy(d.n)}</b></button>`}).join('')+
     (next.length&&G.age<5?next.map(k=>`<button class="gb locked" data-locked="${k}" aria-disabled="true" aria-label="${B[k].n}, vanaf de ${AGES[B[k].age].n.toLowerCase()}"><span class="lk">${AGES[B[k].age].r}</span><img src="${iconFor(k)}" alt=""><b>${hy(B[k].n)}</b></button>`).join(''):''))}

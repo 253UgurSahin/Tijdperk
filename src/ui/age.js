@@ -13,6 +13,8 @@ import { sigs } from './header.js';
 import { toast } from './hud.js';
 import { buildResBar } from './resources.js';
 import { $ } from '../util/dom.js';
+import { retiredIn } from '../data/succession.js';
+import { UNITS } from '../data/units.js';
 
 // age up
 export function ageUp(){
@@ -20,7 +22,8 @@ export function ageUp(){
   const b=$('#banner');b.innerHTML=`<div class="in"><div class="eyebrow">Hoofdstuk ${AGES[G.age].r}</div><div class="t">${AGES[G.age].n}</div><div class="y">${AGES[G.age].y} · ${CHAPTERS[G.age].t}</div></div>`;b.hidden=false;setTimeout(()=>b.hidden=true,4500);
   const nr=RKEYS.filter(k=>RES[k].age===G.age&&!RES[k].cr).map(k=>RES[k].n.toLowerCase());
   sfx('age');const nu=G.bs.filter(canUpg).length;
-  toast(`De ${AGES[G.age].n.toLowerCase()} breekt aan. Ontdekt: ${nr.join(' en ')}. Nieuwe verbeteringen: werktuigen, wapens${nu?` en ${nu} gebouwen`:''}.`,'age');
+  const old=retiredIn(G.age).map(k=>(B[k]||UNITS[k]).n.toLowerCase());
+  toast(`De ${AGES[G.age].n.toLowerCase()} breekt aan. Ontdekt: ${nr.join(' en ')}. Nieuwe verbeteringen: werktuigen, wapens${nu?` en ${nu} gebouwen`:''}.${old.length?` Verouderd: ${old.join(', ')}.`:''}`,'age');
   computeAvail();onAgeChange();
   setTimeout(()=>document.querySelectorAll('#resbar .res').forEach(el=>{if(RES[el.dataset.k].age===G.age){el.classList.add('new');setTimeout(()=>el.classList.remove('new'),3000)}}),60);
 }

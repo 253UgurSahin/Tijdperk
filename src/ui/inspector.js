@@ -23,6 +23,7 @@ import { setExpand, toast } from './hud.js';
 import { $ } from '../util/dom.js';
 import { clamp, dist } from '../util/math.js';
 import { amt, bmap, isUnl, node, setBlk } from '../world/world.js';
+import { canMake } from '../data/succession.js';
 
 // inspector
 export const CB=(data,glyph,label,o={})=>`<button class="cb ${o.on?'on':''} ${o.danger?'danger':''}" ${data} ${o.dis?'disabled':''} title="${esc(o.tip||label)}">${o.img?`<img src="${o.img}" alt="">`:`<span class="g">${glyph}</span>`}<span class="l">${hy(label)}</span>${o.cost?`<span class="c">${o.cost}</span>`:''}</button>`;
@@ -61,7 +62,7 @@ export function renderInspector(){
     if(d.conv||(d.gen&&!d.gen.solar)||d.pump)cmd+=CB('data-b="toggle"',b.on?'⏻':'⏼',b.on?'Aan':'Uit',{on:b.on,tip:b.on?'Zet dit gebouw uit':'Zet dit gebouw aan'});
     if(UPG_OK(b.type)){const l=lvlOf(b),mx=maxLvl(b);if(l<mx){const c=upgCost(b);cmd+=CB('data-b="upgrade"','▲',`Niveau ${l+2}`,{dis:!has(c),cost:costHTML(c),tip:upgEffect(b.type,l+1)})}}
     if(b.type==='townhall'){cmd+=CB('data-b="train1"','',`Dorpeling`,{img:portrait('v','auto'),dis:popNow()>=popCap()||G.res.food<trainCost(),cost:costHTML({food:trainCost()}),tip:popNow()>=popCap()?'Geen plek: bouw eerst een woning':'Train een dorpeling'});if(G.toolLvl<G.age)cmd+=CB('data-g="tools"','⚒',`Werktuig ${G.toolLvl+2}`,{dis:!has(toolCost()),cost:costHTML(toolCost()),tip:'+15% verzamelsnelheid en +2 draagvermogen voor iedereen'})}
-    if(d.train){const list=Object.keys(UNITS).filter(k=>UNITS[k].src===d.train);
+    if(d.train){const list=Object.keys(UNITS).filter(k=>UNITS[k].src===d.train&&(canMake(k,G.age)||UNITS[k].age>G.age));
       cmd+=list.map(k=>{const U=UNITS[k],lock=U.age>G.age;return CB(`data-train="${k}"`,'',U.n,{img:portrait('u',k),dis:lock||!has(U.cost),cost:lock?`<span class="lk">${AGES[U.age].r}</span>`:costHTML(U.cost),tip:lock?`Vanaf de ${AGES[U.age].n.toLowerCase()}`:`${U.hp} leven · ${U.dmg} schade · bereik ${U.r}${U.air?' · raakt drones':''} · ${U.t}s · Shift-klik: 5 tegelijk`})}).join('');
       cmd+=CB('data-b="rally"','⚑','Verzamel­punt',{on:!!b.rally,tip:b.rally?'Verzamelpunt staat · rechtsklik op de kaart verplaatst het':'Rechtsklik op de kaart zet het verzamelpunt'})+CB('data-st="cycle"',G.stance==='hold'?'▣':G.stance==='aggr'?'➶':'⛨',G.stance==='hold'?'Nieuwe: blijf staan':G.stance==='aggr'?'Nieuwe: achtervolg':'Nieuwe: verdedig',{tip:'Wat nieuwe eenheden doen. Klik om te wisselen.'})}
     if(b.type==='barracks'&&G.armsLvl<G.age)cmd+=CB('data-g="arms"','⛨',`Pantser ${G.armsLvl+2}`,{dis:!has(armsCost()),cost:costHTML(armsCost()),tip:'+15% schade en levenspunten voor het hele leger'});
@@ -97,7 +98,7 @@ export function insHandler(e){const t=e.target.closest('button');if(!t||t.disabl
   else if(t.dataset.u==='stop')selUnits().forEach(u=>{u.tgt=null;u.order='guard';u.path=null;u.gx=u.x;u.gy=u.y});
   else if(t.dataset.u==='attackcamp'){const c=G.camps.find(c=>c.id===sel.camp);G.us.forEach(u=>{u.tgt=c;u.order='attack';u.path=null});toast('Het leger rukt uit.','good')}
   else if(t.dataset.u==='send'){const i=sel.node,v=G.vs.filter(v=>!v.hidden&&v.job==='auto').sort((a,b)=>dist(a.x,a.y,i%W,(i/W)|0)-dist(b.x,b.y,i%W,(i/W)|0))[0];if(v){resetV(v);v.job=NODES[node[i]].res;v.keep={k:'node',i};toast(`${v.name} gaat ${RES[v.job].n.toLowerCase()} halen.`)}else toast('Geen automatische dorpeling vrij.')}
-  else if(t.dataset.train&&b){const U=UNITS[t.dataset.train],n=e.shiftKey?5:1;for(let i=0;i<n&&has(U.cost);i++){pay(U.cost);b.q.push(t.dataset.train)}}
+  else if(t.dataset.train&&b&&canMake(t.dataset.train,G.age)){const U=UNITS[t.dataset.train],n=e.shiftKey?5:1;for(let i=0;i<n&&has(U.cost);i++){pay(U.cost);b.q.push(t.dataset.train)}}
   else if(t.dataset.cq!==undefined&&b){const i=+t.dataset.cq,k=b.q.splice(i,1)[0];if(k)gain(UNITS[k].cost);if(i===0)b.qt=0}
   else if(t.dataset.u==='amove'){store.cmdMode=store.cmdMode==='amove'?null:'amove'}
   else if(t.dataset.u==='patrol'){store.cmdMode=store.cmdMode==='patrol'?null:'patrol'}
