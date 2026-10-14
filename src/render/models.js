@@ -204,12 +204,12 @@ const MODELS = {
       mk(gCyl(0.62, 0.62, 24), CYANM, g, 0, 1.2, 0, 1, 0.06, 1);
       sp(g, 0.45, '#d9e6ea', 0, 2.05, 0, 1, 0.7);
       cy(g, 0.025, 0.6, C.metal, 0, 2.3, 0, 5);
-      mk(gCyl(0.97, 0.97, 24), CYANM, g, 0, 0.15, 0, 1, 0.04, 1);
+      mk(gTorus(0.95, 0.025, 4, 32), CYANM, g, 0, 0.15, 0, 1, 1, 1).rotation.x = Math.PI / 2;
       bx(g, 0.5, 0.02, 0.5, '#e8c84a', 0.55, 0.15, 0.5); // landingsplek voor drones
     } else {
       // Sterrentijdperk: een slanke witte naald met een zwevende paarse ring
-      cy(g, 0.97, 0.12, '#e6e9f2', 0, 0, 0, 20);
-      mk(gCyl(0.98, 0.98, 24), VIOLETM, g, 0, 0.04, 0, 1, 0.05, 1);
+      cy(g, 0.97, 0.12, '#c9cfdc', 0, 0, 0, 20);
+      mk(gTorus(0.97, 0.025, 4, 32), VIOLETM, g, 0, 0.12, 0, 1, 1, 1).rotation.x = Math.PI / 2;
       cy(g, 0.55, 0.3, '#d3d8e4', 0, 0.12, 0, 10, 0.45);
       cy(g, 0.42, 2.3, C.white, 0, 0.42, 0, 8, 0.06);
       for (let k = 0; k < 3; k++) {
@@ -933,7 +933,8 @@ const MODELS = {
   fusionplant(g) {
     // Fusiereactor: een ring (tokamak) met een roze kern onder een glazen koepel
     cy(g, 0.97, 0.15, C.white, 0, 0, 0, 16);
-    mk(gCyl(0.98, 0.98, 24), PINKM, g, 0, 0.05, 0, 1, 0.05, 1); // gloeiende band om de voet
+    // Dunne gloeiende rand om de voet (een volle schijf gloeit veel te fel)
+    mk(gTorus(0.97, 0.025, 4, 32), PINKM, g, 0, 0.15, 0, 1, 1, 1).rotation.x = Math.PI / 2;
     const t = mk(gTorus(0.42, 0.13, 8, 24), mat('#9aa2ac', { m: 0.5, r: 0.4 }), g, 0, 0.45, 0, 1, 1, 1);
     t.rotation.x = Math.PI / 2;
     for (let k = 0; k < 8; k++) {
