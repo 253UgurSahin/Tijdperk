@@ -103,15 +103,21 @@ button:active:not(:disabled) {
   transform: translateY(2px);
   box-shadow: 0 0 0 var(--paper-edge);
 }
-button:disabled {
+button:disabled,
+button[aria-disabled='true'] {
   opacity: 0.5;
   cursor: not-allowed;
 }
+/* Toetsenbord-focus: een duidelijke ring in de (donkere) kleur van het tijdperk */
 button:focus-visible,
 canvas:focus-visible,
-input:focus-visible {
-  outline: 2px solid var(--acc-edge);
+input:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2.5px solid var(--acc-edge);
   outline-offset: 2px;
+}
+#cv:focus-visible {
+  outline-offset: -4px;
 }
 @media (pointer: coarse) {
   button {
@@ -215,6 +221,7 @@ h1 {
   height: 6px;
   border-radius: 99px;
   background: rgba(43, 37, 32, 0.12);
+  box-shadow: inset 0 1px 1px rgba(43, 37, 32, 0.14);
   overflow: hidden;
 }
 .bar > i {
@@ -229,6 +236,17 @@ h1 {
 }
 .bar.bad > i {
   background: var(--bad);
+}
+.bar.warn > i {
+  background: var(--warn);
+}
+/* Lijnpictogrammen uit glyphs.js: zo groot als de tekst eromheen */
+.ico {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  flex: none;
+  vertical-align: -0.14em;
 }
 .cost {
   display: flex;

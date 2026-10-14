@@ -47,9 +47,24 @@ let level = 'high',
   slow = 0,
   fast = 0;
 
+/** Eigen keuze uit de instellingen: schaduwen, gloed, omlijning en resolutie los aan of uit. */
+function customLevel() {
+  const g = SET.gfx || {};
+  return {
+    name: 'Aangepast',
+    scale: g.scale || 1,
+    pixels: 14e6,
+    shadows: !!g.shadows,
+    shadowMap: 2048,
+    post: !!(g.bloom || g.outline),
+    bloom: !!g.bloom,
+    outline: !!g.outline,
+  };
+}
+
 function apply(name) {
   level = name;
-  const L = LEVELS[name];
+  const L = name === 'custom' ? customLevel() : LEVELS[name];
   store.resScale = L.scale;
   store.pixelBudget = L.pixels; // maximaal aantal pixels voor de 3D-wereld
   store.quality = name;

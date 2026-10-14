@@ -42,8 +42,38 @@
           </div>
           <section id="resPanel" class="hud" aria-label="Grondstoffen">
             <div class="poprow">
-              <div class="pstat" id="popStat" title="Inwoners en plek in woningen"><i>⌂</i><b>5/5</b></div>
-              <div class="pstat" id="powStat" hidden title="Stroom: geleverd / nodig"><i>ϟ</i><b>0/0</b></div>
+              <div class="pstat" id="popStat" title="Inwoners en plek in woningen">
+                <i
+                  ><svg
+                    class="ico"
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <path d="M4 11l8-7 8 7" />
+                    <path d="M6 9.5V20h12V9.5" />
+                    <path d="M10 20v-5h4v5" /></svg></i
+                ><b>5/5</b>
+              </div>
+              <div class="pstat" id="powStat" hidden title="Stroom: geleverd / nodig">
+                <i
+                  ><svg
+                    class="ico"
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <path d="M13 3L5 13h6l-1 8 8-10h-6z" /></svg></i
+                ><b>0/0</b>
+              </div>
               <span id="quick"></span>
             </div>
             <div id="resbar"></div>
@@ -128,7 +158,21 @@
             <div class="mapbtns">
               <button id="zOut" aria-label="Uitzoomen" title="Uitzoomen">−</button
               ><button id="zIn" aria-label="Inzoomen" title="Inzoomen">+</button
-              ><button id="zHome" aria-label="Naar het stamhuis" title="Naar het stamhuis">⌂</button
+              ><button id="zHome" aria-label="Naar het stamhuis" title="Naar het stamhuis">
+                <svg
+                  class="ico"
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path d="M4 11l8-7 8 7" />
+                  <path d="M6 9.5V20h12V9.5" />
+                  <path d="M10 20v-5h4v5" />
+                </svg></button
               ><button id="expandBtn" title="Gebied uitbreiden"><span>Uitbreiden</span></button>
             </div>
           </section>

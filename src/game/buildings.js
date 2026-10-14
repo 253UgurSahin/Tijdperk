@@ -86,6 +86,7 @@ export function bUpdate(b, dt) {
           col: b.type === 'cannon' ? '#ffbd6b' : '#fff3c4',
           big: b.type === 'cannon',
           h0: d.h * 0.8,
+          snd: d.snd,
         });
         b.cd = d.def.rate;
         b.aim = Math.atan2(f.y - y, f.x - x);

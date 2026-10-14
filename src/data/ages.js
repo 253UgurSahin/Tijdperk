@@ -92,7 +92,7 @@ export const AGE_UP = [
   { cost: { food: 600, wood: 500, stone: 400, iron: 120 }, pop: 16, need: ['smithy'] },
   { cost: { food: 900, wood: 700, stone: 600, iron: 200, gold: 80 }, pop: 22, need: ['market'] },
   {
-    cost: { food: 1200, wood: 600, stone: 700, gold: 150, powder: 80 },
+    cost: { food: 1200, wood: 600, stone: 700, gold: 150, powder: 120 },
     pop: 28,
     need: ['windmill', 'powdermill'],
   },
@@ -101,8 +101,8 @@ export const AGE_UP = [
     pop: 34,
     need: ['blastfurnace', 'powerplant'],
   },
-  { cost: { food: 2000, steel: 500, fuel: 200, silicon: 150 }, pop: 45, need: ['refinery', 'silicaworks'] },
-  { cost: { food: 2600, steel: 800, chips: 150, battery: 150 }, pop: 60, need: ['command'] },
+  { cost: { food: 2000, steel: 350, fuel: 150, silicon: 120 }, pop: 45, need: ['refinery', 'silicaworks'] },
+  { cost: { food: 2600, steel: 500, chips: 150, battery: 150 }, pop: 60, need: ['command'] },
 ];
 
 // Extra materiaal dat een verbetering van een gebouw kost, per tijdperk

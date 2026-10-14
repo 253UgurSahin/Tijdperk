@@ -16,6 +16,7 @@ import { setHTML, sigs } from './header.js';
 import { $, isCompact } from '../util/dom.js';
 import { dist } from '../util/math.js';
 import { togglePanel } from './panel.js';
+import { ico } from './glyphs.js';
 
 export let lastSpeed = 1,
   toastTimer = 0;
@@ -125,10 +126,10 @@ export function renderQuick() {
     sig,
     () =>
       (showIdle
-        ? `<button class="pbtn" data-q="idle" title="Selecteer dorpelingen zonder werk (sneltoets I)"><i>☺</i>${idle}</button>`
+        ? `<button class="pbtn" data-q="idle" title="Selecteer dorpelingen zonder werk (sneltoets I)"><i>${ico('☺')}</i>${idle}</button>`
         : '') +
       (G.us.length
-        ? `<button class="pbtn" data-q="army" title="Selecteer het hele leger (sneltoets Q)"><i>⚔</i>${G.us.length}</button>`
+        ? `<button class="pbtn" data-q="army" title="Selecteer het hele leger (sneltoets Q)"><i>${ico('⚔')}</i>${G.us.length}</button>`
         : ''),
   );
 }

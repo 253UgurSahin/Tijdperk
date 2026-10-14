@@ -38,13 +38,23 @@ export const hy = s =>
     '$1\u00AD$2',
   );
 export const TOUCH = matchMedia('(pointer:coarse)').matches;
-export function costHTML(c) {
+// Kort getal voor op een kleine tegel: 1200 wordt "1,2k", 15000 wordt "15k"
+export const fmtShort = n => {
+  n = Math.floor(n);
+  if (n < 1000) return String(n);
+  if (n < 10000) return (n / 1000).toFixed(1).replace(/\.0$/, '').replace('.', ',') + 'k';
+  return Math.round(n / 1000) + 'k';
+};
+// Kosten als rijtje fiches. Met "tight" worden de getallen kort, zodat ze op een tegel passen.
+export function costHTML(c, tight = false) {
   return (
-    '<span class="cost">' +
+    `<span class="cost${tight ? ' tight' : ''}">` +
     Object.keys(c)
-      .map(
-        k => `<span class="${G && G.res[k] < c[k] ? 'no' : ''}" title="${RES[k].n}">${gem(k)}${c[k]}</span>`,
-      )
+      .map(k => {
+        const short = G && G.res[k] < c[k] ? 'no' : '';
+        const label = `${RES[k].n}: ${c[k]}${short ? ' (te weinig)' : ''}`;
+        return `<span class="${short}" title="${label}">${gem(k)}${tight ? fmtShort(c[k]) : fmt(c[k])}</span>`;
+      })
       .join('') +
     '</span>'
   );

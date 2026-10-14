@@ -9,6 +9,7 @@ import { costHTML, esc, gem } from './format.js';
 import { setHTML, sigs } from './header.js';
 import { note, pulseRes, toast } from './hud.js';
 import { $ } from '../util/dom.js';
+import { ico } from './glyphs.js';
 
 // Gebeurteniskaartje
 export function renderEvent() {
@@ -27,7 +28,7 @@ export function renderEvent() {
     'ev',
     sig,
     () =>
-      `<div class="eh"><div class="ic">${d.g}</div><div><b>${d.t}</b><p>${esc(ev.text)}</p></div></div><div class="ch"><button class="primary" data-ev="a" ${ev.ca && !has(ev.ca) ? 'disabled' : ''}>${d.a.l}${ev.ca ? costHTML(ev.ca) : ''}</button><button data-ev="b">${d.b.l}<span class="cost">standaard na ${Math.ceil(ev.until - G.t)}s</span></button></div><div class="bar acc"><i style="width:${((ev.until - G.t) / 45) * 100}%"></i></div>`,
+      `<div class="eh"><div class="ic">${ico(d.g)}</div><div><b>${d.t}</b><p>${esc(ev.text)}</p></div></div><div class="ch"><button class="primary" data-ev="a" ${ev.ca && !has(ev.ca) ? 'disabled' : ''}>${d.a.l}${ev.ca ? costHTML(ev.ca) : ''}</button><button data-ev="b">${d.b.l}<span class="cost">standaard na ${Math.ceil(ev.until - G.t)}s</span></button></div><div class="bar acc"><i style="width:${((ev.until - G.t) / 45) * 100}%"></i></div>`,
   );
 }
 $('#event').addEventListener('click', e => {
@@ -50,7 +51,7 @@ export function renderOffer() {
     'offer',
     sig,
     () =>
-      `<div class="ic">⚖</div><div class="t"><b>Reizende handelaar</b>${gem(o.want)} ${o.amt} ${RES[o.want].n} voor ${gem(o.give)} ${o.price} ${RES[o.give].n}<div class="bar acc"><i style="width:${((o.until - G.t) / 70) * 100}%"></i></div></div><button class="primary" data-o="ok" ${has({ [o.give]: o.price }) ? '' : 'disabled'}>Ruil</button><button class="quiet" data-o="no" aria-label="Afslaan">✕</button>`,
+      `<div class="ic">${ico('⚖')}</div><div class="t"><b>Reizende handelaar</b>${gem(o.want)} ${o.amt} ${RES[o.want].n} voor ${gem(o.give)} ${o.price} ${RES[o.give].n}<div class="bar acc"><i style="width:${((o.until - G.t) / 70) * 100}%"></i></div></div><button class="primary" data-o="ok" ${has({ [o.give]: o.price }) ? '' : 'disabled'}>Ruil</button><button class="quiet" data-o="no" aria-label="Afslaan">${ico('✕')}</button>`,
   );
 }
 $('#offer').addEventListener('click', e => {

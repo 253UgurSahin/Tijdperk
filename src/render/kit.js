@@ -198,6 +198,11 @@ export function crenel(g, w, d, y, c, n = 4) {
 export function chim(g, x, y, z, h = 0.3, c = '#7b6a5a') {
   bx(g, 0.11, h, 0.11, c, x, y, z);
   bx(g, 0.14, 0.04, 0.14, '#4a403a', x, y + h, z);
+  // Onzichtbaar puntje bovenop: hier komt de rook uit (zie sync.js)
+  const top = new T3.Object3D();
+  top.position.set(x, y + h + 0.06, z);
+  top.userData.chim = 1;
+  g.add(top);
 }
 export function flame(g, x, y, z, s = 1) {
   const f = new T3.Group();

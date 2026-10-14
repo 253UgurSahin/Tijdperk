@@ -2,6 +2,7 @@
 import { store } from '../core/store.js';
 import { sfx } from '../audio/sound.js';
 import { AGES } from '../data/ages.js';
+import { SET } from '../core/settings.js';
 import { B, BKEYS, CATS } from '../data/buildings.js';
 import { RES } from '../data/resources.js';
 import { UNITS } from '../data/units.js';
@@ -131,13 +132,16 @@ function renderBuilds() {
   );
 }
 export function renderCmd() {
+  const before = sigs.grid;
   if (selCmds != null) {
     setHTML($('#cats'), 'cats', 'c' + selCtx, () => `<span class="ctx">${esc(selCtx)}</span>`);
     setHTML($('#cmdgrid'), 'grid', 'c' + selCmds, () => selCmds);
-    return;
+  } else {
+    renderCats();
+    renderBuilds();
   }
-  renderCats();
-  renderBuilds();
+  // Nieuwe tegels: een tooltip van een oude tegel mag niet blijven hangen
+  if (sigs.grid !== before && $('#hovertip').dataset.tile) hideTip();
 }
 function buildTileClick(c) {
   sfx('tick');
@@ -167,24 +171,49 @@ $('#cmdgrid').addEventListener('click', e => {
   }
   insHandler(e);
 });
+// Tooltip boven een tegel: de tip komt net boven de tegel, binnen het scherm
+function showTileTip(tile, html) {
+  if (!SET.tips) return;
+  const tip = $('#hovertip'),
+    r = tile.getBoundingClientRect(),
+    w = worldEl.getBoundingClientRect();
+  tip.className = '';
+  tip.dataset.tile = 1; // zo laat hover.js deze tip staan als de muis niet boven de wereld is
+  tip.innerHTML = html;
+  tip.hidden = false;
+  tip.style.left =
+    clamp(r.left - w.left + r.width / 2 - tip.offsetWidth / 2, 8, VW - tip.offsetWidth - 8) + 'px';
+  tip.style.top = Math.max(8, r.top - w.top - tip.offsetHeight - 10) + 'px';
+}
 $('#cmdgrid').addEventListener('pointerover', e => {
+  if (mouse.touch) return;
+  // Opdrachttegels (trainen, verbeteren, ...): naam, uitleg en de volledige kosten
+  const cmd = e.target.closest('.cb');
+  if (cmd) {
+    const name = cmd.getAttribute('aria-label'),
+      cost = cmd.querySelector('.cost');
+    const why = cmd.dataset.tip && cmd.dataset.tip !== name ? `<span>${esc(cmd.dataset.tip)}</span>` : '';
+    const full = cost ? cost.outerHTML.replace(' tight', '') : '';
+    showTileTip(cmd, `<b>${esc(name)}</b>${why}${full}`);
+    return;
+  }
   const c = e.target.closest('.gb');
-  if (!c || mouse.touch) return;
+  if (!c) return;
   const k = c.dataset.b || c.dataset.locked,
     d = B[k],
-    r = c.getBoundingClientRect(),
-    tip = $('#hovertip'),
     idx = [...document.querySelectorAll('#cmdgrid .gb[data-b]')].indexOf(c);
-  tip.className = '';
-  tip.innerHTML = `<b>${d.n}</b><span>${esc(bDesc(k))}</span>${d.age > G.age ? `<span>Beschikbaar in de ${AGES[d.age].n.toLowerCase()}.</span>` : costHTML(d.cost) + (has(d.cost) ? '' : `<span>Nog ${lackText(d.cost)} nodig.</span>`)}${idx >= 0 && idx < 9 ? `<span class="key">Sneltoets ${idx + 1}</span>` : ''}`;
-  tip.hidden = false;
-  const w = worldEl.getBoundingClientRect();
-  tip.style.left = clamp(r.left - w.left + r.width / 2 - 135, 8, VW - 280) + 'px';
-  tip.style.top = Math.max(8, r.top - w.top - tip.offsetHeight - 10) + 'px';
+  const when = `<span>Beschikbaar in de ${AGES[d.age].n.toLowerCase()}.</span>`;
+  const lack = has(d.cost) ? '' : `<span class="lack">Nog ${lackText(d.cost)} nodig.</span>`;
+  const key = idx >= 0 && idx < 9 ? `<span class="key">Sneltoets <kbd>${idx + 1}</kbd></span>` : '';
+  showTileTip(
+    c,
+    `<b>${d.n}</b><span>${esc(bDesc(k))}</span>${d.age > G.age ? when : costHTML(d.cost) + lack}${key}`,
+  );
 });
 $('#cmdgrid').addEventListener('pointerout', e => {
-  if (!e.relatedTarget || !e.relatedTarget.closest || !e.relatedTarget.closest('.gb')) hideTip();
+  if (!e.relatedTarget || !e.relatedTarget.closest || !e.relatedTarget.closest('.gb,.cb')) hideTip();
 });
 function hideTip() {
+  delete $('#hovertip').dataset.tile;
   $('#hovertip').hidden = true;
 }

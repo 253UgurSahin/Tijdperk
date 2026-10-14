@@ -5,7 +5,7 @@ import { CN, CX, CY, H, W } from '../config.js';
 import { SET } from '../core/settings.js';
 import { B } from '../data/buildings.js';
 import { RES } from '../data/resources.js';
-import { FOES, UNITS } from '../data/units.js';
+import { FOES, UNITS, bonusMul } from '../data/units.js';
 import { computeAvail } from './caches.js';
 import { gain } from './economy.js';
 import { burst, floater } from './fx.js';
@@ -124,12 +124,13 @@ function campDestroyed(c) {
   store.uiDirty = true;
 }
 export function fire(from, x, y, t, o) {
+  // Geluid hoort bij het wapen (musket, kanon, laser, ...); vijanden iets minder vaak
+  sfx(o.snd || 'shot', o.foe ? 0.3 : 0.12);
   if (o.laser) {
     hit(t, o.dmg);
     G.fx.push({ type: 'beam', x, y, x2: t.x, y2: t.y, life: 0.12, col: '#5ff0ff' });
     return;
   }
-  if (!o.foe) sfx('shot', 0.12);
   const p = tpos(t);
   G.proj.push({
     x,
@@ -189,9 +190,11 @@ export function nearestFoe(x, y, r, air) {
   }
   return best;
 }
-function udmg(u) {
+// Schade van een eigen eenheid tegen doel t: basis × wapens × onderzoek × rol-bonus
+function udmg(u, t) {
   return (
     UNITS[u.k].dmg *
+    bonusMul(UNITS[u.k], t) *
     armsMul() *
     (hasT('forging') ? 1.15 : 1) *
     (hasT('swarm') && (u.k === 'drone' || u.k === 'exo') ? 1.3 : 1)
@@ -245,13 +248,17 @@ export function uUpdate(u, dt) {
         u.swing = 0.2;
         if (U.proj)
           fire(u, u.x, u.y, u.tgt, {
-            dmg: udmg(u),
+            dmg: udmg(u, u.tgt),
             splash: U.splash,
             big: U.big,
             col: U.fly ? '#7ff7ff' : U.splash ? '#ffbd6b' : '#fff3c4',
             h0: U.fly ? 22 : 12,
+            snd: U.snd,
           });
-        else hit(u.tgt, udmg(u));
+        else {
+          if (U.snd) sfx(U.snd, 0.15);
+          hit(u.tgt, udmg(u, u.tgt));
+        }
       }
     } else if (u.stance === 'hold' && u.order === 'guard') {
       u.tgt = null;
@@ -455,6 +462,7 @@ export function fUpdate(f, dt) {
           big: f.big,
           splash: f.big ? 1 : 0,
           h0: f.air ? 22 : 12,
+          snd: FOES[f.type].snd,
         });
       else hit(f.tgt, f.dmg);
     }
@@ -464,7 +472,7 @@ export function spawnRaid() {
   G.raids++;
   const a = G.age,
     n = raidSize(),
-    scale = 1 + G.raids * 0.07,
+    scale = Math.min(2.5, 1 + G.raids * 0.05), // elke aanval iets taaier, maar niet eindeloos
     edge = [];
   for (let y = 0; y < H; y++)
     for (let x = 0; x < W; x++) {
@@ -485,8 +493,10 @@ export function spawnRaid() {
   sfx('alarm');
   store.raidPing = { x: anchor[0], y: anchor[1], t: 8 };
 }
+// Hoe groot de volgende aanval is: groeit met elke aanval en elk tijdperk, maar blijft te overzien.
+// (Latere vijanden zijn per stuk al veel sterker, dus het aantal groeit rustig.)
 export const raidSize = () =>
-  Math.min(36, Math.round((2 + Math.floor((G.raids + 1) * 1.25) + G.age * 2) * (G.diff === 2 ? 1.4 : 1)));
+  Math.min(30, Math.round((2 + Math.floor((G.raids + 1) * 0.9) + G.age) * (G.diff === 2 ? 1.4 : 1)));
 function compass(x, y) {
   const a = (Math.atan2(y - CY, x - CX) * 180) / Math.PI;
   const dirs = [

@@ -17,6 +17,7 @@ import {
   upgradeTools,
 } from '../../game/upgrades.js';
 import { costHTML, esc } from '../format.js';
+import { ico } from '../glyphs.js';
 import { setHTML, sigs } from '../header.js';
 import { toast } from '../hud.js';
 import { CB } from '../inspector.js';
@@ -46,7 +47,7 @@ export function renderUpgrades() {
   setHTML($('#upgrades'), 'upg', sig, () => {
     const pips = (l, t) =>
       `<span class="pips">${Array.from({ length: 6 }, (_, i) => `<i class="${i <= l ? 'on' : i <= t ? 'av' : ''}"></i>`).join('')}</span>`;
-    let h = `<div class="cmd">${CB('data-g="tools"', '⚒', `Werktuig ${G.toolLvl + 1}`, { dis: G.toolLvl >= G.age || !has(toolCost()), cost: G.toolLvl < G.age ? costHTML(toolCost()) : '<span class="lk">max</span>', tip: 'Sneller verzamelen, meer dragen' })}${CB('data-g="arms"', '⛨', `Pantser ${G.armsLvl + 1}`, { dis: G.armsLvl >= G.age || !has(armsCost()), cost: G.armsLvl < G.age ? costHTML(armsCost()) : '<span class="lk">max</span>', tip: 'Sterker leger' })}${CB(
+    let h = `<div class="cmd">${CB('data-g="tools"', '⚒', `Werktuig ${G.toolLvl + 1}`, { dis: G.toolLvl >= G.age || !has(toolCost()), cost: G.toolLvl < G.age ? costHTML(toolCost(), true) : '<span class="lk">max</span>', tip: 'Sneller verzamelen, meer dragen' })}${CB('data-g="arms"', '⛨', `Pantser ${G.armsLvl + 1}`, { dis: G.armsLvl >= G.age || !has(armsCost()), cost: G.armsLvl < G.age ? costHTML(armsCost(), true) : '<span class="lk">max</span>', tip: 'Sterker leger' })}${CB(
       'data-g="all"',
       '▲',
       `Gebouwen (${up.length})`,
@@ -72,7 +73,7 @@ export function renderUpgrades() {
         run = G.research && G.research.k === T.k,
         lock = T.age > G.age,
         can = !done && !run && !lock && !G.research && has(T.cost);
-      h += `<button class="tech ${done ? 'done' : run ? 'run' : lock ? 'lock' : ''}" data-tech="${T.k}" ${can ? '' : 'disabled'} title="${esc(T.d)}"><span class="g">${done ? '✓' : T.g}</span><b>${T.n}</b><span class="d">${T.d}</span>${done ? '' : run ? `<div class="bar acc"><i style="width:${(G.research.t / T.t) * 100}%"></i></div>` : lock ? `<span class="d">Vanaf de ${AGES[T.age].n.toLowerCase()}</span>` : costHTML(T.cost)}</button>`;
+      h += `<button class="tech ${done ? 'done' : run ? 'run' : lock ? 'lock' : ''}" data-tech="${T.k}" ${can ? '' : 'disabled'} title="${esc(T.d)}"><span class="g">${ico(done ? '✓' : T.g)}</span><b>${T.n}</b><span class="d">${T.d}</span>${done ? '' : run ? `<div class="bar acc"><i style="width:${(G.research.t / T.t) * 100}%"></i></div>` : lock ? `<span class="d">Vanaf de ${AGES[T.age].n.toLowerCase()}</span>` : costHTML(T.cost)}</button>`;
     }
     return h;
   });

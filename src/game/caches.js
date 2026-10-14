@@ -1,7 +1,7 @@
 // Tussenresultaten die elke halve seconde opnieuw worden berekend (licht, stroom, wie wat verzamelt).
 import { W } from '../config.js';
 import { B } from '../data/buildings.js';
-import { NODES, RES_NODES } from '../data/nodes.js';
+import { NI, NODES, RES_NODES } from '../data/nodes.js';
 import { GATHER, RES } from '../data/resources.js';
 import { G } from './state.js';
 import { darkness } from './time.js';
@@ -90,6 +90,9 @@ export function computeAvail() {
       if (avail[r]) break;
     }
   }
+  // Olie pomp je op: is er een oliebron binnen je gebied? (de coach gebruikt dit)
+  if (G.age >= RES.oil.age)
+    avail.oil = nodeLists[NI.oil].some(i => node[i] === NI.oil && amt[i] > 0 && isUnl(i % W, (i / W) | 0));
 }
 export function litAt(x, y) {
   for (const L of lights) if (dist(x, y, L.x, L.y) <= L.r - 0.3) return true;

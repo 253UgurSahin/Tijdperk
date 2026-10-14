@@ -318,14 +318,47 @@ body.panelopen #objectives {
   font-family: var(--f-mono);
   color: var(--ink-3);
   font-size: 12px;
+  font-variant-numeric: tabular-nums;
 }
-.reqs .ok,
 .reqs .v.ok {
   color: var(--good);
   font-weight: 600;
 }
-.reqs .no {
-  color: var(--ink-2);
+/* Afvinkrondje: leeg = nog nodig, half = in aanbouw, groen met vinkje = klaar */
+.reqs .ck {
+  display: grid;
+  place-items: center;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  border: 1.5px dashed var(--ink-4);
+}
+.reqs .ck.busy {
+  border-style: solid;
+  border-color: var(--acc-edge);
+  background: linear-gradient(90deg, var(--acc) 50%, transparent 50%);
+}
+.reqs .ck.ok {
+  border: 0;
+  background: var(--good);
+  color: #fff;
+}
+.reqs .ck .ico {
+  width: 11px;
+  height: 11px;
+  stroke-width: 3;
+}
+.reqs .done {
+  color: var(--ink-3);
+}
+.reqs .ri {
+  display: grid;
+  place-items: center;
+  color: var(--ink-3);
+}
+.reqs .ri .ico {
+  width: 14px;
+  height: 14px;
 }
 #mission.closed .body {
   display: none;

@@ -54,6 +54,12 @@ tests/                Vitest-tests voor data, wereldgeneratie en hulpfuncties
 - **Selecteren:** sleep met de linkermuis een kader (Shift: erbij). Dubbelklik of Ctrl-klik selecteert alles van
   dat soort in beeld. Rechts slepen, WASD of de schermrand verschuift de kaart. In de instellingen kun je slepen
   weer op "kaart verschuiven" zetten.
+- **Instellingen** (Menu → Instellingen), in vier tabbladen:
+  - *Spel:* tutorial aan/uit, uitleg bij de muis, levensbalken, automatisch opslaan, vredige modus
+  - *Beeld:* kwaliteit (ook "Eigen": resolutie, schaduwen, gloed en omlijning los), bovenaanzicht,
+    schermschudden, animaties, grootte van de interface (S–XL), teller met beeldjes per seconde
+  - *Geluid:* aan/uit, volume, meldingen, klikgeluiden, stil op de achtergrond
+  - *Besturing:* slepen = selecteren, randscrollen, camerasnelheid, zoomen omkeren
 - **Beeldkwaliteit:** Automatisch (standaard), Laag, Middel of Hoog. Automatisch verlaagt zelf de resolutie en
   zware effecten als het spel hapert, zodat het vloeiend blijft.
 - **Grote schermen:** op ultrabrede schermen (21:9 en breder, ook 5K2K) blijft de HUD in een centraal gebied

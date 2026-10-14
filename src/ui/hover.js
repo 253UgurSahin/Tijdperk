@@ -14,6 +14,7 @@ import { VH, VW, cv } from '../render/scene.js';
 import { bShort } from './buildmenu.js';
 import { esc, fmt } from './format.js';
 import { $ } from '../util/dom.js';
+import { SET } from '../core/settings.js';
 import { clamp } from '../util/math.js';
 import { amt, inb, isUnl, node, nodeVis } from '../world/world.js';
 
@@ -37,6 +38,12 @@ export function updateHover() {
     return;
   }
   if (tip.className) tip.className = '';
+  // Uitleg bij de muis uitgezet in de instellingen (meldingen bij het bouwen blijven wel)
+  if (!SET.tips) {
+    tip.hidden = true;
+    return;
+  }
+  if (mouse.in && tip.dataset.tile) delete tip.dataset.tile;
   if (
     !mouse.in ||
     drag ||
@@ -46,7 +53,7 @@ export function updateHover() {
     store.demoMode ||
     store.cmdMode
   ) {
-    if (!tip.dataset.res) tip.hidden = true;
+    if (!tip.dataset.res && !tip.dataset.tile) tip.hidden = true;
     if (!mouse.in || mouse.touch) store.hover = null;
     return;
   }

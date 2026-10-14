@@ -49,7 +49,7 @@ export function renderJobs() {
             })
             .join('')
     }${adv ? '' : '<p class="why" style="margin:6px 0 0">Je dorpelingen kiezen zelf het werk dat het hardst nodig is.</p>'}
-    <div class="cmd" style="margin-top:10px">${CB('data-act="train"', '☺', 'Trainen', { dis: !(popNow() < popCap() && G.res.food >= trainCost()), cost: costHTML({ food: trainCost() }), tip: 'Train een dorpeling in het stamhuis' })}${adv ? CB('data-act="idle"', '☉', 'Zonder werk', { tip: 'Selecteer wie niets doet' }) + CB('data-act="auto"', '↻', G.autoTrain ? 'Vanzelf trainen: aan' : 'Vanzelf trainen: uit', { on: G.autoTrain, tip: 'Het stamhuis traint vanzelf dorpelingen als er voedsel en plek is' }) : ''}</div>
+    <div class="cmd" style="margin-top:10px">${CB('data-act="train"', '☺', 'Trainen', { dis: !(popNow() < popCap() && G.res.food >= trainCost()), cost: costHTML({ food: trainCost() }, true), tip: 'Train een dorpeling in het stamhuis' })}${adv ? CB('data-act="idle"', '☉', 'Zonder werk', { tip: 'Selecteer wie niets doet' }) + CB('data-act="auto"', '↻', G.autoTrain ? 'Vanzelf trainen: aan' : 'Vanzelf trainen: uit', { on: G.autoTrain, tip: 'Het stamhuis traint vanzelf dorpelingen als er voedsel en plek is' }) : ''}</div>
     <div class="statline ${popNow() >= popCap() && G.bs.some(b => b.type !== 'townhall' && B[b.type].pop && b.done) ? 'warn' : ''}"><i class="dot"></i>${popNow() >= popCap() ? (G.bs.some(b => b.type !== 'townhall' && B[b.type].pop) ? 'Vol: bouw meer woningen' : 'Bouw een hut voor meer inwoners') : G.training ? `Traint${G.trainQ ? ` · ${G.trainQ} in wachtrij` : ''}` : `${inside ? inside + ' binnen · ' : ''}${G.vs.filter(v => !v.hidden && v.state === 'idle').length} stilstaand`}</div>`,
   );
 }

@@ -19,6 +19,12 @@ import { updateTabs } from './panel.js';
 import { buildResBar, rate, updateResPop } from './resources.js';
 import { $, isCompact } from '../util/dom.js';
 
+// Speel het tik-animatietje opnieuw af (eerst weghalen, dan terugzetten)
+function tick(el, cls) {
+  el.classList.remove('tick-up', 'tick-down');
+  void el.offsetWidth;
+  el.classList.add(cls);
+}
 export function updateHeader() {
   buildResBar();
   updateResPop();
@@ -39,9 +45,20 @@ export function updateHeader() {
     if (b.done && b.on && d.conv) for (const k in d.conv.out) prod[k] = (prod[k] || 0) + 1;
     if (b.done && d.pump) prod[d.pump.res] = (prod[d.pump.res] || 0) + 1;
   }
+  // Wat je nu wilt bouwen: grondstoffen waar je te weinig van hebt, kleuren rood
+  const need = store.placing ? B[store.placing].cost : null;
   for (const el of document.querySelectorAll('#resbar .res,#resPop .res')) {
-    const k = el.dataset.k;
-    el.querySelector('b').textContent = fmt(G.res[k]);
+    const k = el.dataset.k,
+      num = el.querySelector('b'),
+      txt = fmt(G.res[k]);
+    if (num.textContent !== txt) {
+      // Een klein tikje als het getal verandert: groen omhoog, rood omlaag
+      const up = G.res[k] > (+el.dataset.v || 0);
+      if (num.textContent) tick(num, up ? 'tick-up' : 'tick-down');
+      num.textContent = txt;
+    }
+    el.dataset.v = Math.floor(G.res[k]);
+    el.classList.toggle('short', !!(need && need[k] > G.res[k]));
     const r = rate[k],
       em = el.querySelector('em');
     if (r !== undefined && Math.abs(r) >= 1) {
@@ -50,10 +67,10 @@ export function updateHeader() {
     } else em.textContent = '';
     const wk = el.querySelector('.wk');
     if (wk) {
-      const n = GATHER.includes(k) ? wr[k] || 0 : prod[k] || 0,
-        t = (GATHER.includes(k) ? '☺ ' : '⚙ ') + n;
-      if (wk.textContent !== t) wk.textContent = t;
-      wk.classList.toggle('zero', !n);
+      const n = String(GATHER.includes(k) ? wr[k] || 0 : prod[k] || 0),
+        cnt = wk.querySelector('span');
+      if (cnt && cnt.textContent !== n) cnt.textContent = n;
+      wk.classList.toggle('zero', n === '0');
     }
   }
   const cap = popCap(),

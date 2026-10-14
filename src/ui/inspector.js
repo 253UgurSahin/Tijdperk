@@ -35,6 +35,7 @@ import { CHAPTERS } from '../game/chapters.js';
 import { iconFor, portrait } from '../render/icons.js';
 import { bShort } from './buildmenu.js';
 import { TOUCH, costHTML, esc, fmt, gem, hy } from './format.js';
+import { ico } from './glyphs.js';
 import { setHTML, sigs } from './header.js';
 import { setExpand, toast } from './hud.js';
 import { $ } from '../util/dom.js';
@@ -43,8 +44,13 @@ import { amt, bmap, isUnl, node, setBlk } from '../world/world.js';
 import { canMake } from '../data/succession.js';
 
 // Selectiepaneel
-export const CB = (data, glyph, label, o = {}) =>
-  `<button class="cb ${o.on ? 'on' : ''} ${o.danger ? 'danger' : ''}" ${data} ${o.dis ? 'disabled' : ''} title="${esc(o.tip || label)}">${o.img ? `<img src="${o.img}" alt="">` : `<span class="g">${glyph}</span>`}<span class="l">${hy(label)}</span>${o.cost ? `<span class="c">${o.cost}</span>` : ''}</button>`;
+// Een opdrachttegel. De uitleg (data-tip) toont buildmenu.js in een eigen tooltip.
+export const CB = (data, glyph, label, o = {}) => {
+  const cls = ['cb', o.on && 'on', o.danger && 'danger', o.cost && 'has-cost'].filter(Boolean).join(' ');
+  const pic = o.img ? `<img src="${o.img}" alt="">` : `<span class="g">${ico(glyph)}</span>`;
+  const cost = o.cost ? `<span class="c">${o.cost}</span>` : '';
+  return `<button class="${cls}" ${data} ${o.dis ? 'disabled' : ''} aria-label="${esc(label.replace(/\u00AD/g, ''))}" data-tip="${esc(o.tip || '')}">${pic}<span class="l">${hy(label)}</span>${cost}</button>`;
+};
 // Selectiepaneel met de knoppen die bij de selectie horen
 export let selCmds = null,
   selCtx = '';
@@ -54,12 +60,15 @@ export function renderInspector() {
     us = selUnits(),
     b = sel.b && bById.get(sel.b),
     camp = sel.camp && G.camps.find(c => c.id === sel.camp && c.alive);
-  const X = `<button class="quiet x" data-x="1" aria-label="Sluiten">${TOUCH ? 'Sluiten' : '×'}</button>`;
+  const X = `<button class="quiet x" data-x="1" aria-label="Sluiten">${TOUCH ? 'Sluiten' : ico('✕')}</button>`;
   const im = src => `<img src="${src}" alt="">`;
   const head = (port, t, sub) =>
     `${X}<div class="selh"><div class="port">${port}</div><div><div class="selt">${t}</div><div class="sels">${sub}</div></div></div>`;
-  const hpl = (f, txt, cls = '') =>
-    `<div class="hpline"><div class="bar ${cls}"><i style="width:${clamp(f, 0, 1) * 100}%"></i></div><span>${txt}</span></div>`;
+  // Levensbalk: zonder eigen kleur wordt hij oranje bij weinig en rood bij heel weinig leven
+  const hpl = (f, txt, cls = '') => {
+    const tone = cls || (f < 0.35 ? 'bad' : f < 0.65 ? 'warn' : '');
+    return `<div class="hpline"><div class="bar ${tone}"><i style="width:${clamp(f, 0, 1) * 100}%"></i></div><span>${txt}</span></div>`;
+  };
   if (!vs.length && !us.length && !b && !camp && sel.node < 0) {
     document.body.classList.remove('insp');
     selCmds = null;
@@ -76,7 +85,7 @@ export function renderInspector() {
       () =>
         `<div class="empty"><div class="selh" style="padding-right:0"><div class="port">${im(iconFor('townhall'))}</div><div><div class="selt">${placeName()}</div><div class="sels">${AGES[G.age].n} · ${AGES[G.age].lvl}</div></div></div>` +
         `<p class="chron">Hoofdstuk ${AGES[G.age].r} · ${CHAPTERS[G.age].t}</p>` +
-        `<div class="stats"><span><i>⌂</i>${popNow()}/${popCap()} inwoners</span><span><i>⚔</i>${G.us.length} soldaten</span><span><i>◇</i>${G.unl.filter(Boolean).length} gebieden</span></div>` +
+        `<div class="stats"><span><i>${ico('⌂')}</i>${popNow()}/${popCap()} inwoners</span><span><i>${ico('⚔')}</i>${G.us.length} soldaten</span><span><i>${ico('◇')}</i>${G.unl.filter(Boolean).length} gebieden</span></div>` +
         `<div class="quicks">${quick('idle', 'Wie doet niets?', 'I', idle)}${G.us.length ? quick('army', 'Hele leger', 'Q', G.us.length) : ''}${quick('home', 'Naar het stamhuis', 'Home')}</div></div>`,
     );
   }
@@ -121,7 +130,7 @@ export function renderInspector() {
       () => `${head(im(portrait('u', us[0].k)), us.length === 1 ? U.n : one ? `${us.length} × ${U.n}` : 'Leger', `${us.length} ${us.length === 1 ? 'eenheid' : 'eenheden'}${G.armsLvl ? ` · pantser ${G.armsLvl + 1}` : ''}`)}${hpl(hp / mhp, `${Math.ceil(hp)}/${Math.ceil(mhp)}`)}
       ${
         one
-          ? `<div class="stats"><span><i>⚔</i>${Math.round(U.dmg * armsMul())} schade</span><span><i>◎</i>bereik ${U.r}</span><span><i>»</i>snelheid ${U.spd}</span>${U.air ? '<span><i>✈</i>raakt drones</span>' : ''}</div>`
+          ? `<div class="stats"><span><i>${ico('⚔')}</i>${Math.round(U.dmg * armsMul())} schade</span><span><i>${ico('◎')}</i>bereik ${U.r}</span><span><i>${ico('»')}</i>snelheid ${U.spd}</span>${U.air ? `<span><i>${ico('✈')}</i>raakt drones</span>` : ''}</div>`
           : `<div class="stack">${Object.keys(by)
               .map(
                 k =>
@@ -240,7 +249,7 @@ export function renderInspector() {
         const c = upgCost(b);
         cmd += CB('data-b="upgrade"', '▲', `Niveau ${l + 2}`, {
           dis: !has(c),
-          cost: costHTML(c),
+          cost: costHTML(c, true),
           tip: upgEffect(b.type, l + 1),
         });
       }
@@ -249,13 +258,13 @@ export function renderInspector() {
       cmd += CB('data-b="train1"', '', `Dorpeling`, {
         img: portrait('v', 'auto'),
         dis: popNow() >= popCap() || G.res.food < trainCost(),
-        cost: costHTML({ food: trainCost() }),
+        cost: costHTML({ food: trainCost() }, true),
         tip: popNow() >= popCap() ? 'Geen plek: bouw eerst een woning' : 'Train een dorpeling',
       });
       if (G.toolLvl < G.age)
         cmd += CB('data-g="tools"', '⚒', `Werktuig ${G.toolLvl + 2}`, {
           dis: !has(toolCost()),
-          cost: costHTML(toolCost()),
+          cost: costHTML(toolCost(), true),
           tip: '+15% verzamelsnelheid en +2 draagvermogen voor iedereen',
         });
     }
@@ -271,7 +280,7 @@ export function renderInspector() {
           return CB(`data-train="${k}"`, '', U.n, {
             img: portrait('u', k),
             dis: lock || !has(U.cost),
-            cost: lock ? `<span class="lk">${AGES[U.age].r}</span>` : costHTML(U.cost),
+            cost: lock ? `<span class="lk">${AGES[U.age].r}</span>` : costHTML(U.cost, true),
             tip: lock
               ? `Vanaf de ${AGES[U.age].n.toLowerCase()}`
               : `${U.hp} leven · ${U.dmg} schade · bereik ${U.r}${U.air ? ' · raakt drones' : ''} · ${U.t}s · Shift-klik: 5 tegelijk`,
@@ -295,7 +304,7 @@ export function renderInspector() {
     if (b.type === 'barracks' && G.armsLvl < G.age)
       cmd += CB('data-g="arms"', '⛨', `Pantser ${G.armsLvl + 2}`, {
         dis: !has(armsCost()),
-        cost: costHTML(armsCost()),
+        cost: costHTML(armsCost(), true),
         tip: '+15% schade en levenspunten voor het hele leger',
       });
     if (b.type !== 'townhall')
@@ -330,11 +339,12 @@ export function renderInspector() {
       b.done ? esc(bShort(b.type)) : 'In aanbouw · ' + Math.floor((b.prog / b.bt) * 100) + '%',
     );
     h += b.done
-      ? hpl(b.hp / mh, `${Math.ceil(b.hp)}/${Math.ceil(mh)}`, b.hp / mh < 0.4 ? 'bad' : '')
+      ? hpl(b.hp / mh, `${Math.ceil(b.hp)}/${Math.ceil(mh)}`)
       : hpl(b.prog / b.bt, `${Math.floor((b.prog / b.bt) * 100)}% gebouwd`, 'acc');
     if (!b.done)
       return (
-        h + `<div class="statline"><i class="dot"></i>${siteCnt.get(b.id) || 0} bouwers aan het werk</div>`
+        h +
+        `<div class="statline ${siteCnt.get(b.id) ? '' : 'warn'}"><i class="dot"></i>${siteCnt.get(b.id) ? siteCnt.get(b.id) + ' bouwers aan het werk' : 'Nog geen bouwers: stuur er een paar heen'}</div>`
       );
     if (d.conv || d.gen || d.pump) {
       const stt = !b.on
@@ -355,9 +365,9 @@ export function renderInspector() {
             : 'Pompt';
       h += `<div class="statline ${b.starved && b.on ? 'warn' : ''}"><i class="dot"></i>${stt}${d.power && powerRatio < 1 ? ` · stroom ${Math.round(powerRatio * 100)}%` : ''}</div>`;
     }
-    if (d.pop) h += `<div class="stats"><span><i>⌂</i>${bPop(b)} inwoners</span></div>`;
+    if (d.pop) h += `<div class="stats"><span><i>${ico('⌂')}</i>${bPop(b)} inwoners</span></div>`;
     if (d.def)
-      h += `<div class="stats"><span><i>⚔</i>${Math.round(d.def.dmg * (1 + 0.4 * lvlOf(b)))} schade</span><span><i>◎</i>bereik ${d.def.r}</span></div>`;
+      h += `<div class="stats"><span><i>${ico('⚔')}</i>${Math.round(d.def.dmg * (1 + 0.4 * lvlOf(b)))} schade</span><span><i>${ico('◎')}</i>bereik ${d.def.r}</span></div>`;
     if (UPG_OK(b.type)) {
       const l = lvlOf(b),
         top = 5 - B[b.type].age,
@@ -376,8 +386,21 @@ export function renderInspector() {
           })
           .join('') +
         '</div>';
-    if (b.q.length)
-      h += `<div class="hpline"><div class="bar acc"><i style="width:${(b.qt / UNITS[b.q[0]].t) * 100}%"></i></div><span>${UNITS[b.q[0]].n}${b.blocked ? ' · geen plek' : ''}</span></div><div class="queue">${b.q.map((k, i) => `<button class="qchip" data-cq="${i}" title="Klik om te annuleren">${UNITS[k].n}</button>`).join('')}</div>`;
+    if (b.q.length) {
+      // Wachtrij: de eerste wordt nu getraind (met voortgang), de rest wacht. Klik = annuleren.
+      const first = UNITS[b.q[0]],
+        pct = clamp(b.qt / first.t, 0, 1) * 100,
+        left = Math.max(0, Math.ceil(first.t - b.qt));
+      const chip = (k, i) =>
+        `<button class="qchip" data-cq="${i}" aria-label="${UNITS[k].n} annuleren" title="${UNITS[k].n} · klik om te annuleren"><img src="${portrait('u', k)}" alt=""></button>`;
+      const rest = b.q.slice(1).map((k, i) => chip(k, i + 1));
+      h +=
+        `<div class="qnow"><button class="qchip big" data-cq="0" aria-label="${first.n} annuleren" title="Klik om te annuleren"><img src="${portrait('u', b.q[0])}" alt=""></button>` +
+        `<div class="qinfo"><div class="qtop"><b>${first.n}</b><span>${b.blocked ? '<em>geen plek</em>' : left + 's'}</span></div>` +
+        `<div class="bar acc"><i style="width:${pct}%"></i></div></div>` +
+        (rest.length ? `<div class="qnext" title="Daarna in de wachtrij">${rest.join('')}</div>` : '') +
+        `</div>`;
+    }
     if (b.type === 'townhall' && (G.training || G.trainQ))
       h += `<div class="statline"><i class="dot"></i>Traint dorpelingen${G.trainQ ? ` · ${G.trainQ} in wachtrij` : ''}</div>`;
     return h;

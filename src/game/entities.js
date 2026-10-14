@@ -62,6 +62,7 @@ export function completeBuilding(b, silent) {
     toast(d.n + ' is klaar');
     fxRing(b.x + d.size / 2, b.y + d.size / 2, '#ffffff');
     sfx('done');
+    if (d.snd === 'creak') sfx('creak'); // de wieken van een nieuwe molen gaan draaien
   }
   if (d.win && !G.won) {
     G.won = true;
@@ -134,6 +135,7 @@ export function spawnFoe(type, x, y, scale, camp) {
     r: F.r,
     rate: F.rate,
     air: !!F.air,
+    ride: !!F.ride,
     proj: !!F.proj,
     big: !!F.big,
     cd: Math.random(),

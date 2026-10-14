@@ -48,34 +48,52 @@
   pointer-events: none;
   width: min(460px, calc(100% - 32px));
 }
+/* Melding: een papieren strookje met links een gekleurd streepje (goed, slecht of tijdperk) */
 #toast {
-  padding: 10px 16px 10px 14px;
+  --mark: var(--acc);
+  position: relative;
+  padding: 10px 16px 10px 22px;
   border-radius: var(--r);
   background: var(--panel);
   border: 1px solid var(--rule-2);
-  border-left: 6px solid var(--acc);
   color: var(--ink);
   font-size: 13px;
   opacity: 0;
-  transform: translateY(-6px);
+  transform: translateY(-8px) scale(0.98);
   transition:
-    opacity 0.25s,
-    transform 0.25s;
+    opacity 0.2s ease-in,
+    transform 0.2s ease-in;
   max-width: 100%;
+  line-height: 1.45;
   box-shadow: var(--card-shadow);
+}
+#toast:empty {
+  display: none;
 }
 #toast.show {
   opacity: 1;
   transform: none;
+  transition:
+    opacity 0.22s ease-out,
+    transform 0.32s cubic-bezier(0.2, 0.9, 0.3, 1.25);
+}
+#toast::before {
+  content: '';
+  position: absolute;
+  left: 9px;
+  top: 9px;
+  bottom: 9px;
+  width: 4px;
+  border-radius: 2px;
+  background: var(--mark);
 }
 #toast.bad {
-  border-left-color: var(--bad);
+  --mark: var(--bad);
 }
 #toast.good {
-  border-left-color: var(--good);
+  --mark: var(--good);
 }
 #toast.age {
-  border-left-color: var(--acc);
   background: var(--grain), var(--acc-soft);
 }
 #feed {
@@ -118,6 +136,17 @@
     transform: translateY(-5px);
   }
 }
+/* Kaartjes die binnenkomen: even van boven op tafel gelegd */
+#offer:not([hidden]),
+#event:not([hidden]) {
+  animation: cardin 0.32s cubic-bezier(0.2, 0.9, 0.3, 1.2);
+}
+@keyframes cardin {
+  from {
+    opacity: 0;
+    transform: translateY(-10px) rotate(-0.6deg);
+  }
+}
 #offer {
   pointer-events: auto;
   display: flex;
@@ -135,6 +164,15 @@
   place-items: center;
   font-size: 20px;
   flex: none;
+  color: var(--acc-ink);
+}
+#offer .ic .ico {
+  width: 22px;
+  height: 22px;
+}
+#offer .quiet .ico {
+  width: 16px;
+  height: 16px;
 }
 #offer b {
   display: block;
@@ -190,6 +228,10 @@
   color: var(--ink-2);
   line-height: 1.45;
 }
+#event .ic .ico {
+  width: 22px;
+  height: 22px;
+}
 #event .ch {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -222,6 +264,29 @@
   max-width: 270px;
   line-height: 1.45;
 }
+/* De tip verschijnt met een korte fade, zodat hij niet "knippert" */
+#hovertip:not([hidden]) {
+  animation: tipin 0.14s ease-out;
+}
+@keyframes tipin {
+  from {
+    opacity: 0;
+    translate: 0 3px;
+  }
+}
+#hovertip .lack {
+  color: var(--bad);
+  font-weight: 500;
+}
+#hovertip kbd {
+  font: 500 11px var(--f-mono);
+  color: var(--ink);
+  border: 1px solid var(--rule-2);
+  border-bottom-width: 2px;
+  border-radius: 5px;
+  padding: 0 5px;
+  background: var(--paper-hi);
+}
 #hovertip b {
   display: block;
   font-family: var(--f-display);
@@ -235,8 +300,9 @@
 }
 #hovertip .key {
   color: var(--muted);
-  font-family: var(--f-mono);
-  margin-top: 4px;
+  margin-top: 6px;
+  padding-top: 5px;
+  border-top: 1px dashed var(--rule-2);
 }
 #hovertip.ok {
   border-top-color: var(--good);
@@ -251,7 +317,10 @@
   color: var(--bad);
 }
 #hovertip .cost {
-  margin-top: 5px;
+  margin-top: 6px;
+}
+#hovertip .cost span {
+  display: inline-flex;
 }
 #banner {
   position: absolute;

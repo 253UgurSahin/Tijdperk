@@ -1,5 +1,5 @@
 // Geluidseffecten, gemaakt met de Web Audio API (geen geluidsbestanden).
-import { SET } from '../core/settings.js';
+import { SET, saveSet } from '../core/settings.js';
 
 export let MG = null;
 function out() {
@@ -11,10 +11,10 @@ function out() {
   return MG;
 }
 export let AC = null,
-  sndOn = true;
-try {
-  sndOn = localStorage.getItem('tijdperken-snd') !== 'off';
-} catch (e) {}
+  sndOn = SET.sound !== false;
+// Welke geluiden bij "meldingen" horen en welke bij "klikjes" (zie de instellingen)
+const ALERTS = new Set(['alarm', 'raidend', 'meteor', 'bad']);
+const UI_SOUNDS = new Set(['tick', 'select']);
 function ac() {
   if (!AC) {
     try {
@@ -64,7 +64,8 @@ function noise(dur, vol, hp = 800, delay = 0) {
   src.start(a.currentTime + delay);
 }
 export function sfx(k, minGap = 0.05) {
-  if (!sndOn || (!AC && !ac())) return;
+  if (!sndOn || (!SET.alerts && ALERTS.has(k)) || (!SET.uiSounds && UI_SOUNDS.has(k))) return;
+  if (!AC && !ac()) return;
   const now = performance.now() / 1000;
   if (sfxT[k] && now - sfxT[k] < minGap) return;
   sfxT[k] = now;
@@ -93,6 +94,46 @@ export function sfx(k, minGap = 0.05) {
       break;
     case 'shot':
       noise(0.04, 0.08, 2000);
+      break;
+    case 'musket':
+      // Knal van buskruit: een scherpe klap met een doffe nagalm
+      noise(0.14, 0.1, 1200);
+      tone(160, 60, 0.12, 'square', 0.04);
+      break;
+    case 'gun':
+      // Kort, droog salvo van een modern geweer
+      noise(0.05, 0.07, 2500);
+      tone(320, 120, 0.04, 'square', 0.025);
+      break;
+    case 'cannon':
+      // Zware kanonslag: veel lage tonen
+      noise(0.5, 0.13, 120);
+      tone(75, 30, 0.5, 'sine', 0.14);
+      break;
+    case 'thud':
+      // Een blijde: hout kraakt en een steen zoeft weg
+      tone(130, 60, 0.22, 'triangle', 0.08);
+      noise(0.12, 0.05, 300);
+      break;
+    case 'rocket':
+      noise(0.5, 0.06, 500);
+      tone(380, 950, 0.4, 'sawtooth', 0.025);
+      break;
+    case 'laser':
+      tone(1800, 300, 0.15, 'sawtooth', 0.035);
+      tone(2400, 700, 0.1, 'square', 0.015);
+      break;
+    case 'rail':
+      // Railgun: zoem die oploopt, dan een klap
+      tone(200, 2600, 0.18, 'sawtooth', 0.045);
+      noise(0.18, 0.1, 600, 0.17);
+      tone(90, 40, 0.3, 'sine', 0.1, 0.17);
+      break;
+    case 'creak':
+      // Windmolen: houten wieken die gaan draaien
+      tone(180, 140, 0.4, 'triangle', 0.03);
+      tone(215, 170, 0.35, 'triangle', 0.025, 0.3);
+      noise(0.6, 0.02, 900, 0.1);
       break;
     case 'alarm':
       for (let i = 0; i < 3; i++) {
@@ -128,11 +169,22 @@ export function sfx(k, minGap = 0.05) {
 }
 export function setSound(on) {
   sndOn = on;
-  try {
-    localStorage.setItem('tijdperken-snd', on ? 'on' : 'off');
-  } catch (e) {}
+  SET.sound = on;
+  saveSet();
   if (on) sfx('tick');
 }
+/** Volume direct aanpassen (schuifje in de instellingen). */
+export function setVolume(v) {
+  SET.vol = v;
+  saveSet();
+  if (MG) MG.gain.value = v;
+}
+// Naar een ander tabblad: geluid even stil (als die instelling aan staat)
+document.addEventListener('visibilitychange', () => {
+  if (!AC) return;
+  if (document.hidden && SET.muteHidden) AC.suspend().catch(() => {});
+  else if (!document.hidden && sndOn) AC.resume().catch(() => {});
+});
 addEventListener(
   'pointerdown',
   () => {

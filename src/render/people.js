@@ -172,6 +172,14 @@ function wheel(g, r, x, y, z, c = C.woodd) {
   w.position.x = x + (x > 0 ? 0.04 : 0);
   return w;
 }
+// Sommige voertuigen zijn in de lengte langs x gebouwd; draai ze zodat de neus naar voren (z) wijst
+function faceForward(g) {
+  const h = new T3.Group();
+  h.add(...g.children);
+  h.rotation.y = -Math.PI / 2;
+  g.add(h);
+  return g;
+}
 export function makeUnit(k, foe) {
   const g = new T3.Group(),
     T = foe ? FOE : TEAM,
@@ -183,12 +191,12 @@ export function makeUnit(k, foe) {
     bx(g, 0.34, 0.16, 0.3, foe ? '#6a3a32' : '#6b7650', 0, 0.28, 0);
     bx(g, 0.5, 0.05, 0.05, '#3a3f33', 0.3, 0.34, 0); // kanonloop
     bx(g, 0.14, 0.04, 0.14, T, 0, 0.44, 0);
-    return g;
+    return faceForward(g);
   }
   if (k === 'fieldgun') {
     const b = cy(g, 0.05, 0.55, '#2e3236', 0, 0.22, 0, 8);
-    b.rotation.z = Math.PI / 2 - 0.2;
-    b.position.x = 0.1;
+    b.rotation.z = -(Math.PI / 2 - 0.2); // loop wijst naar voren, iets omhoog
+    b.position.x = -0.05;
     for (const z of [-0.15, 0.15]) {
       const w = cy(g, 0.14, 0.04, C.woodd, 0, 0.14, z, 10);
       w.rotation.x = Math.PI / 2;
@@ -197,8 +205,9 @@ export function makeUnit(k, foe) {
     const p = new T3.Group();
     p.position.x = -0.35;
     person(p, { shirt: T, hat: 'cap', hatc: TD });
+    p.rotation.y = Math.PI / 2;
     g.add(p);
-    return g;
+    return faceForward(g);
   }
   if (k === 'drone') {
     const b = new T3.Group();
@@ -273,7 +282,7 @@ export function makeUnit(k, foe) {
     }
     bx(g, 0.18, 0.1, 0.16, '#4a2e28', 0, 0.38, 0);
     bx(g, 0.3, 0.04, 0.04, '#2e2e2e', 0.2, 0.42, 0);
-    return g;
+    return faceForward(g);
   }
   if (k === 'cuirassier') {
     // Kurassier: donker paard, stalen borstplaat en hoed met veer
@@ -319,6 +328,7 @@ export function makeUnit(k, foe) {
     ax.rotation.z = Math.PI / 2;
     const arm = bx(g, 0.04, 0.7, 0.04, '#7a5a36', 0, 0.6, 0.12);
     arm.rotation.x = -0.75; // werparm schuin omhoog naar achteren
+    arm.name = 'arm'; // beweegt bij het werpen (zie animate.js)
     bx(g, 0.02, 0.12, 0.02, '#5a4a3a', 0, 0.98, -0.4); // slinger aan het eind
     bx(g, 0.16, 0.14, 0.14, '#6e6a64', 0, 0.45, 0.18); // tegengewicht
     const p = new T3.Group();

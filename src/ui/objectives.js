@@ -12,6 +12,7 @@ import { measureHud } from '../main.js';
 import { ageUp } from './age.js';
 import { andJoin, lackList, placed } from './coach.js';
 import { fmt, gem } from './format.js';
+import { ico } from './glyphs.js';
 import { setHTML, sigs } from './header.js';
 import { setExpand } from './hud.js';
 import { togglePanel } from './panel.js';
@@ -27,13 +28,13 @@ export function renderChronicle() {
       const ok = built(n);
       allReq = allReq && ok;
       rows.push(
-        `<span class="${ok ? 'ok' : 'no'}">${ok ? '✓' : '○'}</span><span>${B[n].n}</span><span class="v ${ok ? 'ok' : ''}">${ok ? 'klaar' : placed(n) ? 'bezig' : 'nodig'}</span>`,
+        `<span class="ck ${ok ? 'ok' : placed(n) ? 'busy' : ''}">${ok ? ico('✓') : ''}</span><span class="${ok ? 'done' : ''}">${B[n].n}</span><span class="v ${ok ? 'ok' : ''}">${ok ? 'klaar' : placed(n) ? 'bezig' : 'nodig'}</span>`,
       );
     }
     const pv = Math.min(1, popNow() / nx.pop);
     allReq = allReq && pv >= 1;
     rows.push(
-      `<div class="rq"><span>☺</span><span>Inwoners</span><span class="v ${pv >= 1 ? 'ok' : ''}">${popNow()} / ${nx.pop}</span><div class="bar ${pv >= 1 ? '' : 'acc'}"><i style="width:${pv * 100}%"></i></div></div>`,
+      `<div class="rq"><span class="ri">${ico('☺')}</span><span>Inwoners</span><span class="v ${pv >= 1 ? 'ok' : ''}">${popNow()} / ${nx.pop}</span><div class="bar ${pv >= 1 ? '' : 'acc'}"><i style="width:${pv * 100}%"></i></div></div>`,
     );
     for (const k in nx.cost) {
       const v = Math.min(1, G.res[k] / nx.cost[k]);
@@ -48,7 +49,7 @@ export function renderChronicle() {
   const sig = JSON.stringify([G.age, rows, allReq, G.won, fix, miss, placed('stargate'), store.missionOpen]);
   setHTML($('#mission'), 'mission', sig, () => {
     if (!nx)
-      return `<button id="ageToggle" aria-expanded="${store.missionOpen}"><span class="oh">Laatste tijdperk</span><i>${store.missionOpen ? '▲' : '▼'}</i></button><div class="body"><p class="why">${CHAPTERS[G.age].s}</p><div class="reqs"><span class="${built('stargate') ? 'ok' : 'no'}">${built('stargate') ? '✓' : '○'}</span><span>Sterrenpoort</span><span class="v">${built('stargate') ? 'klaar' : 'nodig'}</span></div>${G.won ? '<p class="why">Je beschaving heeft de hele geschiedenis doorlopen.</p>' : ''}</div>`;
+      return `<button id="ageToggle" aria-expanded="${store.missionOpen}"><span class="oh">Laatste tijdperk</span><i>${store.missionOpen ? '▲' : '▼'}</i></button><div class="body"><p class="why">${CHAPTERS[G.age].s}</p><div class="reqs"><span class="ck ${built('stargate') ? 'ok' : placed('stargate') ? 'busy' : ''}">${built('stargate') ? ico('✓') : ''}</span><span>Sterrenpoort</span><span class="v">${built('stargate') ? 'klaar' : 'nodig'}</span></div>${G.won ? '<p class="why">Je beschaving heeft de hele geschiedenis doorlopen.</p>' : ''}</div>`;
     const A = AGES[G.age + 1];
     return `<button id="ageToggle" aria-expanded="${store.missionOpen}"><span class="oh">Naar de ${A.n.toLowerCase()}</span><i>${AGES[G.age].r} → ${A.r} ${store.missionOpen ? '▲' : '▼'}</i></button><div class="body"><div class="ages">${AGES.map((a, i) => `<i class="${i <= G.age ? 'done' : ''}" title="${a.n}"></i>`).join('')}</div><p class="why">${A.sub}</p>
     <button class="primary" id="ageBtn" ${allReq ? '' : 'disabled'}>${allReq ? 'Ga naar de ' + A.n.toLowerCase() + ' →' : 'Nog ' + andJoin(miss) + ' nodig'}</button>

@@ -9,6 +9,7 @@ import { G } from '../game/state.js';
 import { mouse } from '../input/input.js';
 import { VH, VW, worldEl } from '../render/scene.js';
 import { fmt, gem } from './format.js';
+import { ico } from './glyphs.js';
 import { setHTML, sigs } from './header.js';
 import { $, isCompact, isNarrow } from '../util/dom.js';
 import { clamp } from '../util/math.js';
@@ -62,7 +63,7 @@ function relevantRes() {
   return out;
 }
 const resItem = k =>
-  `<div class="res" data-k="${k}">${gem(k)}<div><b>${fmt(G.res[k])}</b><small>${RES[k].n}</small><em></em></div><span class="wk zero" title="${GATHER.includes(k) ? 'Dorpelingen op deze grondstof' : 'Gebouwen die dit maken'}"></span></div>`;
+  `<div class="res" data-k="${k}">${gem(k)}<div><b>${fmt(G.res[k])}</b><small>${RES[k].n}</small><em></em></div><span class="wk zero" title="${GATHER.includes(k) ? 'Dorpelingen op deze grondstof' : 'Gebouwen die dit maken'}">${ico(GATHER.includes(k) ? '☺' : '⚙')}<span>0</span></span></div>`;
 export function buildResBar(force) {
   const all = relevantRes(),
     lim = isNarrow() ? 3 : isCompact() ? 4 : 5,

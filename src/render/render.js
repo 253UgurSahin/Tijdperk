@@ -10,6 +10,9 @@ import { drag, hoverChunk, mouse } from '../input/input.js';
 import { updateCamera } from './camera.js';
 import { pool, poolsBegin, poolsEnd, quadAt, rangeAt, ringAt } from './decals.js';
 import { drawFx, drawRain } from './effects.js';
+import { stepDying } from './animate.js';
+import { stepParticles } from './particles.js';
+import { drawAmbient } from './ambient.js';
 import { drawPlacement } from './ghost.js';
 import { flagpole } from './kit.js';
 import { applySeason, lighting } from './lighting.js';
@@ -61,8 +64,11 @@ export function render() {
   syncBuildings();
   syncEntities();
   syncCamps();
+  stepDying();
   drawFx();
   drawRain();
+  drawAmbient(dk);
+  stepParticles(store.TM);
   drawPlacement();
   lighting(dk);
   // Cirkels onder geselecteerde dingen
@@ -82,6 +88,15 @@ export function render() {
         return g;
       });
       f.position.set(sb.rally.x, 0, sb.rally.y);
+      // Stippellijn van het gebouw naar het verzamelpunt; de stippen lopen langzaam mee
+      const dx = sb.rally.x - cx,
+        dz = sb.rally.y - cz,
+        len = Math.hypot(dx, dz),
+        start = s * 0.55,
+        step = 0.45,
+        shift = (store.TM * 0.8) % step;
+      for (let t = start + shift; t < len - 0.3; t += step)
+        quadAt(cx + (dx / len) * t, cz + (dz / len) * t, 0.12, 0.12, '#ffffff', 0.7, 0.04);
     }
   }
   if (sel.camp) {

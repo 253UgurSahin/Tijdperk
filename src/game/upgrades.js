@@ -21,7 +21,9 @@ export const UPG_OK = k => {
 export const lvlOf = b => (b && b.lvl) || 0;
 export const maxLvl = b => (UPG_OK(b.type) ? Math.max(0, G.age - B[b.type].age) : 0);
 export const canUpg = b => b.done && lvlOf(b) < maxLvl(b);
-export const bMaxHp = b => B[b.type].hp * (1 + 0.35 * lvlOf(b)) * (hasT('masonry') ? 1.25 : 1);
+// Het stamhuis groeit mee met je tijdperk, anders is het in latere tijdperken te snel gesloopt
+const ageHp = b => (b.type === 'townhall' && G ? 1 + 0.3 * G.age : 1);
+export const bMaxHp = b => B[b.type].hp * ageHp(b) * (1 + 0.35 * lvlOf(b)) * (hasT('masonry') ? 1.25 : 1);
 export const bPop = b => {
   const p = B[b.type].pop;
   return p ? Math.round(p * (1 + 0.4 * lvlOf(b))) : 0;

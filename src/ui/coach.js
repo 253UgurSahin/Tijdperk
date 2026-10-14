@@ -27,6 +27,65 @@ export function lackList(nx) {
 export const andJoin = a =>
   a.length > 2 ? a.slice(0, 2).join(', ') + ' en meer' : a.length === 2 ? a[0] + ' en ' + a[1] : a[0] || '';
 const bAct = k => ({ l: 'Bouw ' + B[k].n.toLowerCase(), b: k });
+const expandAct = r => ({ l: 'Gebied uitbreiden', k: 'expand', r });
+
+// Waar komt grondstof k vandaan? Geeft een stap terug als de speler er iets voor moet doen.
+// `left` is hoeveel er nog nodig is, `goal` waarvoor (bijv. "de bronstijd").
+function sourceStep(k, left, goal, depth = 0) {
+  const name = RES[k].n.toLowerCase();
+  // Sterrenmetaal kun je niet zomaar vinden: het valt als meteoriet uit de lucht
+  if (k === 'starmetal' && !avail.starmetal)
+    return {
+      t: 'Wacht op een meteoriet.',
+      h: `Sterrenmetaal komt uit meteorieten: na een inslag ligt het rond de krater. Verderop liggen ook oude inslagen; breid uit om erbij te kunnen. Nog ${left} nodig voor ${goal}.`,
+      act: expandAct(k),
+    };
+  if (GATHER.includes(k) && !avail[k])
+    return {
+      t: 'Breid je gebied uit.',
+      h: `Er ligt nog geen ${name} binnen je grenzen. Je hebt er nog ${left} nodig voor ${goal}.`,
+      act: expandAct(k),
+    };
+  // Olie verzamel je niet met de hand: daar is een oliepomp op een oliebron voor
+  if (k === 'oil') {
+    if (!avail.oil)
+      return {
+        t: 'Zoek een oliebron.',
+        h: 'Olie zit onder woestijnen en kusten. Breid je gebied uit tot er een oliebron in ligt.',
+        act: expandAct(k),
+      };
+    if (!placed('oilpump'))
+      return {
+        t: 'Plaats een oliepomp.',
+        h: `${B.oilpump.desc} De raffinaderij maakt er brandstof van.`,
+        tile: 'oilpump',
+        act: bAct('oilpump'),
+      };
+    return null;
+  }
+  if (!RES[k].cr || depth > 2) return null;
+  const mk = BKEYS.find(b => B[b].conv && B[b].conv.out[k]);
+  if (!mk) return null;
+  if (!placed(mk))
+    return {
+      t: `Bouw een ${B[mk].n.toLowerCase()}.`,
+      h: `Daar maak je ${name}, nodig voor ${goal}.${B[mk].desc ? ' ' + B[mk].desc : ''}`,
+      tile: mk,
+      act: bAct(mk),
+    };
+  // Wacht de fabriek op iets dat je eerst moet regelen? Dan dát als stap.
+  const inp = Object.keys(B[mk].conv.in).filter(r => G.res[r] < 5);
+  for (const r of inp) {
+    const step = sourceStep(r, 'wat', goal, depth + 1);
+    if (step) return step;
+  }
+  return {
+    t: `Nog ${left} ${name} nodig.`,
+    h: inp.length
+      ? `De ${B[mk].n.toLowerCase()} wacht op ${inp.map(r => RES[r].n.toLowerCase()).join(' en ')}.`
+      : `De ${B[mk].n.toLowerCase()} maakt het vanzelf. Een tweede ${B[mk].n.toLowerCase()} gaat twee keer zo snel.`,
+  };
+}
 export function coach() {
   const nx = AGE_UP[G.age + 1],
     NA = nx && AGES[G.age + 1].n.toLowerCase(),
@@ -110,26 +169,46 @@ export function coach() {
       };
   }
   if (!nx) {
-    if (!placed('stargate'))
+    if (!placed('stargate')) {
+      const cost = B.stargate.cost;
+      for (const k in cost) {
+        if (G.res[k] >= cost[k]) continue;
+        const step = sourceStep(k, fmt(Math.ceil(cost[k] - G.res[k])), 'de sterrenpoort');
+        if (step) return step;
+      }
+      const miss = Object.keys(cost)
+        .filter(k => G.res[k] < cost[k])
+        .map(k => `${fmt(Math.ceil(cost[k] - G.res[k]))} ${RES[k].n.toLowerCase()}`);
       return {
         t: 'Bouw de sterrenpoort.',
-        h: 'Daarmee voltooi je je beschaving.',
+        h: miss.length
+          ? `Daarmee voltooi je je beschaving. Nog ${andJoin(miss)} nodig.`
+          : 'Daarmee voltooi je je beschaving.',
         tile: 'stargate',
         act: bAct('stargate'),
       };
+    }
     return {
       t: G.won ? 'Je beschaving is voltooid.' : 'De sterrenpoort wordt gebouwd.',
       h: G.won ? 'Bouw gerust verder.' : 'Nog even geduld.',
     };
   }
   for (const n of nx.need)
-    if (!placed(n))
+    if (!placed(n)) {
+      // Kun je het gebouw nog niet betalen? Zeg dan eerst waar de ontbrekende grondstof vandaan komt.
+      const cost = B[n].cost;
+      for (const k in cost) {
+        if (G.res[k] >= cost[k]) continue;
+        const step = sourceStep(k, fmt(Math.ceil(cost[k] - G.res[k])), `een ${B[n].n.toLowerCase()}`);
+        if (step) return step;
+      }
       return {
         t: `Bouw een ${B[n].n.toLowerCase()}.`,
         h: `Nodig voor de ${NA}.${B[n].desc ? ' ' + B[n].desc : ''}`,
         tile: n,
         act: bAct(n),
       };
+    }
   if (pn < nx.pop && pn >= cap) {
     const h = bestHouse();
     return {
@@ -141,32 +220,8 @@ export function coach() {
   }
   for (const k in nx.cost) {
     if (G.res[k] >= nx.cost[k]) continue;
-    const left = fmt(Math.ceil(nx.cost[k] - G.res[k]));
-    if (GATHER.includes(k) && !avail[k])
-      return {
-        t: 'Breid je gebied uit.',
-        h: `Er ligt nog geen ${RES[k].n.toLowerCase()} binnen je grenzen. Je hebt er nog ${left} nodig.`,
-        act: { l: 'Gebied uitbreiden', k: 'expand' },
-      };
-    if (RES[k].cr) {
-      const mk = BKEYS.find(b => B[b].conv && B[b].conv.out[k]);
-      if (mk && !placed(mk))
-        return {
-          t: `Bouw een ${B[mk].n.toLowerCase()}.`,
-          h: `Daar maak je ${RES[k].n.toLowerCase()}, nodig voor de ${NA}.`,
-          tile: mk,
-          act: bAct(mk),
-        };
-      if (mk) {
-        const inp = Object.keys(B[mk].conv.in).filter(r => G.res[r] < 5);
-        return {
-          t: `Nog ${left} ${RES[k].n.toLowerCase()} nodig.`,
-          h: inp.length
-            ? `De ${B[mk].n.toLowerCase()} wacht op ${inp.map(r => RES[r].n.toLowerCase()).join(' en ')}.`
-            : `De ${B[mk].n.toLowerCase()} maakt het vanzelf.`,
-        };
-      }
-    }
+    const step = sourceStep(k, fmt(Math.ceil(nx.cost[k] - G.res[k])), `de ${NA}`);
+    if (step) return step;
   }
   if (pn < nx.pop)
     return {

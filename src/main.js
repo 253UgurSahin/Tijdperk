@@ -115,7 +115,7 @@ function frame(now) {
   const rdt = Math.min(0.1, (now - lastT) / 1000);
   lastT = now;
   if ($('#modal').hidden) {
-    const pp = 900 * rdt;
+    const pp = 900 * rdt * (SET.camSpeed || 1);
     let kx = 0,
       ky = 0;
     if (keys.has('w') || keys.has('arrowup')) ky -= 1;
@@ -177,6 +177,7 @@ function frame(now) {
   t0 = performance.now();
   render();
   tickQuality(rdt);
+  if (SET.fps) showFps(rdt);
   measure('render', t0);
   t0 = performance.now();
   updateHover();
@@ -219,9 +220,21 @@ function frame(now) {
   saveT += rdt;
   if (saveT > 60) {
     saveT = 0;
-    if (!G.over) save();
+    if (!G.over && SET.autosave) save();
   }
   requestAnimationFrame(frame);
+}
+// Teller met beeldjes per seconde (aan te zetten in de instellingen)
+const fpsEl = Object.assign(document.createElement('div'), { id: 'fps', hidden: !SET.fps });
+document.body.appendChild(fpsEl);
+let fpsFrames = 0,
+  fpsTime = 0;
+function showFps(rdt) {
+  fpsFrames++;
+  fpsTime += rdt;
+  if (fpsTime < 0.5) return;
+  fpsEl.textContent = Math.round(fpsFrames / fpsTime) + ' fps';
+  fpsFrames = fpsTime = 0;
 }
 export function measureHud() {
   const ds = document.documentElement.style,
