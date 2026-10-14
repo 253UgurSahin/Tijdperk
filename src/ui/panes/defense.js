@@ -1,6 +1,6 @@
 // Paneel "Leger".
 import { store } from '../../core/store.js';
-import { DAYLEN } from '../../config.js';
+import { CX, CY, DAYLEN } from '../../config.js';
 import { B } from '../../data/buildings.js';
 import { FOES, UNITS } from '../../data/units.js';
 import { has, pay } from '../../game/economy.js';
@@ -90,7 +90,7 @@ $('#defense').addEventListener('click', e => {
     }
   } else if (t.dataset.act === 'army') selectArmy();
   else if (t.dataset.act === 'camps') {
-    const c = G.camps.filter(c => c.alive).sort((a, b) => dist(a.x, a.y, 64, 64) - dist(b.x, b.y, 64, 64))[0];
+    const c = G.camps.filter(c => c.alive).sort((a, b) => dist(a.x, a.y, CX, CY) - dist(b.x, b.y, CX, CY))[0];
     if (c) {
       centerOn(c.x + 1, c.y + 1);
       clearSel();

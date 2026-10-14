@@ -3,7 +3,7 @@ import { store } from '../core/store.js';
 import { H, W } from '../config.js';
 import { hasT } from '../game/upgrades.js';
 import { clamp } from '../util/math.js';
-import { foeWalk, freeWalk, road, ter, walkable } from './world.js';
+import { foeWalk, freeWalk, passable, road, walkable } from './world.js';
 
 const gS = new Float32Array(W * H),
   came = new Int32Array(W * H),
@@ -17,7 +17,7 @@ export function findPath(sx, sy, tx, ty, free) {
   ty = clamp(ty, 0, H - 1);
   const ok0 = free === 2 ? foeWalk : free ? freeWalk : walkable,
     goalI = ty * W + tx,
-    ok = (x, y) => ok0(x, y) || (free && x === tx && y === ty && ter[goalI] !== 1);
+    ok = (x, y) => ok0(x, y) || (free && x === tx && y === ty && passable(goalI));
   if (sx === tx && sy === ty) return [];
   if (!ok(tx, ty)) return null;
   stamp++;
@@ -76,7 +76,7 @@ export function findPath(sx, sy, tx, ty, free) {
     }
     if (cls[c] === stamp) continue;
     cls[c] = stamp;
-    if (++exp > 9000) return null;
+    if (++exp > 40000) return null; // geef op bij heel lange of onmogelijke routes
     const cx = c % W,
       cy = (c / W) | 0;
     for (let dy = -1; dy <= 1; dy++)

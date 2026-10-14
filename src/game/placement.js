@@ -15,7 +15,7 @@ import { mouse } from '../input/input.js';
 import { resetV, selVills } from '../input/selection.js';
 import { fmt } from '../ui/format.js';
 import { toast } from '../ui/hud.js';
-import { bmap, inb, isUnl, node, nodeVis, road, ter } from '../world/world.js';
+import { TER, bmap, inb, isUnl, node, nodeVis, road, ter } from '../world/world.js';
 import { SUCCESSOR, canMake } from '../data/succession.js';
 
 export function chunkCost() {
@@ -77,7 +77,8 @@ export function canPlace(type, x, y, skipCost) {
   if (d.road) {
     if (!isUnl(x, y)) return 'Buiten je gebied';
     const i = y * W + x;
-    if (ter[i] === 1) return 'Hier is water';
+    if (ter[i] === TER.WATER) return 'Hier is water';
+    if (ter[i] === TER.ROCK) return 'Hier zijn bergen';
     if (bmap[i]) return 'Hier staat al iets';
     if (nodeVis(i)) return NODES[node[i]].n + ' in de weg';
     if (road[i] >= roadTier()) return 'Hier ligt al een weg';
@@ -91,7 +92,8 @@ export function canPlace(type, x, y, skipCost) {
       if (!inb(xx, yy)) return 'Buiten de kaart';
       if (!isUnl(xx, yy)) return 'Buiten je gebied';
       const i = yy * W + xx;
-      if (ter[i] === 1) return 'Hier is water';
+      if (ter[i] === TER.WATER) return 'Hier is water';
+      if (ter[i] === TER.ROCK) return 'Hier zijn bergen';
       if (bmap[i]) return 'Hier staat al iets';
       if (d.needNode) {
         if (node[i] !== NI.oil) return 'Een oliepomp moet op een oliebron staan';

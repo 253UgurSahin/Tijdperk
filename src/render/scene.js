@@ -2,6 +2,7 @@
 import * as T3 from 'three';
 import { store } from '../core/store.js';
 import { $ } from '../util/dom.js';
+import { CX, CY } from '../config.js';
 
 export const cv = $('#cv'),
   ov = $('#ov'),
@@ -10,7 +11,7 @@ export const cv = $('#cv'),
 export let DPR = 1,
   VW = 1,
   VH = 1;
-export const cam = { x: 64, y: 64, z: 1, tx: null, ty: null };
+export const cam = { x: CX, y: CY, z: 1, tx: null, ty: null };
 export const scrX = (x, y) => (store.V2 ? x : x - y);
 const LOWQ = matchMedia('(pointer:coarse)').matches;
 export const R3 = new T3.WebGLRenderer({ canvas: cv, antialias: !LOWQ, powerPreference: 'high-performance' });

@@ -1,5 +1,5 @@
 // De spelstand (G): alles wat er nu in de wereld is. Ook een nieuw spel starten.
-import { CN, TAU, W } from '../config.js';
+import { CN, CX, CY, TAU, W } from '../config.js';
 import { PLACES } from '../data/names.js';
 import { RKEYS } from '../data/resources.js';
 import { placeBuilding, spawnFoe, spawnVillager } from './entities.js';
@@ -10,7 +10,7 @@ import { cam } from '../render/scene.js';
 import { note } from '../ui/hud.js';
 import { dist } from '../util/math.js';
 import { mulberry32 } from '../util/random.js';
-import { buildLists, genWorld, inb, node, ter } from '../world/world.js';
+import { buildLists, genWorld, inb, node, passable } from '../world/world.js';
 
 export let G = null;
 export const bById = new Map();
@@ -76,28 +76,32 @@ export function newGame(seed, diff = 1) {
     G.res,
     diff === 2 ? { food: 150, wood: 120, stone: 40 } : { food: 200, wood: 160, stone: 60 },
   );
-  for (const c of [
-    [3, 3],
-    [4, 3],
-    [3, 4],
-    [4, 4],
+  // Je begint met de vier gebieden in het midden van de kaart
+  for (const [x, y] of [
+    [CN / 2 - 1, CN / 2 - 1],
+    [CN / 2, CN / 2 - 1],
+    [CN / 2 - 1, CN / 2],
+    [CN / 2, CN / 2],
   ])
-    G.unl[c[1] * CN + c[0]] = 1;
+    G.unl[y * CN + x] = 1;
   genWorld(seed);
   buildLists();
   bById.clear();
-  placeBuilding('townhall', 63, 63, true);
-  for (let k = 0; k < 5; k++) spawnVillager(63 + (k % 3) * 0.7, 65.5 + (k > 2 ? 0.8 : 0));
+  placeBuilding('townhall', CX - 1, CY - 1, true);
+  for (let k = 0; k < 5; k++) spawnVillager(CX - 1 + (k % 3) * 0.7, CY + 1.5 + (k > 2 ? 0.8 : 0));
   genCamps(seed);
   clearSel();
-  centerOn(64, 64, true);
+  centerOn(CX, CY, true);
   cam.z = 1;
   note(`Je stam vestigt zich in ${placeName()}.`);
   afterLoad();
 }
 export const placeName = () => PLACES[G.seed % PLACES.length];
+// Vijandelijke kampen: zwakke dichtbij, sterke ver weg. Op een grote kaart twee per niveau.
 function genCamps(seed) {
   const R = mulberry32(seed + 77),
+    spread = (W / 128) * 0.85,
+    perTier = W >= 256 ? 2 : 1,
     RANGES = [
       [22, 28],
       [27, 35],
@@ -106,35 +110,33 @@ function genCamps(seed) {
       [45, 54],
       [50, 58],
     ];
-  for (let tier = 0; tier < 6; tier++) {
-    for (let tries = 0; tries < 200; tries++) {
-      const a = R() * TAU,
-        r = RANGES[tier][0] + R() * (RANGES[tier][1] - RANGES[tier][0]);
-      const x = Math.round(64 + Math.cos(a) * r),
-        y = Math.round(64 + Math.sin(a) * r);
-      if (!inb(x - 1, y - 1) || !inb(x + 2, y + 2)) continue;
-      let ok = true;
-      for (let dy = -1; dy <= 2; dy++)
-        for (let dx = -1; dx <= 2; dx++) {
-          if (ter[(y + dy) * W + x + dx] === 1) ok = false;
-        }
-      if (!ok || G.camps.some(c => dist(c.x, c.y, x, y) < 14)) continue;
-      for (let dy = -1; dy <= 2; dy++) for (let dx = -1; dx <= 2; dx++) node[(y + dy) * W + x + dx] = 0;
-      const camp = {
-        id: G.nid++,
-        kind: 'c',
-        x,
-        y,
-        tier,
-        hp: 500 * (1 + tier * 1.2),
-        mhp: 500 * (1 + tier * 1.2),
-        alive: true,
-      };
-      G.camps.push(camp);
-      spawnCampGuards(camp);
-      break;
-    }
-  }
+  for (let tier = 0; tier < 6; tier++)
+    for (let n = 0; n < perTier; n++)
+      for (let tries = 0; tries < 300; tries++) {
+        const a = R() * TAU,
+          r = (RANGES[tier][0] + R() * (RANGES[tier][1] - RANGES[tier][0])) * spread;
+        const x = Math.round(CX + Math.cos(a) * r),
+          y = Math.round(CY + Math.sin(a) * r);
+        if (!inb(x - 1, y - 1) || !inb(x + 2, y + 2)) continue;
+        let ok = true;
+        for (let dy = -1; dy <= 2; dy++)
+          for (let dx = -1; dx <= 2; dx++) if (!passable((y + dy) * W + x + dx)) ok = false;
+        if (!ok || G.camps.some(c => dist(c.x, c.y, x, y) < 14 * spread)) continue;
+        for (let dy = -1; dy <= 2; dy++) for (let dx = -1; dx <= 2; dx++) node[(y + dy) * W + x + dx] = 0;
+        const camp = {
+          id: G.nid++,
+          kind: 'c',
+          x,
+          y,
+          tier,
+          hp: 500 * (1 + tier * 1.2),
+          mhp: 500 * (1 + tier * 1.2),
+          alive: true,
+        };
+        G.camps.push(camp);
+        spawnCampGuards(camp);
+        break;
+      }
 }
 function spawnCampGuards(c) {
   const n = 3 + c.tier * 2;

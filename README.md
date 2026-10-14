@@ -2,6 +2,7 @@
 
 Een real-time strategiespel in de browser: leid je stam van de **steentijd** naar het **dronetijdperk**, in zes tijdperken.
 
+- Elke wereld wordt opnieuw gegenereerd (256×256 tegels): zee en kust, rivieren en meren, bossen, heuvels, bergketens met sneeuw, woestijnen en zoutvlaktes. Ertsen liggen waar ze logisch horen
 - 3D-wereld in WebGL ([three.js](https://threejs.org) r149), met dag/nacht, seizoenen, regen en schaduwen
 - RTS-interface: grondstoffen met dorpelingen per taak, selectiepaneel, knoppenraster en minikaart
 - Bouwen, verzamelen, gebied uitbreiden, onderzoek, een leger trainen en kampen veroveren

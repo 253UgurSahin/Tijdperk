@@ -1,7 +1,7 @@
 // Gevechten: soldaten, vijanden, torens en projectielen.
 import { store } from '../core/store.js';
 import { sfx } from '../audio/sound.js';
-import { CN, H, W } from '../config.js';
+import { CN, CX, CY, H, W } from '../config.js';
 import { SET } from '../core/settings.js';
 import { B } from '../data/buildings.js';
 import { RES } from '../data/resources.js';
@@ -384,8 +384,8 @@ export function fUpdate(f, dt) {
   if (f.swing > 0) f.swing -= dt;
   if (f.retreat) {
     f.alpha -= dt * 0.35;
-    const dx = f.x - 64,
-      dy = f.y - 64,
+    const dx = f.x - CX,
+      dy = f.y - CY,
       d = Math.hypot(dx, dy) || 1;
     f.x += (dx / d) * f.spd * dt;
     f.y += (dy / d) * f.spd * dt;
@@ -481,7 +481,7 @@ export function spawnRaid() {
 export const raidSize = () =>
   Math.min(36, Math.round((2 + Math.floor((G.raids + 1) * 1.25) + G.age * 2) * (G.diff === 2 ? 1.4 : 1)));
 function compass(x, y) {
-  const a = (Math.atan2(y - 64, x - 64) * 180) / Math.PI;
+  const a = (Math.atan2(y - CY, x - CX) * 180) / Math.PI;
   const dirs = [
     'oosten',
     'zuidoosten',

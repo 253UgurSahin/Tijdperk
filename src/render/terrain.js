@@ -4,10 +4,10 @@ import { CN, H, W } from '../config.js';
 import { G } from '../game/state.js';
 import { mat } from './kit.js';
 import { S3 } from './scene.js';
-import { fbm, hash2, vnoise } from '../util/random.js';
-import { road, ter } from '../world/world.js';
+import { hash2 } from '../util/random.js';
+import { TER, ground, mountainHeight, road, ter } from '../world/world.js';
 
-const TS = 16,
+const TS = 12, // pixels per tegel in de grondtextuur
   TCAN = document.createElement('canvas');
 TCAN.width = W * TS;
 TCAN.height = H * TS;
@@ -27,16 +27,10 @@ const WMAT = new T3.MeshStandardMaterial({
   opacity: 0.88,
 });
 export const RC = [null, [176, 152, 108], [168, 166, 156], [78, 82, 88]];
+/** Kleur van de grond op tegel (x, y), zoals de wereldgenerator die heeft bepaald. */
 export function tileRGB(x, y) {
-  const i = y * W + x,
-    t = ter[i],
-    n = vnoise(x / 6, y / 6, G.seed + 9),
-    v = hash2(x, y, 5);
-  if (t === 1) return [40, 74, 84];
-  if (t === 2) return [176 + n * 14, 158 + n * 12, 112 + n * 10];
-  if (t === 3) return [182, 186, 178];
-  const w = fbm(x / 22, y / 22, G.seed + 3);
-  return [70 + w * 34 + n * 16 + v * 6, 98 + w * 26 + n * 16 + v * 5, 44 + w * 10 + n * 8];
+  const i = (y * W + x) * 3;
+  return [ground[i], ground[i + 1], ground[i + 2]];
 }
 export function paintTile(x, y) {
   const i = y * W + x,
@@ -68,7 +62,7 @@ export function paintTile(x, y) {
           g *= 0.82;
           b *= 0.7;
         }
-      } else if (ter[i] !== 1) {
+      } else if (ter[i] !== TER.WATER) {
         const k = 0.94 + h * 0.1;
         r *= k;
         g *= k;
@@ -76,10 +70,10 @@ export function paintTile(x, y) {
       }
       if (rd) {
         const ex =
-          (px < 3 && !nb(-1, 0)) ||
-          (px > 12 && !nb(1, 0)) ||
-          (py < 3 && !nb(0, -1)) ||
-          (py > 12 && !nb(0, 1));
+          (px < 2 && !nb(-1, 0)) ||
+          (px >= TS - 2 && !nb(1, 0)) ||
+          (py < 2 && !nb(0, -1)) ||
+          (py >= TS - 2 && !nb(0, 1));
         if (!ex) {
           const c = RC[rd],
             k = 0.9 + h * 0.16;
@@ -91,7 +85,7 @@ export function paintTile(x, y) {
             g *= 0.86;
             b *= 0.86;
           }
-          if (rd === 3 && py === 8 && px % 6 < 3) {
+          if (rd === 3 && py === TS / 2 && px % 6 < 3) {
             r = 230;
             g = 220;
             b = 150;
@@ -159,7 +153,10 @@ export function buildTerrain() {
   for (let k = 0; k < p.count; k++) {
     const x = Math.round(p.getX(k)),
       z = Math.round(p.getZ(k));
+    // Elke hoekpunt kijkt naar de 4 tegels eromheen: water zakt omlaag, bergen rijzen op
     let wc = 0,
+      rc = 0,
+      rise = 0,
       n = 0;
     for (const [dx, dz] of [
       [-1, -1],
@@ -171,9 +168,15 @@ export function buildTerrain() {
         zz = z + dz;
       if (xx < 0 || zz < 0 || xx >= W || zz >= H) continue;
       n++;
-      if (ter[zz * W + xx] === 1) wc++;
+      const t = ter[zz * W + xx];
+      if (t === TER.WATER) wc++;
+      else if (t === TER.ROCK) {
+        rc++;
+        rise += 1.3 + mountainHeight(zz * W + xx) * 4.5 + hash2(x, z, 77) * 0.6; // grillige toppen
+      }
     }
-    p.setY(k, wc === n && n ? -0.55 : wc ? (-0.32 * wc) / n : 0);
+    if (rc) p.setY(k, (rise / n) * (rc === n ? 1 : 0.4));
+    else p.setY(k, wc === n && n ? -0.55 : wc ? (-0.32 * wc) / n : 0);
   }
   g.computeVertexNormals();
   TMESH = new T3.Mesh(g, TMAT);

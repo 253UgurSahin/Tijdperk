@@ -1,6 +1,6 @@
 // Opslaan en laden in de browser.
 import { store } from '../core/store.js';
-import { H, TH, TW, W } from '../config.js';
+import { CX, CY, H, TH, TW, W } from '../config.js';
 import { B } from '../data/buildings.js';
 import { computeAvail, computeCaches } from './caches.js';
 import { spawnFoe, spawnUnit, spawnVillager } from './entities.js';
@@ -15,7 +15,8 @@ import { setSpeed, toast } from '../ui/hud.js';
 import { $ } from '../util/dom.js';
 import { amt, bmap, buildLists, genWorld, node, road, setBlk } from '../world/world.js';
 
-export const SKEY = 'tijdperken-save-v3';
+// Versie 4: grotere, nieuwe wereldgenerator. Oude opslag (v3) past daar niet meer bij.
+export const SKEY = 'tijdperken-save-v4';
 function b64(u8) {
   let s = '';
   for (let i = 0; i < u8.length; i += 0x8000)
@@ -63,7 +64,8 @@ export function serialize() {
   ])
     g[k] = G[k];
   return JSON.stringify({
-    v: 3,
+    v: 4,
+    size: W,
     seed: G.seed,
     g,
     road: b64(road),
@@ -103,7 +105,7 @@ export function serialize() {
 }
 export function deserialize(str) {
   const s = JSON.parse(str);
-  if (s.v !== 3) return false;
+  if (s.v !== 4 || s.size !== W) return false;
   setGame(baseState(s.seed));
   genWorld(s.seed);
   Object.assign(G, s.g);
@@ -173,8 +175,8 @@ export function deserialize(str) {
       x = (X / TW + Y / TH) / 2;
       y = (Y / TH - X / TW) / 2;
       if (!(x >= 0 && x <= W && y >= 0 && y <= H)) {
-        x = 64;
-        y = 64;
+        x = CX;
+        y = CY;
       }
     }
     cam.x = x;
