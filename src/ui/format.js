@@ -1,4 +1,5 @@
 // Hulpjes om getallen, kosten en pictogrammen als HTML te tonen.
+import { AGES } from '../data/ages.js';
 import { RES } from '../data/resources.js';
 import { G } from '../game/state.js';
 
@@ -50,3 +51,12 @@ export function costHTML(c) {
 }
 export const esc = s =>
   String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+
+// De tijdlijn: één kraal per tijdperk. Voorbij = gevuld, nu = groot, nog te komen = open.
+export function ageTimeline(cur, big = false) {
+  const beads = AGES.map((a, i) => {
+    const state = i < cur ? 'done' : i === cur ? 'now' : 'next';
+    return `<li class="${state}" style="--c:${a.acc}" title="${a.n} · ${a.y}"><span>${big ? a.r : ''}</span></li>`;
+  });
+  return `<ol class="tl${big ? ' big' : ''}" aria-label="Tijdlijn van de tijdperken">${beads.join('')}</ol>`;
+}

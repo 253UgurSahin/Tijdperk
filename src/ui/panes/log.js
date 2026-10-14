@@ -23,7 +23,7 @@ export function renderChart() {
     H2 = G.hist;
   let mx = 1;
   for (const h of H2) for (const k of keys) mx = Math.max(mx, h[RKEYS.indexOf(k)]);
-  x.strokeStyle = 'rgba(255,255,255,.08)';
+  x.strokeStyle = 'rgba(43,37,32,.1)';
   x.lineWidth = 1;
   for (let i = 1; i < 4; i++) {
     x.beginPath();
@@ -43,7 +43,7 @@ export function renderChart() {
     });
     x.stroke();
   }
-  x.fillStyle = 'rgba(236,230,216,.6)';
+  x.fillStyle = 'rgba(43,37,32,.6)';
   x.font = '10px "IBM Plex Mono",monospace';
   x.textAlign = 'right';
   x.fillText(fmt(mx), Wc - 3, 10);

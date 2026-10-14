@@ -1,26 +1,30 @@
-/* side tabs + floating panel */
+/* Panelen: de tabjes linksonder (Volk, Leger, ...) en het zwevende paneel met hun inhoud. */
 #sidebtns {
   position: absolute;
   z-index: 10;
   left: var(--edge);
-  bottom: calc(var(--barh) + 14px);
+  bottom: calc(var(--barh) + 16px);
   display: flex;
-  gap: 4px;
+  gap: 6px;
 }
 #sidebtns button {
   position: relative;
   font-family: var(--f-display);
-  font-weight: 700;
-  font-size: 12px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  padding: 6px 10px;
+  font-weight: 650;
+  font-size: 15px;
+  padding: 5px 13px;
   background: var(--panel);
-  border-color: var(--line-2);
+  border-color: var(--rule-2);
+  box-shadow: var(--card-shadow);
 }
-#sidebtns button.on {
-  color: var(--gold-2);
-  border-color: var(--gold);
+#sidebtns button.on,
+#sidebtns button.on:hover:not(:disabled) {
+  background: var(--acc);
+  color: var(--on-acc);
+  border-color: var(--acc-edge);
+  box-shadow:
+    0 3px 0 var(--acc-edge),
+    0 10px 24px rgba(30, 20, 10, 0.25);
 }
 #sidebtns button i {
   position: absolute;
@@ -29,9 +33,9 @@
   width: 10px;
   height: 10px;
   border-radius: 50%;
-  background: var(--gold-2);
+  background: var(--bad);
   display: none;
-  box-shadow: 0 0 0 2px #121a26;
+  box-shadow: 0 0 0 2px var(--paper);
 }
 #sidebtns button.dot i {
   display: block;
@@ -55,14 +59,13 @@
   justify-content: space-between;
   align-items: center;
   padding: 8px 8px 8px 14px;
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px dashed var(--rule-2);
 }
 #panel .ph b {
   font-family: var(--f-display);
-  font-size: 14px;
-  letter-spacing: 0.08em;
-  color: var(--gold-2);
-  text-transform: uppercase;
+  font-size: 19px;
+  font-weight: 700;
+  color: var(--ink);
 }
 .pbody {
   overflow-y: auto;
@@ -106,8 +109,8 @@
   line-height: 1;
 }
 .jobrow.auto {
-  background: rgba(0, 0, 0, 0.25);
-  border-radius: 3px;
+  background: var(--well);
+  border-radius: var(--r-sm);
   padding: 5px 6px;
   margin: 0 -6px 4px;
 }
@@ -129,17 +132,17 @@
   display: flex;
   gap: 11px;
   align-items: center;
-  background: rgba(240, 191, 85, 0.08);
-  border: 1px solid rgba(240, 191, 85, 0.3);
-  border-radius: 3px;
+  background: color-mix(in srgb, var(--warn) 12%, var(--paper-hi));
+  border: 1.5px dashed color-mix(in srgb, var(--warn) 55%, transparent);
+  border-radius: 12px;
   padding: 11px;
   margin-top: 12px;
-  color: #f0dba6;
+  color: var(--ink);
 }
 .raidcard.now {
-  background: rgba(239, 106, 90, 0.12);
-  border-color: rgba(239, 106, 90, 0.5);
-  color: #ffd9d4;
+  background: color-mix(in srgb, var(--bad) 14%, var(--paper-hi));
+  border: 1.5px solid var(--bad);
+  color: var(--ink);
 }
 .raidcard canvas {
   width: 30px;
@@ -165,8 +168,9 @@
   text-align: left;
   padding: 7px 9px;
   margin-bottom: 5px;
-  background: linear-gradient(180deg, #26314a, #18202e);
-  border: 1px solid #3a4862;
+  background: var(--paper-hi);
+  border: 1px solid var(--rule-2);
+  border-radius: 12px;
 }
 .tech .g {
   grid-row: 1/4;
@@ -174,8 +178,8 @@
   height: 34px;
   display: grid;
   place-items: center;
-  border-radius: 3px;
-  background: rgba(0, 0, 0, 0.3);
+  border-radius: 10px;
+  background: var(--well);
   font-size: 17px;
 }
 .tech b {
@@ -184,14 +188,16 @@
 }
 .tech .d {
   font-size: 12px;
-  color: var(--muted);
+  color: var(--ink-3);
   line-height: 1.3;
 }
 .tech.done {
-  border-color: rgba(143, 210, 122, 0.5);
+  border-color: color-mix(in srgb, var(--good) 55%, transparent);
+  box-shadow: none;
 }
 .tech.done .g {
-  background: rgba(143, 210, 122, 0.25);
+  background: color-mix(in srgb, var(--good) 22%, var(--paper));
+  color: var(--good);
 }
 .tech.run {
   border-color: var(--gold);
@@ -202,16 +208,16 @@
 }
 .agehd {
   font-family: var(--f-display);
-  font-size: 12px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--gold-2);
+  font-style: italic;
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--acc-ink);
   margin: 10px 0 5px;
 }
 .log .e {
   padding: 7px 0;
-  border-bottom: 1px solid var(--line);
-  font-size: 12px;
+  border-bottom: 1px dashed var(--rule);
+  font-size: 12.5px;
   line-height: 1.5;
   color: var(--fg-2);
 }
@@ -222,7 +228,7 @@
   margin-right: 6px;
 }
 .log .e.bad {
-  color: #ffd9d4;
+  color: var(--bad);
 }
 .log .e.good {
   color: var(--good);

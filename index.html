@@ -6,7 +6,7 @@
     <title>Tijdperken</title>
     <link
       rel="icon"
-      href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2032%2032%22%3E%3Crect%20width%3D%2232%22%20height%3D%2232%22%20rx%3D%226%22%20fill%3D%22%23141c2a%22/%3E%3Cpath%20d%3D%22M16%205%2027%2026H5Z%22%20fill%3D%22%23d6b46c%22/%3E%3Cpath%20d%3D%22M16%2013%2021%2023H11Z%22%20fill%3D%22%23141c2a%22/%3E%3C/svg%3E"
+      href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2032%2032%22%3E%3Crect%20width%3D%2232%22%20height%3D%2232%22%20rx%3D%226%22%20fill%3D%22%23f4ecda%22/%3E%3Cpath%20d%3D%22M16%205%2027%2026H5Z%22%20fill%3D%22%232b2520%22/%3E%3Cpath%20d%3D%22M16%2013%2021%2023H11Z%22%20fill%3D%22%23c08a3e%22/%3E%3C/svg%3E"
       type="image/svg+xml"
     />
     <meta name="claude:viewport-fit-sides" content="cover" />
@@ -14,7 +14,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
       rel="stylesheet"
-      href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&family=Instrument+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght,SOFT,WONK@0,9..144,400..900,0..100,0..1;1,9..144,400..900,0..100,0..1&family=Instrument+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
     />
   </head>
   <body>
@@ -31,6 +31,7 @@
             </div>
             <div class="age" title="Huidig tijdperk">
               <b id="ageNum">I</b><small id="locEyebrow">Steentijd</small>
+              <ol class="tl" id="ageLine"></ol>
             </div>
             <div class="speed" id="speed" role="group" aria-label="Spelsnelheid">
               <button data-s="0" aria-label="Pauze">II</button
@@ -100,8 +101,8 @@
                   height: 60px;
                   display: block;
                   margin-bottom: 12px;
-                  border-radius: 3px;
-                  background: rgba(0, 0, 0, 0.25);
+                  border-radius: 10px;
+                  background: var(--well);
                 "
               ></canvas>
               <div class="sect">Veldnotities <span>Live</span></div>

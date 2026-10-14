@@ -110,15 +110,15 @@ export function coach() {
       };
   }
   if (!nx) {
-    if (!placed('command'))
+    if (!placed('stargate'))
       return {
-        t: 'Bouw het commandocentrum.',
+        t: 'Bouw de sterrenpoort.',
         h: 'Daarmee voltooi je je beschaving.',
-        tile: 'command',
-        act: bAct('command'),
+        tile: 'stargate',
+        act: bAct('stargate'),
       };
     return {
-      t: G.won ? 'Je beschaving is voltooid.' : 'Het commandocentrum wordt gebouwd.',
+      t: G.won ? 'Je beschaving is voltooid.' : 'De sterrenpoort wordt gebouwd.',
       h: G.won ? 'Bouw gerust verder.' : 'Nog even geduld.',
     };
   }

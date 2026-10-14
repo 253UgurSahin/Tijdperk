@@ -65,7 +65,7 @@ export function updateHeader() {
   );
   updateTabs();
   const ps = $('#powStat');
-  ps.hidden = G.age < 3;
+  ps.hidden = G.age < 5;
   if (!ps.hidden) {
     $('#powStat b').textContent = `${Math.round(powerSup)}/${powerDem}`;
     ps.classList.toggle('bad', powerDem > powerSup);
@@ -203,7 +203,7 @@ function drawDial(c, S) {
   x.beginPath();
   x.arc(px, py, r * 0.24, 0, TAU);
   x.fill();
-  x.strokeStyle = 'rgba(214,180,108,.8)';
+  x.strokeStyle = 'rgba(43,37,32,.6)';
   x.lineWidth = 3;
   x.beginPath();
   x.arc(0, 0, r, 0, TAU);

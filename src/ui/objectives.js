@@ -45,10 +45,10 @@ export function renderChronicle() {
     }
   }
   const miss = nx ? lackList(nx) : [];
-  const sig = JSON.stringify([G.age, rows, allReq, G.won, fix, miss, placed('command'), store.missionOpen]);
+  const sig = JSON.stringify([G.age, rows, allReq, G.won, fix, miss, placed('stargate'), store.missionOpen]);
   setHTML($('#mission'), 'mission', sig, () => {
     if (!nx)
-      return `<button id="ageToggle" aria-expanded="${store.missionOpen}"><span class="oh">Laatste tijdperk</span><i>${store.missionOpen ? '▲' : '▼'}</i></button><div class="body"><p class="why">${CHAPTERS[G.age].s}</p><div class="reqs"><span class="${built('command') ? 'ok' : 'no'}">${built('command') ? '✓' : '○'}</span><span>Commandocentrum</span><span class="v">${built('command') ? 'klaar' : 'nodig'}</span></div>${G.won ? '<p class="why">Je beschaving heeft de hele geschiedenis doorlopen.</p>' : ''}</div>`;
+      return `<button id="ageToggle" aria-expanded="${store.missionOpen}"><span class="oh">Laatste tijdperk</span><i>${store.missionOpen ? '▲' : '▼'}</i></button><div class="body"><p class="why">${CHAPTERS[G.age].s}</p><div class="reqs"><span class="${built('stargate') ? 'ok' : 'no'}">${built('stargate') ? '✓' : '○'}</span><span>Sterrenpoort</span><span class="v">${built('stargate') ? 'klaar' : 'nodig'}</span></div>${G.won ? '<p class="why">Je beschaving heeft de hele geschiedenis doorlopen.</p>' : ''}</div>`;
     const A = AGES[G.age + 1];
     return `<button id="ageToggle" aria-expanded="${store.missionOpen}"><span class="oh">Naar de ${A.n.toLowerCase()}</span><i>${AGES[G.age].r} → ${A.r} ${store.missionOpen ? '▲' : '▼'}</i></button><div class="body"><div class="ages">${AGES.map((a, i) => `<i class="${i <= G.age ? 'done' : ''}" title="${a.n}"></i>`).join('')}</div><p class="why">${A.sub}</p>
     <button class="primary" id="ageBtn" ${allReq ? '' : 'disabled'}>${allReq ? 'Ga naar de ' + A.n.toLowerCase() + ' →' : 'Nog ' + andJoin(miss) + ' nodig'}</button>

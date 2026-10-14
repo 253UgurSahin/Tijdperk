@@ -1,58 +1,74 @@
-/* Tijdperken — real-time strategy HUD over a WebGL world.
-   Layout follows modern RTS convention: objectives top-left, age plate top-centre, menu top-right,
-   and a fixed command bar along the bottom (resources · selection · command grid · minimap). */
+/* Tijdperken — basis van de interface: kleuren, letters, knoppen en de "kaartjes" van de HUD.
+   Stijl: een tijdreis-atlas als bordspel. Crèmekleurige kaartjes met inkt, ronde hoeken en een harde
+   schaduw, zodat ze als echte speelstukken op de wereld liggen. De kleur van het tijdperk (--acc)
+   wordt door age.js gezet en kleurt de hele interface mee. */
 :root {
   --edge: 8px; /* afstand van de HUD tot de schermrand (groter op heel brede schermen) */
-  color-scheme: dark;
-  --p0: #0e141e;
-  --p1: #1b2434;
-  --p2: #131b28;
-  --p3: #0f1622;
-  --panel: linear-gradient(180deg, #1d2738 0%, #141c2a 55%, #111823 100%);
-  --line: rgba(208, 178, 112, 0.2);
-  --line-2: rgba(208, 178, 112, 0.46);
-  --gold: #d6b46c;
-  --gold-2: #f0d796;
-  --fg: #efe7d3;
-  --fg-2: #d6cdb7;
-  --muted: #b4bcc6;
-  --faint: #9ca6b2;
-  --accent: #d9a441;
-  --accent-ink: #1b1305;
-  --team: #3d7be0;
-  --good: #8fd27a;
-  --bad: #ef6a5a;
-  --warn: #f0bf55;
-  --soft: color-mix(in srgb, var(--accent) 20%, transparent);
-  --f-display: 'Cinzel', 'Trajan Pro', Georgia, serif;
+  color-scheme: light;
+
+  /* papier en inkt */
+  --paper: #f4ecda;
+  --paper-2: #efe4cc;
+  --paper-hi: #fcf7ec;
+  --well: #e7dbc0;
+  --paper-edge: #c7b28b;
+  --ink: #2b2520;
+  --ink-2: #4b4036;
+  --ink-3: #685a4c;
+  --ink-4: #7f7162;
+  --rule: rgba(43, 37, 32, 0.13);
+  --rule-2: rgba(43, 37, 32, 0.25);
+
+  /* kleur van het tijdperk: wordt per tijdperk vanuit JS overschreven */
+  --acc: #c08a3e;
+  --on-acc: #2b2520;
+  --acc-ink: color-mix(in srgb, var(--acc) 55%, #231d18);
+  --acc-edge: color-mix(in srgb, var(--acc) 62%, #2b2520);
+  --acc-soft: color-mix(in srgb, var(--acc) 22%, var(--paper));
+
+  --good: #3c8a3a;
+  --bad: #c23f2e;
+  --warn: #b0701a;
+  --team: #3d6fc4;
+
+  /* oude namen blijven werken, maar wijzen nu naar papier en inkt */
+  --fg: var(--ink);
+  --fg-2: var(--ink-2);
+  --muted: var(--ink-3);
+  --faint: var(--ink-4);
+  --line: var(--rule);
+  --line-2: var(--rule-2);
+  --gold: var(--acc);
+  --gold-2: var(--acc-ink);
+  --accent: var(--acc);
+  --soft: var(--acc-soft);
+
+  /* fijne papierkorrel: één klein ruisplaatje dat herhaald wordt */
+  --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .2 0 0 0 0 .15 0 0 0 0 .1 0 0 0 .13 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  --panel: var(--grain), linear-gradient(180deg, #f7f0e1 0%, var(--paper) 45%, var(--paper-2) 100%);
+  --card-shadow: 0 3px 0 var(--paper-edge), 0 10px 24px rgba(30, 20, 10, 0.28);
+  --tile-shadow: 0 2px 0 var(--paper-edge);
+  --r: 14px;
+  --r-sm: 10px;
+
+  --f-display: 'Fraunces', 'Iowan Old Style', Georgia, serif;
   --f-body: 'Instrument Sans', system-ui, -apple-system, sans-serif;
   --f-mono: 'IBM Plex Mono', ui-monospace, Menlo, monospace;
   --barh: 226px;
   --resw: 214px;
 }
-body[data-age='1'] {
-  --accent: #d08b3c;
-}
-body[data-age='2'] {
-  --accent: #d6705f;
-}
-body[data-age='3'] {
-  --accent: #8fb2c9;
-}
-body[data-age='4'] {
-  --accent: #a6c25c;
-}
-body[data-age='5'] {
-  --accent: #46d3d6;
-}
 html,
 body {
   height: 100%;
   margin: 0;
-  background: #0d1219;
-  color: var(--fg);
+  background: #1f1a15;
+  color: var(--ink);
   font: 13px/1.45 var(--f-body);
   overflow: hidden;
+  /* Fraunces met zachte, wat eigenwijze letters; andere lettertypes negeren dit */
+  font-variation-settings:
+    'SOFT' 100,
+    'WONK' 0;
 }
 * {
   box-sizing: border-box;
@@ -60,36 +76,41 @@ body {
 [hidden] {
   display: none !important;
 }
+
+/* Knoppen zijn dikke tegeltjes: ze zakken echt een stukje in als je erop drukt */
 button {
   font: inherit;
-  color: inherit;
+  color: var(--ink);
   cursor: pointer;
-  border: 1px solid var(--line);
-  background: rgba(255, 255, 255, 0.04);
-  border-radius: 4px;
+  border: 1px solid var(--rule-2);
+  background: var(--paper-hi);
+  border-radius: var(--r-sm);
   padding: 7px 12px;
   min-height: 32px;
+  box-shadow: var(--tile-shadow);
   transition:
     border-color 0.15s,
     background 0.15s,
     color 0.15s,
+    box-shadow 0.08s,
     transform 0.08s;
 }
 button:hover:not(:disabled) {
-  border-color: var(--gold);
-  background: rgba(214, 180, 108, 0.1);
+  border-color: var(--acc-edge);
+  background: #fffdf7;
 }
 button:active:not(:disabled) {
-  transform: translateY(1px);
+  transform: translateY(2px);
+  box-shadow: 0 0 0 var(--paper-edge);
 }
 button:disabled {
-  opacity: 0.55;
+  opacity: 0.5;
   cursor: not-allowed;
 }
 button:focus-visible,
 canvas:focus-visible,
 input:focus-visible {
-  outline: 2px solid var(--gold-2);
+  outline: 2px solid var(--acc-edge);
   outline-offset: 2px;
 }
 @media (pointer: coarse) {
@@ -100,64 +121,72 @@ input:focus-visible {
 .quiet {
   background: transparent;
   border-color: transparent;
-  color: var(--muted);
+  box-shadow: none;
+  color: var(--ink-3);
 }
 .quiet:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--rule);
   border-color: transparent;
-  color: var(--fg);
+  color: var(--ink);
 }
 .primary {
-  background: linear-gradient(#e6c47c, #c69a48);
-  border-color: #f3dca0;
-  color: #1d1406;
+  background: var(--acc);
+  border-color: var(--acc-edge);
+  color: var(--on-acc);
   font-weight: 700;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  box-shadow:
+    0 3px 0 var(--acc-edge),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3);
 }
 .primary:hover:not(:disabled) {
-  background: linear-gradient(#f0d28e, #d2a654);
-  border-color: #fff1c4;
+  background: color-mix(in srgb, var(--acc) 88%, #fff);
+  border-color: var(--acc-edge);
+}
+.primary:active:not(:disabled) {
+  transform: translateY(3px);
+  box-shadow: 0 0 0 var(--acc-edge);
 }
 .danger-t {
   color: var(--bad);
 }
+/* Kopjes zijn schuin geschreven, als aantekeningen in een atlas */
 .eyebrow {
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--muted);
+  font-family: var(--f-display);
+  font-style: italic;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--acc-ink);
 }
 h1,
 h2,
 h3 {
   font-family: var(--f-display);
   margin: 0;
-  letter-spacing: 0.02em;
+  letter-spacing: -0.01em;
 }
 h1 {
-  font-size: 28px;
+  font-size: 30px;
   font-weight: 700;
   line-height: 1.1;
-  margin-top: 8px;
+  margin-top: 6px;
 }
 .sect {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
   margin: 0 0 10px;
+  padding-bottom: 4px;
+  border-bottom: 1px dashed var(--rule-2);
   font-family: var(--f-display);
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--gold-2);
+  font-style: italic;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--acc-ink);
 }
 .sect span {
   font-family: var(--f-body);
-  color: var(--faint);
-  letter-spacing: 0;
-  text-transform: none;
+  font-style: normal;
+  color: var(--ink-3);
   font-weight: 500;
   font-size: 12px;
 }
@@ -169,41 +198,34 @@ h1 {
   clip-path: var(--clip, polygon(50% 0, 100% 50%, 50% 100%, 0 50%));
   flex: none;
 }
+
+/* Een HUD-kaartje: crème karton met een gekleurde bovenrand in de kleur van het tijdperk */
 .hud {
   background: var(--panel);
-  border: 1px solid var(--line-2);
-  border-radius: 3px;
-  box-shadow:
-    0 12px 32px rgba(0, 0, 0, 0.5),
-    inset 0 1px 0 rgba(255, 255, 255, 0.07),
-    inset 0 0 0 1px rgba(0, 0, 0, 0.4);
+  color: var(--ink);
+  border: 1px solid rgba(43, 37, 32, 0.16);
+  border-top: 4px solid var(--acc);
+  border-radius: var(--r);
+  box-shadow: var(--card-shadow);
   position: relative;
 }
-.hud::before {
-  content: '';
-  position: absolute;
-  left: 10px;
-  right: 10px;
-  top: -1px;
-  height: 2px;
-  background: linear-gradient(90deg, transparent, var(--gold), transparent);
-  pointer-events: none;
-}
+
+/* Voortgangsbalk als een gootje met een ronde vulling */
 .bar {
-  height: 5px;
-  border-radius: 2px;
-  background: rgba(255, 255, 255, 0.1);
+  height: 6px;
+  border-radius: 99px;
+  background: rgba(43, 37, 32, 0.12);
   overflow: hidden;
 }
 .bar > i {
   display: block;
   height: 100%;
   background: var(--good);
-  border-radius: 2px;
+  border-radius: 99px;
   transition: width 0.3s;
 }
 .bar.acc > i {
-  background: var(--gold);
+  background: var(--acc);
 }
 .bar.bad > i {
   background: var(--bad);
@@ -213,7 +235,7 @@ h1 {
   flex-wrap: wrap;
   gap: 2px 9px;
   font-size: 12px;
-  color: var(--fg-2);
+  color: var(--ink-2);
   font-variant-numeric: tabular-nums;
   font-family: var(--f-mono);
 }
@@ -228,12 +250,97 @@ h1 {
 }
 .cost .no {
   color: var(--bad);
+  font-weight: 500;
 }
 .small {
   font-size: 12px;
-  color: var(--muted);
+  color: var(--ink-3);
   line-height: 1.5;
   margin: 0;
+}
+
+/* ---- De tijdlijn: het vaste motief van het spel ----
+   Elk tijdperk is een kraal aan een draad. Voorbij = gevuld in zijn eigen kleur,
+   nu = groot met een ring, nog te komen = open met een stippellijn ernaartoe. */
+.tl {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  align-items: center;
+}
+.tl li {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+}
+.tl li:first-child {
+  flex: none;
+}
+.tl li::before {
+  content: '';
+  flex: 1;
+  height: 2px;
+  margin: 0 2px;
+  border-radius: 2px;
+  background: var(--ink-3);
+}
+.tl li:first-child::before {
+  display: none;
+}
+.tl li.next::before {
+  background: repeating-linear-gradient(90deg, var(--ink-4) 0 3px, transparent 3px 6px);
+}
+.tl span {
+  flex: none;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--c);
+  box-shadow: inset 0 0 0 1px rgba(43, 37, 32, 0.35);
+  display: grid;
+  place-items: center;
+}
+.tl .now span {
+  width: 14px;
+  height: 14px;
+  box-shadow:
+    0 0 0 2px var(--paper),
+    0 0 0 3.5px var(--c);
+}
+.tl .next span {
+  background: var(--paper-hi);
+  box-shadow: inset 0 0 0 1.5px var(--ink-4);
+}
+.tl.big li::before {
+  height: 3px;
+}
+.tl.big span {
+  width: 26px;
+  height: 26px;
+  font: 700 11px/1 var(--f-display);
+  color: #fffaf2;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.35);
+  box-shadow:
+    inset 0 0 0 1.5px rgba(43, 37, 32, 0.3),
+    0 2px 0 rgba(43, 37, 32, 0.25);
+}
+.tl.big .now span {
+  width: 38px;
+  height: 38px;
+  font-size: 15px;
+  box-shadow:
+    0 0 0 3px var(--paper),
+    0 0 0 5px var(--c),
+    0 4px 0 2px rgba(43, 37, 32, 0.2);
+}
+.tl.big .next span {
+  color: var(--ink-4);
+  text-shadow: none;
+  background: transparent;
+  border: 1.5px dashed var(--ink-4);
+  box-shadow: none;
 }
 
 #app {

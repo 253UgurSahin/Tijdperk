@@ -1,7 +1,11 @@
 # Tijdperken
 
-Een real-time strategiespel in de browser: leid je stam van de **steentijd** naar het **dronetijdperk**, in zes tijdperken.
+Een real-time strategiespel in de browser: leid je stam van de **steentijd** naar het **sterrentijdperk**, in negen tijdperken.
 
+- Negen tijdperken, elk met eigen gebouwen, wapens en vijanden:
+  Steentijd · Bronstijd · IJzertijd · Middeleeuwen · Gouden Eeuw (windmolens, kruitmolens, grachtenpanden,
+  musketiers) · Industriële tijd · Moderne tijd · Dronetijdperk · Sterrentijdperk (sterrenmetaal uit meteorieten,
+  fusie, mechs en de sterrenpoort waarmee je wint)
 - Elke wereld wordt opnieuw gegenereerd (256×256 tegels): zee en kust, rivieren en meren, bossen, heuvels, bergketens met sneeuw, woestijnen en zoutvlaktes. Ertsen liggen waar ze logisch horen
 - Meteorieten: af en toe slaat er een in (met waarschuwing). Rond de krater liggen daarna nieuwe ertsen, vooral wat bij jou schaars is
 - Een nieuw tijdperk maakt oude gebouwen en eenheden onbouwbaar (de hut wijkt voor het leemhuis, het kampvuur voor de fakkelpaal, ...)
@@ -24,7 +28,7 @@ npm run format    # code netjes opmaken (Prettier)
 ```
 
 Bij elke push naar `main` draait de CI (lint, tests, build) en wordt `dist/` naar GitHub Pages gepubliceerd
-(*Settings → Pages → Source: GitHub Actions*).
+(_Settings → Pages → Source: GitHub Actions_).
 
 ## Projectstructuur
 
@@ -64,17 +68,17 @@ te verschuiven en knijp om te zoomen. Onderin staan knoppen voor **Volk**, **Leg
 
 ## Besturing
 
-| Actie | Muis / toets |
-|---|---|
-| Selecteren | Klik · Shift + slepen voor een groep |
-| Opdracht (lopen, aanvallen, verzamelen) | Rechtsklik |
-| Kaart verschuiven | Slepen, WASD of pijltjes, muis naar de rand |
-| Zoomen | Scrollwiel |
-| Pauze / sneller / langzamer | Spatie · `]` · `[` |
-| Bouwcategorie | Z · X · C · B, daarna 1–9 |
-| Gebied uitbreiden | E |
-| Hele leger · dorpelingen zonder werk | Q · I |
-| Bovenaanzicht aan/uit | V |
+| Actie                                   | Muis / toets                                |
+| --------------------------------------- | ------------------------------------------- |
+| Selecteren                              | Klik · Shift + slepen voor een groep        |
+| Opdracht (lopen, aanvallen, verzamelen) | Rechtsklik                                  |
+| Kaart verschuiven                       | Slepen, WASD of pijltjes, muis naar de rand |
+| Zoomen                                  | Scrollwiel                                  |
+| Pauze / sneller / langzamer             | Spatie · `]` · `[`                          |
+| Bouwcategorie                           | Z · X · C · B, daarna 1–9                   |
+| Gebied uitbreiden                       | E                                           |
+| Hele leger · dorpelingen zonder werk    | Q · I                                       |
+| Bovenaanzicht aan/uit                   | V                                           |
 
 ## Claude-artifact
 

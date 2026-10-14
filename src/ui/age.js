@@ -13,6 +13,7 @@ import { canUpg, roadTier } from '../game/upgrades.js';
 import { sigs } from './header.js';
 import { toast } from './hud.js';
 import { buildResBar } from './resources.js';
+import { ageTimeline } from './format.js';
 import { $ } from '../util/dom.js';
 import { retiredIn } from '../data/succession.js';
 import { UNITS } from '../data/units.js';
@@ -32,7 +33,7 @@ export function ageUp() {
   const nu = G.bs.filter(canUpg).length;
   const old = retiredIn(G.age).map(k => (B[k] || UNITS[k]).n.toLowerCase());
   toast(
-    `De ${AGES[G.age].n.toLowerCase()} breekt aan. Ontdekt: ${nr.join(' en ')}. Nieuwe verbeteringen: werktuigen, wapens${nu ? ` en ${nu} gebouwen` : ''}.${old.length ? ` Verouderd: ${old.join(', ')}.` : ''}`,
+    `De ${AGES[G.age].n.toLowerCase()} breekt aan.${nr.length ? ` Ontdekt: ${nr.join(' en ')}.` : ''} Nieuwe verbeteringen: werktuigen, wapens${nu ? ` en ${nu} gebouwen` : ''}.${old.length ? ` Verouderd: ${old.join(', ')}.` : ''}`,
     'age',
   );
   computeAvail();
@@ -56,9 +57,23 @@ export function onAgeChange() {
   B.road.cost = ROADS[roadTier()].cost;
   $('#locEyebrow').textContent = A.n;
   $('#ageNum').textContent = A.r;
+  $('#ageLine').outerHTML = ageTimeline(G.age).replace('<ol ', '<ol id="ageLine" ');
+  paintAgeColour(A.acc);
   buildResBar(true);
   sigs.cats = null;
   sigs.grid = null;
   sigs.ins = null;
   store.uiDirty = true;
+}
+
+// De kleur van het tijdperk kleurt de hele interface mee (CSS-variabele --acc).
+// Daarop kiezen we donkere of lichte tekst, wat het best leesbaar is.
+export function paintAgeColour(acc) {
+  const n = parseInt(acc.slice(1), 16);
+  const lin = c => ((c /= 255) <= 0.04 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
+  const lum = 0.2126 * lin(n >> 16) + 0.7152 * lin((n >> 8) & 255) + 0.0722 * lin(n & 255);
+  const darkText = (lum + 0.05) / 0.07 > 1.05 / (lum + 0.05);
+  const root = document.documentElement.style;
+  root.setProperty('--acc', acc);
+  root.setProperty('--on-acc', darkText ? '#2b2520' : '#fffaf2');
 }

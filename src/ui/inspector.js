@@ -192,7 +192,7 @@ export function renderInspector() {
       workers = G.vs.filter(v => v.tgt && v.tgt.k === 'node' && v.tgt.i === i).length;
     selCtx = N.n;
     selCmds = N.pump
-      ? CB('data-b="pump"', '⛽', 'Oliepomp', { tip: 'Zet een oliepomp op deze bron', dis: G.age < 4 })
+      ? CB('data-b="pump"', '⛽', 'Oliepomp', { tip: 'Zet een oliepomp op deze bron', dis: G.age < 6 })
       : !isUnl(x, y)
         ? CB('data-u="expand"', '⬚', 'Uitbreiden', { tip: 'Dit ligt buiten je land' })
         : CB('data-u="send"', '➜', 'Stuur 1', { tip: 'Stuur de dichtstbijzijnde vrije dorpeling' }) +
