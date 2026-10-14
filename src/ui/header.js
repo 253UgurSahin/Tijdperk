@@ -17,18 +17,18 @@ import { TOUCH, fmt } from './format.js';
 import { renderQuick } from './hud.js';
 import { updateTabs } from './panel.js';
 import { buildResBar, rate, updateResPop } from './resources.js';
-import { $ } from '../util/dom.js';
+import { $, isCompact } from '../util/dom.js';
 
 export function updateHeader() {
   buildResBar();
   updateResPop();
   const rb = $('#resbar');
-  if (rb.scrollHeight > rb.clientHeight + 2 && store.resMax > 2 && innerWidth > 900) {
+  if (rb.scrollHeight > rb.clientHeight + 2 && store.resMax > 2 && !isCompact()) {
     store.resMax--;
     sigs.resbar = null;
     buildResBar();
   }
-  if (innerWidth <= 900 && rb.scrollWidth > rb.clientWidth + 2 && store.resMax > 2) {
+  if (isCompact() && rb.scrollWidth > rb.clientWidth + 2 && store.resMax > 2) {
     store.resMax--;
     sigs.resbar = null;
     buildResBar();

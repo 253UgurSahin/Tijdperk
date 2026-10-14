@@ -15,7 +15,7 @@ import { fmt, gem } from './format.js';
 import { setHTML, sigs } from './header.js';
 import { setExpand } from './hud.js';
 import { togglePanel } from './panel.js';
-import { $ } from '../util/dom.js';
+import { $, isCompact } from '../util/dom.js';
 
 export function renderChronicle() {
   const nx = AGE_UP[G.age + 1];
@@ -64,10 +64,10 @@ $('#mission').addEventListener('click', e => {
   else if (t.id === 'fixBtn') {
     sfx('tick');
     setExpand(true);
-    if (innerWidth <= 900) togglePanel();
+    if (isCompact()) togglePanel();
   } else if (t.id === 'ageToggle') {
     sfx('tick');
-    if (innerWidth <= 900) {
+    if (isCompact()) {
       document.body.classList.remove('showgoal');
       measureHud();
       return;

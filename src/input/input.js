@@ -15,7 +15,7 @@ import { lastSpeed, setExpand, setSpeed, toast } from '../ui/hud.js';
 import { demolish, selCmds } from '../ui/inspector.js';
 import { closeModal, openPause, showHelp } from '../ui/modals.js';
 import { togglePanel } from '../ui/panel.js';
-import { $ } from '../util/dom.js';
+import { $, isCompact } from '../util/dom.js';
 import { clamp, dist } from '../util/math.js';
 
 export const mouse = { sx: 0, sy: 0, X: 0, Y: 0, tx: 0, ty: 0, in: false, moved: true, touch: false };
@@ -193,7 +193,7 @@ addEventListener('keydown', e => {
     store.demoMode = false;
     setExpand(false);
     clearSel();
-    if (innerWidth <= 900) togglePanel();
+    if (isCompact()) togglePanel();
     if (!busy) openPause();
     store.uiDirty = true;
   } else if (k === 'f' && sel.us.size) {

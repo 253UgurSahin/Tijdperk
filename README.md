@@ -45,6 +45,12 @@ src/
 tests/                Vitest-tests voor data, wereldgeneratie en hulpfuncties
 ```
 
+## Op telefoon en tablet
+
+Het spel past zich aan elk scherm aan, staand en liggend. Tik om te selecteren of te bouwen, sleep om de kaart
+te verschuiven en knijp om te zoomen. Onderin staan knoppen voor **Volk**, **Leger**, **Onderzoek**, **Doel** en
+**Kaart**. Tik op de "volgende stap" bovenin voor meer uitleg.
+
 ## Besturing
 
 | Actie | Muis / toets |

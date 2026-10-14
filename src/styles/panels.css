@@ -36,6 +36,10 @@
 #sidebtns button.dot i {
   display: block;
 }
+/* Kaart en Doel bestaan alleen op telefoon/tablet (zie responsive.css) */
+#sidebtns .mob {
+  display: none;
+}
 #panel {
   position: absolute;
   z-index: 11;

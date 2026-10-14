@@ -7,7 +7,7 @@ import { G } from '../game/state.js';
 import { centerOn, s2t } from './camera.js';
 import { VH, VW } from './scene.js';
 import { RC, tileRGB } from './terrain.js';
-import { $ } from '../util/dom.js';
+import { $, isCompact } from '../util/dom.js';
 import { clamp } from '../util/math.js';
 import { bmap, node, road } from '../world/world.js';
 
@@ -130,5 +130,5 @@ mini.addEventListener('pointerdown', e => {
   };
 });
 mini.addEventListener('pointerup', () => {
-  if (innerWidth <= 900) setTimeout(() => document.body.classList.remove('showmap'), 150);
+  if (isCompact()) setTimeout(() => document.body.classList.remove('showmap'), 150);
 });

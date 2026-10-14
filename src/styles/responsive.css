@@ -31,7 +31,8 @@
     transform: none;
   }
 }
-@media (max-width: 900px) {
+/* Telefoon of klein venster: smal óf laag. Gelijk houden met COMPACT_QUERY in util/dom.js */
+@media (max-width: 900px), (max-height: 560px) {
   :root {
     --barh: auto;
   }
@@ -121,6 +122,11 @@
   body.showgoal #mission {
     display: block;
   }
+  /* Het open doel mag niet onder de knoppen verdwijnen: dan scrollt het */
+  body.showgoal #objectives {
+    max-height: calc(100dvh - var(--barH, 240px) - 110px);
+    overflow-y: auto;
+  }
   #bar {
     left: 6px;
     right: 6px;
@@ -151,20 +157,31 @@
   #cmdPanel {
     width: min(400px, 58%);
   }
+  /* Knoppenrij boven de onderbalk: Volk, Leger, ... plus Doel en Kaart */
   #sidebtns {
-    display: none;
+    left: 6px;
+    right: 6px;
+    bottom: calc(var(--barH, 240px) + 10px);
+    flex-wrap: wrap;
+  }
+  #sidebtns button,
+  #sidebtns .mob {
+    display: inline-flex;
+    align-items: center;
+    min-height: 36px;
+    padding: 6px 10px;
   }
   #panel {
     position: fixed;
     left: 6px;
     right: 6px;
     top: calc(var(--topH, 120px) + 6px);
-    bottom: calc(var(--barH, 240px) + 12px);
+    bottom: calc(var(--barH, 240px) + 56px);
     width: auto;
     max-height: none;
   }
   #hintbar {
-    bottom: calc(var(--barH, 240px) + 12px);
+    bottom: calc(var(--barH, 240px) + 56px);
   }
   #notes {
     top: calc(var(--topH, 120px) + 8px);
@@ -215,6 +232,147 @@
   }
   #hintbar {
     font-size: 12px;
+  }
+}
+/* Telefoon: de "volgende stap" als één compacte regel; tik erop voor de uitleg */
+@media (max-width: 620px), (max-height: 560px) {
+  #objectives {
+    padding: 6px 8px 6px 12px;
+  }
+  #step {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    gap: 2px 10px;
+    cursor: pointer;
+  }
+  #step .oh {
+    display: none;
+  }
+  #step b {
+    font-size: 14px;
+  }
+  #step p {
+    display: none;
+    grid-column: 1 / -1;
+  }
+  body.showgoal #step p {
+    display: block;
+  }
+  #step .primary {
+    grid-column: 2;
+    grid-row: 1;
+    width: auto;
+    margin: 0;
+    min-height: 38px;
+    padding: 6px 14px;
+  }
+}
+
+/* Laag scherm (telefoon liggend): alles zo plat mogelijk, zodat de wereld zichtbaar blijft */
+@media (max-height: 560px) {
+  #top {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: stretch;
+    right: 96px;
+  }
+  #ageplate {
+    margin-right: 0;
+  }
+  #ageplate .day canvas,
+  #ageplate .day small,
+  #ageplate .age small {
+    display: none;
+  }
+  #resPanel {
+    flex: 1 1 240px;
+  }
+  #objectives {
+    flex: 1 1 280px;
+  }
+  #bar {
+    flex-direction: row;
+    align-items: flex-end;
+  }
+  /* Panelen gebruiken de hele hoogte boven de knoppen (over de bovenbalk heen) */
+  #panel {
+    top: calc(6px + env(safe-area-inset-top, 0px));
+    right: 102px;
+  }
+  /* Het selectiepaneel verschijnt alleen als je iets hebt aangetikt */
+  #selPanel {
+    display: none;
+    flex: 0 0 42%;
+    max-height: calc(100vh - var(--topH, 100px) - 24px);
+    padding: 8px 10px;
+  }
+  body.insp #selPanel {
+    display: block;
+  }
+  #cmdPanel {
+    flex: 1 1 auto;
+    width: auto;
+    min-width: 0;
+    padding: 4px 6px 6px;
+  }
+  .cats button {
+    min-height: 30px;
+    padding: 2px 8px;
+  }
+  /* Bouwknoppen in één rij die je opzij kunt vegen */
+  #cmdgrid {
+    grid-auto-flow: column;
+    grid-template-columns: none;
+    grid-template-rows: 68px;
+    grid-auto-columns: 74px;
+    overflow: auto hidden;
+    flex: none;
+  }
+  .gb img,
+  .cb img {
+    width: 30px;
+    height: 30px;
+  }
+  .port {
+    width: 48px;
+    height: 48px;
+  }
+  #title .logo {
+    font-size: clamp(34px, 10vh, 60px);
+  }
+  #title .agesrow {
+    display: none;
+  }
+  #title .tw {
+    gap: 10px;
+  }
+}
+/* Heel smalle telefoon: menuknop wordt een icoon en de bovenbalk wordt krapper */
+@media (max-width: 400px) {
+  #menuBtn {
+    width: 44px;
+    padding: 0;
+    font-size: 0;
+  }
+  #menuBtn::before {
+    content: '☰';
+    font-size: 20px;
+  }
+  #ageplate {
+    margin-right: 52px;
+    gap: 4px;
+  }
+  #ageplate .age {
+    padding: 0 4px;
+  }
+  #ageplate .age b::before,
+  #ageplate .age b::after {
+    display: none;
+  }
+  .speed button {
+    min-width: 30px;
+    padding: 5px 6px;
   }
 }
 @media (prefers-reduced-motion: reduce) {

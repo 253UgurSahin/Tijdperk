@@ -10,7 +10,7 @@ import { mouse } from '../input/input.js';
 import { VH, VW, worldEl } from '../render/scene.js';
 import { fmt, gem } from './format.js';
 import { setHTML, sigs } from './header.js';
-import { $ } from '../util/dom.js';
+import { $, isCompact, isNarrow } from '../util/dom.js';
 import { clamp } from '../util/math.js';
 
 // Uitleg bij een grondstof als je eroverheen beweegt
@@ -65,7 +65,7 @@ const resItem = k =>
   `<div class="res" data-k="${k}">${gem(k)}<div><b>${fmt(G.res[k])}</b><small>${RES[k].n}</small><em></em></div><span class="wk zero" title="${GATHER.includes(k) ? 'Dorpelingen op deze grondstof' : 'Gebouwen die dit maken'}"></span></div>`;
 export function buildResBar(force) {
   const all = relevantRes(),
-    lim = innerWidth <= 620 ? 3 : innerWidth <= 900 ? 4 : 5,
+    lim = isNarrow() ? 3 : isCompact() ? 4 : 5,
     max = Math.min(store.resMax, lim),
     keys = all.slice(0, max).sort((a, b) => RKEYS.indexOf(a) - RKEYS.indexOf(b)),
     rest = RKEYS.filter(k => RES[k].age <= G.age).length - keys.length;
@@ -102,7 +102,7 @@ addEventListener(
   e => {
     const p = $('#resPop');
     if (!p.hidden && !e.target.closest('#resPop,#resMore')) p.hidden = true;
-    if (document.body.classList.contains('showmap') && !e.target.closest('#mapPanel,#modal'))
+    if (document.body.classList.contains('showmap') && !e.target.closest('#mapPanel,#modal,#sidebtns'))
       document.body.classList.remove('showmap');
   },
   true,

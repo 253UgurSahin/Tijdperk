@@ -8,14 +8,14 @@ import { lackText } from '../game/placement.js';
 import { G, bById, sel } from '../game/state.js';
 import { selectArmy, selectIdle, setZoom } from '../input/input.js';
 import { clearSel } from '../input/selection.js';
-import { measureHud } from '../main.js';
 import { centerOn } from '../render/camera.js';
 import { cam } from '../render/scene.js';
 import { ageUp } from './age.js';
 import { setTab } from './buildmenu.js';
 import { setHTML, sigs } from './header.js';
-import { $ } from '../util/dom.js';
+import { $, isCompact } from '../util/dom.js';
 import { dist } from '../util/math.js';
+import { togglePanel } from './panel.js';
 
 export let lastSpeed = 1,
   toastTimer = 0;
@@ -71,7 +71,7 @@ export function setExpand(on) {
 $('#expandBtn').onclick = () => {
   sfx('tick');
   setExpand(!store.expandMode);
-  if (innerWidth <= 900) document.body.classList.remove('showmap');
+  if (isCompact()) document.body.classList.remove('showmap');
 };
 $('#coachBtn').onclick = () => {
   if (!store.coachAct) return;
@@ -110,11 +110,9 @@ $('#cancelBtn').onclick = () => {
   clearSel();
   store.uiDirty = true;
 };
+// Op een telefoon: tik op de "volgende stap" om de uitleg en het tijdperk-doel te zien
 $('#step').addEventListener('click', e => {
-  if (innerWidth <= 900 && e.target.closest('.oh')) {
-    document.body.classList.toggle('showgoal');
-    measureHud();
-  }
+  if (isCompact() && !e.target.closest('button')) togglePanel('goal');
 });
 // Snelknoppen naast het inwonertal
 export function renderQuick() {

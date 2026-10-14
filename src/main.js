@@ -91,7 +91,7 @@ import { renderJobs } from './ui/panes/jobs.js';
 import { renderLog } from './ui/panes/log.js';
 import { renderUpgrades } from './ui/panes/upgrades.js';
 import { rate } from './ui/resources.js';
-import { $ } from './util/dom.js';
+import { $, isCompact } from './util/dom.js';
 
 let lastT = performance.now(),
   acc = 0,
@@ -196,7 +196,7 @@ function frame(now) {
 export function measureHud() {
   const ds = document.documentElement.style,
     w = worldEl.getBoundingClientRect();
-  if (innerWidth <= 900) {
+  if (isCompact()) {
     const bt = Math.max(
       ...['#ageplate', '#resPanel', '#objectives'].map(s => $(s).getBoundingClientRect().bottom),
     );
