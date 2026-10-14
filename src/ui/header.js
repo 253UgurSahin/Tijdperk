@@ -29,7 +29,12 @@ export function updateHeader() {
   buildResBar();
   updateResPop();
   const rb = $('#resbar');
-  if (rb.scrollHeight > rb.clientHeight + 2 && store.resMax > 2 && !isCompact()) {
+  // Past het niet (te hoog of te breed)? Dan één grondstof minder tonen
+  if (
+    (rb.scrollHeight > rb.clientHeight + 2 || rb.scrollWidth > rb.clientWidth + 2) &&
+    store.resMax > 2 &&
+    !isCompact()
+  ) {
     store.resMax--;
     sigs.resbar = null;
     buildResBar();

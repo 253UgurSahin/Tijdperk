@@ -1,4 +1,4 @@
-// Het zijpaneel (Volk / Leger / Onderzoek / Logboek).
+// Het zijpaneel (Volk / Leger / Verbeteren / Logboek).
 import { sfx } from '../audio/sound.js';
 import { B } from '../data/buildings.js';
 import { G } from '../game/state.js';
@@ -6,9 +6,9 @@ import { measureHud } from '../main.js';
 import { renderChart } from './panes/log.js';
 import { $ } from '../util/dom.js';
 
-// Zijpaneel (Volk / Leger / Onderzoek / Logboek)
+// Zijpaneel (Volk / Leger / Verbeteren / Logboek)
 let ptab = null;
-const PT = { pop: 'Volk', def: 'Leger', upg: 'Onderzoek', log: 'Logboek' };
+const PT = { pop: 'Volk', def: 'Leger', upg: 'Verbeteren', log: 'Logboek' };
 function setPane(k) {
   ptab = k;
   if (k) document.body.classList.remove('showmap', 'showgoal');

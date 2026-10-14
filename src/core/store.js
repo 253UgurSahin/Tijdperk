@@ -24,7 +24,7 @@ export const store = {
   notePos: null,
   rateSnap: null,
   rateT: 0,
-  resMax: 5,
+  resMax: 14,
   missionOpen: true,
   coachTile: null,
   coachAct: null,

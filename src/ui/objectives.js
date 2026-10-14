@@ -22,7 +22,9 @@ export function renderChronicle() {
   const nx = AGE_UP[G.age + 1];
   let rows = [],
     allReq = true,
-    fix = '';
+    fix = '',
+    total = 0,
+    ready = 0;
   if (nx) {
     for (const n of nx.need) {
       const ok = built(n);
@@ -36,22 +38,46 @@ export function renderChronicle() {
     rows.push(
       `<div class="rq"><span class="ri">${ico('☺')}</span><span>Inwoners</span><span class="v ${pv >= 1 ? 'ok' : ''}">${popNow()} / ${nx.pop}</span><div class="bar ${pv >= 1 ? '' : 'acc'}"><i style="width:${pv * 100}%"></i></div></div>`,
     );
+    // Grondstoffen: wat nog ontbreekt krijgt een eigen regel, wat al genoeg is één regel samen
+    const enough = [];
     for (const k in nx.cost) {
       const v = Math.min(1, G.res[k] / nx.cost[k]);
       allReq = allReq && v >= 1;
-      rows.push(
-        `<div class="rq">${gem(k)}<span>${RES[k].n}</span><span class="v ${v >= 1 ? 'ok' : ''}">${fmt(G.res[k])} / ${fmt(nx.cost[k])}</span><div class="bar ${v >= 1 ? '' : 'acc'}"><i style="width:${v * 100}%"></i></div></div>`,
-      );
+      if (v >= 1) enough.push(RES[k].n);
+      else
+        rows.push(
+          `<div class="rq">${gem(k)}<span>${RES[k].n}</span><span class="v">${fmt(G.res[k])} / ${fmt(nx.cost[k])}</span><div class="bar acc"><i style="width:${v * 100}%"></i></div></div>`,
+        );
       if (v < 1 && !fix && GATHER.includes(k) && !avail[k]) fix = k;
     }
+    if (enough.length)
+      rows.push(
+        `<span class="ck ok">${ico('✓')}</span><span class="done">Genoeg ${andJoin(enough.map(n => n.toLowerCase()))}</span><span class="v ok">klaar</span>`,
+      );
+    // Hoeveel van de eisen al klaar zijn (gebouwen, inwoners, elke grondstof)
+    total = nx.need.length + 1 + Object.keys(nx.cost).length;
+    ready =
+      nx.need.filter(built).length +
+      (popNow() >= nx.pop ? 1 : 0) +
+      Object.keys(nx.cost).filter(k => G.res[k] >= nx.cost[k]).length;
   }
   const miss = nx ? lackList(nx) : [];
-  const sig = JSON.stringify([G.age, rows, allReq, G.won, fix, miss, placed('stargate'), store.missionOpen]);
+  const sig = JSON.stringify([
+    G.age,
+    rows,
+    ready,
+    allReq,
+    G.won,
+    fix,
+    miss,
+    placed('stargate'),
+    store.missionOpen,
+  ]);
   setHTML($('#mission'), 'mission', sig, () => {
     if (!nx)
       return `<button id="ageToggle" aria-expanded="${store.missionOpen}"><span class="oh">Laatste tijdperk</span><i>${store.missionOpen ? '▲' : '▼'}</i></button><div class="body"><p class="why">${CHAPTERS[G.age].s}</p><div class="reqs"><span class="ck ${built('stargate') ? 'ok' : placed('stargate') ? 'busy' : ''}">${built('stargate') ? ico('✓') : ''}</span><span>Sterrenpoort</span><span class="v">${built('stargate') ? 'klaar' : 'nodig'}</span></div>${G.won ? '<p class="why">Je beschaving heeft de hele geschiedenis doorlopen.</p>' : ''}</div>`;
     const A = AGES[G.age + 1];
-    return `<button id="ageToggle" aria-expanded="${store.missionOpen}"><span class="oh">Naar de ${A.n.toLowerCase()}</span><i>${AGES[G.age].r} → ${A.r} ${store.missionOpen ? '▲' : '▼'}</i></button><div class="body"><div class="ages">${AGES.map((a, i) => `<i class="${i <= G.age ? 'done' : ''}" title="${a.n}"></i>`).join('')}</div><p class="why">${A.sub}</p>
+    return `<button id="ageToggle" aria-expanded="${store.missionOpen}"><span class="oh">Naar de ${A.n.toLowerCase()}</span><i>${AGES[G.age].r} → ${A.r} ${store.missionOpen ? '▲' : '▼'}</i></button><div class="body"><div class="ages">${AGES.map((a, i) => `<i class="${i <= G.age ? 'done' : ''}" title="${a.n}"></i>`).join('')}</div><p class="why">${A.sub}</p><div class="rqsum"><span>${ready} van ${total} eisen klaar</span><div class="bar ${ready >= total ? '' : 'acc'}"><i style="width:${(ready / total) * 100}%"></i></div></div>
     <button class="primary" id="ageBtn" ${allReq ? '' : 'disabled'}>${allReq ? 'Ga naar de ' + A.n.toLowerCase() + ' →' : 'Nog ' + andJoin(miss) + ' nodig'}</button>
     ${fix ? `<button id="fixBtn">Gebied uitbreiden</button><p class="why">Er ligt nog geen ${RES[fix].n.toLowerCase()} binnen je grenzen.</p>` : ''}
     <div class="reqs">${rows.join('')}</div></div>`;

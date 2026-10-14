@@ -70,3 +70,22 @@ export function ageTimeline(cur, big = false) {
   });
   return `<ol class="tl${big ? ' big' : ''}" aria-label="Tijdlijn van de tijdperken">${beads.join('')}</ol>`;
 }
+
+/*
+ * Vergelijking "nu → straks" voor een verbetering, als tabelletje.
+ * rows = [[naam, nu, straks], ...] (zie upgradeRows in game/upgrades.js).
+ */
+export function compareHTML(rows) {
+  return (
+    '<table class="cmp"><tbody>' +
+    rows
+      .map(
+        ([n, a, b]) =>
+          `<tr><th>${n}</th><td>${a}</td><td class="arr" aria-label="wordt">→</td><td class="nx">${b}</td></tr>`,
+      )
+      .join('') +
+    '</tbody></table>'
+  );
+}
+/** Dezelfde vergelijking als korte tekst, voor in een tooltip. */
+export const compareText = rows => rows.map(([n, a, b]) => `${n}: ${a} → ${b}`).join(' · ');

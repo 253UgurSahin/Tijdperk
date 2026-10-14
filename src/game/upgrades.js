@@ -23,7 +23,8 @@ export const maxLvl = b => (UPG_OK(b.type) ? Math.max(0, G.age - B[b.type].age) 
 export const canUpg = b => b.done && lvlOf(b) < maxLvl(b);
 // Het stamhuis groeit mee met je tijdperk, anders is het in latere tijdperken te snel gesloopt
 const ageHp = b => (b.type === 'townhall' && G ? 1 + 0.3 * G.age : 1);
-export const bMaxHp = b => B[b.type].hp * ageHp(b) * (1 + 0.35 * lvlOf(b)) * (hasT('masonry') ? 1.25 : 1);
+export const bMaxHp = (b, l = lvlOf(b)) =>
+  B[b.type].hp * ageHp(b) * (1 + 0.35 * l) * (hasT('masonry') ? 1.25 : 1);
 export const bPop = b => {
   const p = B[b.type].pop;
   return p ? Math.round(p * (1 + 0.4 * lvlOf(b))) : 0;
@@ -47,20 +48,45 @@ export function upgCost(b) {
   if (m) for (const k in m) c[k] = (c[k] || 0) + m[k] * l;
   return c;
 }
-export function upgEffect(k, l) {
-  const d = B[k],
-    p = [];
-  if (d.pop) p.push(`${Math.round(d.pop * (1 + 0.4 * l))} inwoners`);
-  if (d.def) p.push(`schade ${Math.round(d.def.dmg * (1 + 0.4 * l))}, bereik ${d.def.r + 0.5 * l}`);
-  if (d.conv || d.pump) p.push(`${Math.round(25 * l)}% sneller`);
-  if (d.gen) p.push(`${Math.round(d.gen.power * (1 + 0.25 * l))} stroom`);
-  if (d.light) p.push(`lichtstraal ${d.light + l}`);
-  if (d.work) p.push(`${B.farm.work + l} boeren`);
-  if (d.market) p.push('betere prijzen');
-  if (d.train) p.push(`${Math.round(20 * l)}% sneller trainen`);
-  p.push(`${Math.round(35 * l)}% sterker`);
-  return p.join(' · ');
+/*
+ * Wat een verbetering oplevert, als regels [naam, nu, straks]. Zo zie je in het spel precies
+ * wat je ervoor terugkrijgt. De formules zijn dezelfde als die het spel zelf gebruikt.
+ */
+const pct = x => Math.round(x * 100) + '%';
+export function upgradeRows(b) {
+  const d = B[b.type],
+    l = lvlOf(b),
+    n = l + 1,
+    rows = [];
+  if (d.pop) rows.push(['Inwoners', Math.round(d.pop * (1 + 0.4 * l)), Math.round(d.pop * (1 + 0.4 * n))]);
+  if (d.def) {
+    rows.push([
+      'Schade per schot',
+      Math.round(d.def.dmg * (1 + 0.4 * l)),
+      Math.round(d.def.dmg * (1 + 0.4 * n)),
+    ]);
+    rows.push(['Bereik', d.def.r + 0.5 * l, d.def.r + 0.5 * n]);
+  }
+  if (d.conv || d.pump) rows.push(['Productiesnelheid', pct(1 + 0.25 * l), pct(1 + 0.25 * n)]);
+  if (d.gen)
+    rows.push(['Stroom', Math.round(d.gen.power * (1 + 0.25 * l)), Math.round(d.gen.power * (1 + 0.25 * n))]);
+  if (d.light) rows.push(['Lichtstraal', d.light + l, d.light + n]);
+  if (d.work) rows.push(['Plek voor boeren', farmSlots(b), farmSlots(b) + 1]);
+  if (d.market) rows.push(['Marktprijzen', l ? `${l * 10}% beter` : 'gewoon', `${n * 10}% beter`]);
+  if (d.train) rows.push(['Trainsnelheid', pct(1 + 0.2 * l), pct(1 + 0.2 * n)]);
+  rows.push(['Levenspunten', Math.round(bMaxHp(b, l)), Math.round(bMaxHp(b, n))]);
+  return rows;
 }
+/** Werktuigen: sneller verzamelen en meer dragen, voor al je dorpelingen. */
+export const toolRows = () => [
+  ['Verzamelsnelheid', pct(1 + 0.15 * G.toolLvl), pct(1 + 0.15 * (G.toolLvl + 1))],
+  ['Draagvermogen', carryMax(), carryMax() + 2],
+];
+/** Wapens en pantser: je hele leger slaat harder en kan meer hebben. */
+export const armsRows = () => [
+  ['Schade leger', pct(armsMul()), pct(armsMul() + 0.15)],
+  ['Levens leger', pct(armsMul()), pct(armsMul() + 0.15)],
+];
 export const toolCost = () => {
   const l = G.toolLvl + 1,
     c = { food: 150 * l, wood: 150 * l };

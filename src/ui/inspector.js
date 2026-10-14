@@ -22,7 +22,7 @@ import {
   maxLvl,
   toolCost,
   upgCost,
-  upgEffect,
+  upgradeRows,
   upgrade,
   upgradeArms,
   upgradeTools,
@@ -34,7 +34,7 @@ import { selectArmy, selectIdle } from '../input/input.js';
 import { CHAPTERS } from '../game/chapters.js';
 import { iconFor, portrait } from '../render/icons.js';
 import { bShort } from './buildmenu.js';
-import { TOUCH, costHTML, esc, fmt, gem, hy } from './format.js';
+import { TOUCH, compareHTML, compareText, costHTML, esc, fmt, gem, hy } from './format.js';
 import { ico } from './glyphs.js';
 import { setHTML, sigs } from './header.js';
 import { setExpand, toast } from './hud.js';
@@ -247,10 +247,10 @@ export function renderInspector() {
         mx = maxLvl(b);
       if (l < mx) {
         const c = upgCost(b);
-        cmd += CB('data-b="upgrade"', '▲', `Niveau ${l + 2}`, {
+        cmd += CB('data-b="upgrade"', '▲', `Verbeter`, {
           dis: !has(c),
           cost: costHTML(c, true),
-          tip: upgEffect(b.type, l + 1),
+          tip: `Naar niveau ${l + 2}. ` + compareText(upgradeRows(b)),
         });
       }
     }
@@ -325,6 +325,7 @@ export function renderInspector() {
     Math.round(b.qt * 4) +
     G.age +
     (d.market ? Object.values(G.res).map(Math.floor).join() : '') +
+    (UPG_OK(b.type) && has(upgCost(b))) + // knop 'Verbeteren' aan of uit
     b.starved +
     b.run +
     b.blocked +
@@ -372,7 +373,16 @@ export function renderInspector() {
       const l = lvlOf(b),
         top = AGES.length - 1 - B[b.type].age,
         mx = maxLvl(b);
-      h += `<div class="lvrow"><span class="pips">${Array.from({ length: top + 1 }, (_, i) => `<i class="${i <= l ? 'on' : i <= mx ? 'av' : ''}"></i>`).join('')}</span><span>${l < mx ? 'verbetering klaar' : l < top ? 'volgend niveau in de ' + AGES[Math.min(AGES.length - 1, B[b.type].age + l + 1)].n.toLowerCase() : 'max'}</span></div>`;
+      // Verbeterkaart: welk niveau, wat het oplevert (nu → straks), wat het kost
+      const pips = `<span class="pips">${Array.from({ length: top + 1 }, (_, i) => `<i class="${i <= l ? 'on' : i <= mx ? 'av' : ''}"></i>`).join('')}</span>`;
+      if (l < mx) {
+        const c = upgCost(b);
+        // Vooraan zetten: op een breed scherm staat de kaart dan rechts naast de gegevens
+        h =
+          `<div class="upcard side"><div class="uph"><b>Verbeteren naar niveau ${l + 2}</b>${pips}</div>${compareHTML(upgradeRows(b))}<div class="upf">${costHTML(c)}<button class="primary" data-b="upgrade" ${has(c) ? '' : 'disabled'}>Verbeteren</button></div></div>` +
+          h;
+      } else
+        h += `<div class="lvrow">${pips}<span>Niveau ${l + 1} · ${l < top ? 'volgende verbetering in de ' + AGES[Math.min(AGES.length - 1, B[b.type].age + l + 1)].n.toLowerCase() : 'hoogste niveau'}</span></div>`;
     }
     if (d.market)
       h +=
