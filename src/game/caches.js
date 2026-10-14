@@ -43,7 +43,7 @@ export function computeCaches() {
       x: b.x + d.size / 2,
       y: b.y + d.size / 2,
       r: bLight(b),
-      warm: b.type === 'campfire' || b.type === 'lantern' || (b.type === 'townhall' && G.age < 3),
+      warm: b.type === 'campfire' || b.type === 'lantern' || (b.type === 'townhall' && G.age < 5),
     });
   }
   claims.fill(0);

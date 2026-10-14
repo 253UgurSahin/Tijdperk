@@ -19,7 +19,8 @@ export function bUpdate(b, dt) {
     pr = d.power ? powerRatio : 1;
   b.act -= dt;
   if (d.conv && b.on) {
-    b.ct += dt * pr * bRate(b) * (hasT('steam') ? 1.25 : 1);
+    const wind = hasT('windpower') && (b.type === 'windmill' || b.type === 'powdermill') ? 1.5 : 1;
+    b.ct += dt * pr * bRate(b) * wind * (hasT('steam') ? 1.25 : 1);
     if (b.ct >= d.conv.t) {
       if (has(d.conv.in)) {
         pay(d.conv.in);
@@ -110,7 +111,7 @@ export function bUpdate(b, dt) {
         u.order = 'move';
         u.stance = G.stance;
         G.stats.trained++;
-        if (k === 'knight') G.stats.knight++;
+        G.stats[k] = (G.stats[k] || 0) + 1; // per soort tellen, voor de doelen
         floater(u.x, u.y, UNITS[k].n, '#ffffff');
         store.uiDirty = true;
       }

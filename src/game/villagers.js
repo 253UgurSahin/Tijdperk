@@ -301,7 +301,16 @@ export function vUpdate(v, dt) {
       decide(v);
       break;
     case 'walk':
-      if (follow(v, dt, (v.carry.amt ? 1.9 : 2.3) * (1 + G.age * 0.04) * (hasT('wheel') ? 1.15 : 1)))
+      if (
+        follow(
+          v,
+          dt,
+          (v.carry.amt ? 1.9 : 2.3) *
+            (1 + G.age * 0.04) *
+            (hasT('wheel') ? 1.15 : 1) *
+            (hasT('antigrav') ? 1.25 : 1),
+        )
+      )
         arrive(v);
       break;
     case 'gather':
@@ -387,6 +396,7 @@ function doGather(v, dt) {
     (v.res === 'food' ? season().food : 1) *
     (G.rain && t.k === 'node' ? 0.9 : 1) *
     (t.k === 'farm' && hasT('agri') ? 1.2 : 1) *
+    (t.k === 'farm' && hasT('ironplow') ? 1.25 : 1) *
     (hasT('automation') ? 1.25 : 1) *
     (G.buff && G.buff.work > G.t ? 1.25 : 1);
   while (v.timer >= 1) {

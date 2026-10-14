@@ -62,7 +62,7 @@ export const EVENTS = [
     t: 'Ziekte',
     cond: () => G.vs.length > 8,
     x: () => 'Er waart een ziekte rond. Genezers kunnen helpen, voor een prijs.',
-    a: { l: 'Betaal genezers', c: () => (G.age >= 2 ? { gold: 40 + G.age * 20 } : { food: 140 }) },
+    a: { l: 'Betaal genezers', c: () => (G.age >= 3 ? { gold: 40 + G.age * 20 } : { food: 140 }) },
     b: {
       l: 'Laat het gaan',
       f: () => {
@@ -92,7 +92,7 @@ export const EVENTS = [
     x: () => `Drie ${UNITS[bestMerc()].n.toLowerCase()}s bieden hun diensten aan.`,
     a: {
       l: 'Huur ze',
-      c: () => (G.age >= 2 ? { gold: 60 + G.age * 30 } : { food: 200, wood: 80 }),
+      c: () => (G.age >= 3 ? { gold: 60 + G.age * 30 } : { food: 200, wood: 80 }),
       f: () => {
         const h = th(),
           k = bestMerc();

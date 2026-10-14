@@ -7,19 +7,34 @@ export const RES = {
   tin: { n: 'Tin', c: '#a9b6bd', age: 1 },
   bronze: { n: 'Brons', c: '#b9853a', age: 1, cr: 1 },
   iron: { n: 'IJzer', c: '#7d7b88', age: 2 },
-  gold: { n: 'Goud', c: '#e2b92c', age: 2 },
-  coal: { n: 'Kolen', c: '#4d5058', age: 3 },
-  steel: { n: 'Staal', c: '#7f9ab0', age: 3, cr: 1 },
-  oil: { n: 'Olie', c: '#5b4a68', age: 4 },
-  sand: { n: 'Zand', c: '#d8c184', age: 4 },
-  fuel: { n: 'Brandstof', c: '#d0612f', age: 4, cr: 1 },
-  silicon: { n: 'Silicium', c: '#6f84b8', age: 4, cr: 1 },
-  lithium: { n: 'Lithium', c: '#7fcdb5', age: 5 },
-  chips: { n: 'Chips', c: '#2fae80', age: 5, cr: 1 },
-  battery: { n: "Accu's", c: '#77bf40', age: 5, cr: 1 },
+  gold: { n: 'Goud', c: '#e2b92c', age: 3 },
+  powder: { n: 'Buskruit', c: '#4a4038', age: 4, cr: 1 },
+  coal: { n: 'Kolen', c: '#4d5058', age: 5 },
+  steel: { n: 'Staal', c: '#7f9ab0', age: 5, cr: 1 },
+  oil: { n: 'Olie', c: '#5b4a68', age: 6 },
+  sand: { n: 'Zand', c: '#d8c184', age: 6 },
+  fuel: { n: 'Brandstof', c: '#d0612f', age: 6, cr: 1 },
+  silicon: { n: 'Silicium', c: '#6f84b8', age: 6, cr: 1 },
+  lithium: { n: 'Lithium', c: '#7fcdb5', age: 7 },
+  chips: { n: 'Chips', c: '#2fae80', age: 7, cr: 1 },
+  battery: { n: "Accu's", c: '#77bf40', age: 7, cr: 1 },
+  starmetal: { n: 'Sterrenmetaal', c: '#b49cff', age: 8 },
+  fusion: { n: 'Fusiecellen', c: '#ff6fd0', age: 8, cr: 1 },
 };
 export const RKEYS = Object.keys(RES);
-export const GATHER = ['food', 'wood', 'stone', 'copper', 'tin', 'iron', 'gold', 'coal', 'sand', 'lithium'];
+export const GATHER = [
+  'food',
+  'wood',
+  'stone',
+  'copper',
+  'tin',
+  'iron',
+  'gold',
+  'coal',
+  'sand',
+  'lithium',
+  'starmetal',
+];
 export const HARD = {
   food: 1,
   wood: 0.9,
@@ -31,6 +46,7 @@ export const HARD = {
   coal: 0.7,
   sand: 1,
   lithium: 0.65,
+  starmetal: 0.55,
 };
 export const BASEW = {
   food: 1.5,
@@ -43,4 +59,5 @@ export const BASEW = {
   coal: 0.95,
   sand: 0.8,
   lithium: 0.8,
+  starmetal: 0.6,
 };

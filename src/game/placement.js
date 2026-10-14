@@ -10,7 +10,7 @@ import { has, pay } from './economy.js';
 import { placeBuilding } from './entities.js';
 import { fxRing } from './fx.js';
 import { G } from './state.js';
-import { roadTier } from './upgrades.js';
+import { hasT, roadTier } from './upgrades.js';
 import { mouse } from '../input/input.js';
 import { resetV, selVills } from '../input/selection.js';
 import { fmt } from '../ui/format.js';
@@ -21,8 +21,10 @@ import { SUCCESSOR, canMake } from '../data/succession.js';
 export function chunkCost() {
   const m = 1 + G.bought * 0.55,
     c = { food: Math.round(80 * m), wood: Math.round(80 * m), stone: Math.round(40 * m) };
-  if (G.age >= 2) c.gold = Math.round(12 * m);
-  if (G.age >= 3) c.steel = Math.round(10 * m);
+  if (G.age >= 3) c.gold = Math.round(12 * m);
+  if (G.age >= 5) c.steel = Math.round(10 * m);
+  // Zeekaarten maken uitbreiden goedkoper
+  if (hasT('charts')) for (const k in c) c[k] = Math.round(c[k] * 0.75);
   return c;
 }
 export function canBuyChunk(cx, cy) {
@@ -103,6 +105,8 @@ export function canPlace(type, x, y, skipCost) {
     }
   if (type === 'command' && G.bs.some(b => b.type === 'command'))
     return 'Er kan maar één commandocentrum zijn';
+  if (type === 'stargate' && G.bs.some(b => b.type === 'stargate'))
+    return 'Er kan maar één sterrenpoort zijn';
   if (!skipCost && !has(d.cost)) return 'Nog ' + lackText(d.cost) + ' nodig';
   if (d.wall && G.vs.some(v => !v.hidden && (v.x | 0) === x && (v.y | 0) === y)) return 'Er staat iemand';
   return null;

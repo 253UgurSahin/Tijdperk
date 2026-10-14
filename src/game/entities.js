@@ -25,7 +25,7 @@ export function placeBuilding(type, x, y, instant) {
     hp: instant ? d.hp : Math.max(1, d.hp * 0.15),
     done: false,
     prog: 0,
-    bt: type === 'command' ? 120 : d.wall ? 3 : clamp(4 + tot / 12, 5, 80),
+    bt: type === 'stargate' ? 160 : type === 'command' ? 120 : d.wall ? 3 : clamp(4 + tot / 12, 5, 80),
     on: true,
     ct: 0,
     cd: 0,

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { SUCCESSOR, canMake, retiredAt, retiredIn } from '../src/data/succession.js';
 import { B } from '../src/data/buildings.js';
 import { UNITS } from '../src/data/units.js';
+import { AGES } from '../src/data/ages.js';
 
 const def = k => B[k] || UNITS[k];
 
@@ -22,7 +23,7 @@ describe('opvolging per tijdperk', () => {
   });
 
   it('in elk tijdperk blijft er een woning, een lichtbron en een kazerne-eenheid over', () => {
-    for (let age = 0; age < 6; age++) {
+    for (let age = 0; age < AGES.length; age++) {
       expect(
         Object.keys(B).some(k => B[k].pop && !B[k].nobuild && canMake(k, age)),
         `woning ${age}`,

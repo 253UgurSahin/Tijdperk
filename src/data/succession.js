@@ -7,31 +7,50 @@ export const SUCCESSOR = {
   // woningen
   hut: 'house',
   house: 'stonehouse',
-  stonehouse: 'rowhouse',
+  stonehouse: 'canalhouse',
+  canalhouse: 'rowhouse',
   rowhouse: 'apartment',
   apartment: 'towerblock',
+  towerblock: 'arcology',
   // licht
   campfire: 'lantern',
   lantern: 'streetlamp',
   // verdediging
   watchtower: 'bronzetower',
-  bronzetower: 'castletower',
-  castletower: 'cannon',
+  bronzetower: 'hillfort',
+  hillfort: 'castletower',
+  castletower: 'bastion',
+  bastion: 'cannon',
   cannon: 'laser',
   aa: 'laser',
+  laser: 'railgun',
   palisade: 'stonewall',
   stonewall: 'concrete',
   // stroom
   powerplant: 'oilplant',
-  // leger
+  oilplant: 'fusionplant',
+  // leger: voetvolk
   spear: 'warrior',
-  warrior: 'knight',
-  knight: 'rifle',
-  slinger: 'archer',
-  archer: 'rifle',
+  warrior: 'swordsman',
+  swordsman: 'pikeman',
+  pikeman: 'rifle',
+  // leger: op afstand
+  slinger: 'javelin',
+  javelin: 'archer',
+  archer: 'musketeer',
+  musketeer: 'rifle',
   rifle: 'soldier',
   soldier: 'exo',
-  fieldgun: 'tank',
+  exo: 'plasma',
+  // leger: ruiters, daarna pantser
+  chariot: 'knight',
+  knight: 'cuirassier',
+  cuirassier: 'tank',
+  tank: 'mech',
+  // leger: geschut
+  trebuchet: 'bombard',
+  bombard: 'fieldgun',
+  fieldgun: 'rocket',
 };
 
 const def = k => B[k] || UNITS[k];

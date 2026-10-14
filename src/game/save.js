@@ -17,6 +17,8 @@ import { amt, bmap, buildLists, genWorld, node, road, setBlk } from '../world/wo
 
 // Versie 4: grotere, nieuwe wereldgenerator. Oude opslag (v3) past daar niet meer bij.
 export const SKEY = 'tijdperken-save-v4';
+// Oude tijdperknummers (6 tijdperken) naar de nieuwe (9 tijdperken)
+const OLD_AGE = [0, 1, 3, 5, 6, 7];
 function b64(u8) {
   let s = '';
   for (let i = 0; i < u8.length; i += 0x8000)
@@ -67,6 +69,7 @@ export function serialize() {
   return JSON.stringify({
     v: 4,
     size: W,
+    ages: 9,
     seed: G.seed,
     g,
     road: b64(road),
@@ -110,6 +113,9 @@ export function deserialize(str) {
   setGame(baseState(s.seed));
   genWorld(s.seed);
   Object.assign(G, s.g);
+  // Opslag van vóór de negen tijdperken: zet oude tijdperk- en vijandnummers om
+  const fromOld = s.ages !== 9;
+  if (fromOld) G.age = OLD_AGE[G.age] ?? G.age;
   G.groups = G.groups || {};
   G.hist = G.hist || [];
   G.offer = null;
@@ -161,7 +167,7 @@ export function deserialize(str) {
   for (const o of s.guards) {
     const c = G.camps.find(c => c.id === o.camp);
     if (!c) continue;
-    const f = spawnFoe(o.type, o.x, o.y, 1, c);
+    const f = spawnFoe(fromOld ? (OLD_AGE[o.type] ?? o.type) : o.type, o.x, o.y, 1, c);
     f.hp = o.hp;
     f.mhp = o.mhp;
     f.hx = c.x + 1 + (Math.random() - 0.5) * 3;

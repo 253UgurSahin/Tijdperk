@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { RES, RKEYS, GATHER } from '../src/data/resources.js';
 import { B } from '../src/data/buildings.js';
-import { UNITS } from '../src/data/units.js';
+import { FOES, UNITS } from '../src/data/units.js';
 import { TECH } from '../src/data/tech.js';
-import { AGES, AGE_UP } from '../src/data/ages.js';
+import { AGES, AGE_MAT, AGE_UP } from '../src/data/ages.js';
 import { NODES } from '../src/data/nodes.js';
 
 const costKeys = c => Object.keys(c || {});
@@ -45,5 +45,26 @@ describe('speldata', () => {
         r,
       ).toBe(true);
     expect(RKEYS.length).toBe(Object.keys(RES).length);
+  });
+
+  it('elk tijdperk heeft eigen vijanden, materiaal en iets nieuws om te maken', () => {
+    expect(FOES.length).toBe(AGES.length);
+    expect(AGE_MAT.length).toBe(AGES.length);
+    for (let age = 1; age < AGES.length; age++) {
+      expect(
+        Object.values(UNITS).some(u => u.age === age),
+        `eenheid in tijdperk ${age}`,
+      ).toBe(true);
+      expect(
+        Object.values(B).some(d => d.age === age),
+        `gebouw in tijdperk ${age}`,
+      ).toBe(true);
+    }
+  });
+
+  it('precies één gebouw laat je winnen, in het laatste tijdperk', () => {
+    const win = Object.entries(B).filter(([, d]) => d.win);
+    expect(win.length).toBe(1);
+    expect(win[0][1].age).toBe(AGES.length - 1);
   });
 });

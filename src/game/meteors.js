@@ -10,7 +10,7 @@ import { RES } from '../data/resources.js';
 import { avail, computeAvail } from './caches.js';
 import { burst } from './fx.js';
 import { G } from './state.js';
-import { bMaxHp } from './upgrades.js';
+import { bMaxHp, hasT } from './upgrades.js';
 import { note, toast } from '../ui/hud.js';
 import { clamp, dist } from '../util/math.js';
 import {
@@ -32,11 +32,16 @@ const FALL = 3.5; // de laatste seconden is de vuurbal te zien
 const FIRST_DAY = 3; // eerste meteoriet niet vóór deze dag
 
 // Welke ertsen een meteoriet kan brengen (bomen, struiken, zand en olie niet)
-const METEOR_ORES = ['rock', 'copper', 'tin', 'iron', 'gold', 'coal', 'lithium'];
+const METEOR_ORES = ['rock', 'copper', 'tin', 'iron', 'gold', 'coal', 'lithium', 'starmetal'];
 
 /** Elke speltik: plan de volgende meteoriet, tel af en laat hem inslaan. */
 export function updateMeteors(dt) {
   if (G.nextMeteor == null) G.nextMeteor = (FIRST_DAY - 1) * DAYLEN + DAYLEN * (0.5 + Math.random());
+  // In het Sterrentijdperk is sterrenmetaal nodig: de eerste meteoriet komt dan snel
+  if (G.age >= 8 && !G.starMeteor) {
+    G.starMeteor = true;
+    G.nextMeteor = Math.min(G.nextMeteor, G.t + 20);
+  }
   const m = G.meteor;
   if (!m) {
     if (G.t >= G.nextMeteor) announce();
@@ -55,7 +60,10 @@ function announce() {
   const spot = pickSpot();
   // Volgende: sneller als er grondstoffen op zijn, anders na 1,5 tot 3 dagen
   const scarce = scarceOres().length;
-  G.nextMeteor = G.t + DAYLEN * (scarce ? 1 + Math.random() : 1.5 + Math.random() * 1.5);
+  const wait = scarce ? 1 + Math.random() : 1.5 + Math.random() * 1.5;
+  // Sterrentijdperk: vaker, en nog vaker met sterrenkaarten
+  const often = G.age >= 8 ? (hasT('starcharts') ? 0.4 : 0.6) : 1;
+  G.nextMeteor = G.t + DAYLEN * wait * often;
   if (!spot) return;
   G.meteor = { x: spot[0] + 0.5, y: spot[1] + 0.5, t: WARNING, falling: false };
   store.notePos = [spot[0], spot[1]];
@@ -94,7 +102,9 @@ function pickOres() {
   const usable = METEOR_ORES.filter(k => NODES[NI[k]].age <= G.age);
   const scarce = scarceOres();
   const byStock = [...usable].sort((a, b) => G.res[NODES[NI[a]].res] - G.res[NODES[NI[b]].res]);
-  const first = scarce.length ? scarce[(Math.random() * scarce.length) | 0] : byStock[0];
+  // In het Sterrentijdperk is sterrenmetaal altijd de hoofdzaak
+  const first =
+    G.age >= 8 ? 'starmetal' : scarce.length ? scarce[(Math.random() * scarce.length) | 0] : byStock[0];
   const second = byStock.find(k => k !== first) || 'rock';
   return [first, second];
 }
@@ -141,7 +151,7 @@ function impact(m) {
       if (d < 1.5 || d > 5 || !inb(x, y)) continue;
       const i = y * W + x;
       if (!passable(i) || bmap[i] || road[i] || node[i]) continue;
-      const chance = d < 3.5 ? 0.55 : 0.25;
+      const chance = (d < 3.5 ? 0.55 : 0.25) * (hasT('starcharts') ? 1.4 : 1);
       if (Math.random() > chance) continue;
       const k = d < 3.5 ? main : Math.random() < 0.6 ? extra : 'rock';
       const t = NI[k];

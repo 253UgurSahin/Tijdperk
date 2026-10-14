@@ -38,3 +38,16 @@ import { sel } from './game/state.js';
 import { proj } from './render/camera.js';
 window.__tp.sel = sel;
 window.__tp.proj = proj;
+// Spring naar een tijdperk, krijg veel grondstoffen, of zet een eenheid neer
+import { onAgeChange } from './ui/age.js';
+import { RKEYS } from './data/resources.js';
+import { spawnUnit, spawnFoe } from './game/entities.js';
+import { computeAvail } from './game/caches.js';
+window.__tp.setAge = n => {
+  G.age = n;
+  computeAvail();
+  onAgeChange();
+};
+window.__tp.rich = (n = 5000) => RKEYS.forEach(k => (G.res[k] = n));
+window.__tp.unit = (k, x, y) => spawnUnit(k, x, y);
+window.__tp.foe = (type, x, y) => spawnFoe(type, x, y, 1);

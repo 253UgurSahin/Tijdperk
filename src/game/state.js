@@ -143,7 +143,8 @@ function spawnCampGuards(c) {
   for (let k = 0; k < n; k++) {
     const a = (k / n) * TAU;
     spawnFoe(
-      c.tier === 5 && k % 2 ? 5 : Math.min(c.tier, 4),
+      // Het sterkste kamp heeft ook pantserwagens
+      c.tier === 5 && k % 2 ? 6 : c.tier,
       c.x + 1 + Math.cos(a) * 2,
       c.y + 1 + Math.sin(a) * 2,
       1 + c.tier * 0.15,

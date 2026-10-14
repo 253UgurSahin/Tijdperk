@@ -37,6 +37,7 @@ export const MAX_START_DIST = {
   oil: 52,
   sand: 52,
   lithium: 64,
+  starmetal: 70,
 };
 
 /** Maximale afstand (in tegels) van de start tot grondstof `k` op een kaart van breedte W. */
@@ -236,6 +237,8 @@ export function generateWorld(seed, W, H) {
     ['coal', 5, 2.3, (x, y, b) => b === BIOME.HILLS || (b === BIOME.FOREST && near(x, y, BIOME.HILLS, 3))],
     ['oil', 5, 1.5, (x, y, b) => b === BIOME.DESERT || b === BIOME.BEACH],
     ['lithium', 3, 2.2, (x, y, b) => b === BIOME.SALT || b === BIOME.DESERT],
+    // Oude inslagen: een paar plekken met sterrenmetaal, overal op land
+    ['starmetal', 2, 1.6, (x, y, b) => b === BIOME.GRASS || b === BIOME.DESERT || b === BIOME.HILLS],
   ];
   const area = (W * H) / (128 * 128);
   for (const [k, perMap, size, fits] of ORES) {

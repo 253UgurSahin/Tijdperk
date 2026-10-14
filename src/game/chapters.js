@@ -25,13 +25,33 @@ export const CHAPTERS = [
     ],
   },
   {
-    t: 'Muren van steen',
-    s: 'IJzererts en goud liggen verder weg. Breid je land uit.',
+    t: 'Vonken in de smidse',
+    s: 'IJzer ligt aan de voet van de bergen. Wie het kan smeden, is sterker.',
     o: [
       ['Bouw een smidse', () => built('smithy')],
+      ['Bouw een stenen huis', () => built('stonehouse')],
+      ['Bouw een heuvelfort', () => built('hillfort')],
+      ['Train een zwaardvechter', () => G.stats.swordsman > 0],
+    ],
+  },
+  {
+    t: 'Muren van steen',
+    s: 'Goud ligt bij het water. Breid je land uit en open een markt.',
+    o: [
       ['Open een markt', () => built('market')],
       ['Bouw een kasteeltoren', () => built('castletower')],
+      ['Bouw een belegeringswerf', () => built('siegeworks')],
       ['Train een ridder', () => G.stats.knight > 0],
+    ],
+  },
+  {
+    t: 'Wind in de zeilen',
+    s: 'Molens malen vanzelf, en buskruit verandert de oorlog.',
+    o: [
+      ['Bouw een windmolen', () => built('windmill')],
+      ['Bouw een kruitmolen', () => built('powdermill')],
+      ['Bouw een grachtenpand', () => built('canalhouse')],
+      ['Train een musketier', () => G.stats.musketeer > 0],
     ],
   },
   {
@@ -55,13 +75,23 @@ export const CHAPTERS = [
     ],
   },
   {
-    t: 'De laatste grens',
-    s: 'Bouw de zwerm en voltooi het Commandocentrum.',
+    t: 'De zwerm',
+    s: 'Chips en accu’s maken een leger dat vliegt.',
     o: [
       ['Bouw een chipfabriek', () => built('chipfab')],
       ['Bouw een accufabriek', () => built('batteryfab')],
       ['Bouw een drone-hangar', () => built('hangar')],
-      ['Voltooi het Commandocentrum', () => built('command')],
+      ['Voltooi het commandocentrum', () => built('command')],
+    ],
+  },
+  {
+    t: 'Naar de sterren',
+    s: 'Meteorieten brengen sterrenmetaal. Bouw er de sterrenpoort mee.',
+    o: [
+      ['Bouw een sterrensmidse', () => built('starforge')],
+      ['Bouw een fusiereactor', () => built('fusionplant')],
+      ['Bouw een mechwerf', () => built('mechbay')],
+      ['Voltooi de sterrenpoort', () => built('stargate')],
     ],
   },
 ];

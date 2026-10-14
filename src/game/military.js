@@ -92,6 +92,7 @@ function campDestroyed(c) {
   if (tier >= 2) {
     L.iron = 120;
     L.gold = 60;
+    L.powder = 40;
   }
   if (tier >= 3) {
     L.coal = 150;
@@ -189,11 +190,16 @@ export function nearestFoe(x, y, r, air) {
   return best;
 }
 function udmg(u) {
-  return UNITS[u.k].dmg * armsMul() * (hasT('swarm') && (u.k === 'drone' || u.k === 'exo') ? 1.3 : 1);
+  return (
+    UNITS[u.k].dmg *
+    armsMul() *
+    (hasT('forging') ? 1.15 : 1) *
+    (hasT('swarm') && (u.k === 'drone' || u.k === 'exo') ? 1.3 : 1)
+  );
 }
 export function uUpdate(u, dt) {
   const U = UNITS[u.k],
-    SP = U.spd * (hasT('radio') ? 1.2 : 1);
+    SP = U.spd * (hasT('radio') ? 1.2 : 1) * (hasT('antigrav') ? 1.25 : 1);
   u.anim += dt;
   if (u.flash) u.flash -= dt;
   if (u.swing > 0) u.swing -= dt;
@@ -469,7 +475,8 @@ export function spawnRaid() {
   const anchor = edge[(Math.random() * edge.length) | 0],
     near = edge.filter(e => dist(e[0], e[1], anchor[0], anchor[1]) < 7);
   for (let k = 0; k < n; k++) {
-    const type = a === 5 ? (k % 2 ? 5 : 4) : k % 3 === 0 && a > 0 ? a - 1 : a;
+    // Meestal vijanden van jouw tijdperk, met wat oudere ertussen; drones komen met pantserwagens
+    const type = a === 7 ? (k % 2 ? 7 : 6) : k % 3 === 0 && a > 0 ? a - 1 : a;
     const e = near[(Math.random() * near.length) | 0];
     G.spawnQ.push({ type, x: e[0] + 0.5, y: e[1] + 0.5, scale, at: G.t + k * 0.7 });
   }

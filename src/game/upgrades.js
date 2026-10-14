@@ -8,12 +8,13 @@ import { floater, fxRing } from './fx.js';
 import { G } from './state.js';
 import { toast } from '../ui/hud.js';
 
-export const roadTier = () => (G.age >= 4 ? 3 : G.age >= 2 ? 2 : 1);
+export const roadTier = () => (G.age >= 6 ? 3 : G.age >= 3 ? 2 : 1);
 export const hasT = k => !!(G && G.tech && G.tech[k]);
 export const UPG_OK = k => {
   const d = B[k];
   return (
     k !== 'command' &&
+    k !== 'stargate' &&
     !!(d.pop || d.def || d.conv || d.gen || d.pump || d.light || d.work || d.market || d.train)
   );
 };
@@ -40,7 +41,7 @@ export function upgCost(b) {
     c.wood = 200 * l;
     c.stone = 160 * l;
   } else for (const k in d.cost) c[k] = Math.round(d.cost[k] * 0.6 * l);
-  const m = AGE_MAT[Math.min(5, d.age + l)];
+  const m = AGE_MAT[Math.min(AGE_MAT.length - 1, d.age + l)];
   if (m) for (const k in m) c[k] = (c[k] || 0) + m[k] * l;
   return c;
 }
