@@ -26,3 +26,7 @@ import * as caches from './game/caches.js';
 window.__tp.caches = caches;
 import * as config from './config.js';
 window.__tp.config = config;
+// Laat binnen een tel een meteoriet aankondigen
+window.__tp.meteor = () => {
+  window.__tp.G.nextMeteor = window.__tp.G.t;
+};

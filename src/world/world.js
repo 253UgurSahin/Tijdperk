@@ -69,6 +69,10 @@ export function paintGround(x, y, seed) {
 /** Hoe hoog een bergtegel is, van 0 (voet) tot 1 (hoogste top). */
 export const mountainHeight = i => clamp((elev[i] - levels.peak) / (levels.top - levels.peak), 0, 1);
 
+// Tegels waarvan de grondkleur veranderd is (bijv. een krater); de weergave tekent ze opnieuw
+export const dirtyGround = new Set();
+export const markGroundDirty = (x, y) => dirtyGround.add(y * W + x);
+
 export function buildLists() {
   nodeLists = NODES.map(() => []);
   for (let i = 0; i < W * H; i++) if (node[i]) nodeLists[node[i]].push(i);

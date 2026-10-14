@@ -116,6 +116,11 @@ export function sfx(k, minGap = 0.05) {
       noise(0.3, 0.12, 200);
       tone(90, 40, 0.3, 'sine', 0.1);
       break;
+    case 'meteor':
+      // Aanzwellend gesuis van een vallende vuurbal
+      noise(3.4, 0.05, 300);
+      tone(600, 80, 3.4, 'sawtooth', 0.03);
+      break;
     case 'raidend':
       tone(392, 523, 0.3, 'triangle', 0.06);
       break;

@@ -17,6 +17,7 @@ import { sigs } from '../ui/header.js';
 import { note, toast } from '../ui/hud.js';
 import { dist } from '../util/math.js';
 import { amt, bmap, node, nodeLists } from '../world/world.js';
+import { updateMeteors } from './meteors.js';
 
 export function update(dt) {
   if (G.over) return;
@@ -80,6 +81,7 @@ export function update(dt) {
       G.spawnQ = G.spawnQ.filter(s => s.at > G.t);
     }
   }
+  updateMeteors(dt);
   updateProj(dt);
   for (const e of G.fx) {
     e.life -= dt;

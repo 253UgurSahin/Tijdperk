@@ -5,9 +5,10 @@ import { NODES } from '../data/nodes.js';
 import { RES } from '../data/resources.js';
 import { G } from '../game/state.js';
 import { C, M_, gCyl, gDod, gIco, gOct, mat } from './kit.js';
-import { S3 } from './scene.js';
+import { S3, cam } from './scene.js';
 import { hash2 } from '../util/random.js';
 import { bmap, isUnl, node } from '../world/world.js';
+import { camDist } from './camera.js';
 
 function bakePart(geo, m, x, y, z, sx, sy, sz) {
   const g = geo.clone();
@@ -76,7 +77,22 @@ const _m4 = new T3.Matrix4(),
   _s = new T3.Vector3(),
   _e = new T3.Euler(),
   _c = new T3.Color();
+// Alleen bronnen in een cirkel rond de camera worden getekend: op een grote kaart scheelt dat veel.
+// De cirkel schuift mee als de camera verder dan een stukje beweegt (zie nodesNeedUpdate).
+const drawn = { x: -999, y: -999, r: 0 };
+const drawRadius = () => camDist() * 2.4 + 10;
+export const nodesNeedUpdate = () =>
+  Math.hypot(cam.x - drawn.x, cam.y - drawn.y) > drawn.r * 0.3 ||
+  Math.abs(drawRadius() - drawn.r) > drawn.r * 0.25;
+
 export function rebuildNodes(full) {
+  drawn.x = cam.x;
+  drawn.y = cam.y;
+  drawn.r = drawRadius();
+  const x0 = Math.max(0, Math.floor(cam.x - drawn.r)),
+    x1 = Math.min(W - 1, Math.ceil(cam.x + drawn.r)),
+    y0 = Math.max(0, Math.floor(cam.y - drawn.r)),
+    y1 = Math.min(H - 1, Math.ceil(cam.y + drawn.r));
   if (full) {
     for (const k in NI3) for (const m of NI3[k]) NGROUP.remove(m);
     NI3 = {};
@@ -87,7 +103,7 @@ export function rebuildNodes(full) {
         cnt[v] = (cnt[v] || 0) + 1;
       }
     for (const v in NVAR) {
-      const cap = (cnt[v] || 0) + 40;
+      const cap = (cnt[v] || 0) + 200; // ruimte voor nieuwe bronnen (teruggroei, meteorieten)
       NI3[v] = NVAR[v].map(p => {
         const m = new T3.InstancedMesh(p.geo, p.mat, cap);
         m.castShadow = v !== 'oil' && v !== 'sand';
@@ -102,32 +118,39 @@ export function rebuildNodes(full) {
   }
   const n = {};
   for (const v in NI3) n[v] = 0;
-  for (let i = 0; i < W * H; i++) {
-    const t = node[i];
-    if (!t || bmap[i] || NODES[t].age > G.age) continue;
-    const v = nodeVar(i),
-      arr = NI3[v];
-    if (!arr) continue;
-    const k = n[v];
-    if (k >= arr[0].instanceMatrix.count) continue;
-    const x = i % W,
-      y = (i / W) | 0,
-      h1 = hash2(x, y, 31),
-      h2 = hash2(x, y, 32),
-      h3 = hash2(x, y, 33),
-      sc = v === 'oil' || v === 'sand' ? 1 : 0.82 + h3 * 0.38;
-    _v.set(x + 0.5 + (h1 - 0.5) * 0.3, 0, y + 0.5 + (h2 - 0.5) * 0.3);
-    _q.setFromEuler(_e.set(0, h1 * TAU, 0));
-    _s.set(sc, sc * (v === 'pine' ? 0.9 + h2 * 0.4 : 1), sc);
-    _m4.compose(_v, _q, _s);
-    const lk = !isUnl(x, y);
-    _c.setRGB(lk ? 0.5 : 1, lk ? 0.52 : 1, lk ? 0.56 : 1);
-    for (const m of arr) {
-      m.setMatrixAt(k, _m4);
-      m.setColorAt(k, _c);
+  for (let yy = y0; yy <= y1; yy++)
+    for (let xx = x0; xx <= x1; xx++) {
+      const i = yy * W + xx,
+        t = node[i];
+      if (!t || bmap[i] || NODES[t].age > G.age) continue;
+      if (Math.hypot(xx - cam.x, yy - cam.y) > drawn.r) continue;
+      const v = nodeVar(i),
+        arr = NI3[v];
+      if (!arr) continue;
+      const k = n[v];
+      if (k >= arr[0].instanceMatrix.count) {
+        // Vol: alles opnieuw opbouwen met meer ruimte
+        if (!full) return rebuildNodes(true);
+        continue;
+      }
+      const x = i % W,
+        y = (i / W) | 0,
+        h1 = hash2(x, y, 31),
+        h2 = hash2(x, y, 32),
+        h3 = hash2(x, y, 33),
+        sc = v === 'oil' || v === 'sand' ? 1 : 0.82 + h3 * 0.38;
+      _v.set(x + 0.5 + (h1 - 0.5) * 0.3, 0, y + 0.5 + (h2 - 0.5) * 0.3);
+      _q.setFromEuler(_e.set(0, h1 * TAU, 0));
+      _s.set(sc, sc * (v === 'pine' ? 0.9 + h2 * 0.4 : 1), sc);
+      _m4.compose(_v, _q, _s);
+      const lk = !isUnl(x, y);
+      _c.setRGB(lk ? 0.5 : 1, lk ? 0.52 : 1, lk ? 0.56 : 1);
+      for (const m of arr) {
+        m.setMatrixAt(k, _m4);
+        m.setColorAt(k, _c);
+      }
+      n[v] = k + 1;
     }
-    n[v] = k + 1;
-  }
   for (const v in NI3)
     for (const m of NI3[v]) {
       m.count = n[v];

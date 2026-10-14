@@ -82,6 +82,14 @@ export function renderMini() {
       mctx.fillStyle = '#e3584a';
       mctx.fillRect(c.x - 1, c.y - 1, 4, 4);
     }
+  if (G.meteor) {
+    // Waar de meteoriet gaat inslaan
+    mctx.strokeStyle = '#ffb27a';
+    mctx.lineWidth = 2;
+    mctx.beginPath();
+    mctx.arc(G.meteor.x, G.meteor.y, 6, 0, Math.PI * 2);
+    mctx.stroke();
+  }
   mctx.fillStyle = '#ff5a4a';
   for (const f of G.foes) if (!f.camp) mctx.fillRect(f.x - 1, f.y - 1, 2.5, 2.5);
   mctx.fillStyle = '#9fd0ff';

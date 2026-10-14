@@ -8,11 +8,11 @@ import { G, sel } from '../game/state.js';
 import { RINGG, quadG } from './decals.js';
 import { bx, mat, mergeStatic } from './kit.js';
 import { makeBuilding, makeCamp, wallMask } from './models.js';
-import { rebuildNodes } from './nodes.js';
+import { nodesNeedUpdate, rebuildNodes } from './nodes.js';
 import { FOEK, makeUnit, makeVillager } from './people.js';
 import { S3 } from './scene.js';
 import { TTEX, buildTerrain, paintAll, paintTile, tctx, timg } from './terrain.js';
-import { node, road } from '../world/world.js';
+import { dirtyGround, node, road } from '../world/world.js';
 
 export const BG3 = new T3.Group(),
   EG3 = new T3.Group(),
@@ -262,6 +262,11 @@ export function checkWorld() {
     return;
   }
   let rc = false;
+  for (const i of dirtyGround) {
+    paintTile(i % W, (i / W) | 0);
+    rc = true;
+  }
+  dirtyGround.clear();
   for (let i = 0; i < W * H; i++)
     if (road[i] !== terrSnap[i]) {
       terrSnap[i] = road[i];
@@ -272,7 +277,7 @@ export function checkWorld() {
     tctx.putImageData(timg, 0, 0);
     TTEX.needsUpdate = true;
   }
-  let nc = G.age !== store.nodeAge;
+  let nc = G.age !== store.nodeAge || nodesNeedUpdate();
   if (!nc)
     for (let i = 0; i < W * H; i++)
       if (node[i] !== store.nodeSnap[i]) {

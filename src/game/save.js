@@ -61,6 +61,7 @@ export function serialize() {
     'buff',
     'forceRaid',
     'lastEvent',
+    'nextMeteor',
   ])
     g[k] = G[k];
   return JSON.stringify({

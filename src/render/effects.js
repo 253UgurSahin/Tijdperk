@@ -7,10 +7,44 @@ import { pool, ringAt } from './decals.js';
 import { GB, gIco, mat } from './kit.js';
 import { S3, cam } from './scene.js';
 import { hash2 } from '../util/random.js';
+import { meteorPosition } from '../game/meteors.js';
 
 const sphM = () =>
   new T3.Mesh(gIco(0), new T3.MeshBasicMaterial({ color: '#fff', transparent: true, depthWrite: false }));
+// Meteoriet: een rode cirkel op de inslagplek en een vuurbal met staart die naar beneden komt
+function drawMeteor() {
+  const m = G.meteor;
+  if (!m) return;
+  const pulse = 0.5 + Math.sin(store.TM * 8) * 0.5;
+  ringAt(m.x, m.y, 2.6 + pulse * 0.4, '#ff5a3a', 0.5 + pulse * 0.4, 0.07);
+  ringAt(m.x, m.y, 1.2, '#ffb27a', 0.6, 0.07);
+  const p = meteorPosition();
+  if (!p) return;
+  const ball = pool('meteor', () => {
+    const o = sphM();
+    o.material.blending = T3.AdditiveBlending;
+    return o;
+  });
+  ball.material.color.set('#ffd08a');
+  ball.material.opacity = 1;
+  ball.position.set(p.x, p.h + 0.5, p.y);
+  ball.scale.setScalar(0.9);
+  // Staart: een rij steeds kleinere, rodere bolletjes langs de baan omhoog
+  for (let k = 1; k <= 10; k++) {
+    const t = pool('meteortrail', () => {
+      const o = sphM();
+      o.material.blending = T3.AdditiveBlending;
+      return o;
+    });
+    t.material.color.set(k < 4 ? '#ff9a3a' : '#c8452a');
+    t.material.opacity = 0.75 * (1 - k / 11);
+    t.position.set(p.x + k * 0.5, p.h + 0.5 + k * 1, p.y - k * 0.5);
+    t.scale.setScalar(0.85 - k * 0.06);
+  }
+}
+
 export function drawFx() {
+  drawMeteor();
   for (const p of G.proj) {
     const m = pool(p.big ? 'shell' : 'arrow', () =>
       p.big
