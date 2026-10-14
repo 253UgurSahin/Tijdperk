@@ -97,8 +97,7 @@ for (const k of ['copper', 'tin', 'iron', 'gold', 'lithium'])
   ];
 const NGROUP = new T3.Group();
 S3.add(NGROUP);
-let NI3 = {},
-  unlSnap = '';
+let NI3 = {};
 const nodeVar = i => {
   const k = NODES[node[i]].k;
   if (k !== 'tree') return k;

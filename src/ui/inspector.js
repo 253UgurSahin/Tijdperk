@@ -30,6 +30,8 @@ import {
 import { unhide } from '../game/villagers.js';
 import { clearSel, resetV, selUnits, selVills } from '../input/selection.js';
 import { centerOn } from '../render/camera.js';
+import { selectArmy, selectIdle } from '../input/input.js';
+import { CHAPTERS } from '../game/chapters.js';
 import { iconFor, portrait } from '../render/icons.js';
 import { bShort } from './buildmenu.js';
 import { TOUCH, costHTML, esc, fmt, gem, hy } from './format.js';
@@ -62,13 +64,20 @@ export function renderInspector() {
     document.body.classList.remove('insp');
     selCmds = null;
     selCtx = '';
-    const sig = 'e' + G.age + popNow() + popCap() + G.us.length + G.unl.filter(Boolean).length;
+    const idle = G.vs.filter(v => !v.hidden && v.state === 'idle').length;
+    const sig = 'e' + G.age + popNow() + popCap() + G.us.length + G.unl.filter(Boolean).length + '/' + idle;
+    // Niets geselecteerd: een overzicht van je stad met snelknoppen, zodat het paneel nooit leeg is
+    const quick = (k, label, key, n) =>
+      `<button class="quick" data-quick="${k}">${label}${n != null ? `<b>${n}</b>` : ''}${TOUCH ? '' : `<kbd>${key}</kbd>`}</button>`;
     return setHTML(
       p,
       'ins',
       sig,
       () =>
-        `<div class="empty"><div class="selh" style="padding-right:0"><div class="port">${im(iconFor('townhall'))}</div><div><div class="selt">${placeName()}</div><div class="sels">${AGES[G.age].n} · ${AGES[G.age].lvl}</div></div></div><div class="stats"><span><i>⌂</i>${popNow()}/${popCap()} inwoners</span><span><i>⚔</i>${G.us.length} soldaten</span><span><i>◇</i>${G.unl.filter(Boolean).length} gebieden</span></div><p class="small" style="margin-top:8px">${TOUCH ? 'Tik' : 'Klik'} op een gebouw, dorpeling of soldaat om het te bekijken. Kies hiernaast wat je wilt bouwen.</p></div>`,
+        `<div class="empty"><div class="selh" style="padding-right:0"><div class="port">${im(iconFor('townhall'))}</div><div><div class="selt">${placeName()}</div><div class="sels">${AGES[G.age].n} · ${AGES[G.age].lvl}</div></div></div>` +
+        `<p class="chron">Hoofdstuk ${AGES[G.age].r} · ${CHAPTERS[G.age].t}</p>` +
+        `<div class="stats"><span><i>⌂</i>${popNow()}/${popCap()} inwoners</span><span><i>⚔</i>${G.us.length} soldaten</span><span><i>◇</i>${G.unl.filter(Boolean).length} gebieden</span></div>` +
+        `<div class="quicks">${quick('idle', 'Wie doet niets?', 'I', idle)}${G.us.length ? quick('army', 'Hele leger', 'Q', G.us.length) : ''}${quick('home', 'Naar het stamhuis', 'Home')}</div></div>`,
     );
   }
   document.body.classList.add('insp');
@@ -251,9 +260,10 @@ export function renderInspector() {
         });
     }
     if (d.train) {
-      const list = Object.keys(UNITS).filter(
-        k => UNITS[k].src === d.train && (canMake(k, G.age) || UNITS[k].age > G.age),
-      );
+      // Wat je nu kunt trainen, plus alleen het eerstvolgende tijdperk als vooruitblik
+      const mine = Object.keys(UNITS).filter(k => UNITS[k].src === d.train);
+      const nextAge = Math.min(...mine.map(k => UNITS[k].age).filter(a => a > G.age));
+      const list = mine.filter(k => canMake(k, G.age) || UNITS[k].age === nextAge);
       cmd += list
         .map(k => {
           const U = UNITS[k],
@@ -278,11 +288,7 @@ export function renderInspector() {
         CB(
           'data-st="cycle"',
           G.stance === 'hold' ? '▣' : G.stance === 'aggr' ? '➶' : '⛨',
-          G.stance === 'hold'
-            ? 'Nieuwe: blijf staan'
-            : G.stance === 'aggr'
-              ? 'Nieuwe: achtervolg'
-              : 'Nieuwe: verdedig',
+          G.stance === 'hold' ? 'Blijf staan' : G.stance === 'aggr' ? 'Achtervolg' : 'Verdedig',
           { tip: 'Wat nieuwe eenheden doen. Klik om te wisselen.' },
         );
     }
@@ -382,6 +388,10 @@ export function insHandler(e) {
   if (!t || t.disabled) return;
   sfx('tick');
   const b = sel.b && bById.get(sel.b);
+  // Snelknoppen in het overzicht
+  if (t.dataset.quick === 'idle') return selectIdle();
+  if (t.dataset.quick === 'army') return selectArmy();
+  if (t.dataset.quick === 'home') return $('#zHome').click();
   // Klik op een soort in een gemengde selectie: alleen die houden (Shift: die juist weghalen)
   if (t.dataset.only) {
     for (const u of selUnits()) if ((u.k === t.dataset.only) === e.shiftKey) sel.us.delete(u.id);

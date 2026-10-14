@@ -462,6 +462,61 @@
 .empty .selt {
   font-size: 16px;
 }
+/* Het hoofdstuk als een regel uit een kroniek */
+.empty .chron {
+  margin: 8px 0 0;
+  font-family: var(--f-display);
+  font-style: italic;
+  font-size: 14px;
+  color: var(--acc-ink);
+}
+/* Snelknoppen: kleine tegels die indrukken, net als de bouwtegels */
+.quicks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+.quick {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 10px;
+  border: 1px solid var(--paper-edge);
+  border-radius: 10px;
+  background: var(--paper-hi);
+  color: var(--ink);
+  font: 600 13px var(--f-body);
+  box-shadow: 0 2px 0 var(--paper-edge);
+  cursor: pointer;
+  transition:
+    transform 0.08s,
+    box-shadow 0.08s;
+}
+.quick:hover {
+  border-color: var(--acc-edge);
+}
+.quick:active {
+  transform: translateY(2px);
+  box-shadow: 0 0 0 var(--paper-edge);
+}
+.quick b {
+  min-width: 20px;
+  padding: 0 6px;
+  border-radius: 99px;
+  background: var(--acc-soft);
+  color: var(--acc-ink);
+  font: 600 12px/18px var(--f-mono);
+  text-align: center;
+}
+.quick kbd {
+  font: 500 11px var(--f-mono);
+  color: var(--ink-3);
+  border: 1px solid var(--rule-2);
+  border-bottom-width: 2px;
+  border-radius: 5px;
+  padding: 0 4px;
+}
 
 /* Bouwknoppen: tabjes in een gootje en daaronder dikke tegels die indrukken als je klikt */
 .cats {
@@ -530,9 +585,9 @@
 #cmdgrid {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
-  grid-auto-rows: 84px;
+  grid-auto-rows: minmax(84px, auto); /* groeit mee als de kosten twee regels nodig hebben */
   gap: 7px 6px;
-  padding: 1px 2px 4px;
+  padding: 7px 2px 4px 6px; /* ruimte voor het "nieuw"-stickertje */
   overflow-y: auto;
   min-height: 0;
   flex: 1;
@@ -572,15 +627,15 @@
 }
 .gb img,
 .cb img {
-  width: 38px;
-  height: 38px;
+  width: 34px;
+  height: 34px;
   flex: none;
   filter: drop-shadow(0 1px 0 rgba(43, 37, 32, 0.35));
 }
 .cb .g {
-  font-size: 22px;
-  line-height: 38px;
-  height: 38px;
+  font-size: 20px;
+  line-height: 34px;
+  height: 34px;
   color: var(--ink);
 }
 .gb b,
@@ -596,8 +651,8 @@
 .gb .cost,
 .cb .c .cost {
   justify-content: center;
-  gap: 0 6px;
-  font-size: 12px;
+  gap: 0 4px;
+  font-size: 11px;
   margin-top: auto;
 }
 .cb .c {
@@ -641,10 +696,12 @@
   color: var(--acc-ink);
 }
 .gb .nw {
+  /* Een stickertje dat over de hoek van de tegel hangt, niet over het plaatje */
   position: absolute;
-  top: 3px;
-  left: 3px;
-  font-size: 11px;
+  z-index: 2;
+  top: -6px;
+  left: -5px;
+  font-size: 10px;
   font-weight: 700;
   color: var(--on-acc);
   background: var(--acc);

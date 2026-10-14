@@ -58,9 +58,8 @@ export function bShort(k) {
     return (
       'Traint ' +
       Object.keys(UNITS)
-        .filter(u => UNITS[u].src === d.train && UNITS[u].age <= Math.max(G.age, d.age))
+        .filter(u => UNITS[u].src === d.train && canMake(u, Math.max(G.age, d.age)))
         .map(u => UNITS[u].n.toLowerCase())
-        .slice(-2)
         .join(', ')
     );
   if (d.light) return `Licht in de nacht · straal ${d.light}`;
