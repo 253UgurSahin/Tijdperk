@@ -55,3 +55,8 @@ tests/                Vitest-tests voor data, wereldgeneratie en hulpfuncties
 | Gebied uitbreiden | E |
 | Hele leger · dorpelingen zonder werk | Q · I |
 | Bovenaanzicht aan/uit | V |
+
+## Claude-artifact
+
+`npm run build:artifact` bundelt het hele spel (inclusief three.js) in één bestand:
+`dist-artifact/tijdperken.html`. Dat bestand wordt na elke mijlpaal gepubliceerd op de artifact-link.
