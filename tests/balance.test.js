@@ -3,7 +3,6 @@ import { describe, expect, it } from 'vitest';
 import { AGES, AGE_MAT, AGE_UP } from '../src/data/ages.js';
 import { B } from '../src/data/buildings.js';
 import { NODES } from '../src/data/nodes.js';
-import { RES } from '../src/data/resources.js';
 import { canMake } from '../src/data/succession.js';
 import { TECH } from '../src/data/tech.js';
 import { FOES, UNITS, bonusMul } from '../src/data/units.js';
