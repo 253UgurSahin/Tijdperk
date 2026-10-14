@@ -121,6 +121,7 @@ function start(data){
   if(!fromHot)showTitle();
   measureHud();requestAnimationFrame(frame);
 }
+if(import.meta.env.DEV)import('./debug.js');
 const hot=window.claude&&window.claude.hot;
 if(hot&&hot.snapshot)try{hot.snapshot(()=>({save:G?serialize():null}))}catch(e){}
 if(hot&&hot.ready)hot.ready(start);else start(hot&&hot.data||{});

@@ -1,9 +1,12 @@
 import * as T3 from 'three';
 import { S3 } from './scene.js';
 
-function radialTex(c0,c1){const c=document.createElement('canvas');c.width=c.height=128;const x=c.getContext('2d'),g=x.createRadialGradient(64,64,0,64,64,64);g.addColorStop(0,c0);g.addColorStop(.6,c0.replace(/[\d.]+\)$/,'0.45)'));g.addColorStop(1,c1);x.fillStyle=g;x.fillRect(0,0,128,128);return new T3.CanvasTexture(c)}
-const GLOWTEX=radialTex('rgba(255,190,110,1)','rgba(255,190,110,0)'),GLOWTEXC=radialTex('rgba(200,225,255,1)','rgba(200,225,255,0)');
-export const GLOWS=[];export function glow(i,warm){let m=GLOWS[i];if(!m){m=new T3.Mesh(new T3.CircleGeometry(1,40),new T3.MeshBasicMaterial({map:GLOWTEX,transparent:true,blending:T3.AdditiveBlending,depthWrite:false}));m.rotation.x=-Math.PI/2;m.renderOrder=2;S3.add(m);GLOWS[i]=m}m.material.map=warm?GLOWTEX:GLOWTEXC;m.visible=true;return m}
+// Light pools fade to black (not to transparent) and blend with MAX, so overlapping
+// lights never add up into a white-hot blob: the brightest one simply wins.
+function radialTex(r,g,b){const c=document.createElement('canvas');c.width=c.height=128;const x=c.getContext('2d'),gr=x.createRadialGradient(64,64,0,64,64,64);
+  gr.addColorStop(0,`rgb(${r},${g},${b})`);gr.addColorStop(.45,`rgb(${r*.55|0},${g*.55|0},${b*.55|0})`);gr.addColorStop(1,'rgb(0,0,0)');x.fillStyle=gr;x.fillRect(0,0,128,128);return new T3.CanvasTexture(c)}
+const GLOWTEX=radialTex(255,180,100),GLOWTEXC=radialTex(200,225,255);
+export const GLOWS=[];export function glow(i,warm){let m=GLOWS[i];if(!m){m=new T3.Mesh(new T3.CircleGeometry(1,40),new T3.MeshBasicMaterial({map:GLOWTEX,blending:T3.CustomBlending,blendEquation:T3.MaxEquation,depthWrite:false,fog:false}));m.rotation.x=-Math.PI/2;m.renderOrder=2;S3.add(m);GLOWS[i]=m}m.material.map=warm?GLOWTEX:GLOWTEXC;m.visible=true;return m}
 export const RINGG=new T3.RingGeometry(.86,1,40);RINGG.rotateX(-Math.PI/2);
 const POOLS={};export function pool(name,make){const P=POOLS[name]||(POOLS[name]={list:[],n:0,make});if(P.n>=P.list.length){const o=make();S3.add(o);P.list.push(o)}const o=P.list[P.n++];o.visible=true;return o}
 export function poolsBegin(){for(const k in POOLS)POOLS[k].n=0}

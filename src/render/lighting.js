@@ -18,7 +18,7 @@ export function lighting(dk){const dusk=G.clock>=16.5&&G.clock<20.5?Math.sin((G.
   sun.color.copy(DAY).lerp(WARM,dusk*.7).lerp(COLD,dk);sun.intensity=.95*(1-dk)+.14*dk;hemi.color.copy(SKYD).lerp(SKYN,dk);hemi.intensity=.55*(1-dk*.6)*(G.rain?.85:1);
   const fc=FOGD.clone().lerp(FOGN,dk);S3.fog.color.copy(fc);S3.background.copy(fc);WIN.emissiveIntensity=GLASS.emissiveIntensity=dk*1.3;
   const all=lights.filter(L=>dist(L.x,L.y,cam.x,cam.y)<camDist()*1.2);let gi=0;
-  for(const L of all){if(dk<.05)break;const m=glow(gi++,L.warm);m.position.set(L.x,.04,L.y);m.scale.setScalar(L.r*1.05);m.material.opacity=dk*(L.warm?.5:.35)}
+  for(const L of all){if(dk<.05)break;const m=glow(gi++,L.warm);m.position.set(L.x,.04,L.y);m.scale.setScalar(L.r);m.material.color.setScalar(dk*(L.warm?.42:.32))}
   for(let i=gi;i<GLOWS.length;i++)GLOWS[i].visible=false;
   all.sort((a,b)=>dist(a.x,a.y,cam.x,cam.y)-dist(b.x,b.y,cam.x,cam.y));
-  PL.forEach((p,i)=>{const L=all[i];if(!L||dk<.05){p.intensity=0;return}p.position.set(L.x,1.3,L.y);p.distance=L.r*1.9;p.color.set(L.warm?'#ffa95a':'#dfe8ff');p.intensity=dk*(L.warm?1.6:1.2)*(1+Math.sin(store.TM*9+i)*.05)})}
+  PL.forEach((p,i)=>{const L=all[i];if(!L||dk<.05){p.intensity=0;return}p.position.set(L.x,1.3,L.y);p.distance=L.r*1.9;p.color.set(L.warm?'#ffa95a':'#dfe8ff');p.intensity=dk*(L.warm?.95:1)*(1+Math.sin(store.TM*9+i)*.05)})}
