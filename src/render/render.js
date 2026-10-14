@@ -14,12 +14,45 @@ import { drawPlacement } from './ghost.js';
 import { flagpole } from './kit.js';
 import { applySeason, lighting } from './lighting.js';
 import { drawOverlay } from './overlay.js';
-import { CAM3, R3, S3 } from './scene.js';
-import { checkWorld, syncBuildings, syncCamps, syncEntities } from './sync.js';
+
+import { bRec, cRec, checkWorld, eRec, syncBuildings, syncCamps, syncEntities } from './sync.js';
 import { inb } from '../world/world.js';
+import { outlinesOn, renderFrame, setOutlined } from './post.js';
+import { animateWater } from './terrain.js';
+import { WIND } from './nodes.js';
+import { entitiesInBox } from '../input/selection.js';
+
+// Omlijning: geselecteerde dingen (groen) en wat je aanwijst of in je selectiekader hebt (licht).
+// Alleen bij middel/hoog; op laag blijven alleen de cirkels op de grond.
+const MAX_OUTLINED = 120;
+function objectFor(kind, id) {
+  if (kind === 'b') return bRec.get(id)?.g;
+  if (kind === 'c') return cRec.get(id)?.g;
+  return eRec.get(id)?.body;
+}
+function updateOutlines() {
+  if (!outlinesOn()) return;
+  const selected = [],
+    hovered = [];
+  const add = (list, o) => o && list.length < MAX_OUTLINED && list.push(o);
+  if (sel.b) add(selected, objectFor('b', sel.b));
+  if (sel.camp) add(selected, objectFor('c', sel.camp));
+  for (const id of sel.us) add(selected, objectFor('u', id));
+  for (const id of sel.vs) add(selected, objectFor('v', id));
+  if (drag && drag.mode === 'box') {
+    const { us, vs } = entitiesInBox(drag.sx, drag.sy, drag.lx, drag.ly);
+    for (const e of [...us, ...vs]) add(hovered, objectFor(e.kind, e.id));
+  } else if (store.hover) {
+    const o = objectFor(store.hover.kind, store.hover.id);
+    if (o && !selected.includes(o)) add(hovered, o);
+  }
+  setOutlined(selected, hovered);
+}
 
 export function render() {
   store.TM = performance.now() / 1000;
+  animateWater(store.TM);
+  WIND.value = store.TM;
   const dk = darkness();
   checkWorld();
   applySeason();
@@ -81,6 +114,7 @@ export function render() {
         );
       }
   poolsEnd();
-  R3.render(S3, CAM3);
+  updateOutlines();
+  renderFrame();
   drawOverlay();
 }

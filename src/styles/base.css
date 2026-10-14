@@ -2,6 +2,7 @@
    Layout follows modern RTS convention: objectives top-left, age plate top-centre, menu top-right,
    and a fixed command bar along the bottom (resources · selection · command grid · minimap). */
 :root {
+  --edge: 8px; /* afstand van de HUD tot de schermrand (groter op heel brede schermen) */
   color-scheme: dark;
   --p0: #0e141e;
   --p1: #1b2434;

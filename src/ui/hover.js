@@ -47,6 +47,7 @@ export function updateHover() {
     store.cmdMode
   ) {
     if (!tip.dataset.res) tip.hidden = true;
+    if (!mouse.in || mouse.touch) store.hover = null;
     return;
   }
   if (!mouse.moved) return;
@@ -62,6 +63,9 @@ export function updateHover() {
     c = campAt(X, Y),
     b = bAtScreen(X, Y);
   cv.style.cursor = sel.us.size && (f || c) ? CUR.atk : u || v || b || c ? CUR.hand : CUR.def;
+  // Wat onder de muis staat krijgt een omlijning (zie render.js)
+  const hit = f || u || v || c || b;
+  store.hover = hit ? { kind: hit.kind, id: hit.id } : null;
   if (f)
     h = `<b>${FOES[f.type].n.replace(/en$|s$/, '')}</b><span>Vijand · ${Math.ceil(f.hp)} levenspunten</span>`;
   else if (u)

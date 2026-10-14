@@ -1,0 +1,36 @@
+/* Grote en ultrabrede schermen */
+
+/* Ultrabreed (breder dan 2,4 : 1, bijv. 5120×1440): de HUD blijft binnen een centraal gebied,
+   zodat je niet steeds naar de uiterste hoeken hoeft te kijken. De wereld vult wel het hele scherm. */
+@media (min-aspect-ratio: 12/5) and (min-width: 1800px) {
+  :root {
+    --edge: max(8px, calc((100vw - 240vh) / 2 / var(--hud-zoom, 1)));
+  }
+}
+
+/* Hoge resolutie (1440p en 4K): de HUD een stuk groter, zodat tekst en knoppen leesbaar blijven.
+   De tooltip bij de muis doet niet mee, want die wordt op muis-coördinaten geplaatst. */
+@media (min-width: 2300px) and (min-height: 1300px) {
+  :root {
+    --hud-zoom: 1.3;
+  }
+}
+@media (min-width: 3300px) and (min-height: 1900px) {
+  :root {
+    --hud-zoom: 1.65;
+  }
+}
+@media (min-height: 1300px) and (min-width: 2300px) {
+  #top > *,
+  #topright,
+  #resPop,
+  #notes,
+  #sidebtns,
+  #panel,
+  #hintbar,
+  #bar,
+  #title .tw,
+  .sheet {
+    zoom: var(--hud-zoom);
+  }
+}

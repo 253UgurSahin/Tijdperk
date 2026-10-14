@@ -116,7 +116,7 @@ export function renderInspector() {
           : `<div class="stack">${Object.keys(by)
               .map(
                 k =>
-                  `<span title="${UNITS[k].n}"><img src="${portrait('u', k)}" alt=""><b>${by[k]}</b></span>`,
+                  `<button class="pick" data-only="${k}" title="${UNITS[k].n}: klik = alleen deze, Shift-klik = deze eruit"><img src="${portrait('u', k)}" alt=""><b>${by[k]}</b></button>`,
               )
               .join('')}</div>`
       }`,
@@ -382,6 +382,13 @@ export function insHandler(e) {
   if (!t || t.disabled) return;
   sfx('tick');
   const b = sel.b && bById.get(sel.b);
+  // Klik op een soort in een gemengde selectie: alleen die houden (Shift: die juist weghalen)
+  if (t.dataset.only) {
+    for (const u of selUnits()) if ((u.k === t.dataset.only) === e.shiftKey) sel.us.delete(u.id);
+    sigs.ins = null;
+    store.uiDirty = true;
+    return;
+  }
   if (t.dataset.x) {
     clearSel();
     sigs.grid = null;

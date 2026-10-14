@@ -2,7 +2,7 @@
 #sidebtns {
   position: absolute;
   z-index: 10;
-  left: 8px;
+  left: var(--edge);
   bottom: calc(var(--barh) + 14px);
   display: flex;
   gap: 4px;
@@ -43,7 +43,7 @@
 #panel {
   position: absolute;
   z-index: 11;
-  left: 8px;
+  left: var(--edge);
   bottom: calc(var(--barh) + 58px);
   width: 320px;
   max-height: calc(100% - var(--barh) - 140px);

@@ -73,12 +73,12 @@ import { SET } from './core/settings.js';
 import { RKEYS } from './data/resources.js';
 import { deserialize, load, save, serialize } from './game/save.js';
 import { G, newGame, sel } from './game/state.js';
-import { update } from './game/update.js';
+import { rememberPositions, update } from './game/update.js';
 import { drag, keys, mouse } from './input/input.js';
-import { clampCam, panScreen } from './render/camera.js';
+import { clampCam, panScreen, s2t, updateCamera } from './render/camera.js';
 import { renderMini } from './render/minimap.js';
 import { render } from './render/render.js';
-import { cam, resize, worldEl } from './render/scene.js';
+import { cam, worldEl } from './render/scene.js';
 import { onAgeChange } from './ui/age.js';
 import { renderCmd } from './ui/buildmenu.js';
 import { updateHeader, updateWorldTop } from './ui/header.js';
@@ -92,6 +92,8 @@ import { renderLog } from './ui/panes/log.js';
 import { renderUpgrades } from './ui/panes/upgrades.js';
 import { rate } from './ui/resources.js';
 import { $, isCompact } from './util/dom.js';
+import { measure } from './core/perf.js';
+import { initQuality, tickQuality } from './render/quality.js';
 
 let lastT = performance.now(),
   acc = 0,
@@ -140,18 +142,43 @@ function frame(now) {
     cam.y += (cam.ty - cam.y) * k;
     if (Math.abs(cam.tx - cam.x) < 0.02 && Math.abs(cam.ty - cam.y) < 0.02) cam.tx = null;
   }
+  // Vloeiend zoomen: elke beeldje een stukje dichter bij de gewenste zoom
+  if (cam.tz != null) {
+    const before = cam.anchor && s2t(cam.anchor[0], cam.anchor[1]);
+    cam.z += (cam.tz - cam.z) * (1 - Math.pow(0.00002, rdt));
+    if (Math.abs(cam.tz - cam.z) < 0.001) cam.z = cam.tz;
+    updateCamera();
+    if (before) {
+      const after = s2t(cam.anchor[0], cam.anchor[1]);
+      cam.x += before[0] - after[0];
+      cam.y += before[1] - after[1];
+      cam.tx = null;
+      clampCam();
+    }
+    if (cam.z === cam.tz) cam.tz = null;
+  }
   if (store.shake > 0) store.shake = Math.max(0, store.shake - rdt);
+  let t0 = performance.now();
   if (G.speed && !G.over) {
     acc += rdt * G.speed;
     let n = 0;
     while (acc >= 1 / 30 && n < 16) {
+      rememberPositions();
       update(1 / 30);
       acc -= 1 / 30;
       n++;
     }
     if (n >= 16) acc = 0;
   }
+  // Hoe ver we tussen twee speltikken zitten (0..1): figuren worden daar tussenin getekend,
+  // zodat ze ook op een 120 Hz-scherm vloeiend lopen terwijl het spel 30 keer per seconde rekent.
+  store.alpha = G.speed && !G.over ? Math.min(1, acc * 30) : 1;
+  measure('sim', t0);
+  t0 = performance.now();
   render();
+  tickQuality(rdt);
+  measure('render', t0);
+  t0 = performance.now();
   updateHover();
   uiT -= rdt;
   if (uiT <= 0 || store.uiDirty) {
@@ -168,10 +195,13 @@ function frame(now) {
     renderInspector();
     renderCmd();
   }
+  measure('ui', t0);
   miniT -= rdt;
   if (miniT <= 0) {
     miniT = 0.4;
+    t0 = performance.now();
     renderMini();
+    measure('mini', t0);
   }
   store.rateT -= rdt;
   if (store.rateT <= 0) {
@@ -214,7 +244,7 @@ try {
   addEventListener('resize', measureHud);
 }
 function start(data) {
-  resize();
+  initQuality(); // kiest de beeldkwaliteit en zet daarna de schermgrootte
   try {
     if (localStorage.getItem('tijdperken-view') === '2d') store.V2 = true;
   } catch (e) {}

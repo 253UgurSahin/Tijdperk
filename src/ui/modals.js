@@ -12,6 +12,7 @@ import { sigs } from './header.js';
 import { setSpeed, toast } from './hud.js';
 import { togglePanel } from './panel.js';
 import { $, isCompact } from '../util/dom.js';
+import { LEVELS, setQuality } from '../render/quality.js';
 
 let prevSpeed = 1;
 function openModal(html) {
@@ -73,6 +74,9 @@ $('#modal').addEventListener('click', e => {
   } else if (t.dataset.snd !== undefined) {
     setSound(!sndOn);
     t.classList.toggle('on', sndOn);
+  } else if (t.dataset.q) {
+    setQuality(t.dataset.q);
+    showSettings();
   } else if (t.dataset.set) {
     const k = t.dataset.set;
     SET[k] = !SET[k];
@@ -108,7 +112,16 @@ function showSettings() {
   <div class="setrow"><div><b>Volume</b><small>Effecten en signalen</small></div><input type="range" id="vol" min="0" max="100" value="${Math.round(SET.vol * 100)}" aria-label="Volume"></div>
   <div class="setrow"><div><b>Geluid</b><small>Effecten aan of uit</small></div><button class="tog ${sndOn ? 'on' : ''}" data-snd="1" aria-label="Geluid"></button></div>
   <div class="setrow"><div><b>Bovenaanzicht</b><small>Camera recht van boven in plaats van schuin</small></div><button class="tog ${store.V2 ? 'on' : ''}" data-view="1" aria-label="Bovenaanzicht"></button></div>
-  ${tg('edge', 'Randscrollen', 'Kaart schuift als de muis de rand van het scherm raakt')}${tg('hp', 'Levensbalken altijd tonen', 'Ook bij gezonde eenheden en gebouwen')}${tg('shake', 'Schermschudden', 'Bij instortende gebouwen')}
+  ${tg('edge', 'Randscrollen', 'Kaart schuift als de muis de rand van het scherm raakt')}${tg('hp', 'Levensbalken altijd tonen', 'Ook bij gezonde eenheden en gebouwen')}${tg('shake', 'Schermschudden', 'Bij instortende gebouwen')}${tg('dragSelect', 'Slepen = selecteren', 'Uit: linkermuis slepen verschuift de kaart')}
+  <div class="setrow"><div><b>Beeldkwaliteit</b><small>${SET.quality === 'auto' ? `Automatisch past zich aan je apparaat aan (nu: ${LEVELS[store.quality].name.toLowerCase()})` : 'Vaste kwaliteit'}</small></div>
+    <div class="seg">${[
+      ['auto', 'Auto'],
+      ['low', 'Laag'],
+      ['mid', 'Middel'],
+      ['high', 'Hoog'],
+    ]
+      .map(([k, l]) => `<button class="${SET.quality === k ? 'on' : ''}" data-q="${k}">${l}</button>`)
+      .join('')}</div></div>
   <div class="row"><button class="primary" data-m="pause">Terug</button></div>`);
 }
 export function showTitle() {
@@ -181,7 +194,7 @@ export function showHelp() {
   <p>Herken iedereen aan de schijf eronder: <b>blauw</b> is jouw leger, <b>rood</b> is de vijand, licht zijn je dorpelingen. Soms valt er een <b>meteoriet</b>: rond de krater liggen daarna nieuwe ertsen.</p>
   <p><b>Muren</b> houden vijanden echt tegen: ze moeten erdoorheen hakken. Bouw een <b>poort</b> zodat je eigen volk erdoor kan. <b>Wegen</b> laten iedereen sneller lopen. In het paneel <b>Onderzoek</b> doe je uitvindingen per tijdperk, en soms vraagt een <b>gebeurtenis</b> om een keuze.</p>
   <p>Elk nieuw tijdperk ontgrendelt <b>verbeteringen</b> voor wat je al hebt: gebouwen gaan een niveau omhoog, je volk krijgt betere werktuigen en je leger beter pantser. Een pijltje boven een gebouw betekent dat er een verbetering klaarstaat.</p>
-  <div class="keys"><kbd>Slepen</kbd><span>Kaart verschuiven · scroll om te zoomen</span><kbd>Klik</kbd><span>Bekijken en selecteren</span><kbd>Shift + slepen</kbd><span>Groep selecteren</span><kbd>Rechtsklik</kbd><span>Opdracht: lopen, aanvallen, verzamelen</span><kbd>Q · I</kbd><span>Hele leger · stilstaande dorpelingen</span><kbd>E</kbd><span>Gebied uitbreiden</span><kbd>V</kbd><span>Bovenaanzicht aan of uit</span><kbd>Spatie · [ ]</kbd><span>Pauze · langzamer / sneller</span><kbd>1 – 9</kbd><span>Gebouw uit de bouwbalk kiezen</span><kbd>Ctrl+F1 – F5 · F1 – F5</kbd><span>Groep instellen · groep selecteren (twee keer: ernaartoe)</span><kbd>S · F · R</kbd><span>Leger: stop · aanvalsmars · patrouille</span><kbd>Shift-klik trainen</kbd><span>Vijf eenheden tegelijk in de wachtrij</span><kbd>Slepen bij muur of weg</kbd><span>Hele lijn in één keer bouwen</span><kbd>Delete</kbd><span>Sloopmodus (of: geselecteerd gebouw afbreken)</span><kbd>Z X C B</kbd><span>Bouwcategorie wisselen</span><kbd>P · M</kbd><span>Paneel · geluid</span><kbd>Esc</kbd><span>Annuleren</span></div>
+  <div class="keys"><kbd>Slepen</kbd><span>Selectiekader (met Shift: erbij)</span><kbd>Rechts slepen · WASD</kbd><span>Kaart verschuiven · scroll om te zoomen</span><kbd>Klik</kbd><span>Bekijken en selecteren</span><kbd>Dubbelklik · Ctrl-klik</kbd><span>Alles van dat soort in beeld</span><kbd>Rechtsklik</kbd><span>Opdracht: lopen, aanvallen, verzamelen</span><kbd>Q · I</kbd><span>Hele leger · stilstaande dorpelingen</span><kbd>E</kbd><span>Gebied uitbreiden</span><kbd>V</kbd><span>Bovenaanzicht aan of uit</span><kbd>Spatie · [ ]</kbd><span>Pauze · langzamer / sneller</span><kbd>1 – 9</kbd><span>Gebouw uit de bouwbalk kiezen</span><kbd>Ctrl+F1 – F5 · F1 – F5</kbd><span>Groep instellen · groep selecteren (twee keer: ernaartoe)</span><kbd>S · F · R</kbd><span>Leger: stop · aanvalsmars · patrouille</span><kbd>Shift-klik trainen</kbd><span>Vijf eenheden tegelijk in de wachtrij</span><kbd>Slepen bij muur of weg</kbd><span>Hele lijn in één keer bouwen</span><kbd>Delete</kbd><span>Sloopmodus (of: geselecteerd gebouw afbreken)</span><kbd>Z X C B</kbd><span>Bouwcategorie wisselen</span><kbd>P · M</kbd><span>Paneel · geluid</span><kbd>Esc</kbd><span>Annuleren</span></div>
   <div class="row"><button class="primary" data-m="close">Op avontuur →</button></div>`);
 }
 export function showVictory() {

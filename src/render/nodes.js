@@ -5,7 +5,7 @@ import { NODES } from '../data/nodes.js';
 import { RES } from '../data/resources.js';
 import { G } from '../game/state.js';
 import { C, M_, gCyl, gDod, gIco, gOct, mat } from './kit.js';
-import { S3, cam } from './scene.js';
+import { CAM3, S3, cam } from './scene.js';
 import { hash2 } from '../util/random.js';
 import { bmap, isUnl, node } from '../world/world.js';
 import { camDist } from './camera.js';
@@ -17,12 +17,37 @@ function bakePart(geo, m, x, y, z, sx, sy, sz) {
   );
   return { geo: g, mat: M_(m) };
 }
+// Bladeren wiegen zacht in de wind. Elke boom krijgt een eigen ritme (op basis van zijn plek),
+// en hoe hoger een stukje blad, hoe meer het beweegt.
+export const WIND = { value: 0 };
+function foliage(color) {
+  const m = new T3.MeshStandardMaterial({ color, flatShading: true, roughness: 0.88 });
+  m.onBeforeCompile = shader => {
+    shader.uniforms.uWind = WIND;
+    shader.vertexShader =
+      'uniform float uWind;\n' +
+      shader.vertexShader.replace(
+        '#include <begin_vertex>',
+        `#include <begin_vertex>
+        #ifdef USE_INSTANCING
+          vec3 ip = vec3(instanceMatrix[3][0], instanceMatrix[3][1], instanceMatrix[3][2]);
+        #else
+          vec3 ip = vec3(0.0);
+        #endif
+        float sway = sin(uWind * 1.7 + ip.x * 0.7 + ip.z * 0.9) * 0.035 + sin(uWind * 3.3 + ip.x * 1.3) * 0.01;
+        transformed.x += sway * position.y * 1.4;
+        transformed.z += sway * position.y * 0.6;`,
+      );
+  };
+  m.customProgramCacheKey = () => 'wind';
+  return m;
+}
 export const FOL = {
-  pine: mat('#3f6b3f'),
-  pine2: mat('#4a7a45'),
-  birch: mat('#8fbf5a'),
-  oak: mat('#4f8a3c'),
-  bush: mat('#4d7d38'),
+  pine: foliage('#3f6b3f'),
+  pine2: foliage('#4a7a45'),
+  birch: foliage('#8fbf5a'),
+  oak: foliage('#4f8a3c'),
+  bush: foliage('#4d7d38'),
 };
 const NVAR = {
   pine: [
@@ -80,7 +105,8 @@ const _m4 = new T3.Matrix4(),
 // Alleen bronnen in een cirkel rond de camera worden getekend: op een grote kaart scheelt dat veel.
 // De cirkel schuift mee als de camera verder dan een stukje beweegt (zie nodesNeedUpdate).
 const drawn = { x: -999, y: -999, r: 0 };
-const drawRadius = () => camDist() * 2.4 + 10;
+// Op een breed scherm zie je meer opzij, dus dan reikt de cirkel verder
+const drawRadius = () => camDist() * 2.4 * Math.max(1, CAM3.aspect / 1.78) + 10;
 export const nodesNeedUpdate = () =>
   Math.hypot(cam.x - drawn.x, cam.y - drawn.y) > drawn.r * 0.3 ||
   Math.abs(drawRadius() - drawn.r) > drawn.r * 0.25;

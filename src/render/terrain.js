@@ -3,7 +3,7 @@ import * as T3 from 'three';
 import { CN, H, W } from '../config.js';
 import { G } from '../game/state.js';
 import { mat } from './kit.js';
-import { S3 } from './scene.js';
+import { R3, S3 } from './scene.js';
 import { hash2 } from '../util/random.js';
 import { TER, ground, mountainHeight, road, ter } from '../world/world.js';
 
@@ -19,22 +19,76 @@ TTEX.minFilter = T3.LinearMipmapLinearFilter;
 TTEX.anisotropy = 4;
 export const TMAT = new T3.MeshStandardMaterial({ map: TTEX, roughness: 0.95, flatShading: false });
 let TMESH = null;
+// Water: een golfpatroon (normal map) dat langzaam verschuift, zodat het water glinstert in de zon.
+// Het patroon is gemaakt van sinusgolven met hele getallen, zodat het naadloos herhaalt.
+function waveNormals(size = 128) {
+  const c = document.createElement('canvas');
+  c.width = c.height = size;
+  const x = c.getContext('2d'),
+    im = x.createImageData(size, size),
+    T = (Math.PI * 2) / size;
+  const h = (i, j) =>
+    Math.sin(i * T * 3 + j * T * 2) * 0.5 +
+    Math.sin(i * T * 7 - j * T * 5 + 1.3) * 0.3 +
+    Math.sin(-i * T * 11 + j * T * 13 + 0.7) * 0.15;
+  for (let j = 0; j < size; j++)
+    for (let i = 0; i < size; i++) {
+      const dx = h(i + 1, j) - h(i - 1, j),
+        dy = h(i, j + 1) - h(i, j - 1),
+        n = Math.hypot(dx, dy, 1),
+        o = (j * size + i) * 4;
+      im.data[o] = ((-dx / n) * 0.5 + 0.5) * 255;
+      im.data[o + 1] = ((-dy / n) * 0.5 + 0.5) * 255;
+      im.data[o + 2] = ((1 / n) * 0.5 + 0.5) * 255;
+      im.data[o + 3] = 255;
+    }
+  x.putImageData(im, 0, 0);
+  const t = new T3.CanvasTexture(c);
+  t.wrapS = t.wrapT = T3.RepeatWrapping;
+  t.repeat.set((W + 400) / 7, (H + 400) / 7);
+  return t;
+}
+const WNORM = waveNormals();
 const WMAT = new T3.MeshStandardMaterial({
   color: '#2f6578',
   roughness: 0.22,
   metalness: 0.2,
   transparent: true,
-  opacity: 0.88,
+  opacity: 0.86,
+  normalMap: WNORM,
+  normalScale: new T3.Vector2(0.35, 0.35),
 });
+/** Laat de golfjes langzaam drijven (aangeroepen bij elk beeldje). */
+export function animateWater(t) {
+  WNORM.offset.set(t * 0.012, t * 0.007);
+}
 export const RC = [null, [176, 152, 108], [168, 166, 156], [78, 82, 88]];
 /** Kleur van de grond op tegel (x, y), zoals de wereldgenerator die heeft bepaald. */
 export function tileRGB(x, y) {
   const i = (y * W + x) * 3;
   return [ground[i], ground[i + 1], ground[i + 2]];
 }
+// Grondkleur op een willekeurig punt: de kleuren van de vier dichtstbijzijnde tegels lopen
+// zacht in elkaar over, zodat er geen harde blokken tussen gras, bos en zand zitten.
+const groundAt = (u, v, out) => {
+  const x0 = Math.max(0, Math.min(W - 2, Math.floor(u))),
+    y0 = Math.max(0, Math.min(H - 2, Math.floor(v))),
+    fx = Math.max(0, Math.min(1, u - x0)),
+    fy = Math.max(0, Math.min(1, v - y0)),
+    a = (y0 * W + x0) * 3,
+    b = a + 3,
+    c = a + W * 3,
+    d = c + 3;
+  for (let k = 0; k < 3; k++) {
+    const top = ground[a + k] + (ground[b + k] - ground[a + k]) * fx,
+      bot = ground[c + k] + (ground[d + k] - ground[c + k]) * fx;
+    out[k] = top + (bot - top) * fy;
+  }
+};
+const px3 = [0, 0, 0];
+
 export function paintTile(x, y) {
   const i = y * W + x,
-    [r0, g0, b0] = tileRGB(x, y),
     lk = !G.unl[(y >> 4) * CN + (x >> 4)],
     rd = road[i],
     d = timg.data,
@@ -48,9 +102,8 @@ export function paintTile(x, y) {
   };
   for (let py = 0; py < TS; py++)
     for (let px = 0; px < TS; px++) {
-      let r = r0,
-        g = g0,
-        b = b0;
+      groundAt(x + (px + 0.5) / TS - 0.5, y + (py + 0.5) / TS - 0.5, px3);
+      let [r, g, b] = px3;
       const h = hash2(X0 + px, Y0 + py, 7);
       if (ter[i] === 0) {
         const k = 0.9 + h * 0.18;
@@ -140,6 +193,50 @@ export function paintAll() {
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) paintTile(x, y);
   tctx.putImageData(timg, 0, 0);
   TTEX.needsUpdate = true;
+}
+
+// Tegels die opnieuw geschilderd moeten worden. Alleen dat stukje gaat daarna naar de videokaart,
+// in plaats van de hele grondtextuur (die is 3072×3072 pixels: dat zou haperen).
+const pending = new Set();
+const PATCH = document.createElement('canvas'),
+  pctx = PATCH.getContext('2d'),
+  PATCHTEX = new T3.CanvasTexture(PATCH),
+  patchPos = new T3.Vector2();
+export const repaintTile = (x, y) => pending.add(y * W + x);
+export const pendingTiles = () => pending.size;
+
+export function flushTerrain() {
+  if (!pending.size) return;
+  let x0 = W,
+    y0 = H,
+    x1 = -1,
+    y1 = -1;
+  for (const i of pending) {
+    const x = i % W,
+      y = (i / W) | 0;
+    paintTile(x, y);
+    x0 = Math.min(x0, x);
+    y0 = Math.min(y0, y);
+    x1 = Math.max(x1, x);
+    y1 = Math.max(y1, y);
+  }
+  pending.clear();
+  const px = x0 * TS,
+    py = y0 * TS,
+    pw = (x1 - x0 + 1) * TS,
+    ph = (y1 - y0 + 1) * TS;
+  tctx.putImageData(timg, 0, 0, px, py, pw, ph);
+  // Nog niet op de videokaart, of een heel groot stuk: dan gewoon alles in één keer
+  if (!R3.properties.get(TTEX).__webglTexture || pw * ph > (TCAN.width * TCAN.height) / 4) {
+    TTEX.needsUpdate = true;
+    return;
+  }
+  PATCH.width = pw;
+  PATCH.height = ph;
+  pctx.drawImage(TCAN, px, py, pw, ph, 0, 0, pw, ph);
+  // De textuur staat ondersteboven op de videokaart (flipY), dus de y-positie telt van onderen
+  patchPos.set(px, TCAN.height - py - ph);
+  R3.copyTextureToTexture(patchPos, PATCHTEX, TTEX);
 }
 export function buildTerrain() {
   if (TMESH) {

@@ -6,7 +6,16 @@ import { B } from '../data/buildings.js';
 import { placeLine } from '../game/placement.js';
 import { G, bById, sel } from '../game/state.js';
 import { CUR } from './cursors.js';
-import { boxSelect, clearSel, leftClick, rightClick, selUnits, unitAt, villAt } from './selection.js';
+import {
+  boxSelect,
+  clearSel,
+  leftClick,
+  rightClick,
+  selectSameType,
+  selUnits,
+  unitAt,
+  villAt,
+} from './selection.js';
 import { centerOn, clampCam, s2iso, s2t, updateCamera } from '../render/camera.js';
 import { cam, cv } from '../render/scene.js';
 import { setTab } from '../ui/buildmenu.js';
@@ -17,6 +26,7 @@ import { closeModal, openPause, showHelp } from '../ui/modals.js';
 import { togglePanel } from '../ui/panel.js';
 import { $, isCompact } from '../util/dom.js';
 import { clamp, dist } from '../util/math.js';
+import { SET } from '../core/settings.js';
 
 export const mouse = { sx: 0, sy: 0, X: 0, Y: 0, tx: 0, ty: 0, in: false, moved: true, touch: false };
 export let drag = null,
@@ -38,7 +48,18 @@ cv.addEventListener('pointerdown', e => {
     drag = { mode: 'pinch', d0: dist(p.x, p.y, q.x, q.y), z0: cam.z };
     return;
   }
-  drag = { mode: 'pending', btn: e.button, sx, sy, lx: sx, ly: sy, shift: e.shiftKey, moved: 0 };
+  drag = {
+    mode: 'pending',
+    btn: e.button,
+    sx,
+    sy,
+    lx: sx,
+    ly: sy,
+    shift: e.shiftKey,
+    ctrl: e.ctrlKey || e.metaKey,
+    moved: 0,
+    t0: performance.now(),
+  };
   if (e.button === 1) drag.mode = 'pan';
   if (e.button === 0 && e.shiftKey && !store.placing && !store.expandMode) drag.mode = 'box';
   if (e.button === 0 && store.placing && (B[store.placing].wall || B[store.placing].road)) {
@@ -72,9 +93,14 @@ cv.addEventListener('pointermove', e => {
   const dx = sx - drag.lx,
     dy = sy - drag.ly;
   drag.moved += Math.abs(dx) + Math.abs(dy);
+  // Slepen begint: wordt het een selectiekader of verschuiven we de kaart?
+  // Muis: linkerknop = kader (tenzij uitgezet in de instellingen), rechter/middelste knop = schuiven.
+  // Touch: gewoon slepen = schuiven, eerst even vasthouden en dan slepen = kader.
   if (drag.mode === 'pending' && drag.moved > 7) {
-    drag.mode = 'pan';
-    cv.style.cursor = 'grabbing';
+    const held = performance.now() - drag.t0 > 450;
+    const box = mouse.touch ? held : drag.btn === 0 && SET.dragSelect !== false;
+    drag.mode = box && !store.placing && !store.expandMode ? 'box' : 'pan';
+    if (drag.mode === 'pan') cv.style.cursor = 'grabbing';
   }
   if (drag.mode === 'pan') {
     const a0 = s2t(drag.lx, drag.ly),
@@ -97,9 +123,9 @@ cv.addEventListener('pointerup', e => {
   }
   const [sx, sy] = local(e);
   if (drag.mode === 'pending') {
-    if (drag.btn === 0) leftClick(sx, sy, drag.shift);
+    if (drag.btn === 0) leftClick(sx, sy, drag.shift, drag.ctrl);
     else if (drag.btn === 2) rightClick(sx, sy);
-  } else if (drag.mode === 'box') boxSelect(drag.sx, drag.sy, sx, sy);
+  } else if (drag.mode === 'box') boxSelect(drag.sx, drag.sy, sx, sy, drag.shift);
   else if (drag.mode === 'line' && store.placing) placeLine(drag.t0, drag.t1);
   drag = null;
   cv.style.cursor = CUR.def;
@@ -112,48 +138,38 @@ cv.addEventListener('pointerleave', () => {
   mouse.in = false;
   $('#hovertip').hidden = true;
 });
+// Dubbelklik (of dubbeltik) op een eenheid: alles van dat soort dat in beeld is
 cv.addEventListener('dblclick', e => {
   const [sx, sy] = local(e),
     [X, Y] = s2iso(sx, sy),
-    u = unitAt(X, Y);
-  if (u) {
-    clearSel();
-    G.us.forEach(o => {
-      if (o.k === u.k) sel.us.add(o.id);
-    });
-    store.uiDirty = true;
-    return;
-  }
-  const v = villAt(X, Y);
-  if (v) {
-    clearSel();
-    G.vs.forEach(o => {
-      if (!o.hidden && o.job === v.job) sel.vs.add(o.id);
-    });
-    store.uiDirty = true;
-  }
+    hit = unitAt(X, Y) || villAt(X, Y);
+  if (hit) selectSameType(hit);
 });
+
 cv.addEventListener(
   'wheel',
   e => {
     e.preventDefault();
     const [sx, sy] = local(e),
-      b0 = s2t(sx, sy);
-    setZoom(cam.z * Math.exp(-e.deltaY * 0.0015));
-    updateCamera();
-    const a0 = s2t(sx, sy);
-    cam.x += b0[0] - a0[0];
-    cam.y += b0[1] - a0[1];
-    cam.tx = null;
-    clampCam();
+      dy = e.deltaY * (e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? 400 : 1); // muiswiel in regels of pagina's
+    zoomTo((cam.tz ?? cam.z) * Math.exp(-dy * 0.0015), sx, sy);
   },
   { passive: false },
 );
+export const ZOOM_MIN = 0.35,
+  ZOOM_MAX = 2.4;
+/** Direct zoomen (bij knijpen met twee vingers en bij laden). */
 export function setZoom(z) {
-  cam.z = clamp(z, 0.35, 2.4);
+  cam.z = clamp(z, ZOOM_MIN, ZOOM_MAX);
+  cam.tz = null;
 }
-$('#zIn').onclick = () => setZoom(cam.z * 1.2);
-$('#zOut').onclick = () => setZoom(cam.z / 1.2);
+/** Vloeiend zoomen naar z. Met sx, sy blijft dat punt op het scherm op dezelfde plek in de wereld. */
+export function zoomTo(z, sx, sy) {
+  cam.tz = clamp(z, ZOOM_MIN, ZOOM_MAX);
+  cam.anchor = sx == null ? null : [sx, sy];
+}
+$('#zIn').onclick = () => zoomTo((cam.tz ?? cam.z) * 1.25);
+$('#zOut').onclick = () => zoomTo((cam.tz ?? cam.z) / 1.25);
 $('#zHome').onclick = () => {
   const t = G.bs.find(b => b.type === 'townhall');
   if (t) centerOn(t.x + 1, t.y + 1);
@@ -282,8 +298,8 @@ addEventListener('keydown', e => {
         }, 3000);
       }
     }
-  } else if (k === '+' || k === '=') setZoom(cam.z * 1.2);
-  else if (k === '-') setZoom(cam.z / 1.2);
+  } else if (k === '+' || k === '=') zoomTo((cam.tz ?? cam.z) * 1.25);
+  else if (k === '-') zoomTo((cam.tz ?? cam.z) / 1.25);
   else if (k === 'home') $('#zHome').click();
   if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright'].includes(k)) e.preventDefault();
 });

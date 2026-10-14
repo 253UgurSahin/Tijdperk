@@ -6,7 +6,7 @@ import { has } from '../game/economy.js';
 import { th } from '../game/events.js';
 import { lackText } from '../game/placement.js';
 import { G, bById, sel } from '../game/state.js';
-import { selectArmy, selectIdle, setZoom } from '../input/input.js';
+import { selectArmy, selectIdle, zoomTo } from '../input/input.js';
 import { clearSel } from '../input/selection.js';
 import { centerOn } from '../render/camera.js';
 import { cam } from '../render/scene.js';
@@ -64,7 +64,7 @@ export function setExpand(on) {
   if (on) {
     store.placing = null;
     clearSel();
-    if (cam.z > 0.42) setZoom(0.38);
+    if (cam.z > 0.42) zoomTo(0.38);
   }
   store.uiDirty = true;
 }

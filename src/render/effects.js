@@ -8,6 +8,7 @@ import { GB, gIco, mat } from './kit.js';
 import { S3, cam } from './scene.js';
 import { hash2 } from '../util/random.js';
 import { meteorPosition } from '../game/meteors.js';
+import { smoothPos } from './sync.js';
 
 const sphM = () =>
   new T3.Mesh(gIco(0), new T3.MeshBasicMaterial({ color: '#fff', transparent: true, depthWrite: false }));
@@ -51,10 +52,10 @@ export function drawFx() {
         ? new T3.Mesh(gIco(0), mat('#2a2a2a'))
         : new T3.Mesh(GB, new T3.MeshBasicMaterial({ color: '#fff3c4' })),
     );
-    const dx = p.lx - p.x,
-      dy = p.ly - p.y,
-      l = Math.hypot(dx, dy) || 1;
-    m.position.set(p.x, 0.55, p.y);
+    const [px, py] = smoothPos(p),
+      dx = p.lx - px,
+      dy = p.ly - py;
+    m.position.set(px, 0.55, py);
     if (p.big) m.scale.setScalar(0.08);
     else {
       m.scale.set(0.03, 0.03, 0.38);

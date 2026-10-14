@@ -2,7 +2,7 @@
 #resPanel {
   position: absolute;
   z-index: 10;
-  left: 8px;
+  left: var(--edge);
   bottom: calc(8px + env(safe-area-inset-bottom, 0px));
   width: var(--resw);
   height: var(--barh);
@@ -132,7 +132,7 @@
 #resPop {
   position: absolute;
   z-index: 16;
-  left: 8px;
+  left: var(--edge);
   bottom: calc(var(--barh) + 16px);
   width: min(520px, calc(100% - 16px));
   padding: 12px;
@@ -154,8 +154,8 @@
 #bar {
   position: absolute;
   z-index: 10;
-  left: calc(var(--resw) + 14px);
-  right: 8px;
+  left: calc(var(--edge) + var(--resw) + 6px);
+  right: var(--edge);
   bottom: calc(8px + env(safe-area-inset-bottom, 0px));
   height: var(--barh);
   display: flex;
@@ -647,4 +647,27 @@
   font-family: var(--f-display);
   font-weight: 700;
   color: var(--gold-2);
+}
+/* Soorten in een gemengde selectie zijn aanklikbaar */
+.stack .pick {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px 2px 2px;
+  min-height: 0;
+  border-radius: 3px;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid var(--line);
+}
+.stack .pick:hover {
+  border-color: var(--gold);
+}
+.stack .pick img {
+  width: 26px;
+  height: 26px;
+}
+.stack .pick b {
+  font-family: var(--f-mono);
+  font-size: 12px;
+  font-weight: 500;
 }

@@ -1,7 +1,7 @@
 // Houdt de 3D-wereld gelijk met de spelstand (nieuwe gebouwen, mensen die lopen).
 import * as T3 from 'three';
 import { store } from '../core/store.js';
-import { H, TAU, W } from '../config.js';
+import { CN, CS, H, TAU, W } from '../config.js';
 import { B } from '../data/buildings.js';
 import { RES } from '../data/resources.js';
 import { G, sel } from '../game/state.js';
@@ -11,7 +11,7 @@ import { makeBuilding, makeCamp, wallMask } from './models.js';
 import { nodesNeedUpdate, rebuildNodes } from './nodes.js';
 import { FOEK, makeUnit, makeVillager } from './people.js';
 import { S3 } from './scene.js';
-import { TTEX, buildTerrain, paintAll, paintTile, tctx, timg } from './terrain.js';
+import { buildTerrain, flushTerrain, paintAll, pendingTiles, repaintTile } from './terrain.js';
 import { dirtyGround, node, road } from '../world/world.js';
 
 export const BG3 = new T3.Group(),
@@ -83,6 +83,7 @@ export function syncBuildings() {
       });
       r = { g, m, key, h, fires, flags, pumps, lamps };
       bRec.set(b.id, r);
+      store.mapVersion++;
     }
     if (!b.done) {
       const p = Math.min(1, b.prog / b.bt);
@@ -102,29 +103,40 @@ export function syncBuildings() {
     if (!seen.has(id)) {
       BG3.remove(r.g);
       bRec.delete(id);
+      store.mapVersion++;
     }
 }
 function entKey(e) {
   return e.kind === 'v' ? 'v' + e.job : e.kind === 'u' ? 'u' + e.k : 'f' + e.type;
 }
 const BASEG = new T3.CircleGeometry(1, 20).rotateX(-Math.PI / 2);
+/** Positie om te tekenen: tussen vorige en huidige speltik in. Bij een grote sprong (teleport) niet. */
+export function smoothPos(e) {
+  if (e.prevX == null || Math.abs(e.x - e.prevX) + Math.abs(e.y - e.prevY) > 2) return [e.x, e.y];
+  const a = store.alpha;
+  return [e.prevX + (e.x - e.prevX) * a, e.prevY + (e.y - e.prevY) * a];
+}
+
 function syncEnt(e, make) {
   let r = eRec.get(e.id);
   const key = entKey(e);
   if (!r || r.key !== key) {
     if (r) EG3.remove(r.g);
-    const g = make();
-    g.traverse(o => {
-      o.userData.eid = e.id;
+    // g = de houder (positie, draaiing, cirkels eronder), body = alleen het figuur zelf (voor de omlijning)
+    const body = make(),
+      g = new T3.Group();
+    g.add(body);
+    body.traverse(o => {
       if (o.isMesh) o.castShadow = e.kind !== 'v' && !(e.kind === 'f' && e.camp);
     });
     EG3.add(g);
-    r = { g, key, px: e.x, py: e.y, ang: 0, mv: 0 };
+    r = { g, body, key, px: e.x, py: e.y, ang: 0, mv: 0, selT: -9 };
     const ring = new T3.Mesh(
       RINGG,
       new T3.MeshBasicMaterial({ color: '#9fe28a', transparent: true, opacity: 0.95, depthWrite: false }),
     );
-    ring.scale.setScalar(e.kind === 'u' && (e.k === 'tank' || e.k === 'knight') ? 0.42 : 0.28);
+    r.ringSize = e.kind === 'u' && (e.k === 'tank' || e.k === 'knight') ? 0.42 : 0.28;
+    ring.scale.setScalar(r.ringSize);
     // Gekleurde schijf onder elk figuur, zodat je in één oogopslag ziet wie wie is:
     // licht = dorpeling, blauw = jouw leger, rood = vijand
     const base = new T3.Mesh(
@@ -146,23 +158,30 @@ function syncEnt(e, make) {
     ring.renderOrder = 3;
     g.add(ring);
     r.ring = ring;
+    g.traverse(o => {
+      o.userData.eid = e.id;
+    });
     eRec.set(e.id, r);
   }
   r.seen = 1;
+  // Teken tussen de vorige en de huidige speltik in (zie store.alpha), voor vloeiende beweging
+  const [ex, ey] = smoothPos(e);
+  e.rx = ex;
+  e.ry = ey;
   const g = r.g,
-    dx = e.x - r.px,
-    dy = e.y - r.py,
+    dx = ex - r.px,
+    dy = ey - r.py,
     sp = Math.hypot(dx, dy);
   r.mv = r.mv * 0.8 + sp * 60 * 0.2;
   if (sp > 0.002) r.ang = Math.atan2(dx, dy);
   else if (e.tgt && e.tgt.x != null && !e.tgt.dead) {
     const tx = e.tgt.x + (e.tgt.kind === 'b' ? B[e.tgt.type].size / 2 : 0),
       ty = e.tgt.y + (e.tgt.kind === 'b' ? B[e.tgt.type].size / 2 : 0);
-    if (Math.hypot(tx - e.x, ty - e.y) > 0.05) r.ang = Math.atan2(tx - e.x, ty - e.y);
+    if (Math.hypot(tx - ex, ty - ey) > 0.05) r.ang = Math.atan2(tx - ex, ty - ey);
   }
-  r.px = e.x;
-  r.py = e.y;
-  g.position.set(e.x, 0, e.y);
+  r.px = ex;
+  r.py = ey;
+  g.position.set(ex, 0, ey);
   const da = ((r.ang - g.rotation.y + Math.PI * 3) % TAU) - Math.PI;
   g.rotation.y += da * 0.25;
   return r;
@@ -176,43 +195,56 @@ function animPerson(g, walk, work, t) {
   L.aL.rotation.x = -s * 0.7;
   L.aR.rotation.x = work ? -1.2 + Math.sin(t * 9) * 0.9 : s * 0.7;
 }
+// Selectiecirkel: verschijnt met een kort "plopje" (groter, dan terug naar normaal) en pulseert zacht
+function showRing(r, on) {
+  if (on && !r.ring.visible) r.selT = store.TM;
+  r.ring.visible = on;
+  if (!on) return;
+  const pop = Math.max(0, 1 - (store.TM - r.selT) / 0.22);
+  r.ring.scale.setScalar(r.ringSize * (1 + pop * 0.6));
+  r.ring.material.opacity = 0.75 + Math.sin(store.TM * 4) * 0.15 + pop * 0.1;
+}
+
 export function syncEntities() {
   for (const r of eRec.values()) r.seen = 0;
   for (const v of G.vs) {
     if (v.hidden) continue;
     const r = syncEnt(v, () => makeVillager(v.job));
     const work = v.state === 'gather' || v.state === 'build';
-    animPerson(r.g, r.mv > 0.3, work, store.TM + v.id);
-    const c = r.g.userData.carry;
+    animPerson(r.body, r.mv > 0.3, work, store.TM + v.id);
+    const c = r.body.userData.carry;
     if (c) {
       c.visible = v.carry.amt > 0;
       if (c.visible) c.material = mat(RES[v.carry.res] ? RES[v.carry.res].c : '#8a6a44');
     }
-    r.ring.visible = sel.vs.has(v.id);
-    r.ring.material.color.set('#9fe28a');
+    showRing(r, sel.vs.has(v.id));
   }
   for (const u of G.us) {
     const r = syncEnt(u, () => makeUnit(u.k, false));
-    const f = r.g.userData.fly;
+    const f = r.body.userData.fly;
     if (f) {
       f.position.y = 0.9 + Math.sin(store.TM * 3 + u.id) * 0.06;
       f.traverse(o => {
         if (o.userData.rotor) o.rotation.y = store.TM * 30;
       });
     } else
-      animPerson(r.g.userData.rider || r.g, r.mv > 0.3, u.cd > 0 && u.tgt && r.mv < 0.3, store.TM + u.id);
-    r.ring.visible = sel.us.has(u.id);
-    r.ring.material.color.set('#9fe28a');
+      animPerson(
+        r.body.userData.rider || r.body,
+        r.mv > 0.3,
+        u.cd > 0 && u.tgt && r.mv < 0.3,
+        store.TM + u.id,
+      );
+    showRing(r, sel.us.has(u.id));
   }
   for (const f of G.foes) {
     const r = syncEnt(f, () => makeUnit(FOEK[f.type] || 'plunder', true));
-    const fl = r.g.userData.fly;
+    const fl = r.body.userData.fly;
     if (fl) {
       fl.position.y = 0.9 + Math.sin(store.TM * 3 + f.id) * 0.06;
       fl.traverse(o => {
         if (o.userData.rotor) o.rotation.y = store.TM * 30;
       });
-    } else animPerson(r.g, r.mv > 0.3, false, store.TM + f.id);
+    } else animPerson(r.body, r.mv > 0.3, false, store.TM + f.id);
     r.g.visible = !f.retreat || f.alpha > 0.05;
     r.ring.visible = false;
   }
@@ -271,30 +303,30 @@ export function checkWorld() {
     resetWorld3D();
     return;
   }
+  // Nieuw gebied gekocht: alleen die stukken grond (plus een rand) opnieuw schilderen
   const us = G.unl.join('');
   if (us !== unlSig) {
+    const before = unlSig;
     unlSig = us;
-    paintAll();
+    for (let c = 0; c < CN * CN; c++) {
+      if (before[c] === us[c]) continue;
+      const cx = (c % CN) * CS,
+        cy = Math.floor(c / CN) * CS;
+      for (let y = cy - 1; y <= cy + CS; y++)
+        for (let x = cx - 1; x <= cx + CS; x++) if (x >= 0 && y >= 0 && x < W && y < H) repaintTile(x, y);
+    }
     rebuildNodes(false);
     store.nodeSnap = node.slice();
-    return;
   }
-  let rc = false;
-  for (const i of dirtyGround) {
-    paintTile(i % W, (i / W) | 0);
-    rc = true;
-  }
+  for (const i of dirtyGround) repaintTile(i % W, (i / W) | 0);
   dirtyGround.clear();
   for (let i = 0; i < W * H; i++)
     if (road[i] !== terrSnap[i]) {
       terrSnap[i] = road[i];
-      paintTile(i % W, (i / W) | 0);
-      rc = true;
+      repaintTile(i % W, (i / W) | 0);
     }
-  if (rc) {
-    tctx.putImageData(timg, 0, 0);
-    TTEX.needsUpdate = true;
-  }
+  if (pendingTiles()) store.mapVersion++;
+  flushTerrain();
   let nc = G.age !== store.nodeAge || nodesNeedUpdate();
   if (!nc)
     for (let i = 0; i < W * H; i++)
@@ -303,6 +335,7 @@ export function checkWorld() {
         break;
       }
   if (nc) {
+    store.mapVersion++;
     store.nodeSnap = node.slice();
     store.nodeAge = G.age;
     rebuildNodes(false);

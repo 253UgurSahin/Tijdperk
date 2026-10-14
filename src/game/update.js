@@ -19,6 +19,15 @@ import { dist } from '../util/math.js';
 import { amt, bmap, node, nodeLists } from '../world/world.js';
 import { updateMeteors } from './meteors.js';
 
+/** Onthoud waar alles stond vóór de volgende speltik, zodat de weergave ertussen kan tekenen. */
+export function rememberPositions() {
+  for (const list of [G.vs, G.us, G.foes, G.proj])
+    for (const e of list) {
+      e.prevX = e.x;
+      e.prevY = e.y;
+    }
+}
+
 export function update(dt) {
   if (G.over) return;
   G.t += dt;

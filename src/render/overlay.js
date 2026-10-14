@@ -82,7 +82,7 @@ export function drawOverlay() {
   ];
   for (const e of ents) {
     const fly = e.kind === 'u' ? UNITS[e.k].fly : e.air;
-    const [sx, sy, sz] = proj(e.x, fly ? 1.3 : 0.8, e.y);
+    const [sx, sy, sz] = proj(e.rx ?? e.x, fly ? 1.3 : 0.8, e.ry ?? e.y);
     if (sz > 1) continue;
     obar(sx, sy, 22, e.hp / e.mhp, e.kind === 'f' ? '#e3584a' : e.hp / e.mhp > 0.4 ? '#7fd36a' : '#e3a64a');
   }
@@ -128,10 +128,26 @@ export function drawOverlay() {
       y = Math.min(drag.sy, drag.ly),
       w = Math.abs(drag.lx - drag.sx),
       h = Math.abs(drag.ly - drag.sy);
-    c.fillStyle = 'rgba(159,226,138,.14)';
+    // Selectiekader: zachte vulling, dunne lijn en stevige hoeken
+    c.fillStyle = 'rgba(159,226,138,.10)';
     c.fillRect(x, y, w, h);
-    c.strokeStyle = '#9fe28a';
-    c.lineWidth = 1.2;
+    c.strokeStyle = 'rgba(159,226,138,.55)';
+    c.lineWidth = 1;
     c.strokeRect(x + 0.5, y + 0.5, w, h);
+    const k = Math.min(14, w / 3, h / 3);
+    c.strokeStyle = '#c9f5b4';
+    c.lineWidth = 2.5;
+    c.beginPath();
+    for (const [cx, cy, dx, dy] of [
+      [x, y, 1, 1],
+      [x + w, y, -1, 1],
+      [x, y + h, 1, -1],
+      [x + w, y + h, -1, -1],
+    ]) {
+      c.moveTo(cx + dx * k, cy);
+      c.lineTo(cx, cy);
+      c.lineTo(cx, cy + dy * k);
+    }
+    c.stroke();
   }
 }

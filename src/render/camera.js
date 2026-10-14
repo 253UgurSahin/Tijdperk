@@ -21,7 +21,7 @@ export function updateCamera() {
   CAM3.position.set(tx + Math.cos(p) * Math.sin(y) * d, Math.sin(p) * d, tz + Math.cos(p) * Math.cos(y) * d);
   CAM3.lookAt(tx, 0, tz);
   CAM3.updateMatrixWorld();
-  const sc = Math.max(14, d * 0.9);
+  const sc = Math.max(14, d * 0.9 * Math.max(1, CAM3.aspect / 1.78)); // schaduw ook op brede schermen
   const sh = sun.shadow.camera;
   sh.left = -sc;
   sh.right = sc;

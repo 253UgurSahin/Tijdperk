@@ -6,10 +6,10 @@ import { RES } from '../data/resources.js';
 import { G } from '../game/state.js';
 import { centerOn, s2t } from './camera.js';
 import { VH, VW } from './scene.js';
-import { RC, tileRGB } from './terrain.js';
+import { RC } from './terrain.js';
 import { $, isCompact } from '../util/dom.js';
 import { clamp } from '../util/math.js';
-import { bmap, node, road } from '../world/world.js';
+import { bmap, ground, node, road } from '../world/world.js';
 
 const mini = $('#mini'),
   mctx = mini.getContext('2d'),
@@ -24,43 +24,37 @@ function miniXf() {
   const k = MW / (2 * W);
   return store.V2 ? [MW / W, 0, 0, MH / H, 0, 0] : [k, k, -k, k, MW / 2, 0];
 }
-export function renderMini() {
-  MW = mini.width;
-  MH = mini.height;
+// Vaste kleuren voor bronnen op de minikaart (één keer uitgerekend)
+const hex = c => [parseInt(c.slice(1, 3), 16), parseInt(c.slice(3, 5), 16), parseInt(c.slice(5, 7), 16)];
+const NODE_RGB = NODES.map(n =>
+  !n
+    ? null
+    : n.k === 'tree'
+      ? [56, 96, 50]
+      : n.k === 'rock'
+        ? [150, 152, 144]
+        : n.k === 'sand' || n.k === 'bush'
+          ? null
+          : hex(RES[n.res].c),
+);
+
+// De kaartafbeelding zelf wordt alleen opnieuw gemaakt als de wereld veranderd is
+// (store.mapVersion telt op bij nieuwe gebouwen, wegen, bronnen of gebied); anders tekenen we alleen de stippen.
+let drawnVersion = -1,
+  drawnAge = -1;
+function paintMiniBase() {
   const d = mimg.data;
   for (let i = 0; i < W * H; i++) {
     const x = i % W,
-      y = (i / W) | 0;
-    let [r, g, b] = tileRGB(x, y);
-    const n = node[i];
-    if (n && NODES[n].age <= G.age) {
-      const k = NODES[n].k;
-      if (k === 'tree') {
-        r = 56;
-        g = 96;
-        b = 50;
-      } else if (k === 'rock') {
-        r = 150;
-        g = 152;
-        b = 144;
-      } else if (k !== 'sand' && k !== 'bush') {
-        const c = RES[NODES[n].res].c;
-        r = parseInt(c.slice(1, 3), 16);
-        g = parseInt(c.slice(3, 5), 16);
-        b = parseInt(c.slice(5, 7), 16);
-      }
-    }
-    if (road[i] && !bmap[i]) {
-      const c = RC[road[i]];
-      r = c[0];
-      g = c[1];
-      b = c[2];
-    }
-    if (bmap[i]) {
-      r = 74;
-      g = 136;
-      b = 232;
-    }
+      y = (i / W) | 0,
+      n = node[i];
+    let r = ground[i * 3],
+      g = ground[i * 3 + 1],
+      b = ground[i * 3 + 2];
+    const nc = n && NODES[n].age <= G.age && NODE_RGB[n];
+    if (nc) [r, g, b] = nc;
+    if (road[i] && !bmap[i]) [r, g, b] = RC[road[i]];
+    if (bmap[i]) [r, g, b] = [74, 136, 232];
     if (!G.unl[(y >> 4) * CN + (x >> 4)]) {
       r *= 0.42;
       g *= 0.45;
@@ -72,6 +66,16 @@ export function renderMini() {
     d[i * 4 + 3] = 255;
   }
   mbctx.putImageData(mimg, 0, 0);
+}
+
+export function renderMini() {
+  MW = mini.width;
+  MH = mini.height;
+  if (drawnVersion !== store.mapVersion || drawnAge !== G.age) {
+    drawnVersion = store.mapVersion;
+    drawnAge = G.age;
+    paintMiniBase();
+  }
   mctx.setTransform(1, 0, 0, 1, 0, 0);
   mctx.clearRect(0, 0, MW, MH);
   mctx.setTransform(...miniXf());

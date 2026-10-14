@@ -1,5 +1,6 @@
 // Spelersinstellingen (geluid, randscrollen, ...) die in de browser worden bewaard.
-export let SET = { vol: 0.8, edge: true, hp: false, shake: true };
+// quality: 'auto' | 'low' | 'mid' | 'high' · dragSelect: linkermuis slepen = selectiekader
+export let SET = { vol: 0.8, edge: true, hp: false, shake: true, quality: 'auto', dragSelect: true };
 try {
   Object.assign(SET, JSON.parse(localStorage.getItem('tijdperken-set') || '{}'));
 } catch (e) {}

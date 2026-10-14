@@ -4,7 +4,7 @@ import { B } from '../data/buildings.js';
 import { G } from '../game/state.js';
 import { measureHud } from '../main.js';
 import { renderChart } from './panes/log.js';
-import { $, isCompact } from '../util/dom.js';
+import { $ } from '../util/dom.js';
 
 // Zijpaneel (Volk / Leger / Onderzoek / Logboek)
 let ptab = null;

@@ -17,6 +17,7 @@ import { BG3, CG3 } from '../render/sync.js';
 import { setExpand, toast } from '../ui/hud.js';
 import { demolish } from '../ui/inspector.js';
 import { bmap, inb, isUnl, node, nodeVis, road, walkable } from '../world/world.js';
+import { VH, VW } from '../render/scene.js';
 
 export const selVills = () => G.vs.filter(v => sel.vs.has(v.id));
 export const selUnits = () => G.us.filter(u => sel.us.has(u.id));
@@ -143,7 +144,7 @@ function command(X, Y, tx, ty) {
   store.uiDirty = true;
   return did;
 }
-export function leftClick(sx, sy, shift) {
+export function leftClick(sx, sy, shift, ctrl) {
   const [X, Y] = s2iso(sx, sy),
     [tx, ty] = s2t(sx, sy),
     ix = Math.floor(tx),
@@ -176,6 +177,7 @@ export function leftClick(sx, sy, shift) {
     return;
   }
   const u = unitAt(X, Y);
+  if (u && ctrl) return selectSameType(u);
   if (u) {
     sfx('select');
     if (!shift) clearSel();
@@ -187,6 +189,7 @@ export function leftClick(sx, sy, shift) {
     return;
   }
   const v = villAt(X, Y);
+  if (v && ctrl) return selectSameType(v);
   if (v) {
     sfx('select');
     if (!shift) clearSel();
@@ -296,18 +299,40 @@ function issueOrder(mode, tx, ty) {
   store.cmdMode = null;
   store.uiDirty = true;
 }
-export function boxSelect(x0, y0, x1, y1) {
+/** Eenheden en dorpelingen binnen een kader op het scherm (soldaten gaan voor als die erin staan). */
+export function entitiesInBox(x0, y0, x1, y1) {
   const a = Math.min(x0, x1),
     b = Math.min(y0, y1),
     c = Math.max(x0, x1),
     d = Math.max(y0, y1);
   const inBox = e => {
-    const [sx, sy] = proj(e.x, 0.3, e.y);
+    const [sx, sy] = proj(e.rx ?? e.x, 0.3, e.ry ?? e.y);
     return sx >= a && sx <= c && sy >= b && sy <= d;
   };
   const us = G.us.filter(inBox);
+  return { us, vs: us.length ? [] : G.vs.filter(v => !v.hidden && inBox(v)) };
+}
+
+/** Kader-selectie. Met add (Shift) komt het erbij in plaats van de oude selectie te vervangen. */
+export function boxSelect(x0, y0, x1, y1, add) {
+  const { us, vs } = entitiesInBox(x0, y0, x1, y1);
+  if (!add) clearSel();
+  if (us.length) sel.vs.clear();
+  us.forEach(u => sel.us.add(u.id));
+  if (!us.length && !sel.us.size) vs.forEach(v => sel.vs.add(v.id));
+  if (us.length || vs.length) sfx('select');
+  store.uiDirty = true;
+}
+
+/** Selecteer alles van hetzelfde soort dat nu in beeld is (dubbelklik of Ctrl-klik). */
+export function selectSameType(e) {
+  const onScreen = o => {
+    const [sx, sy, sz] = proj(o.rx ?? o.x, 0.3, o.ry ?? o.y);
+    return sz < 1 && sx >= 0 && sy >= 0 && sx <= VW && sy <= VH;
+  };
   clearSel();
-  if (us.length) us.forEach(u => sel.us.add(u.id));
-  else G.vs.filter(v => !v.hidden && inBox(v)).forEach(v => sel.vs.add(v.id));
+  if (e.kind === 'u') G.us.filter(o => o.k === e.k && onScreen(o)).forEach(o => sel.us.add(o.id));
+  else G.vs.filter(o => !o.hidden && o.job === e.job && onScreen(o)).forEach(o => sel.vs.add(o.id));
+  sfx('select');
   store.uiDirty = true;
 }

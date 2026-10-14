@@ -3,6 +3,7 @@ import * as T3 from 'three';
 import { store } from '../core/store.js';
 import { $ } from '../util/dom.js';
 import { CX, CY } from '../config.js';
+import { resizePost } from './post.js';
 
 export const cv = $('#cv'),
   ov = $('#ov'),
@@ -42,8 +43,11 @@ export function resize() {
   DPR = Math.min(LOWQ ? 1.5 : 2, window.devicePixelRatio || 1);
   VW = Math.max(1, r.width);
   VH = Math.max(1, r.height);
-  R3.setPixelRatio(DPR);
+  // De 3D-wereld mag op een lagere resolutie draaien (store.resScale, zie quality.js); de HUD blijft scherp
+  const gl = DPR * (store.resScale || 1);
+  R3.setPixelRatio(gl);
   R3.setSize(VW, VH, false);
+  resizePost(VW, VH, gl);
   ov.width = Math.round(VW * DPR);
   ov.height = Math.round(VH * DPR);
   CAM3.aspect = VW / VH;

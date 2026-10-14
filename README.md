@@ -45,6 +45,15 @@ src/
 tests/                Vitest-tests voor data, wereldgeneratie en hulpfuncties
 ```
 
+## Beeld en besturing
+
+- **Selecteren:** sleep met de linkermuis een kader (Shift: erbij). Dubbelklik of Ctrl-klik selecteert alles van
+  dat soort in beeld. Rechts slepen, WASD of de schermrand verschuift de kaart. In de instellingen kun je slepen
+  weer op "kaart verschuiven" zetten.
+- **Beeldkwaliteit:** Automatisch (standaard), Laag, Middel of Hoog. Automatisch verlaagt zelf de resolutie en
+  zware effecten als het spel hapert, zodat het vloeiend blijft.
+- **Grote schermen:** op ultrabrede schermen blijft de HUD in het midden; op 1440p en 4K wordt hij groter.
+
 ## Op telefoon en tablet
 
 Het spel past zich aan elk scherm aan, staand en liggend. Tik om te selecteren of te bouwen, sleep om de kaart

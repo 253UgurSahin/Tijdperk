@@ -1,6 +1,7 @@
 // Gedeelde toestand die door meerdere onderdelen wordt aangepast.
 // (Een geïmporteerde variabele kun je niet overschrijven, daarom staan ze samen in één object.)
 export const store = {
+  mapVersion: 0, // telt op als er iets op de kaart verandert (voor de minikaart)
   placing: null,
   expandMode: false,
   demolishArm: 0,

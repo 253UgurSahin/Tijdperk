@@ -30,3 +30,11 @@ window.__tp.config = config;
 window.__tp.meteor = () => {
   window.__tp.G.nextMeteor = window.__tp.G.t;
 };
+import * as nodes3d from './render/nodes.js';
+import * as terrain3d from './render/terrain.js';
+window.__tp.nodes3d = nodes3d;
+window.__tp.terrain3d = terrain3d;
+import { sel } from './game/state.js';
+import { proj } from './render/camera.js';
+window.__tp.sel = sel;
+window.__tp.proj = proj;

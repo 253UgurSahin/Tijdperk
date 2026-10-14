@@ -253,3 +253,23 @@
   transform: translateX(20px);
   background: var(--gold-2);
 }
+/* Knoppenrij met één keuze (bijv. beeldkwaliteit) */
+.seg {
+  display: flex;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.seg button {
+  border: 0;
+  border-radius: 0;
+  padding: 6px 10px;
+  font-size: 12px;
+  background: transparent;
+  color: var(--muted);
+}
+.seg button.on {
+  background: linear-gradient(#e6c47c, #c69a48);
+  color: #1d1406;
+  font-weight: 700;
+}
