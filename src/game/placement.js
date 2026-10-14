@@ -22,7 +22,7 @@ export function chunkCost() {
   const m = 1 + G.bought * 0.55,
     c = { food: Math.round(80 * m), wood: Math.round(80 * m), stone: Math.round(40 * m) };
   if (G.age >= 3) c.gold = Math.round(12 * m);
-  if (G.age >= 5) c.steel = Math.round(10 * m);
+  if (G.age >= 5) c.steel = Math.round(5 * m);
   // Zeekaarten maken uitbreiden goedkoper
   if (hasT('charts')) for (const k in c) c[k] = Math.round(c[k] * 0.75);
   return c;

@@ -32,10 +32,10 @@ export const MAX_START_DIST = {
   copper: 24,
   tin: 28,
   iron: 36,
-  gold: 42,
+  gold: 36,
   coal: 34,
-  oil: 44,
-  sand: 44,
+  oil: 36,
+  sand: 38,
   lithium: 54,
   starmetal: 70,
 };

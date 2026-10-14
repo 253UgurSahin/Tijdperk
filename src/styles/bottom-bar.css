@@ -165,6 +165,7 @@
 }
 /* "+N meer": een stippel-pilletje dat de volledige lijst opent */
 #resMore {
+  flex: none;
   margin-top: auto;
   align-self: center;
   font: 500 12px var(--f-mono);

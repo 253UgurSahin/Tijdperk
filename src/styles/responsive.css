@@ -239,7 +239,7 @@
     width: auto;
   }
   #cmdgrid {
-    grid-auto-rows: 80px;
+    --tile-h: 80px;
   }
   .port {
     width: 56px;
@@ -345,15 +345,22 @@
   #cmdgrid {
     grid-auto-flow: column;
     grid-template-columns: none;
-    grid-template-rows: 68px;
+    grid-template-rows: 72px;
     grid-auto-columns: 74px;
     overflow: auto hidden;
     flex: none;
   }
   .gb img,
-  .cb img {
-    width: 30px;
-    height: 30px;
+  .cb img,
+  .cb .g {
+    width: 28px;
+    height: 28px;
+  }
+  /* Met kosten eronder: plaatje nog iets kleiner, zodat naam en kosten passen */
+  .cb.has-cost img,
+  .cb.has-cost .g {
+    width: 22px;
+    height: 22px;
   }
   .port {
     width: 48px;
