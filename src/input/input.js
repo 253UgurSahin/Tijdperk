@@ -25,6 +25,7 @@ import { lastSpeed, setExpand, setSpeed, toast } from '../ui/hud.js';
 import { demolish, selCmds } from '../ui/inspector.js';
 import { closeModal, openPause, showHelp } from '../ui/modals.js';
 import { togglePanel } from '../ui/panel.js';
+import { assignGroup, selectGroup } from '../ui/army.js';
 import { $, isCompact } from '../util/dom.js';
 import { clamp, dist } from '../util/math.js';
 import { SET } from '../core/settings.js';
@@ -233,29 +234,12 @@ addEventListener('keydown', e => {
   } else if (k === '[') {
     setSpeed(G.speed === 4 ? 2 : G.speed === 2 ? 1 : 1);
   } else if (/^f[1-5]$/.test(k)) {
+    // Groepen 1 tot 5: met Ctrl+Shift maken, zonder kiezen; twee keer = ernaartoe (zie ui/army.js).
+    // We noemen Ctrl+Shift, want Ctrl+F4 en Alt+F4 sluiten de browser en dat kan een spel niet tegenhouden.
     e.preventDefault();
     const g = k.slice(1);
-    if (e.ctrlKey || e.metaKey || e.altKey) {
-      const ids = [...sel.us, ...sel.vs];
-      if (ids.length) {
-        G.groups[g] = ids;
-        toast(`Groep ${g} ingesteld (${ids.length}).`);
-      }
-    } else {
-      const ids = G.groups[g] || [];
-      const us = G.us.filter(u => ids.includes(u.id)),
-        vs = G.vs.filter(v => ids.includes(v.id));
-      if (us.length || vs.length) {
-        clearSel();
-        us.forEach(u => sel.us.add(u.id));
-        vs.forEach(v => sel.vs.add(v.id));
-        const f = us[0] || vs[0];
-        if (store.lastGroup === g) centerOn(f.x, f.y);
-        store.lastGroup = g;
-        sfx('select');
-        store.uiDirty = true;
-      } else toast(`Groep ${g} is leeg. Ctrl+F${g} stelt een groep in.`);
-    }
+    if (e.ctrlKey || e.metaKey) assignGroup(g);
+    else selectGroup(g, e.shiftKey);
   } else if (k === 's' && !e.ctrlKey && sel.us.size) {
     selUnits().forEach(u => {
       u.tgt = null;

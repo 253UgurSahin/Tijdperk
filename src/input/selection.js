@@ -7,6 +7,7 @@ import { NODES } from '../data/nodes.js';
 import { RES } from '../data/resources.js';
 import { UNITS } from '../data/units.js';
 import { burst, fxRing } from '../game/fx.js';
+import { formationMove } from '../game/army.js';
 import { buyChunk, canBuyChunk, tryPlace } from '../game/placement.js';
 import { G, bById, sel } from '../game/state.js';
 import { walkTo } from '../game/villagers.js';
@@ -118,15 +119,8 @@ function command(X, Y, tx, ty) {
       toast(`${us.length} ${us.length === 1 ? 'eenheid valt' : 'eenheden vallen'} aan.`);
       did = true;
     } else {
-      const n = us.length,
-        cols = Math.ceil(Math.sqrt(n));
-      us.forEach((u, k) => {
-        u.tgt = null;
-        u.order = 'move';
-        u.path = null;
-        u.gx = tx + ((k % cols) - (cols - 1) / 2) * 0.8;
-        u.gy = ty + (Math.floor(k / cols) - (cols - 1) / 2) * 0.8;
-      });
+      // Lopen; met meer soldaten in formatie (zie game/army.js)
+      formationMove(us, tx, ty, 'move');
       fxRing(tx, ty, '#ffffff');
       did = true;
     }
@@ -331,17 +325,8 @@ export function rightClick(sx, sy) {
 }
 function issueOrder(mode, tx, ty) {
   const us = selUnits(),
-    n = us.length,
-    cols = Math.ceil(Math.sqrt(n));
-  us.forEach((u, k) => {
-    u.tgt = null;
-    u.path = null;
-    u.order = mode;
-    u.px = u.x;
-    u.py = u.y;
-    u.gx = tx + ((k % cols) - (cols - 1) / 2) * 0.8;
-    u.gy = ty + (Math.floor(k / cols) - (cols - 1) / 2) * 0.8;
-  });
+    n = us.length;
+  formationMove(us, tx, ty, mode);
   fxRing(tx, ty, mode === 'amove' ? '#e3584a' : '#e2b92c');
   toast(
     mode === 'amove'

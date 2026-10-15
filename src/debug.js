@@ -189,3 +189,13 @@ window.__tp.allyHelp = (i = 0) => {
   r.atWar = false;
   diplomacy.sendHelpers(r);
 };
+// Legerbesturing: groepen, veteranen en formatie (__tp.army.formationMove(__tp.G.us, x, y, 'move')),
+// of geef een soldaat meteen overwinningen: __tp.kills(u, 8) maakt hem elite
+import * as army from './game/army.js';
+import * as armyUI from './ui/army.js';
+window.__tp.army = army;
+window.__tp.armyUI = armyUI;
+window.__tp.kills = (u, n = 3) => {
+  for (let k = 0; k < n; k++) army.creditKill(u);
+  return u;
+};

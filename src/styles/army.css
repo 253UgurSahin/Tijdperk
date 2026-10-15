@@ -1,0 +1,258 @@
+/* Legerbesturing: groepenbalk boven de onderbalk, de eenmalige tip, rangstreepjes en de formatieregel. */
+
+/* Groepenbalk: rechts boven de onderbalk (links staan Dorp en Leger, in het midden de hintbalk) */
+#groups {
+  position: absolute;
+  z-index: 10;
+  right: var(--edge);
+  bottom: calc(var(--barh) + 16px);
+  display: flex;
+  gap: 5px;
+  zoom: calc(var(--hud-zoom, 1) * var(--ui-scale, 1));
+}
+/* Een groep: nummer linksboven, plaatje van het meeste soort, aantal rechtsonder en een levensbalkje */
+.grp {
+  position: relative;
+  width: 54px;
+  height: 46px;
+  min-height: 0;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  background: var(--panel);
+  border-color: var(--rule-2);
+  box-shadow: var(--card-shadow);
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  touch-action: manipulation;
+}
+.grp img {
+  width: 34px;
+  height: 34px;
+  margin-top: -4px;
+  pointer-events: none;
+}
+.grp .gn {
+  position: absolute;
+  left: 5px;
+  top: 2px;
+  font: 700 13px var(--f-display);
+  color: var(--ink-3);
+}
+.grp b {
+  position: absolute;
+  right: 5px;
+  bottom: 6px;
+  font: 600 12px var(--f-mono);
+  color: var(--ink);
+  text-shadow:
+    0 0 3px var(--paper-hi),
+    0 0 2px var(--paper-hi);
+}
+.grp .ghp {
+  position: absolute;
+  left: 6px;
+  right: 6px;
+  bottom: 3px;
+  height: 3px;
+  border-radius: 99px;
+  background: rgba(43, 37, 32, 0.15);
+  overflow: hidden;
+}
+.grp .ghp i {
+  display: block;
+  height: 100%;
+  background: var(--good);
+}
+.grp .ghp.warn i {
+  background: var(--warn);
+}
+.grp .ghp.bad i {
+  background: var(--bad);
+}
+/* Gekozen groep: in de kleur van het tijdperk, net als de tabjes Dorp en Leger */
+.grp.on,
+.grp.on:hover:not(:disabled) {
+  background: var(--acc-soft);
+  border-color: var(--acc-edge);
+  box-shadow:
+    0 3px 0 var(--acc-edge),
+    0 10px 24px rgba(30, 20, 10, 0.25);
+}
+.grp.on .gn {
+  color: var(--acc-ink);
+}
+/* In gevecht: een rood stipje rechtsboven */
+.grp.fight::after {
+  content: '';
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--bad);
+  box-shadow: 0 0 0 2px var(--paper);
+}
+/* Lege plek: gestippeld, met een plus om er een groep van te maken */
+.grp.add {
+  background: color-mix(in srgb, var(--paper) 88%, transparent);
+  border: 1.5px dashed var(--rule-2);
+  box-shadow: none;
+}
+.grp.add:hover:not(:disabled) {
+  border-color: var(--acc-edge);
+  background: var(--paper-hi);
+}
+.grp .plus {
+  font: 600 22px var(--f-display);
+  color: var(--ink-3);
+  line-height: 1;
+}
+
+/* Eenmalige tip boven de groepenbalk */
+#armytip {
+  position: absolute;
+  z-index: 11;
+  right: var(--edge);
+  bottom: calc(var(--barh) + 74px);
+  width: min(300px, calc(100% - 2 * var(--edge)));
+  padding: 10px 12px;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--ink-2);
+  zoom: calc(var(--hud-zoom, 1) * var(--ui-scale, 1));
+}
+#armytip:not([hidden]) {
+  animation: panelin 0.24s cubic-bezier(0.2, 0.9, 0.3, 1.1);
+}
+#armytip .tt {
+  display: block;
+  font: italic 650 15px var(--f-display);
+  color: var(--ink);
+}
+#armytip p {
+  margin: 4px 0 0;
+}
+#armytip button {
+  margin-top: 8px;
+  min-height: 28px;
+  padding: 3px 12px;
+}
+/* Een pijltje omlaag naar de groepenbalk */
+#armytip::after {
+  content: '';
+  position: absolute;
+  right: 40px;
+  bottom: -7px;
+  width: 12px;
+  height: 12px;
+  background: var(--paper-2);
+  border-right: 1px solid rgba(43, 37, 32, 0.16);
+  border-bottom: 1px solid rgba(43, 37, 32, 0.16);
+  transform: rotate(45deg);
+}
+
+/* Rangstreepjes: goud met een donkere rand, achter een naam of in een regel */
+.chev {
+  width: 15px;
+  height: 17px;
+  margin-left: 6px;
+  vertical-align: -2px;
+  fill: none;
+  stroke: #d9a521;
+  stroke-width: 2.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  filter: drop-shadow(0 0 0.6px #2b2520);
+}
+.rankline .chev {
+  margin-left: 0;
+  flex: none;
+}
+/* Rang van één soldaat en de formatie van een groep, in het selectiepaneel */
+.rankline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 7px;
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--ink-2);
+}
+.formline {
+  margin-top: 6px;
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--ink-2);
+}
+.rankline b {
+  font-family: var(--f-display);
+  font-size: 14px;
+  color: var(--ink);
+}
+.rankline .dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--ink-4);
+  flex: none;
+}
+.formline .fl {
+  display: inline-block;
+  margin-right: 6px;
+  padding: 0 8px;
+  border-radius: 99px;
+  background: var(--acc-soft);
+  font: italic 650 12.5px var(--f-display);
+  color: var(--acc-ink);
+}
+.formline b {
+  font-family: var(--f-mono);
+  font-weight: 600;
+}
+
+/* Titelscherm: verborgen, net als de rest van de HUD */
+body.titled #groups,
+body.titled #armytip {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Laptop en kleiner scherm: de hintbalk in het midden (soms twee regels hoog) is dan te breed, dus een rij hoger */
+@media (min-width: 901px) and (max-width: 1240px) and (min-height: 561px) {
+  #groups {
+    bottom: calc(var(--barh) + 76px);
+  }
+  #armytip {
+    bottom: calc(var(--barh) + 134px);
+  }
+}
+/* Telefoon of laag venster: een eigen rij boven de knoppen Dorp en Leger; de hintbalk schuift omhoog */
+@media (max-width: 900px), (max-height: 560px) {
+  #groups {
+    right: 6px;
+    bottom: calc(var(--barH, 240px) + 56px);
+  }
+  .grp {
+    width: 50px;
+    height: 44px;
+  }
+  body.hasgroups #hintbar {
+    bottom: calc(var(--barH, 240px) + 108px);
+  }
+  /* De hintbalk zo breed als zijn tekst (anders wordt hij op een smal scherm een hoge, smalle toren) */
+  #hintbar {
+    width: max-content;
+  }
+  #armytip {
+    right: 6px;
+    bottom: calc(var(--barH, 240px) + 110px);
+  }
+  /* De tip staat waar de hintbalk staat: zolang de tip open is, wacht de hintbalk */
+  #armytip:not([hidden]) ~ #hintbar {
+    visibility: hidden;
+  }
+}

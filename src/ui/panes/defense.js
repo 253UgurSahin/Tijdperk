@@ -10,6 +10,8 @@ import { isCharging } from '../../game/finale.js';
 import { has } from '../../game/economy.js';
 import { isMarching, isRaider, raidSize } from '../../game/military.js';
 import { dayPace } from '../../game/mods.js';
+import { formationMove, unitRank } from '../../game/army.js';
+import { bestVeteran, rankName } from '../../data/army.js';
 import { repairBuildings, repairCost } from '../../game/repair.js';
 import { arrivalHour, clockText } from '../../game/rivals.js';
 import { G, sel } from '../../game/state.js';
@@ -53,6 +55,16 @@ function raidCardText(raidNow, marching, hrs, secs) {
   return { title, sub };
 }
 
+// Eén regel over je veteranen (soldaten met een rang, zie game/army.js), met de beste bij naam
+function veteranLine() {
+  const vets = G.us.filter(u => unitRank(u) > 0);
+  const best = bestVeteran(vets);
+  if (!best) return '';
+  const count = `${vets.length} ${vets.length === 1 ? 'veteraan' : 'veteranen'}`;
+  const name = UNITS[best.k].n.toLowerCase(),
+    rank = rankName(unitRank(best)).toLowerCase();
+  return `<div class="statline"><i class="dot"></i>${count} · beste: ${name} (${rank}, ${best.kills} overwinningen)</div>`;
+}
 export function renderDefense() {
   const th = G.bs.find(b => b.type === 'townhall'),
     hp = th ? th.hp / B.townhall.hp : 0,
@@ -65,6 +77,7 @@ export function renderDefense() {
   const card = raidCardText(raidNow, marching, hrs, secs);
   const army = {};
   G.us.forEach(u => (army[u.k] = (army[u.k] || 0) + 1));
+  const vetLine = veteranLine();
   {
     const tw = G.bs.filter(b => b.done && b.type !== 'townhall' && B[b.type].def).length;
     $('#defSect').textContent = `${tw} ${tw === 1 ? 'toren' : 'torens'} · ${G.us.length} soldaten`;
@@ -79,6 +92,7 @@ export function renderDefense() {
     rc && has(rc),
     !!rc,
     army,
+    vetLine,
     G.peaceful,
     G.camps.filter(c => c.alive).length,
   ]);
@@ -98,7 +112,7 @@ export function renderDefense() {
             )
             .join('')}</div>`
         : '<div class="statline"><i class="dot"></i>Geen leger · bouw een kazerne</div>'
-    }
+    }${vetLine}
     <div class="statline"><i class="dot"></i>${G.camps.filter(c => c.alive).length} vijandelijke kampen</div>`,
   );
   const m = document.querySelector('#defense .moon');
@@ -124,14 +138,9 @@ $('#defense').addEventListener('click', e => {
       store.uiDirty = true;
     }
   } else if (t.dataset.act === 'rally') {
+    // In formatie naar het plein voor het stamhuis, maar wel op volle snelheid: thuis is het vaak dringend
     const th = G.bs.find(x => x.type === 'townhall');
-    G.us.forEach((u, k) => {
-      u.tgt = null;
-      u.order = 'move';
-      u.path = null;
-      u.gx = th.x + 1 + ((k % 5) - 2) * 0.8;
-      u.gy = th.y + 3 + Math.floor(k / 5) * 0.8;
-    });
+    if (th) formationMove(G.us, th.x + 1, th.y + 4, 'move', { keepPace: false });
     toast('Het leger keert terug naar het stamhuis.');
   }
   sigs.def = null;

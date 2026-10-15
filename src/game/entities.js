@@ -122,6 +122,8 @@ export function spawnUnit(k, x, y) {
     anim: Math.random() * 9,
     dir: 1,
     pt: 0,
+    kills: 0, // verslagen vijanden: na 3, 8 en 15 een rang hoger (zie game/army.js)
+    pace: 0, // tempo als hij in formatie loopt, anders 0 (zie formationMove in game/army.js)
   };
   G.us.push(o);
   return o;
