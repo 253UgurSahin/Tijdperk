@@ -1,6 +1,8 @@
 // Grondstoffen bovenaan: per grondstof alleen het plaatje en de voorraad. Meer weten? Muis erop voor de
 // uitleg, of klik voor de lijst met alles (met tempo en werkers).
+import type { GameState } from '../types';
 import { store } from '../core/store';
+import { SET } from '../core/settings';
 import { sfx } from '../audio/sound';
 import { AGE_UP } from '../data/ages';
 import { B, BKEYS } from '../data/buildings';
@@ -41,13 +43,26 @@ function relevantRes() {
   RKEYS.filter(k => RES[k].age === G.age).forEach(add);
   return out;
 }
+// Getallen in de strook tellen vloeiend op of af naar de echte voorraad (zie tickResourceNumbers hieronder)
+const shown: Record<string, number> = {};
+let shownFor: GameState | null = null; // het spel waar deze getallen bij horen: bij een ander spel opnieuw
+const shownValue = (k: string): number => shown[k] ?? G.res[k];
+/** Eén grondstof in beeld: de getallen (strook en lijst met alles) en de waarde die er nu staat. */
+interface ShownNumber {
+  k: string;
+  els: HTMLElement[];
+  value: number | null;
+}
+// De getallen in beeld, per grondstof. Eén keer opgezocht na het tekenen, niet elk beeldje.
+let numbers: ShownNumber[] | null = null;
+
 // In de strook: alleen het plaatje en het getal (de naam staat in de uitleg). data-rank zegt hoe belangrijk
 // hij nu is (0 = het belangrijkst): bij te weinig plek vallen de minst belangrijke weg (zie fitResBar).
 const barItem = (k: string, rank: number): string =>
-  `<button class="res" data-k="${k}" data-rank="${rank}" aria-label="${RES[k].n}">${gem(k)}<b>${fmt(G.res[k])}</b></button>`;
+  `<button class="res" data-k="${k}" data-rank="${rank}" aria-label="${RES[k].n}">${gem(k)}<b>${fmt(shownValue(k))}</b></button>`;
 // In de lijst met alles: plaatje, naam, voorraad, tempo en hoeveel er aan werken
 const listItem = (k: string): string =>
-  `<div class="res" data-k="${k}">${gem(k)}<span class="rn">${RES[k].n}</span><b>${fmt(G.res[k])}</b><em></em><span class="wk"></span></div>`;
+  `<div class="res" data-k="${k}">${gem(k)}<span class="rn">${RES[k].n}</span><b>${fmt(shownValue(k))}</b><em></em><span class="wk"></span></div>`;
 
 /** Zoveel grondstoffen hooguit in de strook: op een telefoon een paar, op de computer zoveel als past. */
 const barLimit = (): number => (isNarrow() ? 4 : isCompact() ? 6 : 14);
@@ -62,11 +77,13 @@ export function buildResBar(force?: boolean) {
   $('#resbar').innerHTML =
     inOrder.map(k => barItem(k, keys.indexOf(k))).join('') +
     `<button class="quiet" id="resMore" aria-expanded="${!$('#resPop').hidden}" title="Alle grondstoffen"></button>`;
+  numbers = null; // opnieuw getekend: de getallen straks opnieuw opzoeken
 }
 function updateResPop() {
   const p = $('#resPop');
   if (p.hidden) return;
   const ks = RKEYS.filter(k => RES[k].age <= G.age);
+  const before = sigs.respop;
   setHTML(
     p,
     'respop',
@@ -75,6 +92,54 @@ function updateResPop() {
       `<div class="rph"><b>Alle grondstoffen</b><button class="quiet x" data-close="1" aria-label="Sluiten">${ico('✕')}</button></div>` +
       `<div class="rpl">${ks.map(listItem).join('')}</div>`,
   );
+  if (sigs.respop !== before) numbers = null; // opnieuw getekend: de getallen straks opnieuw opzoeken
+}
+
+/** Zoek de getallen in beeld op: per grondstof alle plekken waar hij staat (strook én lijst met alles). */
+function findNumbers(): ShownNumber[] {
+  const byKey = new Map<string, ShownNumber>();
+  for (const el of document.querySelectorAll<HTMLElement>('#resbar .res, #resPop .res')) {
+    // Elk vakje heeft een sleutel (data-k) en een getal (<b>), zie barItem en listItem hierboven
+    const k = el.dataset.k!;
+    if (!byKey.has(k)) byKey.set(k, { k, els: [], value: null });
+    byKey.get(k)!.els.push(el.querySelector('b')!);
+  }
+  // Wat niet meer in beeld staat, begint later gewoon bij de echte voorraad
+  for (const k in shown) if (!byKey.has(k)) delete shown[k];
+  return [...byKey.values()];
+}
+/**
+ * Elk beeldje: elk getal schuift een stukje op naar de echte voorraad, zodat je een grote buit ziet binnenkomen.
+ * Met "Animaties" uit (instellingen) springt het getal meteen.
+ */
+export function tickResourceNumbers(rdt: number) {
+  if (!G) return;
+  if (shownFor !== G) {
+    shownFor = G;
+    for (const k in shown) delete shown[k];
+  }
+  if (!numbers) numbers = findNumbers();
+  const step = SET.motion ? 1 - Math.exp(-rdt * 7) : 1;
+  let widthChanged = false;
+  for (const n of numbers) {
+    const target = G.res[n.k];
+    let value = shown[n.k] ?? target;
+    // Staat het goede getal er al? Dan niets te doen (zo is het meestal)
+    if (value === target && n.value === target) continue;
+    value += (target - value) * step;
+    if (Math.abs(target - value) < 0.5) value = target;
+    shown[n.k] = value;
+    if (n.value === value) continue;
+    n.value = value;
+    const text = fmt(value);
+    for (const b of n.els) {
+      if (b.textContent === text) continue;
+      if ((b.textContent || '').length !== text.length) widthChanged = true;
+      b.textContent = text;
+    }
+  }
+  // Een getal met een teken meer of minder (999 → 1.000) is breder of smaller: opnieuw kijken wat er past
+  if (widthChanged) fitResBar();
 }
 
 // ---- elke verversing: getallen, kleuren en de lijst ----
@@ -151,11 +216,8 @@ function fillResItems() {
   // Wat je nu wilt bouwen: grondstoffen waar je te weinig van hebt, kleuren rood
   const need = store.placing ? buildCost(store.placing) : null;
   for (const el of document.querySelectorAll<HTMLElement>('#resbar .res,#resPop .res')) {
-    // Elk vakje heeft een sleutel (data-k) en een getal (<b>), zie barItem en listItem hierboven
-    const k = el.dataset.k!,
-      num = el.querySelector('b')!,
-      txt = fmt(G.res[k]);
-    if (num.textContent !== txt) num.textContent = txt;
+    // Elk vakje heeft een sleutel (data-k). Het getal zelf telt vloeiend mee (zie tickResourceNumbers).
+    const k = el.dataset.k!;
     el.classList.toggle('short', !!(need && need[k] > G.res[k]));
     el.classList.toggle('low', runningLow(k));
     const em = el.querySelector('em');

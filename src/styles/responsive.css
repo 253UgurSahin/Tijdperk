@@ -178,6 +178,7 @@
     min-height: 36px;
     padding: 6px 10px;
   }
+  /* Boven de knoppenrij (--sideH: zo hoog is die rij, één of twee rijen; zie ui/panel.ts) */
   #panel {
     position: fixed;
     left: 6px;

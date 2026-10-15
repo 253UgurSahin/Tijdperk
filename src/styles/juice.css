@@ -1,0 +1,67 @@
+/* Effecten over het hele scherm (zie screenEffect in ui/hud.ts): een gloed bij een nieuw tijdperk,
+   goud als je wint, en een korte rode rand als je stamhuis geraakt wordt. Ze liggen onder de HUD. */
+#screenfx {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  opacity: 0;
+}
+/* Nieuw tijdperk: de rand van het beeld kleurt zacht in de tijdperkkleur, zolang de camera uitzweeft */
+#screenfx.age {
+  background: radial-gradient(
+    ellipse at center,
+    transparent 48%,
+    color-mix(in srgb, var(--acc) 45%, rgba(30, 18, 6, 0.6)) 100%
+  );
+  animation: fxage 4.5s ease-in-out;
+}
+@keyframes fxage {
+  0% {
+    opacity: 0;
+  }
+  20%,
+  75% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+/* Gewonnen: een warme gouden gloed die langzaam wegebt */
+#screenfx.win {
+  background: radial-gradient(ellipse at center, rgba(255, 214, 120, 0) 40%, rgba(255, 190, 70, 0.5) 100%);
+  animation: fxwin 6s ease-out;
+}
+@keyframes fxwin {
+  0% {
+    opacity: 0;
+  }
+  12% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+/* Stamhuis geraakt: een korte rode flits aan de rand */
+#screenfx.hurt {
+  background: radial-gradient(ellipse at center, rgba(194, 63, 46, 0) 45%, rgba(194, 63, 46, 0.6) 100%);
+  animation: fxhurt 0.7s ease-out;
+}
+@keyframes fxhurt {
+  0% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+/* Rustige modus: zachter en korter */
+.calm #screenfx.hurt {
+  animation-duration: 0.4s;
+}
+.calm #screenfx.age,
+.calm #screenfx.win {
+  animation-duration: 2s;
+}

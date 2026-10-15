@@ -6,7 +6,7 @@ import { CN, CS, H, TAU, W } from '../config';
 import { B } from '../data/buildings';
 import { RES } from '../data/resources';
 import { G, sel } from '../game/state';
-import { RINGG, quadG } from './decals';
+import { RINGG, quadG, ringAt } from './decals';
 import { bx, gOct, gTorus, isMesh, mat, mergeStatic, mk } from './kit';
 import { BOSS_SCALE } from '../data/bosses';
 import { makeBuilding, makeCamp, wallMask } from './models';
@@ -48,6 +48,10 @@ interface BuildingRec {
   /** Tijd tot het volgende rookpluimpje, en de bouwvoortgang bij het vorige beeldje. */
   smokeT?: number;
   prevProg?: number;
+  /** Opveren (zie popBounce): de laatst geziene b.pop_t, wanneer het begon en of het nu bezig is. */
+  popSeen: number | undefined;
+  popAt: number;
+  popping?: boolean;
 }
 /**
  * Een figuur zoals de 3D-weergave hem leest. Alleen soldaten van een rivaal hebben `rival` en `uk`,
@@ -188,25 +192,46 @@ function buildDust(r: BuildingRec, b: Building, s: number, dt: number) {
   r.prevProg = b.prog;
 }
 function finishedBurst(g: T3.Group, s: number) {
-  const p = g.position;
-  for (let k = 0; k < 18; k++) {
-    const a = (k / 18) * Math.PI * 2;
+  const p = g.position,
+    n = 14 + s * 6, // grotere gebouwen: meer stof
+    speed = 1.2 + s * 0.3;
+  // Stof dat in een ring over de grond wegrolt
+  for (let k = 0; k < n; k++) {
+    const a = (k / n) * Math.PI * 2;
     emit(
       LAYER.soft,
       p.x + Math.sin(a) * s * 0.5,
       0.08,
       p.z + Math.cos(a) * s * 0.5,
-      Math.sin(a) * 1.2,
+      Math.sin(a) * speed,
       0.15,
-      Math.cos(a) * 1.2,
-      1.1,
+      Math.cos(a) * speed,
+      1.2,
       0.08,
-      0.3,
+      0.3 + s * 0.05,
       0xd2c09a,
       0.6,
     );
   }
-  puff(LAYER.glow, 10, p.x, 0.6, p.z, 0.8, 1.5, 0.9, 0.04, 0.01, 0xffe6a0, 0.9, -1.5);
+  // Wat stof dat opwaait, en glinstering die omhoog spat en weer valt
+  puff(LAYER.soft, 4 + s * 2, p.x, 0.3, p.z, 0.6, 0.8, 1.4, 0.15, 0.5, 0xe0d0a8, 0.4);
+  puff(LAYER.glow, 10 + s * 3, p.x, 0.6, p.z, 0.8, 1.5, 0.9, 0.04, 0.01, 0xffe6a0, 0.9, -1.5);
+}
+// Opveren na het opleveren (of na een verbetering): eerst platter en breder, dan hoger en smaller,
+// en zo uitdempen, als een veer. Intussen dijt een ring van stof uit over de grond.
+const POP_TIME = 0.8; // seconden
+function popBounce(r: BuildingRec, s: number) {
+  const a = store.TM - r.popAt;
+  if (a >= POP_TIME) {
+    if (r.popping) r.m.scale.set(1, 1, 1);
+    r.popping = false;
+    return;
+  }
+  r.popping = true;
+  const spring = Math.exp(-a * 5) * Math.cos(a * 18);
+  r.m.scale.set(1 + spring * 0.1, 1 - spring * 0.22, 1 + spring * 0.1);
+  const p = r.g.position;
+  ringAt(p.x, p.z, s * 0.55 + a * 2.4, '#f1dfb8', 0.75 * (1 - a / POP_TIME), 0.07);
 }
 // Treffer op een gebouw: stof en een paar vonken ergens op de gevel
 function buildingHit(r: BuildingRec, s: number) {
@@ -244,7 +269,10 @@ export function syncBuildings() {
       (d.wall ? wallMask(b) : '');
     let r = bRec.get(b.id);
     if (!r || r.key !== key) {
+      // Net opgeleverd, of het stamhuis krijgt het uiterlijk van een nieuw tijdperk: dan veert het even op
       const justFinished = r && !r.done && b.done;
+      const newLook = r && r.done && b.done && b.type === 'townhall' && r.key.split('|')[1] !== String(G.age);
+      const pops = justFinished || newLook;
       if (r) BG3.remove(r.g);
       const g = new T3.Group(),
         m = makeBuilding(b.type, G.age, b);
@@ -298,9 +326,11 @@ export function syncBuildings() {
         x: b.x,
         y: b.y,
         s,
+        popSeen: b.pop_t, // zie hieronder: een nieuwe pop_t betekent een verbetering
+        popAt: pops ? store.TM : -9,
       };
       bRec.set(b.id, r);
-      if (justFinished) finishedBurst(g, s);
+      if (pops) finishedBurst(g, s);
       changedAt(b.x, b.y, b.x + s - 1, b.y + s - 1);
     }
     chimneySmoke(r, b, d, dt);
@@ -313,8 +343,12 @@ export function syncBuildings() {
       const p = Math.min(1, b.prog / b.bt);
       r.m.position.y = -r.h * (1 - (0.12 + 0.88 * p));
     } else {
-      const pt = b.pop_t != null ? G.t - b.pop_t : 9;
-      r.m.scale.setScalar(pt < 0.45 ? 1 + Math.sin((pt / 0.45) * Math.PI) * 0.08 : 1);
+      // Een verbetering (niveau omhoog) laat het gebouw ook even opveren (zie game/upgrades.ts)
+      if (b.pop_t !== r.popSeen) {
+        r.popSeen = b.pop_t;
+        r.popAt = store.TM;
+      }
+      popBounce(r, s);
     }
     for (const f of r.fires) {
       const k = 0.85 + Math.sin(store.TM * 13 + b.id) * 0.1 + Math.sin(store.TM * 7.3 + b.id * 2) * 0.08;

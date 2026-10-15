@@ -1,6 +1,7 @@
 // Algemene HUD: meldingen, snelheid en knoppen.
 import type { Foe } from '../types';
 import { store } from '../core/store';
+import { SET } from '../core/settings';
 import { sfx } from '../audio/sound';
 import { B } from '../data/buildings';
 import { has } from '../game/economy';
@@ -104,6 +105,27 @@ export function showBanner(html: string, ms = 4500) {
   banner.hidden = false;
   clearTimeout(bannerTimer);
   bannerTimer = setTimeout(() => (banner.hidden = true), ms);
+}
+/** Een effect over het hele scherm (zie styles/juice.css). */
+type ScreenEffect = 'age' | 'win' | 'hurt';
+/**
+ * Een effect over het hele scherm: 'age' (gloed van een nieuw tijdperk), 'win' (gouden gloed) of 'hurt'
+ * (rode rand als je stamhuis geraakt wordt).
+ */
+export function screenEffect(kind: ScreenEffect) {
+  const el = $('#screenfx');
+  el.className = '';
+  void el.offsetWidth; // zo begint de animatie opnieuw, ook als dezelfde net nog liep
+  el.className = kind;
+}
+let hallHitAt = 0;
+/** Je stamhuis wordt geraakt: een rode flits aan de rand en (als dat aan staat) een klein schokje. */
+export function hallHit() {
+  const now = performance.now();
+  if (now - hallHitAt < 1200) return; // niet bij elke pijl opnieuw: hooguit één flits per 1,2 seconde
+  hallHitAt = now;
+  screenEffect('hurt');
+  if (SET.shake) store.shake = Math.max(store.shake, 0.15);
 }
 /**
  * Er komt een grondstof binnen. De strook bovenaan knippert daar niet meer bij (bij elke levering was dat

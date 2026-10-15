@@ -30,7 +30,7 @@ import { add, mul } from './bonus';
 import { armsMul } from './upgrades';
 import { unhide } from './villagers';
 import { scrX } from '../render/scene';
-import { note, toast } from '../ui/hud';
+import { hallHit, note, toast } from '../ui/hud';
 import { dist } from '../util/math';
 import { findPath, follow } from '../world/pathfinding';
 import {
@@ -86,6 +86,7 @@ function hit(t: Target, dmg: number, by?: Unit | null) {
   else sfx('hit', 0.3);
   if ('rival' in t && t.rival) rivalHurt(t); // een rivaal merkt dat je hem aanvalt
   if (t.kind === 'b' && t.type === 'stargate') gateHurt(t, hpBefore); // waarschuwing tijdens de finale
+  if (t.kind === 'b' && t.type === 'townhall') hallHit(); // rode flits aan de rand van het scherm
   if (t.hp > 0) return;
   t.dead = true;
   if (t.kind === 'b') destroyBuilding(t);

@@ -11,6 +11,8 @@ import { isFar, updateCamera } from './camera';
 import { pool, poolsBegin, poolsEnd, quadAt, rangeAt, ringAt } from './decals';
 import { drawFx, drawRain } from './effects';
 import { drawFinaleFx } from './finalefx';
+import { stepCinematic } from './cinematic';
+import { stepFireworks } from './fireworks';
 import { stepDying } from './animate';
 import { stepParticles } from './particles';
 import { drawAmbient } from './ambient';
@@ -72,6 +74,7 @@ export function render() {
   animateWater(store.TM);
   WIND.value = store.TM;
   const dk = darkness();
+  stepCinematic(store.TM); // nieuw tijdperk: de camera zweeft even uit boven de stad
   updateCamera(); // eerst de camera: checkWorld kijkt welk stuk wereld in beeld is (zie nodes.ts)
   checkWorld();
   applySeason();
@@ -87,6 +90,7 @@ export function render() {
   drawFinaleFx(); // lichtzuil uit de sterrenpoort tijdens de finale
   drawRain();
   drawAmbient(dk);
+  stepFireworks(); // vuurwerk als je gewonnen hebt
   stepParticles(store.TM);
   drawPlacement();
   lighting(dk);

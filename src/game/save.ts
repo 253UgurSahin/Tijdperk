@@ -1,6 +1,7 @@
+// Opslaan en laden in de browser: drie eigen plekken en één automatische (zie data/saveslots.ts).
 import type { Building, GameState, Stance } from '../types';
-// Opslaan en laden in de browser.
 import { store } from '../core/store';
+import { SET } from '../core/settings';
 import { CX, CY, H, TH, TW, W, setMapSize } from '../config';
 import { ACHIEVEMENT } from '../data/achievements';
 import { BLESSING } from '../data/blessings';
@@ -13,6 +14,22 @@ import { cleanFinale, resetCharge } from '../data/finale';
 import { cleanMods } from '../data/modifiers';
 import { DEFAULT_PEOPLE, PEOPLE } from '../data/peoples';
 import { RKEYS } from '../data/resources';
+import {
+  AUTO_SLOT,
+  MANUAL_SLOTS,
+  OLD_AGE,
+  OLD_SAVE_KEY,
+  SLOTS,
+  SLOT_INDEX_KEY,
+  cleanSlotIndex,
+  cleanSlotMeta,
+  latestSlot,
+  metaFromSave,
+  sameGame,
+  saveErrorText,
+  slotKey,
+} from '../data/saveslots';
+import type { SlotIndex, SlotMeta } from '../data/saveslots';
 import { cleanScenarioState } from '../data/scenarios';
 import { VICTORY } from '../data/victories';
 import { cleanWonders } from '../data/wonders';
@@ -22,7 +39,8 @@ import { computeAvail, computeCaches } from './caches';
 import { spawnFoe, spawnUnit, spawnVillager } from './entities';
 import { loadRivals, saveRivals } from './rivals';
 import type { SavedRival } from './rivals';
-import { G, bById, baseState, gameOpts, setGame } from './state';
+import { currentChallenge } from './scenario';
+import { G, bById, baseState, gameOpts, placeName, setGame } from './state';
 import { refreshWonders } from './wonders';
 import { setZoom } from '../input/input';
 import { clearSel } from '../input/selection';
@@ -32,25 +50,13 @@ import { onAgeChange } from '../ui/age';
 import { sigs } from '../ui/header';
 import { setSpeed, toast } from '../ui/hud';
 import { $ } from '../util/dom';
+import { fromBase64, packZeros, toBase64, unpackZeros } from '../util/pack';
 import { amt, bmap, buildLists, genWorld, node, road, setBlk } from '../world/world';
 
-// Versie 4: grotere, nieuwe wereldgenerator. Oude opslag (v3) past daar niet meer bij.
-export const SKEY = 'tijdperken-save-v4';
-// Oude tijdperknummers (6 tijdperken) naar de nieuwe (9 tijdperken)
-const OLD_AGE = [0, 1, 3, 5, 6, 7];
-function b64(u8: Uint8Array): string {
-  let s = '';
-  // apply werkt ook met een Uint8Array (een rij getallen), maar de types kennen alleen gewone lijsten
-  for (let i = 0; i < u8.length; i += 0x8000)
-    s += String.fromCharCode.apply(null, u8.subarray(i, i + 0x8000) as unknown as number[]);
-  return btoa(s);
-}
-function ub64(b: string): Uint8Array {
-  const s = atob(b),
-    u = new Uint8Array(s.length);
-  for (let i = 0; i < s.length; i++) u[i] = s.charCodeAt(i);
-  return u;
-}
+// Kaartrijen inpakken: veel nullen worden kort opgeschreven (zie util/pack.ts). Oude opslag heeft dit nog niet.
+const packArray = (bytes: Uint8Array): string => toBase64(packZeros(bytes));
+const unpackArray = (text: string, length: number, packed: boolean): Uint8Array =>
+  packed ? unpackZeros(fromBase64(text), length) : fromBase64(text);
 export function serialize(): string {
   const g: Record<string, unknown> = {};
   for (const k of [
@@ -109,9 +115,11 @@ export function serialize(): string {
     ages: 9,
     seed: G.seed,
     g,
-    road: b64(road),
-    node: b64(node),
-    amt: b64(new Uint8Array(amt.buffer)),
+    // Wegen, grondstoffen en hoeveelheden op de kaart, ingepakt (pack: 1)
+    pack: 1,
+    road: packArray(road),
+    node: packArray(node),
+    amt: packArray(new Uint8Array(amt.buffer)),
     bs: G.bs.map(b => ({
       id: b.id,
       type: b.type,
@@ -161,9 +169,14 @@ interface SaveData {
   ages?: number;
   seed: number;
   g: Partial<GameState>;
+  /**
+   * Wegen, grondstoffen en hoeveelheden op de kaart (base64). Met pack: 1 zijn de nullen ingepakt
+   * (zie util/pack.ts); oudere opslag heeft dat nog niet.
+   */
   road?: string;
   node: string;
   amt: string;
+  pack?: number;
   bs: (Pick<Building, 'id' | 'type' | 'x' | 'y' | 'hp' | 'done' | 'prog' | 'bt' | 'on' | 'q' | 'rally'> & {
     lvl: number;
   })[];
@@ -258,9 +271,10 @@ export function deserialize(str: string): boolean {
   G.diff = cleanDiff(G.diff);
   // Opslag van vóór deze teller: stond de vredige modus aan (of speel je Vredig), dan telt dat als gebruikt
   if (G.peaceful || G.diff === 0) G.stats.peaceUsed = true;
-  if (s.road) road.set(ub64(s.road));
-  node.set(ub64(s.node));
-  amt.set(new Uint16Array(ub64(s.amt).buffer));
+  const packed = s.pack === 1;
+  if (s.road) road.set(unpackArray(s.road, road.length, packed));
+  node.set(unpackArray(s.node, node.length, packed));
+  amt.set(new Uint16Array(unpackArray(s.amt, amt.length * 2, packed).buffer));
   buildLists();
   bById.clear();
   for (const o of s.bs) {
@@ -334,31 +348,173 @@ export function deserialize(str: string): boolean {
   }
   clearSel();
   afterLoad();
+  liveGame = G;
   return true;
 }
-export function save(manual?: boolean): void {
+// ---- opslagplekken ----
+
+// Het spel dat nu draait en echt gespeeld wordt (geladen of opgeslagen). Een nieuwe wereld is een ander object,
+// zo weet "Verder spelen" of het dit spel kan voortzetten of de nieuwste opslag moet laden.
+let liveGame: GameState | null = null;
+/** Draait er een spel dat je kunt voortzetten (geladen of opgeslagen, en niet verloren)? */
+export const isLiveGame = (): boolean => !!G && liveGame === G && !G.over;
+
+// Browsers noemen een volle opslag elk anders
+const isQuotaError = (e: unknown): boolean =>
+  e instanceof DOMException &&
+  (e.name === 'QuotaExceededError' ||
+    e.name === 'NS_ERROR_DOM_QUOTA_REACHED' ||
+    e.code === 22 ||
+    e.code === 1014);
+
+/**
+ * De lijst met kaartjes. Staat er op een plek wel een opslag maar geen kaartje (bijv. omdat de lijst niet
+ * bewaard kon worden), dan maken we het kaartje uit de opslag zelf: zo is geen enkele opslag onzichtbaar.
+ */
+function readIndex(): SlotIndex {
+  let index: SlotIndex;
   try {
-    localStorage.setItem(SKEY, serialize());
-    $('#saved').lastChild!.textContent = `Opgeslagen op dag ${G.day}`;
-    if (manual) toast('Spel opgeslagen.', 'good');
+    index = cleanSlotIndex(JSON.parse(localStorage.getItem(SLOT_INDEX_KEY) || '{}'));
   } catch (e) {
-    $('#saved').lastChild!.textContent = 'Opslaan lukt niet in deze browser';
-    if (manual) toast('Opslaan lukt niet in deze browser.', 'bad');
+    index = cleanSlotIndex({});
+  }
+  for (const id of SLOTS) {
+    if (index[id]) continue;
+    try {
+      const text = localStorage.getItem(slotKey(id));
+      if (text) index[id] = metaFromSave(JSON.parse(text));
+    } catch (e) {
+      // Niet te lezen: de plek lijkt leeg, maar de opslag zelf blijft staan
+    }
+  }
+  return index;
+}
+function writeIndex(index: SlotIndex): void {
+  localStorage.setItem(SLOT_INDEX_KEY, JSON.stringify(index));
+}
+
+/**
+ * De ene opslag van vóór de plekken verhuist naar de automatische plek, of (staat daar al iets) naar
+ * de eerste lege eigen plek. Pas als dat gelukt is, gaat de oude weg. Is er geen plek vrij, dan blijft
+ * hij gewoon staan. Zo raak je nooit een spel kwijt.
+ */
+function moveOldSave(): void {
+  try {
+    const old = localStorage.getItem(OLD_SAVE_KEY);
+    if (!old) return;
+    const index = readIndex();
+    // Staat precies deze opslag al op een plek? Dan hoeft hij er niet nog een keer bij.
+    const alreadyMoved = SLOTS.some(id => index[id] && localStorage.getItem(slotKey(id)) === old);
+    if (!alreadyMoved) {
+      const free = SLOTS.find(id => !index[id]);
+      if (!free) return;
+      localStorage.setItem(slotKey(free), old);
+      index[free] = metaFromSave(JSON.parse(old));
+      writeIndex(index);
+    }
+    localStorage.removeItem(OLD_SAVE_KEY);
+  } catch (e) {
+    // Opslag vol of de oude opslag is kapot: dan blijft hij gewoon staan
   }
 }
-export function load(): boolean {
+moveOldSave();
+
+/** Alle plekken met hun kaartje (plaats, volk, tijdperk, dag, tijd), of null als een plek leeg is. */
+export const listSlots = (): SlotIndex => readIndex();
+
+/** Het kaartje van het spel dat nu draait, zoals het na opslaan op een plek staat. */
+export function currentMeta(at = Date.now()): SlotMeta {
+  const challenge = currentChallenge();
+  // Er is altijd een kaartje: we geven een object mee
+  return cleanSlotMeta({
+    place: placeName(),
+    challenge: challenge ? challenge.n : '',
+    people: G.people,
+    age: G.age,
+    day: G.day,
+    at,
+    won: G.won,
+    seed: G.seed,
+    map: G.opts.map,
+    size: W,
+  })!;
+}
+
+/**
+ * Raak je het spel dat nu draait kwijt als er iets anders op de automatische plek komt (laden, nieuwe wereld,
+ * uitdaging)? Ja, als het niet ook op een eigen plek (1, 2 of 3) staat. Een verloren spel telt niet.
+ */
+export function liveGameAtRisk(): boolean {
+  if (!isLiveGame()) return false;
+  const index = readIndex(),
+    now = currentMeta();
+  return !MANUAL_SLOTS.some(id => sameGame(index[id], now));
+}
+
+/** Het spel op een plek bewaren. Geeft '' als het lukte, anders 'quota' (de opslag is vol) of 'blocked'. */
+export function saveToSlot(id: string): string {
+  liveGame = G;
   try {
-    const s = localStorage.getItem(SKEY);
-    if (!s) return false;
-    return deserialize(s);
+    const index = readIndex();
+    localStorage.setItem(slotKey(id), serialize());
+    index[id] = currentMeta();
+    writeIndex(index);
+    return '';
+  } catch (e) {
+    return isQuotaError(e) ? 'quota' : 'blocked';
+  }
+}
+
+/** Het spel van een plek laden. Lukt het niet (leeg of kapot), dan blijft het huidige spel staan. */
+export function loadSlot(id: string): boolean {
+  try {
+    const text = localStorage.getItem(slotKey(id));
+    return !!text && deserialize(text);
   } catch (e) {
     return false;
   }
 }
-export function wipe(): void {
+
+/** Een plek leegmaken. */
+export function deleteSlot(id: string): void {
   try {
-    localStorage.removeItem(SKEY);
-  } catch (e) {}
+    localStorage.removeItem(slotKey(id));
+    const index = readIndex();
+    index[id] = null;
+    writeIndex(index);
+  } catch (e) {
+    // Opslag niet bereikbaar: dan blijft alles zoals het was
+  }
+}
+
+// Een volle opslag melden we één keer, niet elke minuut opnieuw (tot opslaan weer lukt)
+let autoSaveWarned = false;
+/** Automatisch opslaan: elke minuut, als je het tabblad verlaat, en voor je naar het hoofdmenu gaat. */
+export function save(): boolean {
+  const error = saveToSlot(AUTO_SLOT);
+  const line = $('#saved').lastChild!; // de tekst achter het bolletje (zie index.html)
+  if (!error) {
+    line.textContent = `Automatisch opgeslagen op dag ${G.day}`;
+    autoSaveWarned = false;
+    return true;
+  }
+  line.textContent =
+    error === 'quota' ? 'Opslaan mislukt: de opslag is vol' : 'Opslaan lukt niet in deze browser';
+  if (!autoSaveWarned) toast(saveErrorText(error), 'bad');
+  autoSaveWarned = true;
+  return false;
+}
+/** De nieuwste opslag laden (bij het opstarten). */
+export function load(): boolean {
+  const id = latestSlot(readIndex());
+  return !!id && loadSlot(id);
+}
+/**
+ * Dit spel is voorbij: de automatische opslag weg, zodat "Verder spelen" er niet naar teruggaat.
+ * Alleen als daar echt dit spel staat: een ander spel op die plek blijft bewaard.
+ */
+export function wipe(): void {
+  if (sameGame(readIndex()[AUTO_SLOT], currentMeta())) deleteSlot(AUTO_SLOT);
 }
 export function afterLoad(): void {
   computeCaches();
@@ -369,6 +525,7 @@ export function afterLoad(): void {
   for (const k in sigs) sigs[k] = null;
   store.uiDirty = true;
 }
+// Je verlaat het tabblad: bewaren (alleen tijdens het spelen, niet op het titelscherm)
 addEventListener('visibilitychange', () => {
-  if (document.hidden && G && !G.over) save();
+  if (document.hidden && G && !G.over && SET.autosave && $('#title').hidden) save();
 });

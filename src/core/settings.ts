@@ -11,7 +11,7 @@ export const DEFAULTS = {
   quality: 'auto', // 'auto' | 'low' | 'mid' | 'high' | 'custom'
   gfx: { scale: 1, shadows: true, bloom: true, outline: true, particles: true },
   shake: true,
-  motion: true, // animaties in de interface (uit = rustiger)
+  motion: true, // animaties: bewegende knoppen, camerazwaai, meetellende getallen (uit = rustiger)
   fps: false, // beeldjes per seconde tonen
   // besturing
   edge: true, // kaart schuift als de muis de rand raakt

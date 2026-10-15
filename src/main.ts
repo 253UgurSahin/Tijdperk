@@ -105,7 +105,7 @@ import { renderLog } from './ui/panes/log';
 import { renderUpgrades } from './ui/panes/upgrades';
 import { renderRivals } from './ui/rivals';
 import { renderTopBars } from './ui/finale';
-import { rate } from './ui/resources';
+import { rate, tickResourceNumbers } from './ui/resources';
 import { $, isCompact } from './util/dom';
 import { measure } from './core/perf';
 import { initQuality, tickQuality } from './render/quality';
@@ -128,7 +128,8 @@ addEventListener('blur', () => {
   edge.x = -1;
 });
 function frame(now: number) {
-  const rdt = Math.min(0.1, (now - lastT) / 1000);
+  const realDt = (now - lastT) / 1000,
+    rdt = Math.min(0.1, realDt);
   lastT = now;
   if ($('#modal').hidden) {
     const pp = 900 * rdt * (SET.camSpeed || 1);
@@ -220,6 +221,7 @@ function frame(now: number) {
     renderCmd();
     checkBlessing(); // ligt er een zegening klaar om te kiezen?
   }
+  tickResourceNumbers(rdt); // grondstofgetallen tellen vloeiend op
   measure('ui', t0);
   miniT -= rdt;
   // Draait het beeld, dan draait de minikaart vlot mee (anders is hij elke 0,4 seconde genoeg)
@@ -244,10 +246,12 @@ function frame(now: number) {
     }
     store.rateSnap = { t: G.t, r: { ...G.res } };
   }
-  saveT += rdt;
+  // Echte tijd tellen (ook als het spel hapert), zodat automatisch opslaan echt elke minuut gebeurt
+  saveT += Math.min(realDt, 5);
   if (saveT > 60) {
     saveT = 0;
-    if (!G.over && SET.autosave) save();
+    // Niet op het titelscherm: daar ligt soms een wereld waarin je nog niet speelt
+    if (!G.over && SET.autosave && $('#title').hidden) save();
   }
   requestAnimationFrame(frame);
 }
@@ -272,6 +276,7 @@ export function measureHud() {
     );
     ds.setProperty('--topH', Math.round(bt - w.top) + 'px');
     ds.setProperty('--barH', $('#bar').offsetHeight + 'px');
+    // (Hoe hoog de knoppen Dorp, Leger, ... zijn, meet ui/panel.ts: --sideH)
   } else {
     ds.removeProperty('--topH');
     ds.removeProperty('--barH');

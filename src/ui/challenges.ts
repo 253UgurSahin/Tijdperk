@@ -24,7 +24,7 @@ import {
 } from '../data/scenarios';
 import { save, wipe } from '../game/save';
 import { currentChallenge } from '../game/scenario';
-import { G, newGame, placeName } from '../game/state';
+import { G, newGame } from '../game/state';
 import { medalHTML, scoreText } from './achievements';
 import { ico } from './glyphs';
 import { closeModal, showTitle } from './modals';
@@ -162,19 +162,17 @@ function recordHTML(s: ScenarioDef) {
 }
 
 /**
- * Waarschuwing onder Begin: er is maar één opslag, dus je opgeslagen spel verdwijnt. Niet bij dezelfde
- * uitdaging, want dan begin je die gewoon opnieuw.
+ * Waarschuwing onder Begin: de uitdaging komt op de automatische plek, en je spel van nu staat alleen daar.
+ * `warning` is die zin (of leeg). Niet bij dezelfde uitdaging, want dan begin je die gewoon opnieuw.
  */
-function overwriteHTML(s: ScenarioDef, hasSave: boolean) {
-  if (!hasSave || !G) return '';
+function overwriteHTML(s: ScenarioDef, warning: string) {
+  if (!warning || !G) return '';
   const same = G.scenario && G.scenario.k === s.k && (G.scenario.date || '') === (s.date || '');
   if (same) return '';
-  // (de tweede keer is er zeker een uitdaging: net gecontroleerd)
-  const where = currentChallenge() ? currentChallenge()!.n : placeName();
-  return `<p class="nghint warn">Let op: je opgeslagen spel (${where}, dag ${G.day}) wordt overschreven.</p>`;
+  return `<p class="nghint warn">${warning}</p>`;
 }
 
-function detailHTML(s: ScenarioDef, people: string, hasSave: boolean) {
+function detailHTML(s: ScenarioDef, people: string, warning: string) {
   const daily = s.k === DAILY;
   // De wereld van de dag heeft altijd een datum (zie dailyWorld)
   const have = daily ? dailyRecord(s.date!).medal : scenarioRecord(s.k).medal;
@@ -199,11 +197,11 @@ function detailHTML(s: ScenarioDef, people: string, hasSave: boolean) {
     <div class="ngl">Medailles</div>
     ${medalsHTML(s, have)}
     <button class="mbtn primary ngstart" data-ch="start"><span>Begin</span><small>${summary}</small></button>
-    ${overwriteHTML(s, hasSave)}
+    ${overwriteHTML(s, warning)}
   </section>`;
 }
 
-function screenHTML(selected: string, people: string, hasSave: boolean) {
+function screenHTML(selected: string, people: string, warning: string) {
   return `<div class="tw ng ch">
     <div class="nghead">
       <button class="quiet ngback" data-ch="back">${ico('←')}Terug</button>
@@ -212,7 +210,7 @@ function screenHTML(selected: string, people: string, hasSave: boolean) {
     <h1 class="ngtitle">Kies je uitdaging</h1>
     <div class="chgrid">
       ${listHTML(selected)}
-      ${detailHTML(challengeFor(selected)!, people, hasSave)}
+      ${detailHTML(challengeFor(selected)!, people, warning)}
     </div>
   </div>`;
 }
@@ -222,19 +220,20 @@ function screenHTML(selected: string, people: string, hasSave: boolean) {
 /** Wat het uitdagingenscherm meekrijgt (zie showChallenges hieronder). */
 interface ChallengeScreenOpts {
   focus?: string | null;
-  hasSave?: boolean;
+  /** Een zin onder Begin als je spel van nu daarna weg is (zie replaceWarningText), of leeg. */
+  warning?: string;
   onBack: () => void;
   onStart: (opts: NewGameOptions) => void;
 }
 
 /**
  * Laat de uitdagingen zien in het titelscherm `el`. `focus`: welke uitdaging eerst open staat ('daily' of een
- * sleutel). `hasSave`: er is een opgeslagen spel dat bij Begin verdwijnt. `onBack()`: terug naar het
- * hoofdmenu. `onStart(opts)`: begin met { scenario, people } (zie newGame).
+ * sleutel). `warning`: een zin onder Begin als je spel van nu daarna weg is (zie replaceWarningText), of leeg.
+ * `onBack()`: terug naar het hoofdmenu. `onStart(opts)`: begin met { scenario, people } (zie newGame).
  */
 export function showChallenges(
   el: HTMLElement,
-  { focus = null, hasSave = false, onBack, onStart }: ChallengeScreenOpts,
+  { focus = null, warning = '', onBack, onStart }: ChallengeScreenOpts,
 ) {
   let selected = focus || rememberedPick();
   // Zo bestaat de gekozen uitdaging altijd (daarom staat er verderop challengeFor(selected)!)
@@ -242,7 +241,7 @@ export function showChallenges(
   // Je eigen volk (voor uitdagingen zonder vast volk): wat je bij een nieuwe wereld het laatst koos
   let people = newGameDraft().people;
   const draw = () => {
-    el.innerHTML = screenHTML(selected, people, hasSave);
+    el.innerHTML = screenHTML(selected, people, warning);
   };
   draw();
   el.onclick = e => {
@@ -280,8 +279,8 @@ export function showChallenges(
 export function retryChallenge() {
   const def = currentChallenge();
   if (!def) return;
-  wipe();
   newGame({ scenario: { k: def.k, date: def.date || '' }, people: G.people });
+  save(); // meteen bewaren op de automatische plek, in plaats van het vorige spel
   closeModal();
 }
 
