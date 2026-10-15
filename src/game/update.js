@@ -23,6 +23,8 @@ import { amt, bmap, node, nodeLists } from '../world/world.js';
 import { updateMeteors } from './meteors.js';
 import { checkAchievements } from './achievements.js';
 import { checkVictory } from './victory.js';
+import { makeBoss } from './bosses.js';
+import { updateFinale } from './finale.js';
 
 /** Onthoud waar alles stond vóór de volgende speltik, zodat de weergave ertussen kan tekenen. */
 export function rememberPositions() {
@@ -111,11 +113,13 @@ export function update(dt) {
         // Bonussen kunnen aanvallers sterker of zwakker maken
         f.hp *= mul('raid.hp');
         f.mhp *= mul('raid.hp');
+        if (s.boss) makeBoss(f, s.boss); // de kampioen van deze aanval (zie game/bosses.js)
       }
       G.spawnQ = G.spawnQ.filter(s => s.at > G.t);
     }
   }
   updateRivals(dt); // rivaliserende beschavingen: bouwen, trainen, aanvallen (zie game/rivals.js)
+  updateFinale(dt); // de sterrenpoort laadt op (zie game/finale.js)
   updateMeteors(dt);
   updateProj(dt);
   for (const e of G.fx) {

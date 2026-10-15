@@ -61,6 +61,7 @@ export function gameFacts() {
     wondersBuilt: G.stats.wondersBuilt || 0,
     wonderRaces: G.stats.wonderRaces || 0,
     wondersTaken: G.stats.wondersTaken || 0,
+    bosses: G.stats.bosses || 0,
   };
 }
 

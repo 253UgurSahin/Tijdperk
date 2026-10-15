@@ -5,6 +5,7 @@ import { AGES, AGE_UP } from '../data/ages.js';
 import { B, ROADS } from '../data/buildings.js';
 import { RES, RKEYS } from '../data/resources.js';
 import { earnBlessing } from '../game/blessings.js';
+import { bossAfterAgeUp } from '../game/bosses.js';
 import { computeAvail } from '../game/caches.js';
 import { CHAPTERS, built } from '../game/chapters.js';
 import { has, pay } from '../game/economy.js';
@@ -13,7 +14,7 @@ import { G } from '../game/state.js';
 import { checkVictory } from '../game/victory.js';
 import { canUpg, roadTier } from '../game/upgrades.js';
 import { sigs } from './header.js';
-import { toast } from './hud.js';
+import { showBanner, toast } from './hud.js';
 import { buildResBar } from './resources.js';
 import { ageTimeline } from './format.js';
 import { $ } from '../util/dom.js';
@@ -31,10 +32,9 @@ export function ageUp() {
 /** Het volgende tijdperk begint: banner, melding, en na de banner een nieuwe zegening. */
 export function enterNextAge() {
   G.age++;
-  const b = $('#banner');
-  b.innerHTML = `<div class="in"><div class="eyebrow">Hoofdstuk ${AGES[G.age].r}</div><div class="t">${AGES[G.age].n}</div><div class="y">${AGES[G.age].y} · ${CHAPTERS[G.age].t}</div></div>`;
-  b.hidden = false;
-  setTimeout(() => (b.hidden = true), 4500);
+  showBanner(
+    `<div class="in"><div class="eyebrow">Hoofdstuk ${AGES[G.age].r}</div><div class="t">${AGES[G.age].n}</div><div class="y">${AGES[G.age].y} · ${CHAPTERS[G.age].t}</div></div>`,
+  );
   const nr = RKEYS.filter(k => RES[k].age === G.age && !RES[k].cr).map(k => RES[k].n.toLowerCase());
   sfx('age');
   const nu = G.bs.filter(canUpg).length;
@@ -46,6 +46,7 @@ export function enterNextAge() {
   computeAvail();
   onAgeChange();
   earnBlessing(); // het kiesvenster komt pas als de banner weg is (zie ui/blessings.js)
+  bossAfterAgeUp(); // de volgende aanval wordt geleid door een kampioen (zie game/bosses.js)
   checkVictory(); // was dit tijdperk je doel (kort spel)? Dan meteen winnen
   setTimeout(
     () =>

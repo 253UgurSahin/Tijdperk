@@ -4,6 +4,7 @@ import { SET } from '../core/settings.js';
 import { sfx } from '../audio/sound.js';
 import { AGES } from '../data/ages.js';
 import { BLESSING, BLESSING_CATS } from '../data/blessings.js';
+import { bossForAge, bossName } from '../data/bosses.js';
 import { blessingChoices, skipBlessing, takeBlessing, waitingBlessing } from '../game/blessings.js';
 import { G } from '../game/state.js';
 import { TOUCH } from './format.js';
@@ -51,13 +52,15 @@ function showBlessingChoice() {
   }
   const next = waitingBlessing();
   const age = AGES[next.age];
-  const eyebrow = next.age === 0 ? 'Een nieuw begin' : `Hoofdstuk ${age.r} · ${age.n}`;
+  const boss = next.boss && bossForAge(next.age);
+  let eyebrow = next.age === 0 ? 'Een nieuw begin' : `Hoofdstuk ${age.r} · ${age.n}`;
+  if (boss) eyebrow = `Beloning · ${bossName(boss)} verslagen`;
   const howTo = TOUCH ? 'Tik op een kaart.' : 'Klik op een kaart, of druk op 1, 2 of 3.';
   alreadyChosen = false;
   openedAt = performance.now();
   openModal(
     `<div class="eyebrow">${eyebrow}</div><h1>Kies een zegening</h1>
-    <p>Een zegening geldt de rest van het spel. ${howTo}</p>
+    <p>${boss ? `Een extra zegening, omdat je ${boss.n} versloeg. Ook deze geldt de rest van het spel.` : 'Een zegening geldt de rest van het spel.'} ${howTo}</p>
     <div class="blessgrid">${cards.map((b, i) => cardHTML(b, i + 1)).join('')}</div>`,
     { locked: true, cls: 'blesssheet' },
   );

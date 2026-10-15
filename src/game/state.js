@@ -108,6 +108,7 @@ export function baseState(seed) {
       wondersBuilt: 0, // wereldwonderen die jij afmaakte
       wonderRaces: 0, // wonderen die je afmaakte terwijl een rivaal hetzelfde wonder bouwde
       wondersTaken: 0, // wonderen die je veroverde door een rivaal te verslaan
+      bosses: 0, // kampioenen verslagen (zie game/bosses.js)
       lost: 0, // dorpelingen en gebouwen (geen muren) die je kwijtraakte, voor de medailles van uitdagingen
       peaceUsed: false, // stond de vredige modus ooit aan in dit spel? (dan telt de score half)
     },
@@ -120,6 +121,8 @@ export function baseState(seed) {
     rivals: [], // rivaliserende beschavingen (zie game/rivals.js)
     wonders: {}, // wie welk wereldwonder heeft: { pyramid: { by: 'you', day: 12 } } (zie data/wonders.js)
     traderDay: 0, // de dag waarop de handelaar van het Oost-Indisch Huis voor het laatst kwam
+    finale: null, // de sterrenpoort die oplaadt, of null zolang hij nog nooit af was (zie data/finale.js)
+    boss: null, // de kampioen die de volgende aanval leidt: { age }, of null (zie game/bosses.js)
   };
   RKEYS.forEach(k => (g.res[k] = 0));
   return g;

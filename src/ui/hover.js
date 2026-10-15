@@ -2,6 +2,7 @@
 import { store } from '../core/store.js';
 import { W } from '../config.js';
 import { B } from '../data/buildings.js';
+import { bossForAge, bossName } from '../data/bosses.js';
 import { NODES } from '../data/nodes.js';
 import { RES } from '../data/resources.js';
 import { FOES, UNITS } from '../data/units.js';
@@ -78,7 +79,11 @@ export function updateHover() {
   const hit = f || u || v || c || b || rb;
   store.hover = hit ? { kind: hit.kind, id: hit.id } : null;
   if (f && f.rival) h = rivalUnitTip(f);
-  else if (f)
+  else if (f && f.boss) {
+    // Een kampioen: zijn naam, en wat hem verslaan oplevert
+    const boss = bossForAge(f.boss);
+    h = `<b>${bossName(boss)}</b><span>Kampioen · ${fmt(f.hp)}/${fmt(f.mhp)} leven · verslaan = extra zegening</span>`;
+  } else if (f)
     h = `<b>${FOES[f.type].n.replace(/en$|s$/, '')}</b><span>Vijand · ${Math.ceil(f.hp)} levenspunten</span>`;
   else if (u)
     h = `<b>${UNITS[u.k].n}</b><span>${Math.ceil(u.hp)}/${Math.round(u.mhp)} leven · ${u.tgt ? 'in gevecht' : 'paraat'}</span>`;

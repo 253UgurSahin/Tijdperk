@@ -9,7 +9,7 @@ import { fxRing } from './fx.js';
 import { G, bById } from './state.js';
 import { add, mul } from './bonus.js';
 import { armsMul, bMaxHp, bPop } from './upgrades.js';
-import { checkVictory } from './victory.js';
+import { startFinale } from './finale.js';
 import { playerWonderDone } from './wonders.js';
 import { toast } from '../ui/hud.js';
 import { clamp } from '../util/math.js';
@@ -72,8 +72,8 @@ export function completeBuilding(b, silent) {
   }
   // Een wereldwonder: nu van jou, met zijn bonus (zie game/wonders.js)
   if (d.wonder) playerWonderDone(b, silent);
-  // De sterrenpoort: winnen, als dat een van de gekozen doelen is (zie game/victory.js)
-  if (d.win) checkVictory();
+  // De sterrenpoort: hij moet eerst twee nachten opladen voordat je wint (zie game/finale.js)
+  if (d.win) startFinale(b);
   store.uiDirty = true;
 }
 export function spawnVillager(x, y) {

@@ -47,7 +47,7 @@ import { $ } from '../util/dom.js';
 import { clamp, dist } from '../util/math.js';
 import { amt, bmap, isUnl, node, setBlk } from '../world/world.js';
 import { canMake, fitsPeople } from '../data/succession.js';
-import { canDemolish, ownerLine, refreshWonders, wonderStatus } from '../game/wonders.js';
+import { canDemolish, noDemolishText, ownerLine, refreshWonders, wonderStatus } from '../game/wonders.js';
 
 // Selectiepaneel
 // Een opdrachttegel. De uitleg (data-tip) toont buildmenu.js in een eigen tooltip.
@@ -326,7 +326,7 @@ export function renderInspector() {
         cost: costHTML(armsCost(), true),
         tip: '+15% schade en levenspunten voor het hele leger',
       });
-    // Het stamhuis en een wereldwonder breek je niet af
+    // Het stamhuis, een wereldwonder en een sterrenpoort die oplaadt breek je niet af (zie canDemolish)
     if (canDemolish(b))
       cmd += CB('data-b="demolish"', '✕', store.demolishArm ? 'Zeker?' : 'Afbreken', {
         danger: 1,
@@ -610,6 +610,11 @@ export function insHandler(e) {
 }
 $('#inspector').addEventListener('click', insHandler);
 export function demolish(b) {
+  // Nog een keer nakijken: een knop kan er nog staan van vlak voordat de poort begon op te laden
+  if (!canDemolish(b)) {
+    toast(noDemolishText(b));
+    return;
+  }
   setBlk(b, false);
   const d = B[b.type],
     f = b.done ? 0.5 : 0.75;

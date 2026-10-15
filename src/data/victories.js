@@ -1,5 +1,6 @@
 // Manieren om te winnen: welke doelen er zijn, hoe ver je bent, en wat het eindscherm dan zegt. Puur.
 import { AGES } from './ages.js';
+import { CHARGE_NIGHTS, chargePercent } from './finale.js';
 
 /** Zoveel nachten moet je doorstaan voor de overwinning "Overleven". */
 export const SURVIVE_NIGHTS = 30;
@@ -11,7 +12,8 @@ const LAST_AGE = AGES.length - 1;
 
 /*
  * Feiten (`f`) die de doelen gebruiken, zoals game/victory.js ze verzamelt:
- * age (tijdperk), day (dag), stargate (sterrenpoort af), stargateBusy (sterrenpoort neergezet),
+ * age (tijdperk), day (dag), stargate (sterrenpoort af en opgeladen), charging (sterrenpoort laadt op),
+ * charge (hoe vol, 0 tot 1), stargateBusy (sterrenpoort neergezet),
  * campsLeft (kampen die nog over zijn), wonders (wereldwonderen die nu van jou zijn),
  * rivals (rivalen in dit spel), rivalsBeaten (rivalen verslagen).
  *
@@ -29,21 +31,25 @@ export const VICTORIES = [
   {
     k: 'stargate',
     n: 'Sterrenpoort',
-    d: 'Doorloop alle tijdperken en bouw de sterrenpoort',
+    d: `Doorloop alle tijdperken, bouw de sterrenpoort en houd hem ${CHARGE_NIGHTS} nachten heel`,
     g: '✹',
     len: 'Lang spel',
     on: true,
     full: true,
-    frac: f => (f.stargate ? 1 : Math.min(f.age, LAST_AGE) / (LAST_AGE + 1)),
+    // De lading van de poort telt als het laatste stukje (maar pas als hij open is, is het 1)
+    frac: f =>
+      f.stargate ? 1 : Math.min(0.99, (Math.min(f.age, LAST_AGE) + (f.charge || 0)) / (LAST_AGE + 1)),
     text: f => {
       if (f.stargate) return 'klaar';
       if (f.age < LAST_AGE) return `tijdperk ${f.age + 1} van ${LAST_AGE + 1}`;
+      if (f.charging) return `laadt op: ${chargePercent(f.charge)}%`;
       return f.stargateBusy ? 'in aanbouw' : 'nu bouwen';
     },
     end: {
       eyebrow: `Hoofdstuk ${AGES[LAST_AGE].r} voltooid`,
       title: 'Van vuursteen tot sterrenpoort.',
-      story: f => `${f.place} doorliep de hele geschiedenis in ${days(f.day)}.`,
+      story: f =>
+        `${f.place} doorliep de hele geschiedenis in ${days(f.day)}. De sterrenpoort hield ${CHARGE_NIGHTS} nachten stand.`,
     },
   },
   {

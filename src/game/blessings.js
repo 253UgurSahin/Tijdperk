@@ -1,5 +1,5 @@
 // Zegeningen in het spel: wanneer je mag kiezen, welke kaarten er liggen en wat een keuze doet.
-import { blessingOffer } from '../data/blessings.js';
+import { blessingOffer, bossOffer } from '../data/blessings.js';
 import { applyBonusChange } from './bonus.js';
 import { spawnUnit, spawnVillager } from './entities.js';
 import { hasRule } from './mods.js';
@@ -10,6 +10,7 @@ import { G } from './state.js';
  * G.blessings: de sleutels van de zegeningen die je koos (de bonussen telt game/bonus.js).
  * G.blessingQueue: keuzes die nog komen, als { age, at }. Vanaf speltijd `at` liggen de kaarten
  * van tijdperk `age` klaar. De interface (ui/blessings.js) laat ze zien als het scherm vrij is.
+ * Met boss: true is het de beloning voor een verslagen kampioen (zie game/bosses.js).
  */
 
 /** Een nieuw tijdperk: er komt een keuze bij. */
@@ -27,7 +28,10 @@ export function waitingBlessing() {
 export function blessingChoices() {
   const next = waitingBlessing();
   if (!next) return [];
-  return blessingOffer(G.seed, next.age, G.blessings, { peaceful: G.peaceful, noArmy: hasRule('noArmy') });
+  const opts = { peaceful: G.peaceful, noArmy: hasRule('noArmy') };
+  // Na een verslagen kampioen: andere kaarten dan bij de gewone keuze (zie game/bosses.js)
+  if (next.boss) return bossOffer(G.seed, next.age, G.blessings, opts);
+  return blessingOffer(G.seed, next.age, G.blessings, opts);
 }
 
 /** Kies zegening k uit de kaarten die nu klaarliggen. Geeft de zegening terug, of null. */

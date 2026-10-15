@@ -30,6 +30,9 @@ import {
 } from './rivals.js';
 import { bmap, foeWalk, freeWalk, isUnl, nearestWall, setBlk, walkable } from '../world/world.js';
 import { wonderDestroyed } from './wonders.js';
+import { bossDefeated, bossForRaid } from './bosses.js';
+import { gateDestroyed, gateHurt, isCharging, raidBoost } from './finale.js';
+import { spreadOut } from '../data/finale.js';
 
 function tpos(t) {
   // Een gebouw: van jou ('b') of van een rivaal ('rb')
@@ -44,11 +47,13 @@ export const isDead = t =>
   !t || t.dead || t.hidden || (t.kind === 'c' && !t.alive) || (t.kind === 'f' && t.retreat);
 function hit(t, dmg) {
   if (isDead(t)) return;
+  const hpBefore = t.hp;
   t.hp -= dmg;
   t.flash = 0.12;
   if (t.kind === 'b' || t.kind === 'c' || t.kind === 'rb') sfx('hit', 0.15);
   else sfx('hit', 0.3);
   if (t.rival) rivalHurt(t); // een rivaal merkt dat je hem aanvalt
+  if (t.kind === 'b' && t.type === 'stargate') gateHurt(t, hpBefore); // waarschuwing tijdens de finale
   if (t.hp > 0) return;
   t.dead = true;
   if (t.kind === 'b') destroyBuilding(t);
@@ -67,6 +72,7 @@ function hit(t, dmg) {
   } else if (t.kind === 'f') {
     G.stats.killed++;
     burst(t.x, t.y, '#7a3a30');
+    if (t.boss) bossDefeated(t); // een kampioen: extra zegening (zie game/bosses.js)
     if (Math.random() < 0.35) {
       const n = 5 + G.age * 3;
       G.res.food += n;
@@ -92,6 +98,8 @@ function destroyBuilding(b) {
     endGame(false, 900);
   } else if (d.wonder) {
     wonderDestroyed(b); // het wonder is weer vrij (zie game/wonders.js)
+  } else if (d.win) {
+    gateDestroyed(); // de sterrenpoort: de lading is weg (zie game/finale.js)
   } else if (d.wall) {
     note(`${d.n} doorbroken.`, 'bad');
   } else {
@@ -411,9 +419,11 @@ export function foeTarget(f) {
   }
   if (best || f.camp) return best;
   bd = 1e9;
+  // Tijdens de finale gaan aanvallers liever op de sterrenpoort af (alsof hij 15 tegels dichterbij staat)
+  const gateBias = isCharging() ? 15 : 0;
   for (const b of G.bs) {
     const p = tpos(b);
-    const d = dist(f.x, f.y, p.x, p.y) - (B[b.type].def ? 3 : 0);
+    const d = dist(f.x, f.y, p.x, p.y) - (B[b.type].def ? 3 : 0) - (b.type === 'stargate' ? gateBias : 0);
     if (d < bd) {
       bd = d;
       best = b;
@@ -501,6 +511,12 @@ export function fUpdate(f, dt) {
     }
   } else chase(f, p, dt, f.spd, f.air);
 }
+// Tijdens de finale: zoveel seconden speltijd tussen de groepen uit verschillende richtingen
+const WAVE_GAP = 20;
+// "noorden", "noorden en westen", "noorden, oosten en zuiden"
+const joinWords = list =>
+  list.length > 1 ? `${list.slice(0, -1).join(', ')} en ${list[list.length - 1]}` : list[0];
+
 export function spawnRaid() {
   G.raids++;
   const a = G.age,
@@ -515,25 +531,43 @@ export function spawnRaid() {
     }
   if (!edge.length) return;
   G.stats.raidDay = G.day; // voor de prestaties "doorsta ... aanvallen" (zie game/time.js)
-  const anchor = edge[(Math.random() * edge.length) | 0],
-    near = edge.filter(e => dist(e[0], e[1], anchor[0], anchor[1]) < 7);
+  // Meestal één groep; tijdens de finale drie groepen uit richtingen ver uit elkaar (zie game/finale.js)
+  const anchors = spreadOut(edge, raidBoost().sides, (Math.random() * edge.length) | 0),
+    nearby = anchors.map(an => edge.filter(e => dist(e[0], e[1], an[0], an[1]) < 7));
   for (let k = 0; k < n; k++) {
     // Meestal vijanden van jouw tijdperk, met wat oudere ertussen; drones komen met pantserwagens
     const type = a === 7 ? (k % 2 ? 7 : 6) : k % 3 === 0 && a > 0 ? a - 1 : a;
-    const e = near[(Math.random() * near.length) | 0];
-    G.spawnQ.push({ type, x: e[0] + 0.5, y: e[1] + 0.5, scale, at: G.t + k * 0.7 });
+    const near = nearby[k % anchors.length],
+      e = near[(Math.random() * near.length) | 0];
+    G.spawnQ.push({
+      type,
+      x: e[0] + 0.5,
+      y: e[1] + 0.5,
+      scale,
+      // Meerdere groepen komen na elkaar, met WAVE_GAP seconden ertussen: zo blijft het te verdedigen
+      at: G.t + Math.floor(k / anchors.length) * 0.7 + (k % anchors.length) * WAVE_GAP,
+    });
   }
+  // Na een nieuw tijdperk leidt een kampioen de aanval: hij komt mee met de eerste groep
+  const boss = bossForRaid();
+  if (boss) {
+    const e = nearby[0][(Math.random() * nearby[0].length) | 0];
+    G.spawnQ.push({ type: boss.foe, x: e[0] + 0.5, y: e[1] + 0.5, scale, at: G.t + 2.5, boss: boss.age });
+  }
+  const anchor = anchors[0];
+  const from = [...new Set(anchors.map(an => compass(an[0], an[1])))];
   store.notePos = [anchor[0], anchor[1]];
-  toast(`Aanval! ${n} × ${FOES[a].n.toLowerCase()} uit het ${compass(anchor[0], anchor[1])}.`, 'bad');
+  toast(`Aanval! ${n} × ${FOES[a].n.toLowerCase()} uit het ${joinWords(from)}.`, 'bad');
   sfx('alarm');
-  store.raidPing = { x: anchor[0], y: anchor[1], t: 8 };
+  store.raidPing = { x: anchor[0], y: anchor[1], t: 8, more: anchors.slice(1) };
 }
 // Hoe groot de volgende aanval is: groeit met elke aanval en elk tijdperk, maar blijft te overzien.
 // (Latere vijanden zijn per stuk al veel sterker, dus het aantal groeit rustig.)
+// Tijdens de finale komt daar nog eens keer twee bij, boven op het gewone maximum.
 export function raidSize() {
   const diff = difficulty(G.diff); // Zwaar en Meedogenloos sturen grotere groepen
   const base = 2 + Math.floor((G.raids + 1) * 0.9) + G.age;
-  return Math.min(diff.raidMax, Math.round(base * diff.raidSize * mul('raid.size')));
+  return Math.min(diff.raidMax, Math.round(base * diff.raidSize * mul('raid.size'))) * raidBoost().size;
 }
 export function compass(x, y) {
   const a = (Math.atan2(y - CY, x - CX) * 180) / Math.PI;

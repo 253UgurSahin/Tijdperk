@@ -496,7 +496,7 @@ export const B = {
     cat: 'mil',
     age: 8,
     size: 2,
-    hp: 4000,
+    hp: 12000, // stevig: tijdens de finale gaat elke aanvaller erop af (zie game/finale.js)
     win: 1,
     light: 10,
     cost: { steel: 600, starmetal: 500, fusion: 200, chips: 200 },

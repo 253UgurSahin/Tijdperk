@@ -152,3 +152,18 @@ window.__tp.rivalWonder = (i = G.rivals.findIndex(r => r.p === 'bouwer')) => {
   return r;
 };
 window.__tp.myWonder = (k, x, y) => placeBuilding(k, x, y, true);
+// Finale en kampioenen: zet meteen een afgebouwde sterrenpoort neer (de finale begint), zet de lading
+// (__tp.charge(0.9) = 90%), of laat nu een aanval komen met de kampioen van dit tijdperk (__tp.bossRaid())
+import { spawnRaid } from './game/military.js';
+import * as finale from './game/finale.js';
+import * as bosses from './game/bosses.js';
+window.__tp.finale = finale;
+window.__tp.bosses = bosses;
+window.__tp.gate = (x = G.bs[0].x + 5, y = G.bs[0].y - 3) => placeBuilding('stargate', x, y, true);
+window.__tp.charge = frac => {
+  if (G.finale && G.finale.need > 0) G.finale.hours = G.finale.need * frac;
+};
+window.__tp.bossRaid = (age = Math.max(1, G.age)) => {
+  G.boss = { age };
+  spawnRaid();
+};

@@ -6,6 +6,10 @@ import { seasonIndex } from '../data/modifiers.js';
 import { raidSize, spawnRaid } from './military.js';
 import { dayPace, hasRule } from './mods.js';
 import { G } from './state.js';
+import { bossFled, liveBoss, pendingBoss } from './bosses.js';
+import { isCharging } from './finale.js';
+import { bossName } from '../data/bosses.js';
+import { FINALE_SIDES } from '../data/finale.js';
 import { hasT } from './upgrades.js';
 import { note, toast } from '../ui/hud.js';
 
@@ -25,8 +29,11 @@ export function darkness(h = G.clock) {
 }
 export const isNight = () => darkness() > 0.42;
 // Op Zwaar en Meedogenloos elke nacht een aanval, anders om de nacht (zie data/difficulty.js)
+// Laadt de sterrenpoort op, dan komt er elke nacht een aanval (zie game/finale.js)
 export const raidNight = (day = G.day) =>
-  !G.peaceful && day >= 2 && (difficulty(G.diff).everyNight || day % 2 === 0 || G.forceRaid === day);
+  !G.peaceful &&
+  day >= 2 &&
+  (difficulty(G.diff).everyNight || day % 2 === 0 || G.forceRaid === day || isCharging());
 function crossed(p, c, h) {
   return p <= c ? p < h && c >= h : p < h || c >= h;
 }
@@ -49,10 +56,9 @@ export function advanceClock(dt) {
   if (crossed(p, c, 18.3)) {
     if (G.day === 1)
       toast('De avond valt. Buiten het licht gaan dorpelingen naar huis. Kampvuren houden ze aan het werk.');
-    if (raidNight() && !hasT('radio')) toast('Er naderen vijanden. Vannacht volgt een aanval.', 'bad');
+    if (raidNight() && !hasT('radio')) toast(raidWarning(false), 'bad');
   }
-  if (crossed(p, c, 12) && raidNight() && hasT('radio'))
-    toast(`Radio: vannacht valt een groep van ±${raidSize()} aan.`, 'bad');
+  if (crossed(p, c, 12) && raidNight() && hasT('radio')) toast(raidWarning(true), 'bad');
   if (crossed(p, c, 21) && raidNight()) spawnRaid();
   // Spelregel Dubbele aanvallen: rond middernacht komt een tweede golf (de dag telt pas om 6 uur verder)
   if (crossed(p, c, 0.5) && raidNight() && hasRule('raidsX2')) spawnRaid();
@@ -60,18 +66,36 @@ export function advanceClock(dt) {
     // Het is ochtend en het stamhuis staat nog: de aanval van vannacht is doorstaan.
     // We kijken naar de aanval die echt begon (niet naar het rooster): de vredige modus kan intussen zijn omgezet.
     if (G.stats.raidDay === G.day - 1 && !G.over) G.stats.survived++;
-    let n = 0;
+    let n = 0,
+      boss = null;
     // (Soldaten van rivalen niet: die gaan pas naar huis als hun eigen aanval voorbij is, zie game/rivals.js)
     for (const f of G.foes)
       if (!f.camp && !f.rival && !f.retreat) {
         f.retreat = true;
         n++;
+        if (f.boss) boss = f;
       }
     if (n) {
       toast('De aanvallers trekken zich terug.', 'good');
       sfx('raidend');
     }
+    if (boss) bossFled(boss); // de kampioen vlucht mee (zie game/bosses.js)
   }
+}
+// De waarschuwing voor de aanval van vannacht. Met de radio weet je ook hoe groot hij wordt.
+// Tijdens de finale komen ze uit meer richtingen en gaan ze op de sterrenpoort af (zie game/finale.js).
+function raidWarning(radio) {
+  if (isCharging() && radio)
+    return `Radio: vannacht vallen ±${raidSize()} vijanden de sterrenpoort aan, uit ${FINALE_SIDES} richtingen${ledBy()}.`;
+  if (isCharging())
+    return `Vannacht valt iedereen de sterrenpoort aan, uit ${FINALE_SIDES} richtingen${ledBy()}.`;
+  if (radio) return `Radio: vannacht valt een groep van ±${raidSize()} aan${ledBy()}.`;
+  return `Er naderen vijanden${ledBy()}. Vannacht volgt een aanval.`;
+}
+// ", geleid door Grimnar de Verscheurder" als de kampioen meekomt met de aanval van vannacht
+function ledBy() {
+  const boss = pendingBoss();
+  return boss && !liveBoss() ? `, geleid door ${bossName(boss)}` : '';
 }
 export function hoursUntilRaid() {
   let day = G.day,

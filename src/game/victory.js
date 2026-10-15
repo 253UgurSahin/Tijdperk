@@ -3,7 +3,8 @@ import { store } from '../core/store.js';
 import { AGES } from '../data/ages.js';
 import { VICTORY, reachedVictory } from '../data/victories.js';
 import { endGame, upgradeWin } from './achievements.js';
-import { built } from './chapters.js';
+import { chargeFrac } from '../data/finale.js';
+import { isCharging } from './finale.js';
 import { checkChallenge } from './scenario.js';
 import { G, placeName } from './state.js';
 import { myWonderCount } from './wonders.js';
@@ -13,7 +14,9 @@ export function victoryFacts() {
   return {
     age: G.age,
     day: G.day,
-    stargate: built('stargate'),
+    stargate: !!(G.finale && G.finale.done), // de poort is af én helemaal opgeladen (zie game/finale.js)
+    charge: chargeFrac(G.finale), // hoe vol de poort is, van 0 tot 1
+    charging: isCharging(),
     stargateBusy: G.bs.some(b => b.type === 'stargate'),
     campsLeft: G.camps.filter(c => c.alive).length,
     wonders: myWonderCount(), // wereldwonderen die nu van jou zijn
@@ -47,8 +50,8 @@ export function checkVictory() {
   G.won = true;
   G.wonBy = k;
   store.uiDirty = true;
-  // Bij een nieuw tijdperk eerst even de banner laten zien, dan pas het eindscherm
-  endGame(true, k === 'age' ? 2600 : 800);
+  // Bij een nieuw tijdperk eerst even de banner laten zien (en bij de sterrenpoort het licht), dan pas het eindscherm
+  endGame(true, k === 'age' || k === 'stargate' ? 2600 : 800);
 }
 
 /**
@@ -63,5 +66,5 @@ function checkFullVictoryAfterShort() {
   const k = reachedVictory(fullGoals, victoryFacts());
   if (!k) return;
   store.uiDirty = true;
-  upgradeWin(k);
+  upgradeWin(k, 2600);
 }

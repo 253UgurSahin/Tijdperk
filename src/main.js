@@ -102,6 +102,7 @@ import { renderJobs } from './ui/panes/jobs.js';
 import { renderLog } from './ui/panes/log.js';
 import { renderUpgrades } from './ui/panes/upgrades.js';
 import { renderRivals } from './ui/rivals.js';
+import { renderTopBars } from './ui/finale.js';
 import { rate } from './ui/resources.js';
 import { $, isCompact } from './util/dom.js';
 import { measure } from './core/perf.js';
@@ -205,6 +206,7 @@ function frame(now) {
     renderJobs();
     renderDefense();
     renderRivals();
+    renderTopBars(); // balken bovenaan: de sterrenpoort die oplaadt en een kampioen
     renderLog();
     renderInspector();
     renderCmd();

@@ -43,6 +43,7 @@ export const emptyFacts = () => ({
   wondersBuilt: 0, // wereldwonderen die je zelf afmaakte
   wonderRaces: 0, // wonderen afgemaakt terwijl een rivaal hetzelfde wonder bouwde
   wondersTaken: 0, // wonderen veroverd door een rivaal te verslaan
+  bosses: 0, // kampioenen verslagen (zie data/bosses.js)
 });
 
 /** Prestatie: win een spel met dit volk. */
@@ -102,7 +103,7 @@ export const ACHIEVEMENTS = [
     n: 'Naar de sterren',
     cat: 'win',
     g: '★',
-    d: 'Win een spel: bouw de Sterrenpoort',
+    d: 'Win een spel: bouw de Sterrenpoort en laad hem op',
     when: f => f.won,
   },
   {
@@ -203,6 +204,22 @@ export const ACHIEVEMENTS = [
     g: '★',
     d: 'Verover een wereldwonder: versla een rivaal die er een heeft',
     when: f => f.wondersTaken >= 1,
+  },
+  {
+    k: 'boss1',
+    n: 'Kampioenendoder',
+    cat: 'war',
+    g: '♛',
+    d: 'Versla een kampioen: de aanvoerder van de eerste aanval na een nieuw tijdperk',
+    when: f => f.bosses >= 1,
+  },
+  {
+    k: 'bosses4',
+    n: 'Heldendicht',
+    cat: 'war',
+    g: '♛',
+    d: 'Versla 4 kampioenen in één spel',
+    when: f => f.bosses >= 4,
   },
   {
     k: 'raids3',
