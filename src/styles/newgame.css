@@ -333,7 +333,12 @@
   min-width: 0;
   text-align: right;
 }
-/* Korte toelichting die als geheel op één regel blijft (geen los puntje aan het eind van een regel) */
+/* Korte toelichting die als geheel op één regel blijft (geen los puntje aan het eind van een regel).
+   Past hij niet meer naast de titel (op een telefoon), dan schuift hij er in zijn geheel onder. */
+#title .mbtn:has(> small.whole) {
+  flex-wrap: wrap;
+  row-gap: 2px;
+}
 #title .mbtn > small.whole {
   flex: none;
   white-space: nowrap;

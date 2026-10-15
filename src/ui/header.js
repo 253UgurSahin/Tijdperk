@@ -29,18 +29,13 @@ export function updateHeader() {
   buildResBar();
   updateResPop();
   const rb = $('#resbar');
-  // Past het niet (te hoog of te breed)? Dan één grondstof minder tonen
-  if (
-    (rb.scrollHeight > rb.clientHeight + 2 || rb.scrollWidth > rb.clientWidth + 2) &&
-    store.resMax > 2 &&
-    !isCompact()
-  ) {
-    store.resMax--;
-    sigs.resbar = null;
-    buildResBar();
-  }
-  if (isCompact() && rb.scrollWidth > rb.clientWidth + 2 && store.resMax > 2) {
-    store.resMax--;
+  // Past het niet (te hoog of te breed)? Dan één grondstof minder tonen dan er nu staan.
+  // Desnoods maar één: de knop +N moet altijd zichtbaar blijven (telefoon met stroom en leger).
+  const tooBig =
+    rb.scrollWidth > rb.clientWidth + 2 || (!isCompact() && rb.scrollHeight > rb.clientHeight + 2);
+  if (tooBig && store.resMax > 1) {
+    const shown = rb.querySelectorAll('.res').length;
+    store.resMax = Math.max(1, Math.min(store.resMax, shown) - 1);
     sigs.resbar = null;
     buildResBar();
   }

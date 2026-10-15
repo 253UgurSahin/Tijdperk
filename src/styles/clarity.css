@@ -165,8 +165,12 @@
     gap: 6px;
     padding: 6px 8px;
   }
+  /* Inwoners, stroom en de snelknoppen in twee rijen; komt er meer bij, dan komt er een kolom bij */
   .poprow {
-    flex-direction: column;
+    display: grid;
+    grid-template-rows: repeat(2, auto);
+    grid-auto-flow: column;
+    align-content: center;
     align-items: stretch;
     gap: 3px;
     border: 0;
@@ -174,7 +178,11 @@
     margin: 0;
     padding: 0 8px 0 0;
   }
-  .poprow .pstat {
+  #quick {
+    display: contents;
+  }
+  .poprow .pstat,
+  .poprow .pbtn {
     min-height: 21px;
     padding: 0 8px;
     font-size: 12px;

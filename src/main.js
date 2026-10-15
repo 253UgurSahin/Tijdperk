@@ -259,6 +259,8 @@ export function measureHud() {
   } else {
     ds.removeProperty('--topH');
     ds.removeProperty('--barH');
+    // Zo breed is het blok met tijd en tijdperk: de grondstoffenstrook blijft links daarvan (zie clarity.css)
+    ds.setProperty('--agew', Math.ceil($('#ageplate').getBoundingClientRect().width) + 'px');
   }
 }
 try {
