@@ -11,6 +11,16 @@ import { groundVersion } from './terrainlook.js';
 import { BIOME, TER, biome, bmap, ground, node, road, ter } from '../world/world.js';
 import { settled } from '../game/rivals.js';
 
+// Ligt er water direct naast deze tegel (boven, onder, links of rechts)?
+function nextToWater(x, y) {
+  return (
+    (x > 0 && ter[y * W + x - 1] === TER.WATER) ||
+    (x < W - 1 && ter[y * W + x + 1] === TER.WATER) ||
+    (y > 0 && ter[(y - 1) * W + x] === TER.WATER) ||
+    (y < H - 1 && ter[(y + 1) * W + x] === TER.WATER)
+  );
+}
+
 // Een plukje gras: een paar smalle sprieten in een waaier, onderaan donker en bovenaan licht.
 // De normalen wijzen omhoog, zodat het gras even licht is als de grond eronder.
 function tuftGeometry() {
@@ -181,6 +191,8 @@ export function updateScatter() {
       const i = y * W + x,
         t = ter[i];
       if (t === TER.WATER || bmap[i] || road[i]) continue;
+      // Naast water ligt het wateroppervlak deels over de tegel: daar geen gras, anders steekt het uit het water
+      if (nextToWater(x, y)) continue;
       const per = PER_TILE[biome[i]];
       if (!per) continue;
       // Rand van het gebied: kleiner, zodat er geen harde grens te zien is

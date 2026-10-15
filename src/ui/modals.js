@@ -180,7 +180,7 @@ export function openPause() {
     ? `<button class="mbtn" data-m="pg"><span>Volgend tijdperk</span><small>wat er nog nodig is</small></button>
       <div class="mpair">
         <button class="mbtn" data-m="pr"><span>Kaart</span><small>overzicht · uitbreiden</small></button>
-        <button class="mbtn" data-m="pl"><span>Dorp en leger</span><small>verdediging · onderzoek</small></button>
+        <button class="mbtn" data-m="pl"><span>Dorp en leger</span><small>volk · leger · verbeteren</small></button>
       </div>`
     : '';
   // Je wereld in één regel, zodat je de zaadcode kunt delen (in een uitdaging staat de naam ervoor)
@@ -389,6 +389,7 @@ export function showTitle({ setup = false, challenges = false, focus = null } = 
   const el = $('#title');
   setSpeed(0);
   el.hidden = false;
+  el.scrollTop = 0; // altijd bovenaan beginnen, ook als je eerder naar beneden scrolde
   document.body.classList.add('titled');
   const leaveTitle = () => {
     el.hidden = true;

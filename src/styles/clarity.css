@@ -45,7 +45,7 @@
   text-align: right;
   font-family: var(--f-mono);
   white-space: nowrap;
-  padding: 2px 0;
+  padding: 1px 0;
 }
 .cmp td.arr {
   width: 22px;
@@ -258,6 +258,6 @@
   #inspector .upcard.side {
     float: right;
     width: min(340px, 48%);
-    margin: 22px 0 8px 14px; /* onder het sluitkruisje */
+    margin: 18px 0 4px 14px; /* onder het sluitkruisje */
   }
 }

@@ -148,6 +148,13 @@ const WATER_COLOR = `
   // Schuimrand langs de oever, die zacht heen en weer schuift
   float edge = depth + sin(uTime * 1.1 + vWPos.x * 0.7 + vWPos.z * 0.5) * 0.012;
   float foam = smoothstep(0.05, 0.012, edge) * smoothstep(0.4, 0.62, n + 0.1);
+  // Klein plasje (ook een paar tegels verderop ondiep)? Dan geen schuim, anders wordt het een witte vlek
+  vec2 dUv = vWPos.xz / uMapSize, o = vec2(2.5) / uMapSize;
+  float around = max(
+    max(texture2D(uDepth, dUv + vec2(o.x, 0.0)).r, texture2D(uDepth, dUv - vec2(o.x, 0.0)).r),
+    max(texture2D(uDepth, dUv + vec2(0.0, o.y)).r, texture2D(uDepth, dUv - vec2(0.0, o.y)).r)
+  );
+  foam *= smoothstep(0.03, 0.12, around);
   // Golfjes die naar het strand rollen (in stukjes, zodat het geen strakke lijnen worden)
   #ifdef FINE_DETAIL
     float roll = smoothstep(0.88, 1.0, sin(depth * 30.0 + uTime * 1.6 + n * 3.0));

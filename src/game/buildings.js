@@ -132,7 +132,9 @@ export function bUpdate(b, dt) {
       }
     } else {
       G.trainT += dt;
-      if (G.trainT >= 8) {
+      // Pas als er nog plek is komt de dorpeling eruit (intussen kan een soldaat de laatste plek hebben genomen)
+      if (G.trainT >= 8 && popNow() >= popCap()) G.trainT = 8;
+      else if (G.trainT >= 8) {
         G.training = false;
         const v = spawnVillager(b.x + 1, b.y + 2.3);
         G.stats.born++;

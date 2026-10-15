@@ -191,8 +191,10 @@ function frame(now) {
   measure('sim', t0);
   t0 = performance.now();
   render();
-  tickQuality(rdt);
-  if (SET.fps) showFps(rdt);
+  // Echte tijd (tot 1 s), anders lijkt een traag apparaat sneller dan het is
+  const frameTime = Math.min(1, realDt);
+  tickQuality(frameTime);
+  if (SET.fps) showFps(frameTime);
   measure('render', t0);
   t0 = performance.now();
   updateHover();
