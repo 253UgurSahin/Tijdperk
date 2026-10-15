@@ -15,6 +15,7 @@ import { bestVeteran, rankName } from '../../data/army.js';
 import { repairBuildings, repairCost } from '../../game/repair.js';
 import { arrivalHour, clockText } from '../../game/rivals.js';
 import { G, sel } from '../../game/state.js';
+import { bMaxHp } from '../../game/upgrades.js';
 import { hoursUntilRaid } from '../../game/time.js';
 import { selectArmy } from '../../input/input.js';
 import { clearSel } from '../../input/selection.js';
@@ -67,7 +68,7 @@ function veteranLine() {
 }
 export function renderDefense() {
   const th = G.bs.find(b => b.type === 'townhall'),
-    hp = th ? th.hp / B.townhall.hp : 0,
+    hp = th ? th.hp / bMaxHp(th) : 0, // tegen de echte max: die groeit met tijdperk, verbeteringen en de Piramide
     raidNow = G.foes.filter(isRaider).length,
     marching = G.foes.filter(isMarching), // soldaten van rivalen die nog onderweg zijn: nog niet in je land
     hrs = hoursUntilRaid(),

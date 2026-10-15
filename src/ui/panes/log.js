@@ -9,8 +9,11 @@ import { setHTML } from '../header.js';
 import { $ } from '../../util/dom.js';
 
 /** Welke grondstoffen in de grafiek staan: voedsel, hout, steen en wat nieuw is in dit tijdperk (max. 5). */
-export const chartKeys = age =>
-  ['food', 'wood', 'stone', ...RKEYS.filter(k => RES[k].age === age && !RES[k].cr)].slice(0, 5);
+export function chartKeys(age) {
+  const keys = ['food', 'wood', 'stone', ...RKEYS.filter(k => RES[k].age === age && !RES[k].cr)];
+  // In de steentijd zijn voedsel, hout en steen zelf "nieuw": elke grondstof maar één keer
+  return [...new Set(keys)].slice(0, 5);
+}
 
 /**
  * Teken de voorraadgrafiek op een canvas: één lijn per grondstof.

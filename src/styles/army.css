@@ -234,14 +234,14 @@ body.titled #armytip {
 @media (max-width: 900px), (max-height: 560px) {
   #groups {
     right: 6px;
-    bottom: calc(var(--barH, 240px) + 56px);
+    bottom: calc(var(--barH, 240px) + var(--sideH, 36px) + 20px);
   }
   .grp {
     width: 50px;
     height: 44px;
   }
   body.hasgroups #hintbar {
-    bottom: calc(var(--barH, 240px) + 108px);
+    bottom: calc(var(--barH, 240px) + var(--sideH, 36px) + 72px);
   }
   /* De hintbalk zo breed als zijn tekst (anders wordt hij op een smal scherm een hoge, smalle toren) */
   #hintbar {
@@ -249,7 +249,7 @@ body.titled #armytip {
   }
   #armytip {
     right: 6px;
-    bottom: calc(var(--barH, 240px) + 110px);
+    bottom: calc(var(--barH, 240px) + var(--sideH, 36px) + 74px);
   }
   /* De tip staat waar de hintbalk staat: zolang de tip open is, wacht de hintbalk */
   #armytip:not([hidden]) ~ #hintbar {

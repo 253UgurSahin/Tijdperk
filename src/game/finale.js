@@ -57,16 +57,17 @@ export function startFinale(gate) {
     ]);
     toast(`De sterrenpoort laadt op. Na ${nights} nachten gaat hij open, bij zonsopgang.`, 'age');
   } else {
+    // Eén rivaal over? Dan "je rivaal", anders "alle rivalen"
+    const rivalLine = rivals === 1 ? 'Je rivaal valt ook aan' : `Alle ${rivals} rivalen vallen tegelijk aan`;
     const lines = [
       `Houd ${nights} nachten stand, tot zonsopgang`,
       `Elke nacht ±${raidSize()} vijanden uit ${FINALE_SIDES} richtingen`,
     ];
-    if (rivals)
-      lines.push(rivals === 1 ? 'Je rivaal valt ook aan' : `Alle ${rivals} rivalen vallen tegelijk aan`);
+    if (rivals) lines.push(rivalLine);
     lines.push('Verwoest? Dan opnieuw beginnen · herstel hem op tijd');
     showFinaleBanner(lines);
     toast(
-      `De sterrenpoort laadt op! Houd ${nights} nachten stand: elke nacht een aanval, ${FINALE_RAID_MUL}× zo groot, uit ${FINALE_SIDES} richtingen.${rivals ? ' Alle rivalen vallen tegelijk aan.' : ''}`,
+      `De sterrenpoort laadt op! Houd ${nights} nachten stand: elke nacht een aanval, ${FINALE_RAID_MUL}× zo groot, uit ${FINALE_SIDES} richtingen.${rivals ? ` ${rivalLine}.` : ''}`,
       'age',
     );
   }

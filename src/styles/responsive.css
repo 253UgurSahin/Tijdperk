@@ -174,17 +174,18 @@
     min-height: 36px;
     padding: 6px 10px;
   }
+  /* Boven de knoppenrij (--sideH: zo hoog is die rij, één of twee rijen; zie measureHud in main.js) */
   #panel {
     position: fixed;
     left: 6px;
     right: 6px;
     top: calc(var(--topH, 120px) + 6px);
-    bottom: calc(var(--barH, 240px) + 56px);
+    bottom: calc(var(--barH, 240px) + var(--sideH, 36px) + 20px);
     width: auto;
     max-height: none;
   }
   #hintbar {
-    bottom: calc(var(--barH, 240px) + 56px);
+    bottom: calc(var(--barH, 240px) + var(--sideH, 36px) + 20px);
   }
   #notes {
     top: calc(var(--topH, 120px) + 8px);

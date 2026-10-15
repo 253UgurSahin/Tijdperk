@@ -265,16 +265,19 @@ export function measureHud() {
     );
     ds.setProperty('--topH', Math.round(bt - w.top) + 'px');
     ds.setProperty('--barH', $('#bar').offsetHeight + 'px');
+    // De knoppen Dorp, Leger, ... zijn op een smalle telefoon twee rijen hoog: groepenbalk en paneel gaan daarboven
+    ds.setProperty('--sideH', $('#sidebtns').offsetHeight + 'px');
   } else {
     ds.removeProperty('--topH');
     ds.removeProperty('--barH');
+    ds.removeProperty('--sideH');
     // Zo breed is het blok met tijd en tijdperk: de grondstoffenstrook blijft links daarvan (zie clarity.css)
     ds.setProperty('--agew', Math.ceil($('#ageplate').getBoundingClientRect().width) + 'px');
   }
 }
 try {
   const ro = new ResizeObserver(measureHud);
-  for (const s of ['#ageplate', '#resPanel', '#objectives', '#bar']) ro.observe($(s));
+  for (const s of ['#ageplate', '#resPanel', '#objectives', '#bar', '#sidebtns']) ro.observe($(s));
 } catch (e) {
   addEventListener('resize', measureHud);
 }
