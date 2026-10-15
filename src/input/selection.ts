@@ -2,7 +2,7 @@ import type { Building, Camp, Mobile, Unit, Villager } from '../types';
 // Selecteren en opdrachten geven (lopen, aanvallen, verzamelen).
 import { store } from '../core/store';
 import { sfx } from '../audio/sound';
-import { W } from '../config';
+import { CN, W } from '../config';
 import { B } from '../data/buildings';
 import { NODES } from '../data/nodes';
 import { RES } from '../data/resources';
@@ -15,8 +15,12 @@ import { mouse } from './input';
 import { proj, s2iso, s2t } from '../render/camera';
 import { nearScreen, pickGroup } from '../render/picking';
 import { BG3, CG3 } from '../render/sync';
+import { RG3 } from '../render/rivals3d';
+import { landOwner, orderRivalAttack, rbById } from '../game/rivals';
+import { RIVAL } from '../data/rivals';
 import { setExpand, toast } from '../ui/hud';
 import { demolish } from '../ui/inspector';
+import { canDemolish } from '../game/wonders';
 import { bmap, inb, isUnl, node, nodeVis, road, walkable } from '../world/world';
 import { VH, VW } from '../render/scene';
 
@@ -63,12 +67,25 @@ export function bAtScreen(X: number, Y: number): Building | null {
   if (!inb(ix, iy)) return null;
   return bById.get(bmap[iy * W + ix]) || null;
 }
+/** Het gebouw van een rivaal op deze plek van het scherm, of null. */
+export function rbAt(X, Y) {
+  const id = pickGroup(X, Y, RG3, 'rbid');
+  if (id != null && rbById.get(id)) return rbById.get(id);
+  const [tx, ty] = s2t(X, Y),
+    ix = Math.floor(tx),
+    iy = Math.floor(ty);
+  if (!inb(ix, iy)) return null;
+  return rbById.get(bmap[iy * W + ix]) || null;
+}
 export function clearSel() {
   sel.vs.clear();
   sel.us.clear();
   sel.b = null;
   sel.camp = null;
   sel.node = -1;
+  sel.rb = null;
+  sel.rival = null;
+  sel.rivalUnit = null;
   store.demolishArm = 0;
 }
 function command(X: number, Y: number, tx: number, ty: number) {
@@ -77,14 +94,20 @@ function command(X: number, Y: number, tx: number, ty: number) {
   let did = false;
   if (us.length) {
     const f = foeAt(X, Y),
-      c = campAt(X, Y);
-    if (f || c) {
-      for (const u of us) {
-        u.tgt = f || c!;
-        u.order = 'attack';
-        u.path = null;
-      }
-      fxRing(f ? f.x : c!.x + 1, f ? f.y : c!.y + 1, '#c0473b');
+      c = !f && campAt(X, Y),
+      rb = !f && !c && rbAt(X, Y);
+    if (f || c || rb) {
+      const target = f || c || rb;
+      // Een gebouw van een rivaal: ze blijven daarna in hun stad (zie game/rivals.js)
+      if (rb) orderRivalAttack(us, rb);
+      else
+        for (const u of us) {
+          u.tgt = target;
+          u.order = 'attack';
+          u.path = null;
+        }
+      const s = rb ? B[rb.type].size / 2 : 1;
+      fxRing(f ? f.x : target.x + s, f ? f.y : target.y + s, '#c0473b');
       toast(`${us.length} ${us.length === 1 ? 'eenheid valt' : 'eenheden vallen'} aan.`);
       did = true;
     } else {
@@ -154,7 +177,9 @@ export function leftClick(sx: number, sy: number, shift: boolean, ctrl?: boolean
   if (store.expandMode) {
     const cx = ix >> 4,
       cy = iy >> 4;
+    const rival = inb(ix, iy) && landOwner(cy * CN + cx);
     if (inb(ix, iy) && canBuyChunk(cx, cy)) buyChunk(cx, cy);
+    else if (rival) toast(`Dit land is van ${RIVAL[rival.k].n}. Verwoest hun stamhuis om het te veroveren.`);
     else toast('Kies een gemarkeerd gebied dat aan je land grenst.');
     return;
   }
@@ -164,14 +189,15 @@ export function leftClick(sx: number, sy: number, shift: boolean, ctrl?: boolean
   }
   if (store.demoMode) {
     const b = bAtScreen(X, Y);
-    if (b && b.type !== 'townhall') {
+    // Het stamhuis en een af wereldwonder breek je niet af (zie canDemolish)
+    if (b && canDemolish(b)) {
       demolish(b);
       sfx('boom');
     } else if (inb(ix, iy) && road[iy * W + ix]) {
       road[iy * W + ix] = 0;
       burst(ix + 0.5, iy + 0.5, '#8a7a62');
       sfx('tick');
-    } else if (b) toast('Het stamhuis kun je niet afbreken.', 'bad');
+    } else if (b) toast(`${B[b.type].n} kun je niet afbreken.`, 'bad');
     return;
   }
   if (store.cmdMode && sel.us.size) {
@@ -202,7 +228,7 @@ export function leftClick(sx: number, sy: number, shift: boolean, ctrl?: boolean
     store.uiDirty = true;
     return;
   }
-  if (sel.us.size && (foeAt(X, Y) || campAt(X, Y))) {
+  if (sel.us.size && (foeAt(X, Y) || campAt(X, Y) || rbAt(X, Y))) {
     command(X, Y, tx, ty);
     return;
   }
@@ -226,6 +252,24 @@ export function leftClick(sx: number, sy: number, shift: boolean, ctrl?: boolean
   if (c) {
     clearSel();
     sel.camp = c.id;
+    store.uiDirty = true;
+    return;
+  }
+  // Iets van een rivaal: een gebouw selecteren, of bij een soldaat de rivaal zelf bekijken
+  const rb = rbAt(X, Y);
+  if (rb) {
+    sfx('select');
+    clearSel();
+    sel.rb = rb.id;
+    store.uiDirty = true;
+    return;
+  }
+  const rf = foeAt(X, Y);
+  if (rf && rf.rival) {
+    sfx('select');
+    clearSel();
+    sel.rival = rf.rival;
+    sel.rivalUnit = rf.id; // zo kan de kaart ook "Val deze soldaat aan" tonen
     store.uiDirty = true;
     return;
   }

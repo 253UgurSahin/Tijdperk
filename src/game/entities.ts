@@ -8,9 +8,11 @@ import { NAMES } from '../data/names';
 import { FOES, UNITS } from '../data/units';
 import { fxRing } from './fx';
 import { G, bById } from './state';
+import { add, mul } from './bonus';
 import { armsMul, bMaxHp, bPop } from './upgrades';
+import { checkVictory } from './victory';
+import { playerWonderDone } from './wonders';
 import { toast } from '../ui/hud';
-import { showVictory } from '../ui/modals';
 import { clamp } from '../util/math';
 import { bmap, node, setBlk } from '../world/world';
 
@@ -26,7 +28,10 @@ export function placeBuilding(type: string, x: number, y: number, instant?: bool
     hp: instant ? d.hp : Math.max(1, d.hp * 0.15),
     done: false,
     prog: 0,
-    bt: type === 'stargate' ? 160 : type === 'command' ? 120 : d.wall ? 3 : clamp(4 + tot / 12, 5, 80),
+    // Bouwtijd: een eigen getal (zoals bij wonderen), anders afhankelijk van de kosten
+    bt:
+      d.bt ||
+      (type === 'stargate' ? 160 : type === 'command' ? 120 : d.wall ? 3 : clamp(4 + tot / 12, 5, 80)),
     on: true,
     ct: 0,
     cd: 0,
@@ -58,16 +63,18 @@ export function completeBuilding(b: Building, silent?: boolean) {
     if (!silent) toast('Smidse klaar: betere werktuigen voor iedereen', 'good');
   }
   b.pop_t = G.t;
+  if (d.wall) G.stats.walls++; // voor de prestatie "win zonder muren"
   if (!silent) {
     store.notePos = [b.x + d.size / 2, b.y + d.size / 2];
-    toast(d.n + ' is klaar');
+    if (!d.wonder) toast(d.n + ' is klaar'); // een wonder krijgt een eigen melding, hieronder
     fxRing(b.x + d.size / 2, b.y + d.size / 2, '#ffffff');
     sfx('done');
+    if (d.snd === 'creak') sfx('creak'); // de wieken van een nieuwe molen gaan draaien
   }
-  if (d.win && !G.won) {
-    G.won = true;
-    setTimeout(showVictory, 800);
-  }
+  // Een wereldwonder: nu van jou, met zijn bonus (zie game/wonders.js)
+  if (d.wonder) playerWonderDone(b, silent);
+  // De sterrenpoort: winnen, als dat een van de gekozen doelen is (zie game/victory.js)
+  if (d.win) checkVictory();
   store.uiDirty = true;
 }
 export function spawnVillager(x: number, y: number): Villager {
@@ -104,8 +111,8 @@ export function spawnUnit(k: string, x: number, y: number): Unit {
     k,
     x,
     y,
-    hp: u.hp * armsMul(),
-    mhp: u.hp * armsMul(),
+    hp: u.hp * armsMul() * mul('army.hp'),
+    mhp: u.hp * armsMul() * mul('army.hp'),
     cd: 0,
     path: null,
     order: 'guard',
@@ -135,6 +142,7 @@ export function spawnFoe(type: number, x: number, y: number, scale: number, camp
     r: F.r,
     rate: F.rate,
     air: !!F.air,
+    ride: !!F.ride,
     proj: !!F.proj,
     big: !!F.big,
     cd: Math.random(),
@@ -152,6 +160,6 @@ export function spawnFoe(type: number, x: number, y: number, scale: number, camp
   G.foes.push(f);
   return f;
 }
-export const popCap = () => G.bs.reduce((a, b) => a + (b.done ? bPop(b) : 0), 0);
+export const popCap = () => G.bs.reduce((a, b) => a + (b.done ? bPop(b) : 0), 0) + add('pop');
 export const popNow = () => G.vs.length + G.us.length;
 export const trainCost = () => 50 + G.age * 10;

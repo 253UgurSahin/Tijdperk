@@ -2,10 +2,22 @@ import type { Building, GameState, Stance } from '../types';
 // Opslaan en laden in de browser.
 import { store } from '../core/store';
 import { CX, CY, H, TH, TW, W } from '../config';
+import { ACHIEVEMENT } from '../data/achievements';
+import { BLESSING } from '../data/blessings';
 import { B } from '../data/buildings';
+import { cleanDiff } from '../data/difficulty';
+import { cleanActiveEvent, cleanBuffs, cleanEventsSeen, cleanFollowups } from '../data/events';
+import { cleanMods } from '../data/modifiers';
+import { DEFAULT_PEOPLE, PEOPLE } from '../data/peoples';
+import { RKEYS } from '../data/resources';
+import { cleanScenarioState } from '../data/scenarios';
+import { VICTORY } from '../data/victories';
+import { cleanWonders } from '../data/wonders';
 import { computeAvail, computeCaches } from './caches';
 import { spawnFoe, spawnUnit, spawnVillager } from './entities';
-import { G, bById, baseState, setGame } from './state';
+import { loadRivals, saveRivals } from './rivals';
+import { G, bById, baseState, gameOpts, setGame } from './state';
+import { refreshWonders } from './wonders';
 import { setZoom } from '../input/input';
 import { clearSel } from '../input/selection';
 import { clampCam } from '../render/camera';
@@ -61,11 +73,26 @@ export function serialize() {
     'diff',
     'tech',
     'research',
-    'buff',
     'forceRaid',
     'lastEvent',
+    'event',
+    'buffs',
+    'followups',
+    'eventsSeen',
     'nextMeteor',
-  ] as (keyof GameState)[])
+    'blessings',
+    'blessingQueue',
+    'people',
+    'achieved',
+    'result',
+    'countedAsPlayed',
+    'opts',
+    'wonBy',
+    'scenario',
+    'mods',
+    'wonders',
+    'traderDay',
+  ])
     g[k] = G[k];
   return JSON.stringify({
     v: 4,
@@ -104,6 +131,7 @@ export function serialize() {
     guards: G.foes
       .filter(f => f.camp)
       .map(f => ({ type: f.type, x: f.x, y: f.y, hp: f.hp, mhp: f.mhp, camp: f.camp })),
+    rivals: saveRivals(), // rivalen met hun gebouwen en soldaten (zie game/rivals.js)
     cam: { x: cam.x, y: cam.y, z: cam.z },
     cv: 2,
   });
@@ -131,23 +159,74 @@ interface SaveData {
 export function deserialize(str: string): boolean {
   const s: SaveData = JSON.parse(str);
   if (s.v !== 4 || s.size !== W) return false;
+  // De keuzes van het nieuw-spelscherm. Opslag van daarvóór: volk en moeilijkheid uit het spel, de rest standaard
+  // (een continent, winnen met de sterrenpoort). De kaartsoort is nodig om dezelfde wereld te maken.
+  const opts = gameOpts(s.seed, { people: s.g.people, diff: s.g.diff, ...s.g.opts });
   setGame(baseState(s.seed));
-  genWorld(s.seed);
+  genWorld(s.seed, opts.map);
   Object.assign(G, s.g);
+  G.opts = opts;
+  // Uitdaging en spelregels: opslag van daarvóór (of een uitdaging die niet meer bestaat) is een gewoon spel.
+  // Dit moet vóór het terugzetten van soldaten: spelregels kunnen hun levens veranderen.
+  G.scenario = cleanScenarioState(s.g.scenario);
+  G.mods = cleanMods(s.g.mods);
+  // Al gewonnen in opslag van vóór de keuze: dat was altijd met de sterrenpoort. Een uitdaging wint met haar doel.
+  const knownVictory = !!VICTORY[s.g.wonBy];
+  const wonChallenge = s.g.wonBy === 'scenario' && !!G.scenario;
+  const wonBy = knownVictory || wonChallenge ? s.g.wonBy : 'stargate';
+  G.wonBy = G.won ? wonBy : '';
   // Opslag van vóór de negen tijdperken: zet oude tijdperk- en vijandnummers om
   const fromOld = s.ages !== 9;
   if (fromOld) G.age = OLD_AGE[G.age] ?? G.age;
   G.groups = G.groups || {};
-  G.hist = G.hist || [];
+  // Zegeningen: opslag van vóór de zegeningen mag er meteen één kiezen.
+  // Dit moet vóór het terugzetten van soldaten, want die krijgen hun levens mede door zegeningen.
+  if (!Array.isArray(s.g.blessings)) {
+    G.blessings = [];
+    G.blessingQueue = [{ age: G.age, at: 0 }];
+  }
+  G.blessings = G.blessings.filter(k => BLESSING[k]); // zegeningen die niet meer bestaan vallen weg
+  // Gebeurtenissen: tijdelijke bonussen, vervolgen en het open kaartje. Ook vóór de soldaten (levens).
+  G.buffs = cleanBuffs(s.g.buffs);
+  // Opslag van vóór de tijdelijke bonussen: een lopend oogstfeest wordt er gewoon één
+  if (s.g.buff && s.g.buff.work > G.t)
+    G.buffs.push({
+      k: 'feast',
+      n: 'Oogstfeest',
+      g: '⚘',
+      d: 'Al het verzamelwerk 25% sneller',
+      bonus: { 'gather.all': 0.25 },
+      until: s.g.buff.work,
+    });
+  delete G.buff;
+  G.followups = cleanFollowups(s.g.followups);
+  G.eventsSeen = cleanEventsSeen(s.g.eventsSeen);
+  G.event = cleanActiveEvent(s.g.event);
+  // Wereldwonderen (ook vóór de soldaten: het Colosseum geeft levens). Opslag van daarvóór: geen wonderen,
+  // en de handelaar van het Oost-Indisch Huis is nog niet geweest. Na de gebouwen kijken we het nog na.
+  G.wonders = cleanWonders(s.g.wonders);
+  G.traderDay = Number.isInteger(s.g.traderDay) ? s.g.traderDay : 0;
+  // Volk: opslag van vóór de volken (of met een volk dat niet meer bestaat) speelt als Friezen
+  if (!PEOPLE[G.people]) G.people = DEFAULT_PEOPLE;
+  if (!Array.isArray(G.blessingQueue)) G.blessingQueue = [];
+  // Grondstoffen die toen nog niet bestonden (buskruit, sterrenmetaal, ...) beginnen op 0;
+  // anders telt 'undefined' als genoeg en wordt de voorraad NaN
+  for (const k of RKEYS) if (!Number.isFinite(G.res[k])) G.res[k] = 0;
+  // De grafiek-geschiedenis had toen minder kolommen: begin die opnieuw
+  G.hist = fromOld ? [] : G.hist || [];
   G.offer = null;
   G.stats = Object.assign(baseState(0).stats, s.g.stats);
+  // Prestaties en score: opslag van vóór het profiel begint zonder (het spel telt dan nog mee)
+  G.achieved = Array.isArray(s.g.achieved) ? s.g.achieved.filter(k => ACHIEVEMENT[k]) : [];
+  G.result = s.g.result || null;
+  G.countedAsPlayed = !!s.g.countedAsPlayed;
   G.log = s.g.log || [];
   G.toolLvl = s.g.toolLvl || 0;
   G.armsLvl = s.g.armsLvl || 0;
   G.tech = G.tech || {};
-  G.buff = G.buff || {};
-  G.diff = G.diff == null ? 1 : G.diff;
-  G.event = null;
+  G.diff = cleanDiff(G.diff);
+  // Opslag van vóór deze teller: stond de vredige modus aan (of speel je Vredig), dan telt dat als gebruikt
+  if (G.peaceful || G.diff === 0) G.stats.peaceUsed = true;
   if (s.road) road.set(ub64(s.road));
   node.set(ub64(s.node));
   amt.set(new Uint16Array(ub64(s.amt).buffer));
@@ -194,6 +273,11 @@ export function deserialize(str: string): boolean {
     f.hx = c.x + 1 + (Math.random() - 0.5) * 3;
     f.hy = c.y + 1 + (Math.random() - 0.5) * 3;
   }
+  // Rivalen: opslag van daarvóór heeft er geen. Het gekozen aantal is wat er in het spel zit.
+  loadRivals(s.rivals);
+  G.opts.rivals = G.rivals.length;
+  // Wereldwonderen: wie welk wonder heeft, volgt uit de gebouwen die er nu weer staan
+  refreshWonders();
   if (s.cam) {
     let x = s.cam.x,
       y = s.cam.y;

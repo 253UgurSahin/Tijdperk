@@ -7,7 +7,9 @@ import type { Tile } from '../types';
 //   4. grondstoffen → elk erts in het landschap waar het hoort (koper in heuvels, olie in de woestijn, ...)
 //   5. eerlijkheid  → elke grondstof ligt op een redelijke afstand van je startplek
 //   6. bereikbaarheid → geen stukken land die je nooit kunt bereiken
-// Zelfde seed = altijd dezelfde wereld. Dit bestand gebruikt geen spelstand of browser, dus het is te testen.
+// Zelfde seed en kaartsoort = altijd dezelfde wereld. Dit bestand gebruikt geen spelstand of browser,
+// dus het is te testen. De kaartsoorten (continent, eilanden, bergland) staan in data/maps.js.
+import { DEFAULT_MAP, MAP, cleanMap } from '../data/maps';
 import { NI, NODES } from '../data/nodes';
 import { clamp, dist } from '../util/math';
 import { fbm, hash2, mulberry32 } from '../util/random';
@@ -17,10 +19,6 @@ export const TER = { LAND: 0, WATER: 1, SAND: 2, SALT: 3, ROCK: 4 };
 
 // Landschappen, voor de kleur van de grond en waar grondstoffen liggen
 export const BIOME = { WATER: 0, BEACH: 1, GRASS: 2, FOREST: 3, HILLS: 4, MOUNTAIN: 5, DESERT: 6, SALT: 7 };
-
-// Hoeveel van de kaart (als deel van 1) lager ligt dan elke grens.
-// Zo krijgt elke wereld ongeveer evenveel zee, heuvels en bergen.
-const LEVELS = { sea: 0.24, shore: 0.28, hill: 0.74, peak: 0.92 };
 
 /** Kun je over deze tegel lopen? (geen water en geen berg) */
 export const isPassable = (t: number): boolean => t !== TER.WATER && t !== TER.ROCK;
@@ -33,11 +31,11 @@ export const MAX_START_DIST: Record<string, number> = {
   copper: 24,
   tin: 28,
   iron: 36,
-  gold: 42,
-  coal: 40,
-  oil: 52,
-  sand: 52,
-  lithium: 64,
+  gold: 36,
+  coal: 34,
+  oil: 36,
+  sand: 38,
+  lithium: 54,
   starmetal: 70,
 };
 
@@ -45,20 +43,13 @@ export const MAX_START_DIST: Record<string, number> = {
 export const startLimit = (k: string, W: number): number =>
   k === 'tree' || k === 'bush' || k === 'rock' ? MAX_START_DIST[k] : MAX_START_DIST[k] * (W / 128) * 0.7;
 
-/** Wat de wereldgenerator oplevert. */
-export interface GeneratedWorld {
-  ter: Uint8Array;
-  biome: Uint8Array;
-  node: Uint8Array;
-  amt: Uint16Array;
-  elev: Float32Array;
-  moist: Float32Array;
-  /** Hoogtegrenzen: zeeniveau, diep water, voet en top van de bergen. */
-  levels: { sea: number; deep: number; peak: number; top: number };
-  start: { x: number; y: number };
-}
-
-export function generateWorld(seed: number, W: number, H: number): GeneratedWorld {
+/**
+ * Maak een wereld van W bij H tegels uit een seed. `mapKind` is een sleutel uit data/maps.js.
+ * Het continent is de standaard: zo blijven oude opslagen precies dezelfde wereld houden.
+ */
+export function generateWorld(seed, W, H, mapKind = DEFAULT_MAP) {
+  // Per kaartsoort: hoeveel zee, heuvels en bergen (als deel van de kaart), en hoe groot het land is
+  const { levels: LEVELS, landSize, edgeDrop, ridges, straits } = MAP[cleanMap(mapKind)].gen;
   const N = W * H,
     R = mulberry32(seed),
     s = seed % 9973,
@@ -78,12 +69,16 @@ export function generateWorld(seed: number, W: number, H: number): GeneratedWorl
   for (let y = 0; y < H; y++)
     for (let x = 0; x < W; x++) {
       let e =
-        0.55 * fbm(x / (34 * scale), y / (34 * scale), s) +
+        0.55 * fbm(x / (landSize * scale), y / (landSize * scale), s) +
         0.3 * fbm(x / (14 * scale), y / (14 * scale), s + 11) +
         0.15 * fbm(x / 5, y / 5, s + 23);
+      // Bergland: lange bergkammen erbovenop (hoog waar de ruis precies door het midden gaat)
+      if (ridges) e += ridges * ridge(x / (18 * scale), y / (18 * scale), s + 41);
+      // Eilanden: lange zeestraten snijden het land in stukken (laag waar de ruis door het midden gaat)
+      if (straits) e -= straits * ridge(x / (30 * scale), y / (30 * scale), s + 53);
       // Naar de rand van de kaart toe zakt het land weg in zee
       const edge = Math.min(x, y, W - 1 - x, H - 1 - y) / (W * 0.1);
-      e -= Math.pow(1 - clamp(edge, 0, 1), 2) * 0.22;
+      e -= Math.pow(1 - clamp(edge, 0, 1), 2) * edgeDrop;
       elev[idx(x, y)] = e;
     }
   // Grenzen bepalen uit de hoogteverdeling van deze wereld
@@ -309,6 +304,15 @@ export function generateWorld(seed: number, W: number, H: number): GeneratedWorl
 
   // ---- 9. Bereikbaarheid: verbind losse stukken land met een pas of doorwaadbare plek ----
   connectRegions(ter, biome, node, W, H, idx(cx, cy));
+  // Ligt een grondstof van stap 7 op een eilandje dat niet verbonden is? Leg er dan een op bereikbaar land.
+  // (Op het continent gebeurt dit bijna nooit; op de eilandenkaart wel.)
+  ensureReachable({ ter, node, W, H, start: { x: cx, y: cy }, R, place: blob });
+  // De startplek weer vrij maken: ensureReachable kan er net een grondstof neergelegd hebben
+  for (let y = cy - 3; y <= cy + 3; y++) {
+    for (let x = cx - 3; x <= cx + 3; x++) {
+      node[idx(x, y)] = 0;
+    }
+  }
 
   // ---- 10. Hoeveelheid per bron ----
   for (let i = 0; i < N; i++)
@@ -324,6 +328,64 @@ export function generateWorld(seed: number, W: number, H: number): GeneratedWorl
   // levels: hoogtegrenzen van deze wereld (voor kleuren en de hoogte van bergen)
   const levels = { sea: SEA, deep: q(0.03), peak: PEAK, top: q(0.997) };
   return { ter, biome, node, amt, elev, moist, levels, start: { x: cx, y: cy } };
+}
+
+/** Kamruis: 1 op lange, smalle lijnen (de bergkammen), 0 ver ervandaan. */
+function ridge(x, y, s) {
+  const r = 1 - Math.abs(2 * fbm(x, y, s) - 1);
+  return r * r * r;
+}
+
+/**
+ * Zorg dat elke grondstof te voet bereikbaar binnen zijn afstand van de start ligt.
+ * Wat ontbreekt, komt via `place` op een bereikbare plek in de ring rond de start.
+ * (Stap 7 lijkt hierop, maar kijkt niet of je er kunt komen. Die blijft zoals hij was,
+ * zodat werelden uit oude opslag precies hetzelfde blijven.)
+ */
+function ensureReachable({ ter, node, W, H, start, R, place }) {
+  const reachable = reachableFrom(ter, W, H, start.y * W + start.x);
+  for (const k of Object.keys(MAX_START_DIST)) {
+    const limit = startLimit(k, W);
+    if (hasNodeNear(node, W, H, start, NI[k], limit, i => reachable[i])) continue;
+    for (let tries = 0; tries < 400; tries++) {
+      const a = R() * Math.PI * 2,
+        rr = limit * (0.55 + R() * 0.4),
+        x = Math.round(start.x + Math.cos(a) * rr),
+        y = Math.round(start.y + Math.sin(a) * rr);
+      if (x < 0 || y < 0 || x >= W || y >= H || !reachable[y * W + x]) continue;
+      place(x, y, 1.6, k);
+      node[y * W + x] = NI[k]; // het midden altijd, zodat er zeker iets bereikbaars ligt
+      break;
+    }
+  }
+}
+
+/** Ligt grondstof `t` ergens binnen `limit` tegels van de start, op een tegel waarvoor ook `ok(i)` geldt? */
+function hasNodeNear(node, W, H, start, t, limit, ok) {
+  const r = Math.ceil(limit);
+  for (let y = Math.max(0, start.y - r); y < Math.min(H, start.y + r); y++)
+    for (let x = Math.max(0, start.x - r); x < Math.min(W, start.x + r); x++) {
+      const i = y * W + x;
+      if (node[i] === t && ok(i) && dist(x, y, start.x, start.y) <= limit) return true;
+    }
+  return false;
+}
+
+/** Alle tegels die je vanaf `from` te voet kunt bereiken (1 = bereikbaar). */
+export function reachableFrom(ter, W, H, from) {
+  const seen = new Uint8Array(W * H),
+    q = [from];
+  seen[from] = 1;
+  for (let h = 0; h < q.length; h++) {
+    const i = q[h],
+      x = i % W;
+    for (const j of [x > 0 ? i - 1 : -1, x < W - 1 ? i + 1 : -1, i - W, i + W])
+      if (j >= 0 && j < W * H && !seen[j] && isPassable(ter[j])) {
+        seen[j] = 1;
+        q.push(j);
+      }
+  }
+  return seen;
 }
 
 /** Afstand (in tegels, tot `max`) van elke tegel tot de dichtstbijzijnde tegel waarvoor `is(i)` geldt. */
@@ -417,8 +479,9 @@ export function connectRegions(
   }
   const bigEnough = (i: number) => label[i] >= 0 && sizes[label[i]] >= 25;
 
-  // Herhaal: zoek vanaf het verbonden land het dichtstbijzijnde losse stuk en graaf een doorgang
-  for (let round = 0; round < 60; round++) {
+  // Herhaal: zoek vanaf het verbonden land het dichtstbijzijnde losse stuk en graaf een doorgang.
+  // (Een eilandenkaart heeft veel losse stukken, daarom mag dit vaak.)
+  for (let round = 0; round < 250; round++) {
     const from = new Int32Array(N).fill(-1),
       q = [];
     for (let i = 0; i < N; i++)

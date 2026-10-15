@@ -9,11 +9,14 @@ import { canPlace, ghostPos } from '../game/placement';
 import { sel } from '../game/state';
 import { CUR } from '../input/cursors';
 import { drag, mouse } from '../input/input';
-import { bAtScreen, campAt, foeAt, unitAt, villAt } from '../input/selection';
+import { bAtScreen, campAt, foeAt, rbAt, unitAt, villAt } from '../input/selection';
+import { ownerAt } from '../game/rivals';
+import { rivalBuildingTip, rivalLandTip, rivalUnitTip } from './rivals';
 import { VH, VW, cv } from '../render/scene';
 import { bShort } from './buildmenu';
 import { esc, fmt } from './format';
 import { $ } from '../util/dom';
+import { SET } from '../core/settings';
 import { clamp } from '../util/math';
 import { amt, inb, isUnl, node, nodeVis } from '../world/world';
 
@@ -37,6 +40,12 @@ export function updateHover() {
     return;
   }
   if (tip.className) tip.className = '';
+  // Uitleg bij de muis uitgezet in de instellingen (meldingen bij het bouwen blijven wel)
+  if (!SET.tips) {
+    tip.hidden = true;
+    return;
+  }
+  if (mouse.in && tip.dataset.tile) delete tip.dataset.tile;
   if (
     !mouse.in ||
     drag ||
@@ -46,7 +55,7 @@ export function updateHover() {
     store.demoMode ||
     store.cmdMode
   ) {
-    if (!tip.dataset.res) tip.hidden = true;
+    if (!tip.dataset.res && !tip.dataset.tile) tip.hidden = true;
     if (!mouse.in || mouse.touch) store.hover = null;
     return;
   }
@@ -61,18 +70,22 @@ export function updateHover() {
     u = unitAt(X, Y),
     v = villAt(X, Y),
     c = campAt(X, Y),
-    b = bAtScreen(X, Y);
-  cv.style.cursor = sel.us.size && (f || c) ? CUR.atk : u || v || b || c ? CUR.hand : CUR.def;
+    b = bAtScreen(X, Y),
+    rb = !b && rbAt(X, Y); // gebouw van een rivaal
+  const enemy = f || c || rb;
+  cv.style.cursor = sel.us.size && enemy ? CUR.atk : u || v || b || c || rb ? CUR.hand : CUR.def;
   // Wat onder de muis staat krijgt een omlijning (zie render.js)
-  const hit = f || u || v || c || b;
+  const hit = f || u || v || c || b || rb;
   store.hover = hit ? { kind: hit.kind, id: hit.id } : null;
-  if (f)
+  if (f && f.rival) h = rivalUnitTip(f);
+  else if (f)
     h = `<b>${FOES[f.type].n.replace(/en$|s$/, '')}</b><span>Vijand · ${Math.ceil(f.hp)} levenspunten</span>`;
   else if (u)
     h = `<b>${UNITS[u.k].n}</b><span>${Math.ceil(u.hp)}/${Math.round(u.mhp)} leven · ${u.tgt ? 'in gevecht' : 'paraat'}</span>`;
   else if (v)
     h = `<b>${esc(v.name)}</b><span>${v.job === 'auto' ? 'Automatisch' : v.job === 'build' ? 'Bouwer' : RES[v.job].n}${v.carry.amt ? ` · draagt ${v.carry.amt}` : ''}</span>`;
   else if (c) h = `<b>Vijandelijk kamp</b><span>Niveau ${c.tier + 1} · klik om te bekijken</span>`;
+  else if (rb) h = rivalBuildingTip(rb);
   else if (b) {
     const d = B[b.type];
     h = `<b>${d.n}</b><span>${b.done ? bShort(b.type) : 'In aanbouw · ' + Math.floor((b.prog / b.bt) * 100) + '%'}</span>`;
@@ -81,8 +94,8 @@ export function updateHover() {
     if (nodeVis(i)) {
       const N = NODES[node[i]];
       h = `<b>${N.n}</b><span>${fmt(amt[i])} ${RES[N.res].n.toLowerCase()}${isUnl(ix, iy) ? '' : ' · buiten je land'}</span>`;
-    } else if (!isUnl(ix, iy))
-      h = `<b>Onontgonnen land</b><span>Breid je gebied uit om hier te bouwen</span>`;
+    } else if (ownerAt(ix, iy)) h = rivalLandTip(ownerAt(ix, iy));
+    else if (!isUnl(ix, iy)) h = `<b>Onontgonnen land</b><span>Breid je gebied uit om hier te bouwen</span>`;
   }
   if (!h) {
     tip.hidden = true;

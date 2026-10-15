@@ -11,7 +11,11 @@ import { has, pay } from './economy';
 import { placeBuilding } from './entities';
 import { fxRing } from './fx';
 import { G } from './state';
-import { hasT, roadTier } from './upgrades';
+import { mul } from './bonus';
+import { ruleAllowsBuilding } from './mods';
+import { roadTier } from './upgrades';
+import { landOwner } from './rivals';
+import { wonderBlocked } from './wonders';
 import { mouse } from '../input/input';
 import { resetV, selVills } from '../input/selection';
 import { fmt } from '../ui/format';
@@ -19,17 +23,29 @@ import { toast } from '../ui/hud';
 import { TER, bmap, inb, isUnl, node, nodeVis, road, ter } from '../world/world';
 import { SUCCESSOR, canMake } from '../data/succession';
 
+/** Wat een gebouw nu kost. Muren en poorten worden goedkoper door bonussen (zoals 'wall.cost'). */
+export function buildCost(type) {
+  const d = B[type];
+  const factor = d.wall ? mul('wall.cost') : 1;
+  if (factor === 1) return d.cost;
+  const cost = {};
+  for (const k in d.cost) cost[k] = Math.round(d.cost[k] * factor);
+  return cost;
+}
 export function chunkCost() {
   const m = 1 + G.bought * 0.55,
     c: Cost = { food: Math.round(80 * m), wood: Math.round(80 * m), stone: Math.round(40 * m) };
   if (G.age >= 3) c.gold = Math.round(12 * m);
-  if (G.age >= 5) c.steel = Math.round(10 * m);
-  // Zeekaarten maken uitbreiden goedkoper
-  if (hasT('charts')) for (const k in c) c[k] = Math.round(c[k] * 0.75);
+  if (G.age >= 5) c.steel = Math.round(5 * m);
+  // Bonussen (zoals Zeekaarten) maken uitbreiden goedkoper
+  const factor = mul('chunk.cost');
+  if (factor !== 1) for (const k in c) c[k] = Math.round(c[k] * factor);
   return c;
 }
 export function canBuyChunk(cx: number, cy: number): boolean {
   if (cx < 0 || cy < 0 || cx >= CN || cy >= CN || G.unl[cy * CN + cx]) return false;
+  // Land van een rivaal kun je niet kopen: dat moet je veroveren (verwoest zijn stamhuis)
+  if (landOwner(cy * CN + cx)) return false;
   return [
     [1, 0],
     [-1, 0],
@@ -76,6 +92,9 @@ export function ghostPos() {
 export function canPlace(type: string, x: number, y: number, skipCost?: boolean): string | null {
   const d = B[type];
   if (G.age < d.age) return 'Nog niet ontdekt';
+  if (!ruleAllowsBuilding(type)) return 'Geen leger in deze uitdaging';
+  // Een wereldwonder bestaat maar één keer per wereld (zie game/wonders.js)
+  if (d.wonder && wonderBlocked(type)) return wonderBlocked(type);
   if (!canMake(type, G.age)) return 'Verouderd: bouw een ' + B[SUCCESSOR[type]].n.toLowerCase();
   if (d.road) {
     if (!isUnl(x, y)) return 'Buiten je gebied';
@@ -85,7 +104,7 @@ export function canPlace(type: string, x: number, y: number, skipCost?: boolean)
     if (bmap[i]) return 'Hier staat al iets';
     if (nodeVis(i)) return NODES[node[i]].n + ' in de weg';
     if (road[i] >= roadTier()) return 'Hier ligt al een weg';
-    if (!skipCost && !has(d.cost)) return 'Nog ' + lackText(d.cost) + ' nodig';
+    if (!skipCost && !has(buildCost(type))) return 'Nog ' + lackText(buildCost(type)) + ' nodig';
     return null;
   }
   for (let dy = 0; dy < d.size; dy++)
@@ -108,7 +127,7 @@ export function canPlace(type: string, x: number, y: number, skipCost?: boolean)
     return 'Er kan maar één commandocentrum zijn';
   if (type === 'stargate' && G.bs.some(b => b.type === 'stargate'))
     return 'Er kan maar één sterrenpoort zijn';
-  if (!skipCost && !has(d.cost)) return 'Nog ' + lackText(d.cost) + ' nodig';
+  if (!skipCost && !has(buildCost(type))) return 'Nog ' + lackText(buildCost(type)) + ' nodig';
   if (d.wall && G.vs.some(v => !v.hidden && (v.x | 0) === x && (v.y | 0) === y)) return 'Er staat iemand';
   return null;
 }
@@ -131,7 +150,7 @@ export function placeLine(a: Tile, b: Tile) {
       why = why || err;
       continue;
     }
-    pay(d.cost);
+    pay(buildCost(store.placing));
     n++;
     if (d.road) {
       road[y * W + x] = roadTier();
@@ -167,8 +186,8 @@ export function tryPlace(keep?: boolean) {
     toast(err + '.', 'bad');
     return;
   }
-  pay(B[store.placing!].cost);
-  const b = placeBuilding(store.placing!, x, y, false);
+  pay(buildCost(store.placing));
+  const b = placeBuilding(store.placing, x, y, false);
   sfx('place');
   for (const v of selVills()) {
     resetV(v);

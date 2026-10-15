@@ -1,0 +1,503 @@
+/* Nieuw-spelscherm: een breder kaartje met alle keuzes voor een nieuwe wereld (zie ui/newgame.js).
+   Links wie je bent en hoe zwaar het wordt, rechts de kaart met de zaadcode, alsof je in een atlas bladert. */
+#title .tw.ng {
+  width: min(800px, 100%);
+  gap: 14px;
+}
+.nghead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: -6px 0 -10px;
+}
+.ngback {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: -8px;
+  padding: 6px 10px 6px 6px;
+  font-weight: 600;
+}
+.ngback .ico {
+  width: 17px;
+  height: 17px;
+}
+.ngtitle {
+  margin: 0;
+  font-size: clamp(28px, 3.2vw, 38px);
+  font-weight: 800;
+  font-variation-settings:
+    'SOFT' 100,
+    'WONK' 1;
+}
+/* Twee kolommen op een groot scherm; op een telefoon alles onder elkaar (zie onderaan) */
+.nggrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+  gap: 16px 24px;
+  align-items: start;
+}
+.ngcol {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+.nggrid section {
+  min-width: 0;
+}
+/* Kopje boven elk onderdeel, schuin als een aantekening, met rechts een kleine toelichting */
+.ngl {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 6px;
+  font-family: var(--f-display);
+  font-style: italic;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--acc-ink);
+}
+.ngl span {
+  font-family: var(--f-body);
+  font-style: normal;
+  font-weight: 500;
+  font-size: 11.5px;
+  color: var(--ink-3);
+}
+.nghint {
+  margin: 6px 0 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--ink-3);
+}
+.nghint:empty {
+  display: none;
+}
+.nghint.warn {
+  color: var(--bad);
+  font-weight: 600;
+}
+.folkpick {
+  width: 100%;
+}
+/* Vier moeilijkheden: twee bij twee */
+.diff.four {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+/* Hoeveel je score telt, als klein label onderaan elke tegel */
+.dscore {
+  margin-top: 3px;
+  padding: 1px 7px;
+  font-family: var(--f-mono);
+  font-size: 11px;
+  color: var(--ink-3);
+  border: 1px dashed var(--rule-2);
+  border-radius: 99px;
+}
+.diff button.on .dscore {
+  color: var(--acc-ink);
+  border-color: var(--acc-edge);
+}
+
+/* ---- kaartsoort: drie tegels met een pictogram ---- */
+.ngtiles {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+.ngtile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 9px 6px 8px;
+}
+.ngtile .ico {
+  width: 26px;
+  height: 26px;
+  color: var(--ink-2);
+  stroke-width: 1.7;
+}
+.ngtile b {
+  font-family: var(--f-display);
+  font-size: 15px;
+  font-weight: 650;
+}
+.ngtile.on,
+.ngtile.on:hover:not(:disabled),
+.vic.on,
+.vic.on:hover:not(:disabled) {
+  border-color: var(--acc-edge);
+  background: var(--acc-soft);
+  box-shadow:
+    0 1px 0 var(--acc-edge),
+    inset 0 0 0 1.5px var(--acc-edge);
+  transform: translateY(2px);
+}
+.ngtile.on .ico {
+  color: var(--acc-ink);
+}
+
+/* ---- het kaartje van je wereld, als een plaat uit een atlas ---- */
+.ng-atlas {
+  display: grid;
+  gap: 12px;
+}
+.ngmap {
+  position: relative;
+  width: min(100%, 250px);
+  aspect-ratio: 1;
+  justify-self: center;
+  padding: 6px;
+  background: var(--paper-hi);
+  border: 1px solid var(--rule-2);
+  border-radius: 12px;
+  box-shadow: var(--tile-shadow);
+  rotate: -1.2deg;
+}
+.ngmap canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 7px;
+  background: #3b5f6d;
+  box-shadow: inset 0 0 0 1px rgba(43, 37, 32, 0.25);
+  transition: opacity 0.2s;
+}
+/* Terwijl de wereld gemaakt wordt: het oude kaartje vervaagt even */
+.ngmap.busy canvas {
+  opacity: 0.45;
+}
+.ngmap.empty canvas {
+  opacity: 0.25;
+}
+.ngplace {
+  position: absolute;
+  left: 14px;
+  bottom: 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  max-width: calc(100% - 28px);
+  padding: 3px 9px 3px 7px;
+  background: var(--paper-hi);
+  border: 1px solid var(--rule-2);
+  border-radius: 99px;
+  font-family: var(--f-display);
+  font-style: italic;
+  font-weight: 600;
+  font-size: 13.5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  box-shadow: 0 1px 0 var(--paper-edge);
+}
+.ngplace .ico {
+  flex: none;
+  width: 13px;
+  height: 13px;
+  color: var(--acc-ink);
+}
+.seedrow {
+  display: flex;
+  gap: 6px;
+}
+.ngseed {
+  min-width: 0;
+}
+.seedrow input {
+  flex: 1 1 0;
+  width: 0;
+  min-width: 0;
+  padding: 8px 12px;
+  font-family: var(--f-mono);
+  font-size: 18px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink);
+  background: var(--well);
+  border: 1px solid var(--rule-2);
+  border-radius: var(--r-sm);
+  box-shadow: inset 0 2px 3px rgba(43, 37, 32, 0.14);
+}
+.seedrow input.bad {
+  border-color: var(--bad);
+  color: var(--bad);
+}
+.seedrow button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+  font-weight: 600;
+}
+.seedrow button .ico {
+  width: 18px;
+  height: 18px;
+}
+
+/* ---- manieren om te winnen: tegels met een vinkje ---- */
+.vics {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.vic {
+  display: grid;
+  grid-template-columns: 20px 20px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  text-align: left;
+}
+.vbox {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  border: 1.5px solid var(--ink-4);
+  background: var(--paper-hi);
+}
+.vic.on .vbox {
+  border-color: var(--acc-edge);
+  background: var(--acc);
+  color: var(--on-acc);
+}
+.vbox .ico {
+  width: 14px;
+  height: 14px;
+  stroke-width: 3;
+}
+.vic-ic .ico {
+  display: block;
+  width: 20px;
+  height: 20px;
+  color: var(--ink-2);
+}
+.vtxt b {
+  display: block;
+  font-family: var(--f-display);
+  font-size: 15.5px;
+  font-weight: 650;
+}
+.vtxt small {
+  display: block;
+  font-size: 12px;
+  line-height: 1.35;
+  color: var(--ink-3);
+}
+.vlen {
+  font-family: var(--f-mono);
+  font-size: 11px;
+  color: var(--ink-3);
+  white-space: nowrap;
+  padding: 2px 8px;
+  border: 1px dashed var(--rule-2);
+  border-radius: 99px;
+}
+/* De laatste manier om te winnen mag niet uit: de tegel schudt "nee" */
+.vic.nope {
+  animation: ngnope 0.36s;
+}
+.calm .vic.nope {
+  animation: none;
+}
+@keyframes ngnope {
+  20% {
+    translate: -5px 0;
+  }
+  40% {
+    translate: 5px 0;
+  }
+  60% {
+    translate: -3px 0;
+  }
+  80% {
+    translate: 3px 0;
+  }
+}
+.ngstart {
+  margin-top: 2px;
+}
+
+/* Menuknoppen op het titelscherm: de titel blijft op één regel, de toelichting mag eronder doorlopen */
+#title .mbtn > span {
+  white-space: nowrap;
+}
+#title .mbtn > small {
+  min-width: 0;
+  text-align: right;
+}
+/* Korte toelichting die als geheel op één regel blijft (geen los puntje aan het eind van een regel).
+   Past hij niet meer naast de titel (op een telefoon), dan schuift hij er in zijn geheel onder. */
+#title .mbtn:has(> small.whole) {
+  flex-wrap: wrap;
+  row-gap: 2px;
+}
+#title .mbtn > small.whole {
+  flex: none;
+  white-space: nowrap;
+}
+.ngstart > small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ---- pauzescherm en doelenkaart ---- */
+.pworld {
+  margin-top: -4px;
+  font-family: var(--f-mono);
+  font-size: 12px;
+  color: var(--ink-3);
+}
+.pworld b {
+  color: var(--ink);
+  letter-spacing: 0.06em;
+}
+.wingoals {
+  margin: 0 0 8px;
+  padding: 5px 9px;
+  background: var(--well);
+  border-radius: 8px;
+  box-shadow: inset 0 1px 2px rgba(43, 37, 32, 0.12);
+}
+.wgl {
+  display: block;
+  font-family: var(--f-display);
+  font-style: italic;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--acc-ink);
+}
+.wg {
+  display: grid;
+  grid-template-columns: 14px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  line-height: 1.6;
+}
+.wg span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.wg .ico {
+  width: 14px;
+  height: 14px;
+  color: var(--ink-3);
+}
+.wg small {
+  font-family: var(--f-mono);
+  font-size: 11px;
+  color: var(--ink-3);
+  white-space: nowrap;
+}
+.wg.ok small,
+.wg.ok .ico {
+  color: var(--good);
+  font-weight: 600;
+}
+
+/* ---- kleinere schermen: alles onder elkaar ---- */
+@media (max-width: 860px) {
+  /* De kolommen vallen weg; de kaart komt vóór "Winnen" */
+  .nggrid {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: 'folk' 'diff' 'map' 'atlas' 'win';
+  }
+  .ngcol {
+    display: contents;
+  }
+  .ng-folk {
+    grid-area: folk;
+  }
+  .ng-diff {
+    grid-area: diff;
+  }
+  .ng-map {
+    grid-area: map;
+  }
+  .ng-atlas {
+    grid-area: atlas;
+  }
+  .ng-win {
+    grid-area: win;
+  }
+  /* Kaartje en zaadcode naast elkaar */
+  .ng-atlas {
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    gap: 14px;
+  }
+  .ngmap {
+    width: 150px;
+  }
+}
+@media (max-width: 620px) {
+  #title .tw.ng {
+    gap: 12px;
+  }
+  .ngmap {
+    width: 108px;
+    padding: 4px;
+    rotate: 0deg;
+  }
+  /* Klein kaartje: de naam van je stad staat eronder in plaats van erop, zodat hij heel blijft */
+  .ngmap {
+    aspect-ratio: auto;
+  }
+  .ngmap canvas {
+    height: auto;
+    aspect-ratio: 1;
+  }
+  .ngplace {
+    position: static;
+    display: block;
+    max-width: none;
+    margin-top: 4px;
+    padding: 0;
+    background: none;
+    border: 0;
+    box-shadow: none;
+    font-size: 12.5px;
+    text-align: center;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+  .ngplace .ico {
+    display: none;
+  }
+  .seedrow input {
+    font-size: 16px;
+    padding: 8px 9px;
+  }
+  /* Alleen het dobbelsteentje: de tekst past er niet meer naast */
+  .seedrow button span {
+    display: none;
+  }
+  .vic {
+    grid-template-columns: 20px 20px minmax(0, 1fr);
+    row-gap: 4px;
+  }
+  .vlen {
+    grid-column: 3;
+    justify-self: start;
+  }
+  /* "Begin" met de samenvatting eronder, zodat lange keuzes niet worden afgekapt */
+  .ngstart {
+    flex-direction: column;
+    justify-content: center;
+    gap: 2px;
+  }
+  #title .ngstart > small {
+    white-space: normal;
+    text-align: center;
+  }
+}

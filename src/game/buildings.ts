@@ -5,13 +5,14 @@ import { W } from '../config';
 import { B } from '../data/buildings';
 import { NI } from '../data/nodes';
 import { UNITS } from '../data/units';
-import { powerDem, powerRatio } from './caches';
+import { genPower, powerDem, powerRatio, powerSup } from './caches';
 import { gain, has, pay } from './economy';
 import { popCap, popNow, spawnUnit, spawnVillager, trainCost } from './entities';
 import { floater } from './fx';
 import { fire, nearestFoe } from './military';
 import { G } from './state';
-import { bRate, hasT, lvlOf } from './upgrades';
+import { add, mul } from './bonus';
+import { bRate, lvlOf } from './upgrades';
 import { amt, node } from '../world/world';
 
 export function bUpdate(b: Building, dt: number) {
@@ -20,8 +21,8 @@ export function bUpdate(b: Building, dt: number) {
     pr = d.power ? powerRatio : 1;
   b.act -= dt;
   if (d.conv && b.on) {
-    const wind = hasT('windpower') && (b.type === 'windmill' || b.type === 'powdermill') ? 1.5 : 1;
-    b.ct += dt * pr * bRate(b) * wind * (hasT('steam') ? 1.25 : 1);
+    const mill = b.type === 'windmill' || b.type === 'powdermill' ? mul('mill.speed') : 1;
+    b.ct += dt * pr * bRate(b) * mill * mul('conv.speed');
     if (b.ct >= d.conv.t) {
       if (has(d.conv.in)) {
         pay(d.conv.in);
@@ -42,8 +43,10 @@ export function bUpdate(b: Building, dt: number) {
       b.gt += dt;
       if (b.gt >= d.gen.t!) {
         b.gt = 0;
-        if (powerDem > 0 && has(d.gen.in!)) {
-          pay(d.gen.in!);
+        // Alleen stoken als de stroom echt nodig is: overbodige centrales staan stil en sparen brandstof
+        const needed = powerSup - (b.run ? genPower(b) : 0) < powerDem;
+        if (needed && has(d.gen.in)) {
+          pay(d.gen.in);
           b.run = true;
           b.act = d.gen.t!;
         } else b.run = false;
@@ -53,7 +56,7 @@ export function bUpdate(b: Building, dt: number) {
   if (d.pump && b.on) {
     const i = b.y * W + b.x;
     if (node[i] === NI.oil && amt[i] > 0) {
-      b.ct += dt * pr * bRate(b) * (hasT('steam') ? 1.25 : 1);
+      b.ct += dt * pr * bRate(b) * mul('conv.speed');
       if (b.ct >= d.pump.t) {
         b.ct = 0;
         amt[i]--;
@@ -71,15 +74,15 @@ export function bUpdate(b: Building, dt: number) {
         f = nearestFoe(
           x,
           y,
-          d.def.r + 0.5 * lvlOf(b) + (hasT('ballistics') && b.type !== 'townhall' ? 1 : 0),
+          d.def.r + 0.5 * lvlOf(b) + (b.type !== 'townhall' ? add('tower.range') : 0),
           d.def.air,
         );
       if (f) {
         const dmg =
-          (b.type === 'townhall' ? d.def.dmg * (1 + G.age * 0.5) : d.def.dmg) *
+          (b.type === 'townhall' ? d.def.dmg * (1 + G.age * 0.8) : d.def.dmg) *
           (1 + 0.4 * lvlOf(b)) *
-          (hasT('ballistics') ? 1.2 : 1) *
-          (hasT('swarm') && d.def.laser ? 1.3 : 1);
+          mul('tower.dmg') *
+          (d.def.laser ? mul('laser.dmg') : 1);
         fire(b, x, y, f, {
           dmg,
           splash: d.def.splash,
@@ -87,6 +90,7 @@ export function bUpdate(b: Building, dt: number) {
           col: b.type === 'cannon' ? '#ffbd6b' : '#fff3c4',
           big: b.type === 'cannon',
           h0: d.h * 0.8,
+          snd: d.snd,
         });
         b.cd = d.def.rate;
         b.aim = Math.atan2(f.y - y, f.x - x);
@@ -97,7 +101,7 @@ export function bUpdate(b: Building, dt: number) {
     const U = UNITS[b.q[0]];
     b.blocked = popNow() >= popCap();
     if (!b.blocked) {
-      b.qt += dt * pr * (1 + 0.2 * lvlOf(b));
+      b.qt += dt * pr * (1 + 0.2 * lvlOf(b)) * mul('train.speed');
       if (b.qt >= U.t) {
         b.qt = 0;
         const k = b.q.shift()!,

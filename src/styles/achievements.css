@@ -1,0 +1,651 @@
+/* Prestaties: het kaartje als je er een haalt, medailles, het profielscherm en het eindscherm. */
+
+/* ---- pictogram van een prestatie: een rond plaatje ---- */
+.achic {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  color: var(--acc-ink);
+  background: var(--acc-soft);
+  box-shadow:
+    inset 0 0 0 1.5px var(--acc-edge),
+    0 2px 0 var(--paper-edge);
+}
+.achic .ico {
+  width: 21px;
+  height: 21px;
+}
+/* Tijdperk: een kraal in de kleur van dat tijdperk, net als op de tijdlijn */
+.achic.bead {
+  background: var(--c);
+  color: #fffaf2;
+  font: 700 13px/1 var(--f-display);
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.35);
+  box-shadow:
+    inset 0 0 0 1.5px rgba(43, 37, 32, 0.3),
+    0 2px 0 var(--paper-edge);
+}
+/* Volk: het vaandel op een licht rondje */
+.achic.flag {
+  background: var(--paper-hi);
+  box-shadow:
+    inset 0 0 0 1.5px var(--rule-2),
+    0 2px 0 var(--paper-edge);
+}
+.achic.flag .banner {
+  margin-top: 4px;
+}
+
+/* ---- medaille: een munt met een ster, in brons, zilver of goud ---- */
+.medal {
+  --m1: #e9c46a;
+  --m2: #b8862b;
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  vertical-align: -5px;
+  color: rgba(255, 250, 235, 0.95);
+  background: radial-gradient(circle at 35% 30%, var(--m1), var(--m2) 70%);
+  box-shadow:
+    inset 0 0 0 2px color-mix(in srgb, var(--m2) 70%, #2b2520),
+    inset 0 0 0 4px color-mix(in srgb, var(--m1) 60%, transparent),
+    0 2px 0 rgba(43, 37, 32, 0.3);
+}
+.medal .ico {
+  width: 12px;
+  height: 12px;
+  fill: currentColor;
+  stroke-width: 1;
+}
+.medal.zilver {
+  --m1: #eef0f2;
+  --m2: #8f979e;
+}
+.medal.brons {
+  --m1: #e7a874;
+  --m2: #95562c;
+}
+.medal.none {
+  --m1: var(--paper-hi);
+  --m2: var(--well);
+  color: var(--ink-4);
+  font: 600 20px var(--f-display);
+}
+/* Groot (eindscherm) */
+.medal.lg {
+  width: 76px;
+  height: 76px;
+}
+.medal.lg .ico {
+  width: 34px;
+  height: 34px;
+}
+/* Doosje om de grote medaille: geeft hem een lintje erachter en laat hem binnen draaien */
+.medalbox {
+  position: relative;
+  z-index: 0; /* zo blijft het lintje achter de munt, maar vóór de kaart */
+  display: inline-block;
+  margin-bottom: 14px;
+  animation: medalin 0.6s cubic-bezier(0.2, 0.9, 0.3, 1.3) 0.15s backwards;
+}
+.medalbox::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  left: 50%;
+  bottom: -16px;
+  width: 44px;
+  height: 34px;
+  translate: -50% 0;
+  background: var(--acc);
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 75% 78%, 50% 100%, 25% 78%, 0 100%);
+}
+.medalbox.none {
+  animation: none;
+}
+.medalbox.none::before {
+  display: none;
+}
+@keyframes medalin {
+  from {
+    transform: scale(0.4) rotate(-25deg);
+    opacity: 0;
+  }
+}
+
+/* ---- het kaartje bovenin als je een prestatie haalt ---- */
+#achv {
+  margin-top: 4px;
+}
+#achv:empty {
+  display: none;
+}
+.achpop {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px 10px 10px;
+  border-radius: var(--r);
+  background: var(--panel);
+  border: 1px solid var(--acc-edge);
+  border-left: 5px solid var(--acc);
+  box-shadow:
+    0 3px 0 var(--paper-edge),
+    0 0 0 4px color-mix(in srgb, var(--acc) 25%, transparent),
+    0 14px 30px rgba(30, 20, 10, 0.3);
+  color: var(--ink);
+  animation: achin 0.45s cubic-bezier(0.2, 0.9, 0.3, 1.3);
+  transition:
+    opacity 0.25s,
+    transform 0.25s;
+}
+.achpop.out {
+  opacity: 0;
+  transform: translateY(-8px) scale(0.97);
+}
+@keyframes achin {
+  from {
+    opacity: 0;
+    transform: translateY(-14px) scale(0.9);
+  }
+}
+/* Het rondje glanst even op */
+.achpop .achic {
+  width: 46px;
+  height: 46px;
+  animation: achshine 1s ease-out 0.2s;
+}
+@keyframes achshine {
+  30% {
+    transform: scale(1.15) rotate(-8deg);
+    box-shadow:
+      inset 0 0 0 1.5px var(--acc-edge),
+      0 0 0 8px color-mix(in srgb, var(--acc) 30%, transparent);
+  }
+}
+.achtx {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.achpop small {
+  font: italic 600 13px var(--f-display);
+  color: var(--acc-ink);
+}
+.achpop .achtx > b {
+  font: 700 18px/1.15 var(--f-display);
+}
+.achpop .achtx > span {
+  font-size: 12.5px;
+  color: var(--ink-3);
+}
+.achpop .achnew {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+  font-size: 12.5px;
+  color: var(--good);
+}
+.achpop .achnew b {
+  color: var(--ink);
+}
+
+/* ---- profielscherm ---- */
+.sheet.profsheet {
+  width: min(860px, 100%);
+}
+.profsheet .sect,
+.endsheet .sect {
+  margin-top: 22px;
+}
+.profstats {
+  display: grid;
+  /* minmax(0, …): zo mogen de tegels smaller worden dan hun inhoud, en schuift het blad niet opzij */
+  grid-template-columns: repeat(3, minmax(0, 1fr)) minmax(0, 1.6fr);
+  gap: 10px;
+  margin-top: 18px;
+}
+.pstile {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 14px;
+  border: 1px solid var(--rule-2);
+  border-radius: 14px;
+  background: var(--paper-hi);
+  box-shadow: var(--tile-shadow);
+}
+.pstile small {
+  font: italic 600 13px var(--f-display);
+  color: var(--acc-ink);
+}
+.pstile b {
+  display: flex;
+  flex-wrap: wrap; /* op een smal scherm gaat de medaille onder de score */
+  align-items: center;
+  gap: 4px 8px;
+  font: 700 26px/1.1 var(--f-display);
+}
+.pstile b i {
+  font: 500 15px var(--f-mono);
+  color: var(--ink-3);
+}
+/* Voortgangsbalk: hoeveel prestaties je al hebt */
+.pbar {
+  display: block;
+  height: 8px;
+  margin-top: 6px;
+  border-radius: 99px;
+  background: var(--well);
+  box-shadow: inset 0 1px 2px rgba(43, 37, 32, 0.2);
+  overflow: hidden;
+}
+.pbar span {
+  display: block;
+  height: 100%;
+  border-radius: 99px;
+  background: var(--acc);
+  box-shadow: inset 0 -2px 0 var(--acc-edge);
+}
+/* Beste score per volk (zes) en per moeilijkheid (drie) */
+.pbests {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 8px;
+}
+.pbests.diffs {
+  grid-template-columns: repeat(4, 1fr);
+  margin-top: 8px;
+}
+.pbest {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  border: 1px solid var(--rule-2);
+  border-radius: 12px;
+  background: var(--paper-hi);
+  min-width: 0;
+}
+.pbest > span {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.pbest small {
+  font-size: 12px;
+  color: var(--ink-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.pbest b {
+  font: 600 15px var(--f-mono);
+}
+.pbest b .ico {
+  width: 14px;
+  height: 14px;
+  color: var(--ink-4);
+}
+/* Per volk: vaandel boven naam en score, zodat ook lange namen passen */
+.pbests:not(.diffs) .pbest {
+  flex-direction: column;
+  gap: 4px;
+  text-align: center;
+}
+.pbests:not(.diffs) .pbest > span {
+  align-items: center;
+}
+.pbest.locked {
+  border-style: dashed;
+  background: var(--well);
+}
+.pbest.locked .banner {
+  filter: grayscale(1);
+  opacity: 0.45;
+}
+.pbest.diff {
+  justify-content: center;
+}
+.pbest.diff > span {
+  align-items: center;
+}
+.sheet p.medalkey span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.sheet p.medalkey {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 16px;
+  margin-top: 10px;
+  font-size: 12.5px;
+  color: var(--ink-3);
+}
+/* Alle prestaties: kaartjes in een raster */
+.achgrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 8px;
+}
+.ach {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--rule-2);
+  border-radius: 14px;
+  background: var(--paper-hi);
+  box-shadow: var(--tile-shadow);
+}
+.ach.got {
+  border-color: var(--acc-edge);
+  box-shadow:
+    inset 3px 0 0 var(--acc),
+    var(--tile-shadow);
+}
+.ach b {
+  font: 650 15px/1.2 var(--f-display);
+}
+.ach .achtx > span {
+  font-size: 12.5px;
+  line-height: 1.35;
+  color: var(--ink-3);
+}
+/* Nog niet gehaald: grijs en plat, maar wat je moet doen blijft leesbaar */
+.ach.lock {
+  background: var(--well);
+  border-style: dashed;
+  box-shadow: none;
+}
+.ach.lock .achic {
+  filter: grayscale(1);
+  opacity: 0.45;
+  box-shadow: inset 0 0 0 1.5px var(--rule-2);
+}
+.ach.lock b {
+  color: var(--ink-3);
+}
+.ach.secret b {
+  letter-spacing: 0.15em;
+}
+.ach .achunl {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 5px;
+  font: 600 12px var(--f-body);
+  color: var(--ink-2);
+}
+.ach .achhint {
+  margin-top: 4px;
+  font-size: 12px;
+  line-height: 1.35;
+  color: var(--ink-3);
+  font-style: italic;
+}
+.ach .achdate {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px;
+  font: 500 12px var(--f-mono);
+  color: var(--good);
+}
+.ach .achdate .ico {
+  width: 13px;
+  height: 13px;
+}
+/* Laatste spellen */
+.recent {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.recent td {
+  padding: 7px 6px;
+  border-bottom: 1px dashed var(--rule-2);
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+.recent .rfolk {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.recent .won {
+  color: var(--good);
+}
+.recent .pts,
+.scoretab .pts {
+  text-align: right;
+  font: 600 13px var(--f-mono);
+  color: var(--ink);
+}
+.sheet .endnone {
+  margin-top: 0;
+  font-size: 13px;
+  color: var(--ink-3);
+}
+
+/* ---- eindscherm ---- */
+.sheet.endsheet {
+  width: min(640px, 100%);
+}
+.endscore {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 18px 26px;
+  margin-top: 18px;
+  padding: 16px 18px;
+  border: 1px solid var(--rule-2);
+  border-radius: 16px;
+  background: var(--paper-hi);
+  box-shadow: var(--tile-shadow);
+}
+.endhead {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  text-align: center;
+  min-width: 140px;
+}
+.endhead > div {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.endhead small {
+  font: italic 600 14px var(--f-display);
+  color: var(--acc-ink);
+}
+.endpts {
+  font: 900 40px/1 var(--f-display);
+  letter-spacing: -0.02em;
+}
+.endhead .rec,
+.endhead .nextm {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 6px;
+  font: 600 12px var(--f-body);
+}
+.endhead .rec {
+  padding: 2px 10px 2px 7px;
+  border-radius: 99px;
+  background: var(--acc);
+  color: var(--on-acc);
+  box-shadow: 0 2px 0 var(--acc-edge);
+}
+.endhead .rec .ico {
+  width: 13px;
+  height: 13px;
+}
+.endhead .nextm {
+  color: var(--ink-3);
+}
+/* De score als rekensom: aantal × punten = totaal */
+.scoretab {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.scoretab th {
+  text-align: left;
+  font-weight: 500;
+  color: var(--ink-2);
+  padding: 5px 0;
+}
+.scoretab td {
+  padding: 5px 0 5px 10px;
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+.scoretab .per {
+  font: 500 12px var(--f-mono);
+  color: var(--ink-3);
+}
+.scoretab tbody tr {
+  border-bottom: 1px dashed var(--rule-2);
+}
+.scoretab tr.sub th,
+.scoretab tr.sub td {
+  color: var(--acc-ink);
+  font-weight: 600;
+}
+.scoretab tfoot th,
+.scoretab tfoot td {
+  padding-top: 8px;
+  font: 700 16px var(--f-display);
+  color: var(--ink);
+}
+.scoretab tfoot .pts {
+  font: 700 16px var(--f-mono);
+}
+/* Nieuwe prestaties van dit spel als rijtje fiches */
+.achchips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.achchip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 12px 4px 4px;
+  border: 1px solid var(--acc-edge);
+  border-radius: 99px;
+  background: var(--paper-hi);
+  box-shadow: var(--tile-shadow);
+}
+.achchip .achic {
+  width: 30px;
+  height: 30px;
+  font-size: 11px;
+}
+.achchip .achic .ico {
+  width: 16px;
+  height: 16px;
+}
+.achchip .achic .banner {
+  --bw: 18px;
+  margin-top: 3px;
+}
+.achchip b {
+  font: 600 14px var(--f-display);
+}
+.endchart {
+  display: block;
+  width: 100%;
+  height: 92px;
+  border-radius: 10px;
+  background: var(--well);
+}
+.chartkey {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--ink-3);
+}
+.chartkey span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+/* ---- kleinere schermen ---- */
+@media (max-width: 760px) {
+  .profstats {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .pstile.wide {
+    grid-column: 1 / -1;
+  }
+  .pbests:not(.diffs) {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+@media (max-width: 560px) {
+  .endscore {
+    grid-template-columns: 1fr;
+    padding: 14px 12px;
+  }
+  /* Smal scherm: de punten per stuk weglaten, zodat de kolom met punten altijd past */
+  .scoretab .per {
+    display: none;
+  }
+  .scoretab td.cnt {
+    white-space: normal;
+  }
+  .pstile {
+    padding: 8px 10px;
+  }
+  .pstile b {
+    font-size: 21px;
+  }
+  .pbests {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  /* Vier moeilijkheden: twee bij twee */
+  .pbests.diffs {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  /* Laatste spellen: de kolom met moeilijkheid en dag weglaten, en de uitslag mag over twee regels */
+  .recent td:nth-child(3) {
+    display: none;
+  }
+  .recent {
+    font-size: 12px;
+  }
+  .recent td {
+    padding: 6px 3px;
+  }
+  .recent td:nth-child(2) {
+    white-space: normal;
+  }
+  .achgrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Knop "Alle prestaties": sterretje met wat ruimte voor de tekst */
+.endsheet [data-end='profile'] .ico {
+  width: 15px;
+  height: 15px;
+  margin-right: 6px;
+  vertical-align: -3px;
+}

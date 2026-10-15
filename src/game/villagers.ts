@@ -6,12 +6,14 @@ import { AGE_UP } from '../data/ages';
 import { B } from '../data/buildings';
 import { NI, NODES, RES_NODES } from '../data/nodes';
 import { BASEW, GATHER, HARD, RES } from '../data/resources';
+import { wonderBuildRate } from '../data/wonders';
 import { avail, demand, farmCnt, litAt, siteCnt, wr } from './caches';
 import { completeBuilding } from './entities';
 import { chips, floater } from './fx';
 import { G, bById } from './state';
 import { isNight, season } from './time';
-import { bMaxHp, carryMax, farmSlots, hasT } from './upgrades';
+import { mul } from './bonus';
+import { bMaxHp, carryMax, farmSlots } from './upgrades';
 import { pulseRes } from '../ui/hud';
 import { clamp, dist } from '../util/math';
 import { findPath, follow } from '../world/pathfinding';
@@ -301,19 +303,13 @@ export function vUpdate(v: Villager, dt: number) {
       }
       decide(v);
       break;
-    case 'walk':
-      if (
-        follow(
-          v,
-          dt,
-          (v.carry.amt ? 1.9 : 2.3) *
-            (1 + G.age * 0.04) *
-            (hasT('wheel') ? 1.15 : 1) *
-            (hasT('antigrav') ? 1.25 : 1),
-        )
-      )
-        arrive(v);
+    case 'walk': {
+      // Sjouwen gaat trager; elk tijdperk loopt iets sneller
+      const loadSpeed = v.carry.amt ? 1.9 : 2.3;
+      const walkSpeed = loadSpeed * (1 + G.age * 0.04) * mul('vill.speed') * mul('move.all');
+      if (follow(v, dt, walkSpeed)) arrive(v);
       break;
+    }
     case 'gather':
       doGather(v, dt);
       break;
@@ -394,12 +390,11 @@ function doGather(v: Villager, dt: number) {
     HARD[v.res!] *
     (night ? 0.75 : 1) *
     (G.hungry ? 0.5 : 1) *
-    (v.res === 'food' ? season().food : 1) *
+    resourceBonus(v.res) *
     (G.rain && t.k === 'node' ? 0.9 : 1) *
-    (t.k === 'farm' && hasT('agri') ? 1.2 : 1) *
-    (t.k === 'farm' && hasT('ironplow') ? 1.25 : 1) *
-    (hasT('automation') ? 1.25 : 1) *
-    (G.buff && (G.buff.work ?? 0) > G.t ? 1.25 : 1);
+    (t.k === 'farm' ? mul('farm') : 1) *
+    (t.k === 'farm' ? mul('farm.plow') : 1) *
+    mul('gather.all'); // ook tijdelijke bonussen uit gebeurtenissen, zoals een oogstfeest
   while (v.timer >= 1) {
     v.timer -= 1;
     chips(v.x + v.dir * 0.3, v.y, RES[v.res!].c);
@@ -417,7 +412,21 @@ function doGather(v: Villager, dt: number) {
     }
   }
 }
-function deplete(i: number) {
+// Bonussen voor één soort grondstof: voedsel (ook het seizoen telt mee), hout, of steen en erts
+function resourceBonus(res) {
+  if (res === 'food') return seasonFood() * mul('gather.food');
+  if (res === 'wood') return mul('gather.wood');
+  const rock = res === 'stone' || res === 'iron' || res === 'coal' ? mul('gather.rock') : 1;
+  return mul('gather.mine') * rock;
+}
+// Hoeveel voedsel het seizoen geeft. In de winter kan een bonus (zoals bij de Friezen) helpen,
+// maar nooit meer dan in een gewoon seizoen.
+function seasonFood() {
+  const sn = season();
+  if (sn.n !== 'Winter') return sn.food;
+  return Math.min(1, sn.food * mul('winter.food'));
+}
+function deplete(i) {
   const t = node[i];
   node[i] = 0;
   const w = season().n === 'Winter' ? 1.8 : 1;
@@ -437,7 +446,9 @@ function doBuild(v: Villager, dt: number) {
     goHome(v);
     return;
   }
-  b.prog += dt * (1 + G.age * 0.1);
+  // Aan een wereldwonder werken bouwers samen: meer bouwers helpen, maar steeds minder (zie data/wonders.js)
+  const rate = B[b.type].wonder ? wonderBuildRate(siteCnt.get(b.id) || 1) : 1 + G.age * 0.1;
+  b.prog += dt * rate * mul('build.speed');
   const mh = bMaxHp(b);
   b.hp = Math.min(mh, b.hp + (mh * 0.85 * dt) / b.bt);
   if (b.prog >= b.bt) {

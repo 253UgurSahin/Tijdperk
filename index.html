@@ -6,7 +6,7 @@
     <title>Tijdperken</title>
     <link
       rel="icon"
-      href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2032%2032%22%3E%3Crect%20width%3D%2232%22%20height%3D%2232%22%20rx%3D%226%22%20fill%3D%22%23141c2a%22/%3E%3Cpath%20d%3D%22M16%205%2027%2026H5Z%22%20fill%3D%22%23d6b46c%22/%3E%3Cpath%20d%3D%22M16%2013%2021%2023H11Z%22%20fill%3D%22%23141c2a%22/%3E%3C/svg%3E"
+      href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20viewBox%3D%220%200%2032%2032%22%3E%3Crect%20width%3D%2232%22%20height%3D%2232%22%20rx%3D%226%22%20fill%3D%22%23f4ecda%22/%3E%3Cpath%20d%3D%22M16%205%2027%2026H5Z%22%20fill%3D%22%232b2520%22/%3E%3Cpath%20d%3D%22M16%2013%2021%2023H11Z%22%20fill%3D%22%23c08a3e%22/%3E%3C/svg%3E"
       type="image/svg+xml"
     />
     <meta name="claude:viewport-fit-sides" content="cover" />
@@ -14,7 +14,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
       rel="stylesheet"
-      href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&family=Instrument+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght,SOFT,WONK@0,9..144,400..900,0..100,0..1;1,9..144,400..900,0..100,0..1&family=Instrument+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
     />
   </head>
   <body>
@@ -31,6 +31,7 @@
             </div>
             <div class="age" title="Huidig tijdperk">
               <b id="ageNum">I</b><small id="locEyebrow">Steentijd</small>
+              <ol class="tl" id="ageLine"></ol>
             </div>
             <div class="speed" id="speed" role="group" aria-label="Spelsnelheid">
               <button data-s="0" aria-label="Pauze">II</button
@@ -41,8 +42,38 @@
           </div>
           <section id="resPanel" class="hud" aria-label="Grondstoffen">
             <div class="poprow">
-              <div class="pstat" id="popStat" title="Inwoners en plek in woningen"><i>⌂</i><b>5/5</b></div>
-              <div class="pstat" id="powStat" hidden title="Stroom: geleverd / nodig"><i>ϟ</i><b>0/0</b></div>
+              <div class="pstat" id="popStat" title="Inwoners en plek in woningen">
+                <i
+                  ><svg
+                    class="ico"
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <path d="M4 11l8-7 8 7" />
+                    <path d="M6 9.5V20h12V9.5" />
+                    <path d="M10 20v-5h4v5" /></svg></i
+                ><b>5/5</b>
+              </div>
+              <div class="pstat" id="powStat" hidden title="Stroom: geleverd / nodig">
+                <i
+                  ><svg
+                    class="ico"
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <path d="M13 3L5 13h6l-1 8 8-10h-6z" /></svg></i
+                ><b>0/0</b>
+              </div>
               <span id="quick"></span>
             </div>
             <div id="resbar"></div>
@@ -63,18 +94,19 @@
           <div id="toast" role="status" aria-live="polite"></div>
           <div id="event" class="hud" hidden></div>
           <div id="offer" class="hud" hidden></div>
+          <div id="buffs" hidden></div>
           <div id="feed"></div>
         </div>
         <nav id="sidebtns" aria-label="Panelen">
-          <button data-p="pop">Volk<i></i></button><button data-p="def" hidden>Leger<i></i></button
-          ><button data-p="upg" hidden>Onderzoek<i></i></button
+          <button data-p="pop">Dorp<i></i></button><button data-p="def" hidden>Leger<i></i></button
+          ><button data-p="upg" hidden>Verbeteren<i></i></button
           ><button data-p="log" hidden>Logboek<i></i></button
           ><button data-p="goal" class="mob">Doel<i></i></button
           ><button data-p="map" class="mob">Kaart<i></i></button>
         </nav>
         <section id="panel" class="hud" hidden>
           <div class="ph">
-            <b id="panelTitle">Volk</b><button class="quiet" id="panelClose">Sluiten</button>
+            <b id="panelTitle">Dorp</b><button class="quiet" id="panelClose">Sluiten</button>
           </div>
           <div class="pbody">
             <div class="pane" data-pane="pop">
@@ -84,9 +116,11 @@
             <div class="pane" data-pane="def">
               <div class="sect">Verdediging <span id="defSect"></span></div>
               <div id="defense"></div>
+              <div class="sect" id="rivSect" hidden>Rivalen <span></span></div>
+              <div id="rivals" hidden></div>
             </div>
             <div class="pane" data-pane="upg">
-              <div class="sect">Verbeteringen <span id="upgSect"></span></div>
+              <div class="sect">Wat kun je verbeteren? <span id="upgSect"></span></div>
               <div id="upgrades"></div>
             </div>
             <div class="pane" data-pane="log">
@@ -100,8 +134,8 @@
                   height: 60px;
                   display: block;
                   margin-bottom: 12px;
-                  border-radius: 3px;
-                  background: rgba(0, 0, 0, 0.25);
+                  border-radius: 10px;
+                  background: var(--well);
                 "
               ></canvas>
               <div class="sect">Veldnotities <span>Live</span></div>
@@ -127,7 +161,21 @@
             <div class="mapbtns">
               <button id="zOut" aria-label="Uitzoomen" title="Uitzoomen">−</button
               ><button id="zIn" aria-label="Inzoomen" title="Inzoomen">+</button
-              ><button id="zHome" aria-label="Naar het stamhuis" title="Naar het stamhuis">⌂</button
+              ><button id="zHome" aria-label="Naar het stamhuis" title="Naar het stamhuis">
+                <svg
+                  class="ico"
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path d="M4 11l8-7 8 7" />
+                  <path d="M6 9.5V20h12V9.5" />
+                  <path d="M10 20v-5h4v5" />
+                </svg></button
               ><button id="expandBtn" title="Gebied uitbreiden"><span>Uitbreiden</span></button>
             </div>
           </section>

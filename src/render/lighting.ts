@@ -10,6 +10,9 @@ import { GLASS, WIN } from './kit';
 import { FOL } from './nodes';
 import { PL, S3, cam, hemi, sun } from './scene';
 import { TMAT } from './terrain';
+import { SNOW_COVER } from './terrainlook';
+import { setBloomDarkness } from './post';
+import { setScatterSeason } from './scatter';
 import { dist } from '../util/math';
 
 const COLD = new T3.Color('#6f86c8'),
@@ -18,26 +21,48 @@ const COLD = new T3.Color('#6f86c8'),
   SKYD = new T3.Color('#e8f0ff'),
   SKYN = new T3.Color('#38466e'),
   FOGD = new T3.Color('#9fb3a6'),
-  FOGN = new T3.Color('#0c1220');
-const AUT: Record<string, string> = { oak: '#c9772f', birch: '#d9a83a' },
-  SUMMER: Record<string, string> = {
-    oak: '#4f8a3c',
-    birch: '#8fbf5a',
-    pine: '#3f6b3f',
-    pine2: '#4a7a45',
-    bush: '#4d7d38',
-  },
-  WINTER: Record<string, string> = {
-    oak: '#8a8f86',
-    birch: '#b5b9ad',
-    pine: '#4d6a5a',
-    pine2: '#5b7868',
-    bush: '#6b7a62',
-  };
+  FOGN = new T3.Color('#0c1220'),
+  FOGDUSK = new T3.Color('#d9a07a');
+// Sfeer per tijdperk, heel subtiel: Gouden Eeuw warm, industrie wat heiiger, sterrentijd koeler.
+// [zonkleur, mistkleur, hoe sterk (0..1)]
+const AGE_MOOD = [
+  null,
+  null,
+  null,
+  null,
+  ['#ffe0a8', '#b9b394', 0.35],
+  ['#f2e8d8', '#a9a69c', 0.5],
+  null,
+  ['#eef4ff', '#9fb2bc', 0.3],
+  ['#e2e4ff', '#9ea4c8', 0.4],
+].map(m => m && [new T3.Color(m[0]), new T3.Color(m[1]), m[2]]);
+const moodSun = new T3.Color('#ffffff'),
+  moodFog = new T3.Color('#9fb3a6'),
+  wantSun = new T3.Color(),
+  wantFog = new T3.Color(),
+  fogNow = new T3.Color();
+// Langzaam naar de sfeer van het huidige tijdperk schuiven, zodat een nieuw tijdperk zacht invalt
+function updateMood() {
+  const m = AGE_MOOD[G.age];
+  wantSun.setRGB(1, 1, 1);
+  wantFog.copy(FOGD);
+  if (m) {
+    wantSun.lerp(m[0], m[2]);
+    wantFog.lerp(m[1], m[2]);
+  }
+  moodSun.lerp(wantSun, 0.02);
+  moodFog.lerp(wantFog, 0.02);
+}
+const AUT = { oak: '#c9772f', birch: '#d9a83a' },
+  SUMMER = { oak: '#4f8a3c', birch: '#8fbf5a', pine: '#3f6b3f', pine2: '#4a7a45', bush: '#4d7d38' },
+  WINTER = { oak: '#8a8f86', birch: '#b5b9ad', pine: '#4d6a5a', pine2: '#5b7868', bush: '#6b7a62' };
 export function applySeason() {
   const sn = season().n;
+  // Sneeuw op de grond: langzaam erbij in de winter, langzaam weg in de lente
+  SNOW_COVER.value += ((sn === 'Winter' ? 1 : 0) - SNOW_COVER.value) * 0.004;
   if (sn === store.seasonSig) return;
   store.seasonSig = sn;
+  setScatterSeason(sn);
   for (const k in SUMMER)
     FOL[k].color.set(sn === 'Herfst' && AUT[k] ? AUT[k] : sn === 'Winter' ? WINTER[k] : SUMMER[k]);
   TMAT.color.set(
@@ -51,17 +76,27 @@ export function lighting(dk: number) {
       : G.clock >= 4.5 && G.clock < 7.5
         ? Math.sin(((G.clock - 4.5) / 3) * Math.PI) * 0.8
         : 0;
+  updateMood();
   sun.color
     .copy(DAY)
+    .multiply(moodSun)
     .lerp(WARM, dusk * 0.7)
     .lerp(COLD, dk);
   sun.intensity = 0.95 * (1 - dk) + 0.14 * dk;
-  hemi.color.copy(SKYD).lerp(SKYN, dk);
+  hemi.color
+    .copy(SKYD)
+    .lerp(WARM, dusk * 0.25)
+    .lerp(SKYN, dk);
   hemi.intensity = 0.55 * (1 - dk * 0.6) * (G.rain ? 0.85 : 1);
-  const fc = FOGD.clone().lerp(FOGN, dk);
-  S3.fog!.color.copy(fc);
-  (S3.background as T3.Color).copy(fc);
+  // Bij zonsopkomst en -ondergang kleurt de nevel aan de horizon warm
+  fogNow
+    .copy(moodFog)
+    .lerp(FOGDUSK, dusk * 0.45)
+    .lerp(FOGN, dk);
+  S3.fog.color.copy(fogNow);
+  S3.background.copy(fogNow);
   WIN.emissiveIntensity = GLASS.emissiveIntensity = dk * 1.3;
+  setBloomDarkness(dk);
   const all = lights.filter(L => dist(L.x, L.y, cam.x, cam.y) < camDist() * 1.2);
   let gi = 0;
   for (const L of all) {

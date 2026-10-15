@@ -1,26 +1,62 @@
-// Spelersinstellingen (geluid, randscrollen, ...) die in de browser worden bewaard.
-// quality: 'auto' | 'low' | 'mid' | 'high' · dragSelect: linkermuis slepen = selectiekader
-// hudWide: op een ultrabreed scherm de HUD over de volle breedte in plaats van in het midden
-export const SET = {
-  vol: 0.8,
-  edge: true,
-  hp: false,
+// Spelersinstellingen (geluid, beeld, besturing, hulp) die in de browser worden bewaard.
+// Elke instelling heeft hier een standaardwaarde; "Standaard herstellen" zet ze allemaal terug.
+export const DEFAULTS = {
+  // geluid
+  sound: true, // alle geluid aan of uit
+  vol: 0.8, // hoofdvolume
+  alerts: true, // alarm bij aanvallen en meldingen
+  uiSounds: true, // klikjes van knoppen
+  muteHidden: true, // stil als je naar een ander tabblad gaat
+  // beeld
+  quality: 'auto', // 'auto' | 'low' | 'mid' | 'high' | 'custom'
+  gfx: { scale: 1, shadows: true, bloom: true, outline: true, particles: true },
   shake: true,
-  quality: 'auto',
-  dragSelect: true,
-  hudWide: false,
+  motion: true, // animaties in de interface (uit = rustiger)
+  fps: false, // beeldjes per seconde tonen
+  // besturing
+  edge: true, // kaart schuift als de muis de rand raakt
+  camSpeed: 1, // hoe snel de camera schuift
+  invertZoom: false,
+  dragSelect: true, // linkermuis slepen = selectiekader
+  // interface en hulp
+  coach: true, // tutorial: "volgende stap" en oplichtende knoppen
+  tips: true, // uitleg als je over iets heen gaat met de muis
+  hp: false, // levensbalken altijd tonen
+  uiScale: 1, // grootte van de interface
+  hudWide: false, // ultrabreed scherm: HUD over de volle breedte
+  autosave: true,
 };
+
+export let SET = structuredClone(DEFAULTS);
 try {
-  Object.assign(SET, JSON.parse(localStorage.getItem('tijdperken-set') || '{}'));
+  const saved = JSON.parse(localStorage.getItem('tijdperken-set') || '{}');
+  Object.assign(SET, saved, { gfx: { ...DEFAULTS.gfx, ...(saved.gfx || {}) } });
+  // Oude losse instelling voor geluid aan/uit meenemen
+  if (localStorage.getItem('tijdperken-snd') === 'off' && saved.sound === undefined) SET.sound = false;
 } catch (e) {}
+
 export function saveSet() {
   try {
     localStorage.setItem('tijdperken-set', JSON.stringify(SET));
   } catch (e) {}
 }
 
-/** Instellingen die direct de pagina-indeling raken. */
+/** Alles terug naar de standaardwaarden. */
+export function resetSet() {
+  for (const k of Object.keys(SET)) delete SET[k];
+  Object.assign(SET, structuredClone(DEFAULTS));
+  saveSet();
+  applyLayoutSettings();
+}
+
+/** Instellingen die direct de pagina raken: indeling, grootte, animaties en hulp. */
 export function applyLayoutSettings() {
-  document.body.classList.toggle('hudwide', !!SET.hudWide);
+  const body = document.body.classList;
+  body.toggle('hudwide', !!SET.hudWide);
+  body.toggle('nocoach', !SET.coach);
+  body.toggle('calm', !SET.motion);
+  document.documentElement.style.setProperty('--ui-scale', SET.uiScale);
+  const fps = document.getElementById('fps');
+  if (fps) fps.hidden = !SET.fps;
 }
 applyLayoutSettings();

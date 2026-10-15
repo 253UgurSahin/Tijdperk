@@ -68,3 +68,11 @@ export function resize() {
   CAM3.updateProjectionMatrix();
 }
 addEventListener('resize', resize);
+// Vraag om een nieuwe grootte die pas vlak vóór het volgende beeldje ingaat (zie quality.js)
+let resizeWanted = false;
+export const requestResize = () => (resizeWanted = true);
+export function applyPendingResize() {
+  if (!resizeWanted) return;
+  resizeWanted = false;
+  resize();
+}

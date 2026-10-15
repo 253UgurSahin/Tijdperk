@@ -1,6 +1,7 @@
 // Gedeelde toestand die door meerdere onderdelen wordt aangepast.
 // (Een geïmporteerde variabele kun je niet overschrijven, daarom staan ze samen in één object.)
 import type { CoachAct } from '../types';
+import type { Profile } from './profile';
 /** Alle gedeelde toestand op één plek (zie de uitleg hierboven). */
 export interface Store {
   mapVersion: number;
@@ -30,6 +31,9 @@ export interface Store {
   missionOpen: boolean;
   coachTile: string | null;
   coachAct: CoachAct | null;
+  modalLocked: boolean;
+  profile: Profile | null;
+  achievementTimer: number;
   /** Hoe ver we tussen de vorige en de volgende speltik zitten (0-1), voor vloeiend tekenen. */
   alpha: number;
   /** Waar de muis boven hangt. */
@@ -64,10 +68,13 @@ export const store: Store = {
   notePos: null,
   rateSnap: null,
   rateT: 0,
-  resMax: 5,
+  resMax: 14,
   missionOpen: true,
   coachTile: null,
   coachAct: null,
+  modalLocked: false, // het open venster gaat niet dicht met Esc of een klik ernaast
+  profile: null, // spelersprofiel met prestaties en scores (zie core/profile.ts); leeg = alleen vrije volken
+  achievementTimer: 0, // tijd tot het spel weer kijkt of je een prestatie hebt gehaald
   alpha: 1,
   hover: null,
 };

@@ -4,10 +4,12 @@ import { H, TAU, W } from '../config';
 import { NODES } from '../data/nodes';
 import { RES } from '../data/resources';
 import { G } from '../game/state';
-import { C, M_, gCyl, gDod, gIco, gOct, type Paint } from './kit';
+import { C, GB, M_, gCyl, gDod, gIco, gOct, mat } from './kit';
 import { CAM3, S3, cam } from './scene';
 import { hash2 } from '../util/random';
-import { bmap, isUnl, node } from '../world/world';
+import { TER, bmap, ground, node, ter } from '../world/world';
+import { settled } from '../game/rivals';
+import { groundHeight } from './terrain';
 import { camDist } from './camera';
 
 /** Eén onderdeel van een boom of rots: een vorm (al op zijn plek gezet) en het materiaal. */
@@ -31,18 +33,36 @@ function bakePart(
   );
   return { geo: g, mat: M_(m) };
 }
+// Een vorm met kleine willekeurige deuken, zodat niet elke boomkruin of steen een perfecte bol is.
+// Punten op dezelfde plek schuiven precies even ver, dus er ontstaan geen gaten.
+function lumpy(geo, seed, amount = 0.3) {
+  const g = geo.clone(),
+    p = g.attributes.position;
+  for (let i = 0; i < p.count; i++) {
+    const x = p.getX(i),
+      y = p.getY(i),
+      z = p.getZ(i),
+      k = 1 + (hash2(Math.round(x * 97), Math.round(y * 89) + Math.round(z * 83) * 7, seed) - 0.5) * amount;
+    p.setXYZ(i, x * k, y * k, z * k);
+  }
+  g.computeVertexNormals();
+  return g;
+}
 // Bladeren wiegen zacht in de wind. Elke boom krijgt een eigen ritme (op basis van zijn plek),
-// en hoe hoger een stukje blad, hoe meer het beweegt.
+// en hoe hoger een stukje blad, hoe meer het beweegt. Onderin is het bladerdek donkerder
+// (daar komt minder licht), bovenin lichter: dat geeft de kruinen diepte.
 export const WIND = { value: 0 };
-function foliage(color: string): T3.MeshStandardMaterial {
+function foliage(color, low = 0.25, high = 1.1) {
   const m = new T3.MeshStandardMaterial({ color, flatShading: true, roughness: 0.88 });
   m.onBeforeCompile = shader => {
     shader.uniforms.uWind = WIND;
+    shader.uniforms.uShadeRange = { value: new T3.Vector2(low, high) };
     shader.vertexShader =
-      'uniform float uWind;\n' +
+      'uniform float uWind;\nvarying float vLeafY;\n' +
       shader.vertexShader.replace(
         '#include <begin_vertex>',
         `#include <begin_vertex>
+        vLeafY = position.y;
         #ifdef USE_INSTANCING
           vec3 ip = vec3(instanceMatrix[3][0], instanceMatrix[3][1], instanceMatrix[3][2]);
         #else
@@ -52,69 +72,196 @@ function foliage(color: string): T3.MeshStandardMaterial {
         transformed.x += sway * position.y * 1.4;
         transformed.z += sway * position.y * 0.6;`,
       );
+    shader.fragmentShader =
+      'uniform vec2 uShadeRange;\nvarying float vLeafY;\n' +
+      shader.fragmentShader.replace(
+        '#include <color_fragment>',
+        `#include <color_fragment>
+        diffuseColor.rgb *= mix(0.66, 1.08, smoothstep(uShadeRange.x, uShadeRange.y, vLeafY));`,
+      );
   };
-  m.customProgramCacheKey = () => 'wind';
+  m.customProgramCacheKey = () => 'wind-leaf';
   return m;
 }
 export const FOL: Record<string, T3.MeshStandardMaterial> = {
   pine: foliage('#3f6b3f'),
   pine2: foliage('#4a7a45'),
-  birch: foliage('#8fbf5a'),
-  oak: foliage('#4f8a3c'),
-  bush: foliage('#4d7d38'),
+  birch: foliage('#8fbf5a', 0.5, 1.3),
+  oak: foliage('#4f8a3c', 0.35, 1.15),
+  bush: foliage('#4d7d38', 0.0, 0.32),
 };
-const NVAR: Record<string, NodePart[]> = {
+const STARGLOW = mat('#b49cff', { e: '#8a5cff', ei: 0.9 });
+// Kruinen en stenen met deuken (een paar varianten, steeds hergebruikt)
+const BLOB = [lumpy(gIco(0), 1, 0.28), lumpy(gIco(0), 2, 0.28), lumpy(gIco(0), 3, 0.32)];
+const STONE = [lumpy(gDod(), 4, 0.35), lumpy(gDod(), 5, 0.4), lumpy(gIco(0), 6, 0.35)];
+const NVAR = {
   pine: [
     bakePart(gCyl(0.06, 0.07, 6), C.woodd, 0, 0, 0, 1, 0.4, 1),
     bakePart(gCyl(0, 0.42, 7), FOL.pine, 0, 0.28, 0, 1, 0.62, 1),
     bakePart(gCyl(0, 0.32, 7), FOL.pine2, 0, 0.62, 0, 1, 0.55, 1),
   ],
+  // Hoge spar met drie lagen takken
+  pineTall: [
+    bakePart(gCyl(0.05, 0.07, 6), C.woodd, 0, 0, 0, 1, 0.45, 1),
+    bakePart(gCyl(0, 0.44, 8), FOL.pine, 0, 0.2, 0, 1, 0.5, 1),
+    bakePart(gCyl(0, 0.35, 8), FOL.pine2, 0, 0.48, 0, 1, 0.46, 1),
+    bakePart(gCyl(0, 0.25, 7), FOL.pine, 0, 0.76, 0, 1, 0.44, 1),
+  ],
   birch: [
     bakePart(gCyl(0.045, 0.055, 6), '#e8e4d8', 0, 0, 0, 1, 0.7, 1),
-    bakePart(gIco(0), FOL.birch, 0, 0.9, 0, 0.3, 0.42, 0.3),
+    bakePart(BLOB[0], FOL.birch, 0, 0.9, 0, 0.3, 0.42, 0.3),
+  ],
+  // Berk met twee kruinen boven elkaar en een donkere vlek op de stam
+  birchPair: [
+    bakePart(gCyl(0.04, 0.055, 6), '#e8e4d8', 0, 0, 0, 1, 0.82, 1),
+    bakePart(GB, '#3a3630', 0, 0.3, 0, 0.085, 0.05, 0.085),
+    bakePart(BLOB[1], FOL.birch, 0.03, 0.78, 0, 0.27, 0.3, 0.27),
+    bakePart(BLOB[2], FOL.birch, -0.02, 1.08, 0.02, 0.2, 0.26, 0.2),
   ],
   oak: [
     bakePart(gCyl(0.06, 0.08, 6), '#6e5537', 0, 0, 0, 1, 0.45, 1),
-    bakePart(gIco(0), FOL.oak, 0, 0.78, 0, 0.44, 0.38, 0.44),
-    bakePart(gIco(0), FOL.oak, 0.18, 0.62, 0.1, 0.26, 0.24, 0.26),
+    bakePart(BLOB[0], FOL.oak, 0, 0.78, 0, 0.44, 0.38, 0.44),
+    bakePart(BLOB[1], FOL.oak, 0.18, 0.62, 0.1, 0.26, 0.24, 0.26),
+  ],
+  // Brede eik: een ronde kruin uit vier klompen blad
+  oakWide: [
+    bakePart(gCyl(0.07, 0.1, 6), '#6e5537', 0, 0, 0, 1, 0.5, 1),
+    bakePart(BLOB[2], FOL.oak, 0, 0.82, 0, 0.42, 0.34, 0.42),
+    bakePart(BLOB[0], FOL.oak, 0.24, 0.66, 0.06, 0.26, 0.24, 0.26),
+    bakePart(BLOB[1], FOL.oak, -0.2, 0.68, 0.14, 0.24, 0.22, 0.24),
+    bakePart(BLOB[0], FOL.oak, 0.02, 0.64, -0.24, 0.24, 0.22, 0.24),
   ],
   bush: [
-    bakePart(gIco(0), FOL.bush, 0, 0.14, 0, 0.24, 0.18, 0.24),
+    bakePart(BLOB[0], FOL.bush, 0, 0.14, 0, 0.24, 0.18, 0.24),
+    bakePart(BLOB[2], FOL.bush, 0.14, 0.1, 0.08, 0.15, 0.12, 0.15),
     bakePart(gIco(0), '#c43c3c', 0.08, 0.28, 0.06, 0.05, 0.05, 0.05),
     bakePart(gIco(0), '#c43c3c', -0.1, 0.24, 0.02, 0.05, 0.05, 0.05),
+    bakePart(gIco(0), '#d4483e', 0.2, 0.2, 0.12, 0.04, 0.04, 0.04),
   ],
-  rock: [bakePart(gDod(), '#9a9c92', 0, 0.1, 0, 0.3, 0.22, 0.28)],
+  // Rotsblok: een grote steen met twee kleinere ernaast
+  rock: [
+    bakePart(STONE[0], '#9a9c92', 0, 0.1, 0, 0.3, 0.22, 0.28),
+    bakePart(STONE[1], '#8c8e85', 0.24, 0.04, 0.12, 0.13, 0.1, 0.12),
+    bakePart(STONE[2], '#a5a69c', -0.18, 0.03, 0.2, 0.09, 0.07, 0.09),
+  ],
   coal: [
-    bakePart(gDod(), '#3e4146', 0, 0.1, 0, 0.32, 0.24, 0.3),
-    bakePart(gDod(), '#2a2c30', 0.18, 0.06, 0.12, 0.14, 0.12, 0.14),
+    bakePart(STONE[0], '#3e4146', 0, 0.1, 0, 0.32, 0.24, 0.3),
+    bakePart(STONE[1], '#2a2c30', 0.18, 0.06, 0.12, 0.14, 0.12, 0.14),
+    bakePart(STONE[2], '#33363b', -0.2, 0.04, 0.1, 0.1, 0.08, 0.1),
   ],
   oil: [
     bakePart(gCyl(0.4, 0.4, 10), '#1c1820', 0, 0, 0, 1, 0.025, 1),
     bakePart(gCyl(0.12, 0.12, 8), '#4d3d5c', 0.1, 0.02, 0.05, 1, 0.01, 1),
   ],
   sand: [bakePart(gIco(0), '#c9b07c', 0, -0.02, 0, 0.42, 0.1, 0.38)],
+  // Meteorietbrok: zwartgeblakerde steen in een kuiltje, met paars gloeiende kristallen
+  starmetal: [
+    bakePart(gCyl(0.42, 0.42, 10), '#3a3430', 0, 0, 0, 1, 0.02, 1),
+    bakePart(gDod(), '#2b2830', 0, 0.12, 0, 0.3, 0.24, 0.27),
+    bakePart(gOct(), STARGLOW, 0.06, 0.32, 0.02, 0.08, 0.17, 0.08),
+    bakePart(gOct(), STARGLOW, -0.13, 0.24, 0.1, 0.06, 0.12, 0.06),
+    bakePart(gOct(), STARGLOW, 0.14, 0.18, -0.12, 0.05, 0.1, 0.05),
+  ],
 };
 for (const k of ['copper', 'tin', 'iron', 'gold', 'lithium'])
   NVAR[k] = [
-    bakePart(gDod(), k === 'lithium' ? '#d9dcd6' : '#7b7d78', 0, 0.1, 0, 0.3, 0.22, 0.28),
+    bakePart(STONE[0], k === 'lithium' ? '#d9dcd6' : '#7b7d78', 0, 0.1, 0, 0.3, 0.22, 0.28),
+    bakePart(STONE[1], k === 'lithium' ? '#c9ccc6' : '#6c6e69', 0.22, 0.04, 0.14, 0.12, 0.1, 0.12),
     bakePart(gOct(), RES[k].c, 0.05, 0.3, 0, 0.1, 0.18, 0.1),
     bakePart(gOct(), RES[k].c, -0.12, 0.22, 0.08, 0.07, 0.12, 0.07),
+    bakePart(gOct(), RES[k].c, 0.16, 0.14, -0.1, 0.05, 0.09, 0.05),
   ];
 const NGROUP = new T3.Group();
 S3.add(NGROUP);
-let NI3: Record<string, T3.InstancedMesh[]> = {};
-const nodeVar = (i: number): string => {
+
+// Losse rotsblokken op de bergen: zo zijn de bergen niet glad maar ruw en rotsig.
+// Ze staan half in de grond en krijgen bovenop de berg een laagje sneeuw (lichtere kleur).
+// (Eenvoudige vormen en geen eigen schaduw: het zijn er veel, en ze moeten licht blijven)
+const CRAG_MAX = 4000;
+const CRAG_SHAPES = [lumpy(gIco(0), 7, 0.4), lumpy(gIco(0), 8, 0.45), lumpy(gIco(0), 9, 0.35)];
+const CRAGS = CRAG_SHAPES.map(geo => {
+  const m = new T3.InstancedMesh(geo, mat('#ffffff'), CRAG_MAX);
+  m.count = 0;
+  m.receiveShadow = true;
+  m.castShadow = false;
+  m.frustumCulled = false;
+  m.instanceMatrix.setUsage(T3.DynamicDrawUsage);
+  NGROUP.add(m);
+  return m;
+});
+const SNOWC = new T3.Color('#e6ecf2');
+function placeCrags(x0, x1, y0, y1) {
+  const n = [0, 0, 0],
+    reach = Math.min(drawn.r, camDist() * 2),
+    // Ver uitgezoomd zie je losse rotsen nauwelijks: dan minder
+    few = Math.min(1, 32 / camDist()) * (richTrees ? 1 : 0.5);
+  for (let y = y0; y <= y1; y++)
+    for (let x = x0; x <= x1; x++) {
+      const i = y * W + x;
+      if (ter[i] !== TER.ROCK || Math.hypot(x - cam.x, y - cam.y) > reach) continue;
+      // Aan de rand van een berg (bij de wand) vaker een uitstekende rots dan bovenop
+      const edge =
+        ter[i - 1] !== TER.ROCK ||
+        ter[i + 1] !== TER.ROCK ||
+        ter[i - W] !== TER.ROCK ||
+        ter[i + W] !== TER.ROCK;
+      if (hash2(x, y, 60) > (edge ? 0.65 : 0.25) * few) continue;
+      const kind = (hash2(x, y, 61) * 3) | 0;
+      if (n[kind] >= CRAG_MAX) continue;
+      const h1 = hash2(x, y, 63),
+        h2 = hash2(x, y, 65),
+        px = x + 0.2 + h1 * 0.6,
+        pz = y + 0.2 + h2 * 0.6,
+        gy = groundHeight(px, pz),
+        sc = 0.3 + hash2(x, y, 67) * 0.3;
+      // Platte, hoekige rotsplaten die half in de berg steken
+      _v.set(px, gy - sc * 0.35, pz);
+      _q.setFromEuler(_e.set((h2 - 0.5) * 0.7, h1 * TAU, (h1 - 0.5) * 0.6));
+      _s.set(sc * 1.4, sc * (0.55 + h2 * 0.35), sc);
+      _m4.compose(_v, _q, _s);
+      CRAGS[kind].setMatrixAt(n[kind], _m4);
+      // Kleur van de berg op die plek, iets donkerder; hoog op de berg met sneeuw
+      const g = i * 3,
+        tone = 0.78 + h1 * 0.2;
+      _c.setRGB((ground[g] / 255) * tone, (ground[g + 1] / 255) * tone, (ground[g + 2] / 255) * tone);
+      _c.lerp(SNOWC, Math.min(0.55, Math.max(0, (gy - 3.8) / 1.2)));
+      if (!settled(x, y)) _c.multiply(LOCKED);
+      CRAGS[kind].setColorAt(n[kind], _c);
+      n[kind]++;
+    }
+  CRAGS.forEach((m, k) => {
+    m.count = n[k];
+    m.instanceMatrix.needsUpdate = true;
+    if (m.instanceColor) m.instanceColor.needsUpdate = true;
+  });
+}
+let NI3 = {};
+// Op "laag" alleen de eenvoudige boomvormen en minder rotsblokken: dat scheelt veel driehoekjes
+let richTrees = true;
+/** Rijke bomen en bergen aan (middel/hoog) of uit (laag); bouwt de bronnen opnieuw op. */
+export function setNodeDetail(rich) {
+  if (rich === richTrees) return;
+  richTrees = rich;
+  drawn.r = 0; // bij de volgende controle alles opnieuw neerzetten
+}
+const nodeVar = i => {
   const k = NODES[node[i]].k;
   if (k !== 'tree') return k;
-  const h = hash2(i % W, (i / W) | 0, 21);
-  return h < 0.45 ? 'pine' : h < 0.72 ? 'birch' : 'oak';
+  const x = i % W,
+    y = (i / W) | 0,
+    h = hash2(x, y, 21),
+    other = richTrees && hash2(x, y, 22) < 0.45; // ongeveer de helft krijgt de tweede vorm
+  if (h < 0.45) return other ? 'pineTall' : 'pine';
+  if (h < 0.72) return other ? 'birchPair' : 'birch';
+  return other ? 'oakWide' : 'oak';
 };
 const _m4 = new T3.Matrix4(),
   _q = new T3.Quaternion(),
   _v = new T3.Vector3(),
   _s = new T3.Vector3(),
   _e = new T3.Euler(),
-  _c = new T3.Color();
+  _c = new T3.Color(),
+  LOCKED = new T3.Color(0.5, 0.52, 0.56);
 // Alleen bronnen in een cirkel rond de camera worden getekend: op een grote kaart scheelt dat veel.
 // De cirkel schuift mee als de camera verder dan een stukje beweegt (zie nodesNeedUpdate).
 const drawn = { x: -999, y: -999, r: 0 };
@@ -180,10 +327,13 @@ export function rebuildNodes(full?: boolean): void {
         sc = v === 'oil' || v === 'sand' ? 1 : 0.82 + h3 * 0.38;
       _v.set(x + 0.5 + (h1 - 0.5) * 0.3, 0, y + 0.5 + (h2 - 0.5) * 0.3);
       _q.setFromEuler(_e.set(0, h1 * TAU, 0));
-      _s.set(sc, sc * (v === 'pine' ? 0.9 + h2 * 0.4 : 1), sc);
+      _s.set(sc, sc * (v.startsWith('pine') ? 0.9 + h2 * 0.4 : 1), sc);
       _m4.compose(_v, _q, _s);
-      const lk = !isUnl(x, y);
-      _c.setRGB(lk ? 0.5 : 1, lk ? 0.52 : 1, lk ? 0.56 : 1);
+      // Elke boom of steen een net iets andere tint, zodat een bos niet uit klonen bestaat
+      const lk = !settled(x, y), // wildernis (niet van jou of een rivaal) is donkerder
+        tint = 0.86 + h3 * 0.24;
+      _c.setRGB(tint * (0.96 + h1 * 0.08), tint * (0.97 + h2 * 0.05), tint * 0.96);
+      if (lk) _c.multiply(LOCKED);
       for (const m of arr) {
         m.setMatrixAt(k, _m4);
         m.setColorAt(k, _c);
@@ -196,4 +346,5 @@ export function rebuildNodes(full?: boolean): void {
       m.instanceMatrix.needsUpdate = true;
       if (m.instanceColor) m.instanceColor.needsUpdate = true;
     }
+  placeCrags(x0, x1, y0, y1);
 }

@@ -6,6 +6,7 @@ import { W } from '../config';
 import { AGES } from '../data/ages';
 import { B } from '../data/buildings';
 import { NODES } from '../data/nodes';
+import { PEOPLE } from '../data/peoples';
 import { GATHER, RES } from '../data/resources';
 import { UNITS } from '../data/units';
 import { avail, computeCaches, powerRatio, siteCnt } from '../game/caches';
@@ -20,39 +21,43 @@ import {
   bMaxHp,
   bPop,
   lvlOf,
+  marketPrices,
   maxLvl,
   toolCost,
   upgCost,
-  upgEffect,
+  upgradeRows,
   upgrade,
   upgradeArms,
   upgradeTools,
 } from '../game/upgrades';
+import { buildCost } from '../game/placement';
 import { unhide } from '../game/villagers';
 import { clearSel, resetV, selUnits, selVills } from '../input/selection';
 import { centerOn } from '../render/camera';
+import { selectArmy, selectIdle } from '../input/input';
+import { CHAPTERS } from '../game/chapters';
 import { iconFor, portrait } from '../render/icons';
 import { bShort } from './buildmenu';
-import { TOUCH, costHTML, esc, fmt, gem, hy } from './format';
+import { TOUCH, compareHTML, compareText, costHTML, esc, fmt, gem, hy } from './format';
+import { ico } from './glyphs';
 import { setHTML, sigs } from './header';
 import { setExpand, toast } from './hud';
+import { bannerHTML, showPeopleInfo } from './peoples';
+import { rivalCommand, rivalSelection } from './rivals';
 import { $ } from '../util/dom';
 import { clamp, dist } from '../util/math';
 import { amt, bmap, isUnl, node, setBlk } from '../world/world';
-import { canMake } from '../data/succession';
+import { canMake, fitsPeople } from '../data/succession';
+import { canDemolish, ownerLine, refreshWonders, wonderStatus } from '../game/wonders';
 
 // Selectiepaneel
-/** Opties voor een knop in het selectiepaneel. */
-interface CmdOpts {
-  on?: boolean;
-  danger?: boolean | 1;
-  dis?: boolean;
-  tip?: string;
-  img?: string;
-  cost?: string;
-}
-export const CB = (data: string, glyph: string, label: string, o: CmdOpts = {}): string =>
-  `<button class="cb ${o.on ? 'on' : ''} ${o.danger ? 'danger' : ''}" ${data} ${o.dis ? 'disabled' : ''} title="${esc(o.tip || label)}">${o.img ? `<img src="${o.img}" alt="">` : `<span class="g">${glyph}</span>`}<span class="l">${hy(label)}</span>${o.cost ? `<span class="c">${o.cost}</span>` : ''}</button>`;
+// Een opdrachttegel. De uitleg (data-tip) toont buildmenu.js in een eigen tooltip.
+export const CB = (data, glyph, label, o = {}) => {
+  const cls = ['cb', o.on && 'on', o.danger && 'danger', o.cost && 'has-cost'].filter(Boolean).join(' ');
+  const pic = o.img ? `<img src="${o.img}" alt="">` : `<span class="g">${ico(glyph)}</span>`;
+  const cost = o.cost ? `<span class="c">${o.cost}</span>` : '';
+  return `<button class="${cls}" ${data} ${o.dis ? 'disabled' : ''} aria-label="${esc(label.replace(/\u00AD/g, ''))}" data-tip="${esc(o.tip || '')}">${pic}<span class="l">${hy(label)}</span>${cost}</button>`;
+};
 // Selectiepaneel met de knoppen die bij de selectie horen
 export let selCmds: string | null = null,
   selCtx = '';
@@ -62,23 +67,45 @@ export function renderInspector() {
     us = selUnits(),
     b = sel.b && bById.get(sel.b),
     camp = sel.camp && G.camps.find(c => c.id === sel.camp && c.alive);
-  const X = `<button class="quiet x" data-x="1" aria-label="Sluiten">${TOUCH ? 'Sluiten' : '×'}</button>`;
-  const im = (src: string) => `<img src="${src}" alt="">`;
-  const head = (port: string, t: string, sub: string) =>
+  const X = `<button class="quiet x" data-x="1" aria-label="Sluiten">${TOUCH ? 'Sluiten' : ico('✕')}</button>`;
+  const im = src => `<img src="${src}" alt="">`;
+  const head = (port, t, sub) =>
     `${X}<div class="selh"><div class="port">${port}</div><div><div class="selt">${t}</div><div class="sels">${sub}</div></div></div>`;
-  const hpl = (f: number, txt: string, cls = '') =>
-    `<div class="hpline"><div class="bar ${cls}"><i style="width:${clamp(f, 0, 1) * 100}%"></i></div><span>${txt}</span></div>`;
+  // Levensbalk: zonder eigen kleur wordt hij oranje bij weinig en rood bij heel weinig leven
+  const hpl = (f, txt, cls = '') => {
+    const tone = cls || (f < 0.35 ? 'bad' : f < 0.65 ? 'warn' : '');
+    return `<div class="hpline"><div class="bar ${tone}"><i style="width:${clamp(f, 0, 1) * 100}%"></i></div><span>${txt}</span></div>`;
+  };
+  // Iets van een rivaal aangeklikt: een gebouw of de rivaal zelf (zie ui/rivals.js)
+  const rival = !vs.length && !us.length && !b && !camp ? rivalSelection({ head, hpl, CB, im }) : null;
+  if (rival) {
+    document.body.classList.add('insp');
+    selCtx = rival.ctx;
+    selCmds = rival.cmds;
+    return setHTML(p, 'ins', rival.sig, () => rival.html);
+  }
   if (!vs.length && !us.length && !b && !camp && sel.node < 0) {
     document.body.classList.remove('insp');
     selCmds = null;
     selCtx = '';
-    const sig = 'e' + G.age + popNow() + popCap() + G.us.length + G.unl.filter(Boolean).length;
+    const idle = G.vs.filter(v => !v.hidden && v.state === 'idle').length;
+    const sig =
+      'e' + G.people + G.age + popNow() + popCap() + G.us.length + G.unl.filter(Boolean).length + '/' + idle;
+    // Niets geselecteerd: een overzicht van je stad met snelknoppen, zodat het paneel nooit leeg is
+    const quick = (k, label, key, n) =>
+      `<button class="quick" data-quick="${k}">${label}${n != null ? `<b>${n}</b>` : ''}${TOUCH ? '' : `<kbd>${key}</kbd>`}</button>`;
+    // Je volk, met zijn vlag: klik om te zien wat het goed kan
+    const folk = PEOPLE[G.people];
+    const folkBtn = `<button class="quick folkq" data-quick="people" title="Je volk: wat kan het goed?">${bannerHTML(folk, 'xs')}Volk: ${folk.n}</button>`;
     return setHTML(
       p,
       'ins',
       sig,
       () =>
-        `<div class="empty"><div class="selh" style="padding-right:0"><div class="port">${im(iconFor('townhall'))}</div><div><div class="selt">${placeName()}</div><div class="sels">${AGES[G.age].n} · ${AGES[G.age].lvl}</div></div></div><div class="stats"><span><i>⌂</i>${popNow()}/${popCap()} inwoners</span><span><i>⚔</i>${G.us.length} soldaten</span><span><i>◇</i>${G.unl.filter(Boolean).length} gebieden</span></div><p class="small" style="margin-top:8px">${TOUCH ? 'Tik' : 'Klik'} op een gebouw, dorpeling of soldaat om het te bekijken. Kies hiernaast wat je wilt bouwen.</p></div>`,
+        `<div class="empty"><div class="selh" style="padding-right:0"><div class="port">${im(iconFor('townhall'))}</div><div><div class="selt">${placeName()}</div><div class="sels">${AGES[G.age].n} · ${AGES[G.age].lvl}</div></div></div>` +
+        `<p class="chron">Hoofdstuk ${AGES[G.age].r} · ${CHAPTERS[G.age].t}</p>` +
+        `<div class="stats"><span><i>${ico('⌂')}</i>${popNow()}/${popCap()} inwoners</span><span><i>${ico('⚔')}</i>${G.us.length} soldaten</span><span><i>${ico('◇')}</i>${G.unl.filter(Boolean).length} gebieden</span></div>` +
+        `<div class="quicks">${quick('idle', 'Wie doet niets?', 'I', idle)}${G.us.length ? quick('army', 'Hele leger', 'Q', G.us.length) : ''}${quick('home', 'Naar het stamhuis', 'Home')}${folkBtn}</div></div>`,
     );
   }
   document.body.classList.add('insp');
@@ -122,7 +149,7 @@ export function renderInspector() {
       () => `${head(im(portrait('u', us[0].k)), us.length === 1 ? U.n : one ? `${us.length} × ${U.n}` : 'Leger', `${us.length} ${us.length === 1 ? 'eenheid' : 'eenheden'}${G.armsLvl ? ` · pantser ${G.armsLvl + 1}` : ''}`)}${hpl(hp / mhp, `${Math.ceil(hp)}/${Math.ceil(mhp)}`)}
       ${
         one
-          ? `<div class="stats"><span><i>⚔</i>${Math.round(U.dmg * armsMul())} schade</span><span><i>◎</i>bereik ${U.r}</span><span><i>»</i>snelheid ${U.spd}</span>${U.air ? '<span><i>✈</i>raakt drones</span>' : ''}</div>`
+          ? `<div class="stats"><span><i>${ico('⚔')}</i>${Math.round(U.dmg * armsMul())} schade</span><span><i>${ico('◎')}</i>bereik ${U.r}</span><span><i>${ico('»')}</i>snelheid ${U.spd}</span>${U.air ? `<span><i>${ico('✈')}</i>raakt drones</span>` : ''}</div>`
           : `<div class="stack">${Object.keys(by)
               .map(
                 k =>
@@ -202,7 +229,7 @@ export function renderInspector() {
       workers = G.vs.filter(v => v.tgt && v.tgt.k === 'node' && v.tgt.i === i).length;
     selCtx = N.n;
     selCmds = N.pump
-      ? CB('data-b="pump"', '⛽', 'Oliepomp', { tip: 'Zet een oliepomp op deze bron', dis: G.age < 4 })
+      ? CB('data-b="pump"', '⛽', 'Oliepomp', { tip: 'Zet een oliepomp op deze bron', dis: G.age < 6 })
       : !isUnl(x, y)
         ? CB('data-u="expand"', '⬚', 'Uitbreiden', { tip: 'Dit ligt buiten je land' })
         : CB('data-u="send"', '➜', 'Stuur 1', { tip: 'Stuur de dichtstbijzijnde vrije dorpeling' }) +
@@ -241,10 +268,10 @@ export function renderInspector() {
         mx = maxLvl(b);
       if (l < mx) {
         const c = upgCost(b);
-        cmd += CB('data-b="upgrade"', '▲', `Niveau ${l + 2}`, {
+        cmd += CB('data-b="upgrade"', '▲', `Verbeter`, {
           dis: !has(c),
-          cost: costHTML(c),
-          tip: upgEffect(b.type, l + 1),
+          cost: costHTML(c, true),
+          tip: `Naar niveau ${l + 2}. ` + compareText(upgradeRows(b)),
         });
       }
     }
@@ -252,20 +279,22 @@ export function renderInspector() {
       cmd += CB('data-b="train1"', '', `Dorpeling`, {
         img: portrait('v', 'auto'),
         dis: popNow() >= popCap() || G.res.food < trainCost(),
-        cost: costHTML({ food: trainCost() }),
+        cost: costHTML({ food: trainCost() }, true),
         tip: popNow() >= popCap() ? 'Geen plek: bouw eerst een woning' : 'Train een dorpeling',
       });
       if (G.toolLvl < G.age)
         cmd += CB('data-g="tools"', '⚒', `Werktuig ${G.toolLvl + 2}`, {
           dis: !has(toolCost()),
-          cost: costHTML(toolCost()),
+          cost: costHTML(toolCost(), true),
           tip: '+15% verzamelsnelheid en +2 draagvermogen voor iedereen',
         });
     }
     if (d.train) {
-      const list = Object.keys(UNITS).filter(
-        k => UNITS[k].src === d.train && (canMake(k, G.age) || UNITS[k].age > G.age),
-      );
+      // Wat je nu kunt trainen, plus alleen het eerstvolgende tijdperk als vooruitblik.
+      // Alleen soldaten van jouw volk: de Noormannen hebben een Berserker in plaats van een zwaardvechter.
+      const mine = Object.keys(UNITS).filter(k => UNITS[k].src === d.train && fitsPeople(k, G.people));
+      const nextAge = Math.min(...mine.map(k => UNITS[k].age).filter(a => a > G.age));
+      const list = mine.filter(k => canMake(k, G.age, G.people) || UNITS[k].age === nextAge);
       cmd += list
         .map(k => {
           const U = UNITS[k],
@@ -273,10 +302,10 @@ export function renderInspector() {
           return CB(`data-train="${k}"`, '', U.n, {
             img: portrait('u', k),
             dis: lock || !has(U.cost),
-            cost: lock ? `<span class="lk">${AGES[U.age].r}</span>` : costHTML(U.cost),
+            cost: lock ? `<span class="lk">${AGES[U.age].r}</span>` : costHTML(U.cost, true),
             tip: lock
               ? `Vanaf de ${AGES[U.age].n.toLowerCase()}`
-              : `${U.hp} leven · ${U.dmg} schade · bereik ${U.r}${U.air ? ' · raakt drones' : ''} · ${U.t}s · Shift-klik: 5 tegelijk`,
+              : `${U.hp} leven · ${U.dmg} schade · bereik ${U.r}${U.air ? ' · raakt drones' : ''}${U.bonus ? ' · ' + U.bonus.d : ''}${U.note ? ' · ' + U.note : ''} · ${U.t}s · Shift-klik: 5 tegelijk`,
           });
         })
         .join('');
@@ -290,21 +319,18 @@ export function renderInspector() {
         CB(
           'data-st="cycle"',
           G.stance === 'hold' ? '▣' : G.stance === 'aggr' ? '➶' : '⛨',
-          G.stance === 'hold'
-            ? 'Nieuwe: blijf staan'
-            : G.stance === 'aggr'
-              ? 'Nieuwe: achtervolg'
-              : 'Nieuwe: verdedig',
+          G.stance === 'hold' ? 'Blijf staan' : G.stance === 'aggr' ? 'Achtervolg' : 'Verdedig',
           { tip: 'Wat nieuwe eenheden doen. Klik om te wisselen.' },
         );
     }
     if (b.type === 'barracks' && G.armsLvl < G.age)
       cmd += CB('data-g="arms"', '⛨', `Pantser ${G.armsLvl + 2}`, {
         dis: !has(armsCost()),
-        cost: costHTML(armsCost()),
+        cost: costHTML(armsCost(), true),
         tip: '+15% schade en levenspunten voor het hele leger',
       });
-    if (b.type !== 'townhall')
+    // Het stamhuis en een wereldwonder breek je niet af
+    if (canDemolish(b))
       cmd += CB('data-b="demolish"', '✕', store.demolishArm ? 'Zeker?' : 'Afbreken', {
         danger: 1,
         tip: 'Krijg 50% van de kosten terug (Delete)',
@@ -322,26 +348,35 @@ export function renderInspector() {
     Math.round(b.qt * 4) +
     G.age +
     (d.market ? Object.values(G.res).map(Math.floor).join() : '') +
+    (UPG_OK(b.type) && has(upgCost(b))) + // knop 'Verbeteren' aan of uit
     b.starved +
     b.run +
     b.blocked +
     (siteCnt.get(b.id) || 0) +
     lvlOf(b) +
-    powerRatio.toFixed(2);
+    powerRatio.toFixed(2) +
+    (d.wonder ? wonderStatus(b.type).text : '');
   setHTML(p, 'ins', sig, () => {
     const mh = bMaxHp(b);
     let h = head(
       im(iconFor(b.type)),
       d.n + (lvlOf(b) ? ` <span class="lv">niv. ${lvlOf(b) + 1}</span>` : ''),
-      b.done ? esc(bShort(b.type)) : 'In aanbouw · ' + Math.floor((b.prog / b.bt) * 100) + '%',
+      b.done
+        ? d.wonder
+          ? `Wereldwonder · ${AGES[d.age].n}` // de bonus staat in de kaart eronder
+          : esc(bShort(b.type))
+        : 'In aanbouw · ' + Math.floor((b.prog / b.bt) * 100) + '%',
     );
     h += b.done
-      ? hpl(b.hp / mh, `${Math.ceil(b.hp)}/${Math.ceil(mh)}`, b.hp / mh < 0.4 ? 'bad' : '')
+      ? hpl(b.hp / mh, `${Math.ceil(b.hp)}/${Math.ceil(mh)}`)
       : hpl(b.prog / b.bt, `${Math.floor((b.prog / b.bt) * 100)}% gebouwd`, 'acc');
     if (!b.done)
       return (
-        h + `<div class="statline"><i class="dot"></i>${siteCnt.get(b.id) || 0} bouwers aan het werk</div>`
+        h +
+        `<div class="statline ${siteCnt.get(b.id) ? '' : 'warn'}"><i class="dot"></i>${siteCnt.get(b.id) ? siteCnt.get(b.id) + ' bouwers aan het werk' : 'Nog geen bouwers: stuur er een paar heen'}</div>` +
+        (d.wonder ? wonderCardHTML(b) : '')
       );
+    if (d.wonder) h += wonderCardHTML(b);
     if (d.conv || d.gen || d.pump) {
       const stt = !b.on
         ? 'Uit'
@@ -361,14 +396,23 @@ export function renderInspector() {
             : 'Pompt';
       h += `<div class="statline ${b.starved && b.on ? 'warn' : ''}"><i class="dot"></i>${stt}${d.power && powerRatio < 1 ? ` · stroom ${Math.round(powerRatio * 100)}%` : ''}</div>`;
     }
-    if (d.pop) h += `<div class="stats"><span><i>⌂</i>${bPop(b)} inwoners</span></div>`;
+    if (d.pop) h += `<div class="stats"><span><i>${ico('⌂')}</i>${bPop(b)} inwoners</span></div>`;
     if (d.def)
-      h += `<div class="stats"><span><i>⚔</i>${Math.round(d.def.dmg * (1 + 0.4 * lvlOf(b)))} schade</span><span><i>◎</i>bereik ${d.def.r}</span></div>`;
+      h += `<div class="stats"><span><i>${ico('⚔')}</i>${Math.round(d.def.dmg * (1 + 0.4 * lvlOf(b)))} schade</span><span><i>${ico('◎')}</i>bereik ${d.def.r}</span></div>`;
     if (UPG_OK(b.type)) {
       const l = lvlOf(b),
         top = AGES.length - 1 - B[b.type].age,
         mx = maxLvl(b);
-      h += `<div class="lvrow"><span class="pips">${Array.from({ length: top + 1 }, (_, i) => `<i class="${i <= l ? 'on' : i <= mx ? 'av' : ''}"></i>`).join('')}</span><span>${l < mx ? 'verbetering klaar' : l < top ? 'volgend niveau in de ' + AGES[Math.min(AGES.length - 1, B[b.type].age + l + 1)].n.toLowerCase() : 'max'}</span></div>`;
+      // Verbeterkaart: welk niveau, wat het oplevert (nu → straks), wat het kost
+      const pips = `<span class="pips">${Array.from({ length: top + 1 }, (_, i) => `<i class="${i <= l ? 'on' : i <= mx ? 'av' : ''}"></i>`).join('')}</span>`;
+      if (l < mx) {
+        const c = upgCost(b);
+        // Vooraan zetten: op een breed scherm staat de kaart dan rechts naast de gegevens
+        h =
+          `<div class="upcard side"><div class="uph"><b>Verbeteren naar niveau ${l + 2}</b>${pips}</div>${compareHTML(upgradeRows(b))}<div class="upf">${costHTML(c)}<button class="primary" data-b="upgrade" ${has(c) ? '' : 'disabled'}>Verbeteren</button></div></div>` +
+          h;
+      } else
+        h += `<div class="lvrow">${pips}<span>Niveau ${l + 1} · ${l < top ? 'volgende verbetering in de ' + AGES[Math.min(AGES.length - 1, B[b.type].age + l + 1)].n.toLowerCase() : 'hoogste niveau'}</span></div>`;
     }
     if (d.market)
       h +=
@@ -376,24 +420,50 @@ export function renderInspector() {
         ['food', 'wood', 'stone', 'copper', 'iron', 'coal']
           .filter(r => RES[r].age <= G.age)
           .map(r => {
-            const buy = Math.round(20 * (1 + RES[r].age * 0.5) * (1 - 0.1 * lvlOf(b))),
-              sell = Math.round(8 * (1 + RES[r].age * 0.5) * (1 + 0.15 * lvlOf(b)));
+            const { buy, sell } = marketPrices(b, r);
             return `<span>${gem(r)}${RES[r].n}</span><button data-buy="${r}" ${G.res.gold >= buy ? '' : 'disabled'} title="Koop 100 voor ${buy} goud">Koop ${buy}</button><button data-sell="${r}" ${G.res[r] >= 100 ? '' : 'disabled'} title="Verkoop 100 voor ${sell} goud">Verkoop ${sell}</button>`;
           })
           .join('') +
         '</div>';
-    if (b.q.length)
-      h += `<div class="hpline"><div class="bar acc"><i style="width:${(b.qt / UNITS[b.q[0]].t) * 100}%"></i></div><span>${UNITS[b.q[0]].n}${b.blocked ? ' · geen plek' : ''}</span></div><div class="queue">${b.q.map((k, i) => `<button class="qchip" data-cq="${i}" title="Klik om te annuleren">${UNITS[k].n}</button>`).join('')}</div>`;
+    if (b.q.length) {
+      // Wachtrij: de eerste wordt nu getraind (met voortgang), de rest wacht. Klik = annuleren.
+      const first = UNITS[b.q[0]],
+        pct = clamp(b.qt / first.t, 0, 1) * 100,
+        left = Math.max(0, Math.ceil(first.t - b.qt));
+      const chip = (k, i) =>
+        `<button class="qchip" data-cq="${i}" aria-label="${UNITS[k].n} annuleren" title="${UNITS[k].n} · klik om te annuleren"><img src="${portrait('u', k)}" alt=""></button>`;
+      const rest = b.q.slice(1).map((k, i) => chip(k, i + 1));
+      h +=
+        `<div class="qnow"><button class="qchip big" data-cq="0" aria-label="${first.n} annuleren" title="Klik om te annuleren"><img src="${portrait('u', b.q[0])}" alt=""></button>` +
+        `<div class="qinfo"><div class="qtop"><b>${first.n}</b><span>${b.blocked ? '<em>geen plek</em>' : left + 's'}</span></div>` +
+        `<div class="bar acc"><i style="width:${pct}%"></i></div></div>` +
+        (rest.length ? `<div class="qnext" title="Daarna in de wachtrij">${rest.join('')}</div>` : '') +
+        `</div>`;
+    }
     if (b.type === 'townhall' && (G.training || G.trainQ))
       h += `<div class="statline"><i class="dot"></i>Traint dorpelingen${G.trainQ ? ` · ${G.trainQ} in wachtrij` : ''}</div>`;
     return h;
   });
 }
-export function insHandler(e: MouseEvent) {
-  const t = (e.target as HTMLElement).closest('button');
+// Bij een wereldwonder van jou: de bonus, en hoe het ervoor staat (af, of een race met een rivaal)
+function wonderCardHTML(b) {
+  const d = B[b.type],
+    w = wonderStatus(b.type);
+  const line = b.done ? ownerLine(b.type) : w.tone === 'warn' ? w.text : 'Nog niemand anders bouwt eraan';
+  const tone = b.done ? 'good' : w.tone;
+  return `<div class="wcard"><div class="wperk">${ico('★')}<span><b>Bonus:</b> ${esc(d.perk)}</span></div><div class="statline ${tone}"><i class="dot"></i>${esc(line)}</div></div>`;
+}
+export function insHandler(e) {
+  const t = e.target.closest('button');
   if (!t || t.disabled) return;
   sfx('tick');
   const b = sel.b && bById.get(sel.b);
+  if (rivalCommand(t)) return; // knoppen bij een rivaal (zie ui/rivals.js)
+  // Snelknoppen in het overzicht
+  if (t.dataset.quick === 'idle') return selectIdle();
+  if (t.dataset.quick === 'army') return selectArmy();
+  if (t.dataset.quick === 'home') return $('#zHome').click();
+  if (t.dataset.quick === 'people') return showPeopleInfo();
   // Klik op een soort in een gemengde selectie: alleen die houden (Shift: die juist weghalen)
   if (t.dataset.only) {
     for (const u of selUnits()) if ((u.k === t.dataset.only) === e.shiftKey) sel.us.delete(u.id);
@@ -494,7 +564,7 @@ export function insHandler(e: MouseEvent) {
       v.keep = { k: 'node', i };
       toast(`${v.name} gaat ${RES[v.job].n.toLowerCase()} halen.`);
     } else toast('Geen automatische dorpeling vrij.');
-  } else if (t.dataset.train && b && canMake(t.dataset.train, G.age)) {
+  } else if (t.dataset.train && b && canMake(t.dataset.train, G.age, G.people)) {
     const U = UNITS[t.dataset.train],
       n = e.shiftKey ? 5 : 1;
     for (let i = 0; i < n && has(U.cost); i++) {
@@ -525,14 +595,14 @@ export function insHandler(e: MouseEvent) {
     }
   } else if (t.dataset.buy) {
     const r = t.dataset.buy,
-      c = Math.round(20 * (1 + RES[r].age * 0.5) * (1 - 0.1 * lvlOf(b as Building)));
+      c = marketPrices(b, r).buy;
     if (G.res.gold >= c) {
       G.res.gold -= c;
       G.res[r] += 100;
     }
   } else if (t.dataset.sell) {
     const r = t.dataset.sell,
-      c = Math.round(8 * (1 + RES[r].age * 0.5) * (1 + 0.15 * lvlOf(b as Building)));
+      c = marketPrices(b, r).sell;
     if (G.res[r] >= 100) {
       G.res[r] -= 100;
       G.res.gold += c;
@@ -546,7 +616,8 @@ export function demolish(b: Building) {
   setBlk(b, false);
   const d = B[b.type],
     f = b.done ? 0.5 : 0.75;
-  for (const k in d.cost) G.res[k] += Math.floor(d.cost[k] * f);
+  const cost = buildCost(b.type); // terug wat het nu kost, dus met bonussen
+  for (const k in cost) G.res[k] += Math.floor(cost[k] * f);
   b.q.forEach(k => gain(UNITS[k].cost));
   b.dead = true;
   for (let dy = 0; dy < d.size; dy++) for (let dx = 0; dx < d.size; dx++) bmap[(b.y + dy) * W + b.x + dx] = 0;
@@ -556,6 +627,8 @@ export function demolish(b: Building) {
   for (const v of G.vs) if (v.hidden && v.shelter === b.id) unhide(v);
   if (!d.wall) toast(`${d.n} afgebroken.`);
   burst(b.x + 0.5, b.y + 0.5, '#8a7a62');
+  // Een wonder (of de bouwplaats ervan) weg: zet de lijst met eigenaars en de bonussen opnieuw
+  if (d.wonder) refreshWonders();
   store.demolishArm = 0;
   store.uiDirty = true;
 }

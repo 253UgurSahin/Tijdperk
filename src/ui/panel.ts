@@ -1,4 +1,4 @@
-// Het zijpaneel (Volk / Leger / Onderzoek / Logboek).
+// Het zijpaneel (Dorp / Leger / Verbeteren / Logboek).
 import { sfx } from '../audio/sound';
 import { B } from '../data/buildings';
 import { G } from '../game/state';
@@ -6,10 +6,10 @@ import { measureHud } from '../main';
 import { renderChart } from './panes/log';
 import { $ } from '../util/dom';
 
-// Zijpaneel (Volk / Leger / Onderzoek / Logboek)
-let ptab: string | null = null;
-const PT: Record<string, string> = { pop: 'Volk', def: 'Leger', upg: 'Onderzoek', log: 'Logboek' };
-function setPane(k: string | null) {
+// Zijpaneel (Dorp / Leger / Verbeteren / Logboek)
+let ptab = null;
+const PT = { pop: 'Dorp', def: 'Leger', upg: 'Verbeteren', log: 'Logboek' };
+function setPane(k) {
   ptab = k;
   if (k) document.body.classList.remove('showmap', 'showgoal');
   $('#panel').hidden = !k;
@@ -44,8 +44,9 @@ export function updateTabs() {
       G.us.length ||
       G.raids > 0 ||
       G.bs.some(b => b.type === 'barracks' || (B[b.type].def && b.type !== 'townhall')) ||
-      G.foes.some(f => !f.camp),
-    upg: G.age >= 1 || G.day >= 3 || Object.keys(G.tech).length,
+      G.foes.some(f => !f.camp) ||
+      G.rivals.length > 0, // met rivalen staat het leger-paneel (met het overzicht van rivalen) er meteen
+    upg: G.age >= 1 || G.day >= 3 || Object.keys(G.tech).length || G.blessings.length,
     log: G.day >= 2,
   };
   vis.map = vis.goal = 1;

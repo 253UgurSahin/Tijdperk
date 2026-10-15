@@ -1,0 +1,204 @@
+/* Gebeurtenissen: een kaartje met twee of drie keuzes, en kleine plaatjes voor tijdelijke bonussen. */
+
+/* Klein kopje boven de naam: "Gebeurtenis" of "Vervolg op: ..." */
+#event .ek {
+  display: block;
+  font: italic 600 12px var(--f-display);
+  color: var(--acc-ink);
+}
+
+/* De keuzes: elk een eigen tegeltje, onder elkaar */
+#event .ch {
+  display: grid;
+  gap: 6px;
+}
+#event .evc {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 3px;
+  width: 100%;
+  padding: 8px 11px 9px;
+  text-align: left;
+}
+/* Bovenste regel: wat je doet, met rechts wat het kost */
+#event .evc .el {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 2px 12px;
+}
+#event .evc .el b {
+  font: 650 14px/1.25 var(--f-display);
+  color: var(--ink);
+}
+#event .evc .free {
+  font: 500 11px var(--f-mono);
+  color: var(--ink-4);
+}
+/* Daaronder: wat er gebeurt */
+#event .evc .ed {
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--ink-2);
+}
+/* Wat je krijgt (groen) of kwijtraakt (rood), als fiches vóór de tekst */
+#event .dlt {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-right: 7px;
+  font: 600 12px var(--f-mono);
+  font-variant-numeric: tabular-nums;
+  vertical-align: -1px;
+}
+#event .dlt .gem {
+  width: 9px;
+  height: 9px;
+}
+#event .dlt.up {
+  color: var(--good);
+}
+#event .dlt.down {
+  color: var(--bad);
+}
+/* Waarom een keuze nu niet kan */
+#event .evc .why {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--bad);
+}
+/* De keuze die vanzelf gebeurt als je niet kiest: een stippelrand en een aftelling */
+#event .evc.def {
+  border-style: dashed;
+}
+#event .evc .auto {
+  font: 500 11px var(--f-mono);
+  color: var(--ink-4);
+}
+/* Een keuze die nu niet kan: rustig en plat, maar de reden blijft goed leesbaar */
+#event .evc:disabled {
+  opacity: 1;
+  background: var(--well);
+  box-shadow: none;
+}
+#event .evc:disabled .el b,
+#event .evc:disabled .ed {
+  opacity: 0.6;
+}
+
+/* Tijdelijke bonussen en vervolgen die nog komen: kleine plaatjes met een gekleurd randje */
+#buffs:not([hidden]) {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 5px;
+}
+#buffs .buff {
+  --mark: var(--acc-ink);
+  pointer-events: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  max-width: 100%;
+  min-height: 0;
+  padding: 3px 10px 3px 7px;
+  border-radius: 99px;
+  background: rgba(252, 247, 236, 0.94);
+  border: 1px solid var(--rule-2);
+  border-left: 3px solid var(--mark);
+  box-shadow: 0 2px 0 rgba(43, 37, 32, 0.2);
+  font-size: 12px;
+  line-height: 1.3;
+  text-align: left;
+  color: var(--ink-2);
+}
+#buffs .buff.good {
+  --mark: var(--good);
+}
+#buffs .buff.bad {
+  --mark: var(--bad);
+}
+#buffs .buff.soon {
+  --mark: var(--ink-4);
+  border-style: dashed;
+  border-left-style: solid;
+}
+#buffs .buff .ico {
+  width: 14px;
+  height: 14px;
+  color: var(--mark);
+}
+#buffs .buff b {
+  flex: none;
+  font-weight: 600;
+  color: var(--ink);
+}
+/* Wat de bonus doet, bijvoorbeeld "bouwen 40% sneller" */
+#buffs .buff span {
+  min-width: 0;
+}
+#buffs .buff i {
+  flex: none;
+  font: normal 500 11px var(--f-mono);
+  color: var(--ink-4);
+}
+/* Op een aanraakscherm iets hoger, zodat je ze makkelijk aantikt */
+@media (pointer: coarse) {
+  #buffs .buff {
+    min-height: 30px;
+  }
+}
+
+/* Op een klein scherm is er geen plek voor allebei: tijdens een gebeurtenis wachten de plaatjes even */
+@media (max-width: 900px), (max-height: 560px) {
+  #event:not([hidden]) ~ #buffs {
+    display: none !important;
+  }
+}
+
+/* Weinig hoogte (een liggende telefoon): een breder kaartje met de keuzes naast elkaar en kleinere
+   tekst. Past het dan nog niet, dan kun je in het kaartje scrollen. */
+@media (max-height: 560px) {
+  #notes:has(#event:not([hidden])) {
+    width: min(660px, calc(100% - 32px));
+  }
+  /* De melding zou het kaartje omlaag duwen; hij wacht tot je gekozen hebt */
+  #notes:has(#event:not([hidden])) #toast {
+    display: none;
+  }
+  #event {
+    max-height: calc(100dvh - var(--topH, 100px) - 16px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 9px 11px;
+    gap: 7px;
+  }
+  #event .ic {
+    width: 34px;
+    height: 34px;
+  }
+  #event b {
+    font-size: 16px;
+  }
+  #event p {
+    font-size: 11.5px;
+    line-height: 1.35;
+  }
+  #event .ch {
+    grid-auto-flow: column;
+    grid-auto-columns: 1fr;
+  }
+  #event .evc {
+    padding: 6px 8px 7px;
+    gap: 2px;
+  }
+  #event .evc .el b {
+    font-size: 13px;
+  }
+  #event .evc .ed {
+    font-size: 11px;
+    line-height: 1.3;
+  }
+}

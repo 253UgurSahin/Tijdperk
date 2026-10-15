@@ -2,7 +2,7 @@ import type { Mobile, Path, Tile } from '../types';
 // Padvinding: hoe dorpelingen en soldaten om obstakels heen lopen (A*-zoekmethode).
 import { store } from '../core/store';
 import { H, W } from '../config';
-import { hasT } from '../game/upgrades';
+import { mul } from '../game/bonus';
 import { clamp } from '../util/math';
 import { foeWalk, freeWalk, passable, road, walkable } from './world';
 
@@ -11,12 +11,19 @@ const gS = new Float32Array(W * H),
   stp = new Uint32Array(W * H),
   cls = new Uint32Array(W * H);
 let stamp = 0;
-export function findPath(sx: number, sy: number, tx: number, ty: number, free: boolean | 2): Path | null {
+// Alleen water en bergen houden je tegen (muren niet): voor lange routes van rivalen, zie game/rivals.js
+const landWalk = (x, y) => x >= 0 && y >= 0 && x < W && y < H && passable(y * W + x);
+/**
+ * Zoek een route van (sx, sy) naar (tx, ty). `free`: false = alleen in je eigen gebied, true = overal,
+ * 2 = als een vijand (poorten zijn dicht), 3 = over alle begaanbare grond, ook door muren heen.
+ * `maxSteps`: zoveel tegels mag het zoeken hoogstens bekijken (lange routes mogen meer).
+ */
+export function findPath(sx, sy, tx, ty, free, maxSteps = 40000) {
   sx = clamp(sx, 0, W - 1);
   sy = clamp(sy, 0, H - 1);
   tx = clamp(tx, 0, W - 1);
   ty = clamp(ty, 0, H - 1);
-  const ok0 = free === 2 ? foeWalk : free ? freeWalk : walkable,
+  const ok0 = free === 3 ? landWalk : free === 2 ? foeWalk : free ? freeWalk : walkable,
     goalI = ty * W + tx,
     ok = (x: number, y: number) => ok0(x, y) || (free && x === tx && y === ty && passable(goalI));
   if (sx === tx && sy === ty) return [];
@@ -77,7 +84,7 @@ export function findPath(sx: number, sy: number, tx: number, ty: number, free: b
     }
     if (cls[c] === stamp) continue;
     cls[c] = stamp;
-    if (++exp > 40000) return null; // geef op bij heel lange of onmogelijke routes
+    if (++exp > maxSteps) return null; // geef op bij heel lange of onmogelijke routes
     const cx = c % W,
       cy = (c / W) | 0;
     for (let dy = -1; dy <= 1; dy++)
@@ -102,7 +109,7 @@ export function findPath(sx: number, sy: number, tx: number, ty: number, free: b
 export function follow(e: Mobile, dt: number, spd: number): boolean {
   if (!e.path || !e.path.length) return true;
   const rt = road[(e.y | 0) * W + (e.x | 0)];
-  if (rt) spd *= 1 + (0.22 + rt * 0.12) * (hasT('rail') ? 1.4 : 1);
+  if (rt) spd *= 1 + (0.22 + rt * 0.12) * mul('road');
   const p = e.path[0],
     tx = p[0] + 0.5,
     ty = p[1] + 0.5,

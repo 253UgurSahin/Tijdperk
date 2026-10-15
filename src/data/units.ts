@@ -1,8 +1,10 @@
-// Je eigen soldaten en de vijanden.
-import type { FoeDef, UnitDef } from '../types';
-export const UNITS: Record<string, UnitDef> = {
+// Je eigen soldaten en de vijanden. `bonus`: extra schade tegen een soort doel (zie bonusMul).
+// `people`: deze soldaat hoort bij één volk (zie data/peoples.js); andere volken kunnen hem niet trainen.
+// `note`: korte extra uitleg voor de speler, bij de knop om hem te trainen.
+export const UNITS = {
   spear: {
     n: 'Speerdrager',
+    bonus: { vs: 'ride', mul: 2, d: 'dubbele schade tegen ruiters' },
     src: 'barracks',
     age: 0,
     hp: 70,
@@ -40,6 +42,7 @@ export const UNITS: Record<string, UnitDef> = {
   },
   chariot: {
     n: 'Strijdwagen',
+    bonus: { vs: 'proj', mul: 1.5, d: 'sterk tegen schutters' },
     src: 'barracks',
     age: 1,
     hp: 150,
@@ -63,8 +66,25 @@ export const UNITS: Record<string, UnitDef> = {
     cost: { food: 55, iron: 15 },
     t: 8,
   },
+  // Alleen voor de Noormannen (zie data/peoples.js): vervangt daar de zwaardvechter.
+  // Slaat vaker toe en loopt iets sneller, maar heeft minder levens.
+  berserker: {
+    n: 'Berserker',
+    people: 'norse',
+    note: 'eigen soldaat van de Noormannen: slaat vaker toe (elke 0,7 s, zwaardvechter elke 1 s) en loopt iets sneller, maar heeft minder leven (135 tegen 170)',
+    src: 'barracks',
+    age: 2,
+    hp: 135,
+    dmg: 15,
+    r: 0.9,
+    rate: 0.7,
+    spd: 2.3,
+    cost: { food: 55, iron: 15 },
+    t: 8,
+  },
   javelin: {
     n: 'Speerwerper',
+    bonus: { vs: 'ride', mul: 1.25, d: 'iets sterker tegen ruiters' },
     src: 'barracks',
     age: 2,
     hp: 75,
@@ -91,6 +111,7 @@ export const UNITS: Record<string, UnitDef> = {
   },
   knight: {
     n: 'Ridder',
+    bonus: { vs: 'proj', mul: 1.5, d: 'sterk tegen schutters' },
     src: 'barracks',
     age: 3,
     hp: 240,
@@ -103,6 +124,8 @@ export const UNITS: Record<string, UnitDef> = {
   },
   trebuchet: {
     n: 'Blijde',
+    snd: 'thud',
+    bonus: { vs: 'camp', mul: 3, d: 'driedubbele schade tegen kampen en gebouwen van rivalen' },
     src: 'siege',
     age: 3,
     hp: 220,
@@ -117,6 +140,8 @@ export const UNITS: Record<string, UnitDef> = {
   },
   musketeer: {
     n: 'Musketier',
+    snd: 'musket',
+    bonus: { vs: 'ride', mul: 1.5, d: 'sterk tegen ruiters' },
     src: 'barracks',
     age: 4,
     hp: 125,
@@ -130,6 +155,7 @@ export const UNITS: Record<string, UnitDef> = {
   },
   pikeman: {
     n: 'Pikenier',
+    bonus: { vs: 'ride', mul: 2, d: 'dubbele schade tegen ruiters' },
     src: 'barracks',
     age: 4,
     hp: 230,
@@ -142,6 +168,8 @@ export const UNITS: Record<string, UnitDef> = {
   },
   cuirassier: {
     n: 'Kurassier',
+    snd: 'musket',
+    bonus: { vs: 'proj', mul: 1.5, d: 'sterk tegen schutters' },
     src: 'barracks',
     age: 4,
     hp: 320,
@@ -154,6 +182,8 @@ export const UNITS: Record<string, UnitDef> = {
   },
   bombard: {
     n: 'Kartouw',
+    snd: 'cannon',
+    bonus: { vs: 'camp', mul: 3, d: 'driedubbele schade tegen kampen en gebouwen van rivalen' },
     src: 'siege',
     age: 4,
     hp: 260,
@@ -168,6 +198,7 @@ export const UNITS: Record<string, UnitDef> = {
   },
   rifle: {
     n: 'Fuselier',
+    snd: 'musket',
     src: 'barracks',
     age: 5,
     hp: 160,
@@ -181,6 +212,8 @@ export const UNITS: Record<string, UnitDef> = {
   },
   fieldgun: {
     n: 'Veldkanon',
+    snd: 'cannon',
+    bonus: { vs: 'camp', mul: 3, d: 'driedubbele schade tegen kampen en gebouwen van rivalen' },
     src: 'workshop',
     age: 5,
     hp: 220,
@@ -195,6 +228,7 @@ export const UNITS: Record<string, UnitDef> = {
   },
   soldier: {
     n: 'Soldaat',
+    snd: 'gun',
     src: 'barracks',
     age: 6,
     hp: 220,
@@ -202,13 +236,15 @@ export const UNITS: Record<string, UnitDef> = {
     r: 5.5,
     rate: 0.35,
     spd: 2.4,
-    cost: { food: 70, steel: 15, fuel: 5 },
+    cost: { food: 70, steel: 15 }, // geen brandstof: zo kun je je ook zonder olie verdedigen
     t: 9,
     proj: 1,
     air: 1,
   },
   tank: {
     n: 'Tank',
+    snd: 'cannon',
+    bonus: { vs: 'camp', mul: 2, d: 'dubbele schade tegen kampen en gebouwen van rivalen' },
     src: 'workshop',
     age: 6,
     hp: 950,
@@ -216,7 +252,7 @@ export const UNITS: Record<string, UnitDef> = {
     r: 6,
     rate: 2.4,
     spd: 1.8,
-    cost: { steel: 120, fuel: 40 },
+    cost: { steel: 90, fuel: 25 },
     t: 18,
     proj: 1,
     splash: 1.4,
@@ -224,6 +260,8 @@ export const UNITS: Record<string, UnitDef> = {
   },
   rocket: {
     n: 'Raketwerper',
+    snd: 'rocket',
+    bonus: { vs: 'big', mul: 2.5, d: 'sterk tegen pantser' },
     src: 'workshop',
     age: 6,
     hp: 320,
@@ -231,13 +269,14 @@ export const UNITS: Record<string, UnitDef> = {
     r: 9,
     rate: 3.5,
     spd: 1.9,
-    cost: { steel: 80, fuel: 30 },
+    cost: { steel: 60, fuel: 20 },
     t: 15,
     proj: 1,
     splash: 1.8,
   },
   exo: {
     n: 'Exo-soldaat',
+    snd: 'laser',
     src: 'barracks',
     age: 7,
     hp: 380,
@@ -252,6 +291,8 @@ export const UNITS: Record<string, UnitDef> = {
   },
   drone: {
     n: 'Gevechtsdrone',
+    snd: 'gun',
+    bonus: { vs: 'air', mul: 1.5, d: 'sterk tegen drones' },
     src: 'hangar',
     age: 7,
     hp: 130,
@@ -267,6 +308,7 @@ export const UNITS: Record<string, UnitDef> = {
   },
   plasma: {
     n: 'Plasmasoldaat',
+    snd: 'laser',
     src: 'barracks',
     age: 8,
     hp: 520,
@@ -281,6 +323,8 @@ export const UNITS: Record<string, UnitDef> = {
   },
   mech: {
     n: 'Mech',
+    snd: 'cannon',
+    bonus: { vs: 'big', mul: 1.5, d: 'sterk tegen pantser' },
     src: 'mechbay',
     age: 8,
     hp: 1700,
@@ -288,7 +332,7 @@ export const UNITS: Record<string, UnitDef> = {
     r: 7,
     rate: 1.8,
     spd: 1.9,
-    cost: { steel: 150, starmetal: 40, fusion: 15 },
+    cost: { steel: 150, starmetal: 20, fusion: 8 },
     t: 20,
     proj: 1,
     splash: 1.3,
@@ -296,15 +340,26 @@ export const UNITS: Record<string, UnitDef> = {
     air: 1,
   },
 };
-// Vijanden per tijdperk (index = tijdperk)
-export const FOES: FoeDef[] = [
+// Vijanden per tijdperk (index = tijdperk). ride = ruiters, proj = schieten, big = pantser, air = vliegt.
+export const FOES = [
   { n: 'Wolven', hp: 30, dmg: 4, spd: 2.3, r: 0.9, rate: 1 },
   { n: 'Plunderaars', hp: 65, dmg: 7, spd: 1.7, r: 0.9, rate: 1.1 },
   { n: 'Barbaren', hp: 100, dmg: 9, spd: 1.8, r: 0.9, rate: 1.1 },
-  { n: 'Roofridders', hp: 140, dmg: 12, spd: 2, r: 0.9, rate: 1.2 },
-  { n: 'Kapers', hp: 120, dmg: 12, spd: 1.7, r: 4, rate: 1.5, proj: 1 },
-  { n: 'Huurlingen', hp: 160, dmg: 12, spd: 1.6, r: 3.5, rate: 1.4, proj: 1 },
-  { n: 'Pantserwagens', hp: 420, dmg: 28, spd: 1.3, r: 4.5, rate: 2.2, proj: 1, big: 1 },
-  { n: 'Vijandelijke drones', hp: 95, dmg: 11, spd: 3.1, r: 3, rate: 1, proj: 1, air: 1 },
-  { n: 'Ruimtepiraten', hp: 430, dmg: 24, spd: 2.2, r: 5, rate: 1, proj: 1 },
+  { n: 'Roofridders', hp: 140, dmg: 12, spd: 2, r: 0.9, rate: 1.2, ride: 1 },
+  { n: 'Kapers', snd: 'musket', hp: 120, dmg: 12, spd: 1.7, r: 4, rate: 1.5, proj: 1 },
+  { n: 'Huurlingen', snd: 'musket', hp: 160, dmg: 12, spd: 1.6, r: 3.5, rate: 1.4, proj: 1 },
+  { n: 'Pantserwagens', snd: 'cannon', hp: 380, dmg: 22, spd: 1.3, r: 4.5, rate: 2.2, proj: 1, big: 1 },
+  { n: 'Vijandelijke drones', snd: 'gun', hp: 95, dmg: 9, spd: 3.1, r: 3, rate: 1, proj: 1, air: 1 },
+  { n: 'Ruimtepiraten', snd: 'laser', hp: 320, dmg: 15, spd: 2.2, r: 5, rate: 1, proj: 1 },
 ];
+
+/** Extra schade van eenheid `unit` tegen doel `target` (1 = geen bonus).
+ *  Zo hebben eenheden een duidelijke rol: pieken tegen ruiters, geschut tegen kampen, enz. */
+export function bonusMul(unit, target) {
+  const b = unit.bonus;
+  if (!b || !target) return 1;
+  // Een kamp is geen vijand maar een gebouw: daar kijken we naar het soort doel.
+  // Geschut is ook sterk tegen de gebouwen van rivalen ('rb').
+  const match = b.vs === 'camp' ? target.kind === 'c' || target.kind === 'rb' : !!target[b.vs];
+  return match ? b.mul : 1;
+}

@@ -6,6 +6,7 @@ import { CS } from '../config';
 import { B } from '../data/buildings';
 import { placeLine } from '../game/placement';
 import { G, bById, sel } from '../game/state';
+import { canDemolish } from '../game/wonders';
 import { CUR } from './cursors';
 import {
   boxSelect,
@@ -225,7 +226,7 @@ cv.addEventListener(
     e.preventDefault();
     const [sx, sy] = local(e),
       dy = e.deltaY * (e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? 400 : 1); // muiswiel in regels of pagina's
-    zoomTo((cam.tz ?? cam.z) * Math.exp(-dy * 0.0015), sx, sy);
+    zoomTo((cam.tz ?? cam.z) * Math.exp(dy * (SET.invertZoom ? 0.0015 : -0.0015)), sx, sy);
   },
   { passive: false },
 );
@@ -261,7 +262,7 @@ addEventListener('keydown', e => {
   const k = e.key.toLowerCase();
   if ((e.metaKey || e.ctrlKey) && !/^f[1-5]$/.test(k)) return;
   if (!$('#modal').hidden) {
-    if (k === 'escape' && !G.over) closeModal();
+    if (k === 'escape' && !G.over && !store.modalLocked) closeModal();
     return;
   }
   if (!$('#title').hidden) return;
@@ -276,6 +277,8 @@ addEventListener('keydown', e => {
       sel.vs.size ||
       sel.b ||
       sel.camp ||
+      sel.rb ||
+      sel.rival ||
       sel.node >= 0;
     store.placing = null;
     store.cmdMode = null;
@@ -339,8 +342,8 @@ addEventListener('keydown', e => {
   else if (k === 'e') setExpand(!store.expandMode);
   else if (k === 'v') setView(!store.V2);
   else if (k === 'm') setSound(!sndOn);
-  else if (k === 'z' || k === 'x' || k === 'c' || k === 'b') {
-    const t = { z: 'home', x: 'eco', c: 'light', b: 'mil' }[k];
+  else if (k === 'z' || k === 'x' || k === 'c' || k === 'b' || k === 'n') {
+    const t = { z: 'home', x: 'eco', c: 'light', b: 'mil', n: 'wonder' }[k];
     if (selCmds != null && !sel.vs.size) clearSel();
     setTab(t);
   } else if (k === 'p') {
@@ -356,7 +359,9 @@ addEventListener('keydown', e => {
   else if ((k === 'delete' || k === 'backspace') && sel.b) {
     e.preventDefault();
     const b = bById.get(sel.b);
-    if (b && b.type !== 'townhall') {
+    // Het stamhuis en een af wereldwonder breek je niet af
+    if (b && !canDemolish(b)) toast(`${B[b.type].n} kun je niet afbreken.`);
+    else if (b) {
       if (store.demolishArm === b.id) demolish(b);
       else {
         store.demolishArm = b.id;

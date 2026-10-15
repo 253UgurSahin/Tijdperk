@@ -1,11 +1,21 @@
-// De grond: kleuren per tegel, water en de rand van je gebied.
+// De grond: kleuren per tegel, de vorm van het land en de rand van je gebied.
+// (Fijne details en rotswanden: terrainlook.js · water: water.js)
 import * as T3 from 'three';
 import { CN, H, W } from '../config';
 import { G } from '../game/state';
 import { mat } from './kit';
 import { R3, S3 } from './scene';
 import { hash2 } from '../util/random';
+import { dressTerrain } from './terrainlook';
+import { updateWaterDepth } from './water';
 import { TER, ground, mountainHeight, road, ter } from '../world/world';
+import { ownerAt, rivalColour } from '../game/rivals';
+
+// Kleur van een rivaal als [r, g, b], voor zijn land en de rand eromheen
+const rivalRGB = id => {
+  const c = rivalColour(id);
+  return [1, 3, 5].map(k => parseInt(c.slice(k, k + 2), 16));
+};
 
 const TS = 12, // pixels per tegel in de grondtextuur
   TCAN = document.createElement('canvas');
@@ -19,52 +29,14 @@ TTEX.magFilter = T3.LinearFilter;
 TTEX.minFilter = T3.LinearMipmapLinearFilter;
 TTEX.anisotropy = 4;
 export const TMAT = new T3.MeshStandardMaterial({ map: TTEX, roughness: 0.95, flatShading: false });
-let TMESH: T3.Mesh<T3.PlaneGeometry, T3.MeshStandardMaterial> | null = null;
-// Water: een golfpatroon (normal map) dat langzaam verschuift, zodat het water glinstert in de zon.
-// Het patroon is gemaakt van sinusgolven met hele getallen, zodat het naadloos herhaalt.
-function waveNormals(size = 128) {
-  const c = document.createElement('canvas');
-  c.width = c.height = size;
-  const x = c.getContext('2d')!,
-    im = x.createImageData(size, size),
-    T = (Math.PI * 2) / size;
-  const h = (i: number, j: number) =>
-    Math.sin(i * T * 3 + j * T * 2) * 0.5 +
-    Math.sin(i * T * 7 - j * T * 5 + 1.3) * 0.3 +
-    Math.sin(-i * T * 11 + j * T * 13 + 0.7) * 0.15;
-  for (let j = 0; j < size; j++)
-    for (let i = 0; i < size; i++) {
-      const dx = h(i + 1, j) - h(i - 1, j),
-        dy = h(i, j + 1) - h(i, j - 1),
-        n = Math.hypot(dx, dy, 1),
-        o = (j * size + i) * 4;
-      im.data[o] = ((-dx / n) * 0.5 + 0.5) * 255;
-      im.data[o + 1] = ((-dy / n) * 0.5 + 0.5) * 255;
-      im.data[o + 2] = ((1 / n) * 0.5 + 0.5) * 255;
-      im.data[o + 3] = 255;
-    }
-  x.putImageData(im, 0, 0);
-  const t = new T3.CanvasTexture(c);
-  t.wrapS = t.wrapT = T3.RepeatWrapping;
-  t.repeat.set((W + 400) / 7, (H + 400) / 7);
-  return t;
+dressTerrain(TMAT);
+let TMESH = null;
+export const RC = [null, [176, 152, 108], [168, 166, 156], [78, 82, 88]];
+/** Kleur van de grond op tegel (x, y), zoals de wereldgenerator die heeft bepaald. */
+export function tileRGB(x, y) {
+  const i = (y * W + x) * 3;
+  return [ground[i], ground[i + 1], ground[i + 2]];
 }
-const WNORM = waveNormals();
-const WMAT = new T3.MeshStandardMaterial({
-  color: '#2f6578',
-  roughness: 0.22,
-  metalness: 0.2,
-  transparent: true,
-  opacity: 0.86,
-  normalMap: WNORM,
-  normalScale: new T3.Vector2(0.35, 0.35),
-});
-/** Laat de golfjes langzaam drijven (aangeroepen bij elk beeldje). */
-export function animateWater(t: number) {
-  WNORM.offset.set(t * 0.012, t * 0.007);
-}
-/** Kleur van de weg per soort (1 = pad, 2 = klinkerweg, 3 = asfaltweg); 0 = geen weg. */
-export const RC: ([number, number, number] | null)[] = [null, [176, 152, 108], [168, 166, 156], [78, 82, 88]];
 // Grondkleur op een willekeurig punt: de kleuren van de vier dichtstbijzijnde tegels lopen
 // zacht in elkaar over, zodat er geen harde blokken tussen gras, bos en zand zitten.
 const groundAt = (u: number, v: number, out: number[]) => {
@@ -86,7 +58,10 @@ const px3 = [0, 0, 0];
 
 export function paintTile(x: number, y: number) {
   const i = y * W + x,
-    lk = !G.unl[(y >> 4) * CN + (x >> 4)],
+    mine = G.unl[(y >> 4) * CN + (x >> 4)] === 1,
+    own = mine ? 0 : ownerAt(x, y), // land van een rivaal (zijn nummer), of 0
+    lk = !mine && !own, // wildernis: die tekenen we donkerder
+    tint = own ? rivalRGB(own) : null,
     rd = road[i],
     d = timg!.data,
     X0 = x * TS,
@@ -148,17 +123,44 @@ export function paintTile(x: number, y: number) {
         g = (g * 0.35 + m * 0.25) * 0.62 + 18;
         b = (b * 0.35 + m * 0.25) * 0.62 + 24;
       }
+      // Land van een rivaal: bewoond (dus niet donker), met een zweem van zijn kleur
+      if (tint) {
+        r = r * 0.88 + (tint[0] - r * 0.88) * 0.14;
+        g = g * 0.88 + (tint[1] - g * 0.88) * 0.14;
+        b = b * 0.88 + (tint[2] - b * 0.88) * 0.14;
+      }
       const o = ((Y0 + py) * WW + X0 + px) * 4;
       d[o] = r;
       d[o + 1] = g;
       d[o + 2] = b;
       d[o + 3] = 255;
     }
+  // Rand van het gebied van een rivaal, in zijn kleur
+  if (tint) {
+    const put = (px, py) => {
+      const o = ((Y0 + py) * WW + X0 + px) * 4;
+      d[o] = tint[0];
+      d[o + 1] = tint[1];
+      d[o + 2] = tint[2];
+    };
+    // Grenst deze tegel links, rechts, boven of onder aan land dat niet van deze rivaal is?
+    const left = ownerAt(x - 1, y) !== own,
+      right = ownerAt(x + 1, y) !== own,
+      up = ownerAt(x, y - 1) !== own,
+      down = ownerAt(x, y + 1) !== own;
+    // Een rand van twee pixels breed
+    for (let p = 0; p < TS; p++)
+      for (const w of [0, 1]) {
+        if (left) put(w, p);
+        if (right) put(TS - 1 - w, p);
+        if (up) put(p, w);
+        if (down) put(p, TS - 1 - w);
+      }
+  }
   // Rand van je gebied
-  if (!lk) {
-    const L = (xx: number, yy: number) =>
-      xx < 0 || yy < 0 || xx >= W || yy >= H || !G.unl[(yy >> 4) * CN + (xx >> 4)];
-    const put = (px: number, py: number) => {
+  if (mine) {
+    const L = (xx, yy) => xx < 0 || yy < 0 || xx >= W || yy >= H || !G.unl[(yy >> 4) * CN + (xx >> 4)];
+    const put = (px, py) => {
       const o = ((Y0 + py) * WW + X0 + px) * 4;
       d[o] = 236;
       d[o + 1] = 214;
@@ -236,6 +238,19 @@ export function flushTerrain() {
   patchPos.set(px, TCAN.height - py - ph);
   R3.copyTextureToTexture(patchPos, PATCHTEX, TTEX);
 }
+// Hoogte van elk hoekpunt van de grond (W+1 bij H+1), voor dingen die óp de bergen staan
+const heights = new Float32Array((W + 1) * (H + 1));
+/** Hoogte van de grond op punt (x, z), tussen de hoekpunten in geschat. */
+export function groundHeight(x, z) {
+  const x0 = Math.max(0, Math.min(W - 1, Math.floor(x))),
+    z0 = Math.max(0, Math.min(H - 1, Math.floor(z))),
+    fx = Math.max(0, Math.min(1, x - x0)),
+    fz = Math.max(0, Math.min(1, z - z0)),
+    at = (xx, zz) => heights[zz * (W + 1) + xx],
+    top = at(x0, z0) + (at(x0 + 1, z0) - at(x0, z0)) * fx,
+    bottom = at(x0, z0 + 1) + (at(x0 + 1, z0 + 1) - at(x0, z0 + 1)) * fx;
+  return top + (bottom - top) * fz;
+}
 export function buildTerrain() {
   if (TMESH) {
     S3.remove(TMESH);
@@ -270,18 +285,18 @@ export function buildTerrain() {
         rise += 1.3 + mountainHeight(zz * W + xx) * 4.5 + hash2(x, z, 77) * 0.6; // grillige toppen
       }
     }
-    if (rc) p.setY(k, (rise / n) * (rc === n ? 1 : 0.4));
+    // Midden in een berg: extra hobbels, zodat de toppen grilliger worden en er rotswanden ontstaan
+    const crag = rc === n ? (hash2(x, z, 78) - 0.4) * 0.9 : 0;
+    if (rc) p.setY(k, (rise / n) * (rc === n ? 1 : 0.4) + crag);
     else p.setY(k, wc === n && n ? -0.55 : wc ? (-0.32 * wc) / n : 0);
+    heights[z * (W + 1) + x] = p.getY(k);
   }
   g.computeVertexNormals();
+  updateWaterDepth();
   TMESH = new T3.Mesh(g, TMAT);
   TMESH.receiveShadow = true;
   S3.add(TMESH);
 }
-const WATER = new T3.Mesh(new T3.PlaneGeometry(W + 400, H + 400), WMAT);
-WATER.rotation.x = -Math.PI / 2;
-WATER.position.set(W / 2, -0.16, H / 2);
-S3.add(WATER);
 {
   const sk = mat('#3a2f25');
   for (const [x, z, ry, l] of [

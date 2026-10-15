@@ -3,7 +3,7 @@ import type { Meteor } from '../types';
 // vooral van grondstoffen die bij jou schaars of op zijn. Zo raakt de wereld nooit helemaal leeg.
 import { store } from '../core/store';
 import { sfx } from '../audio/sound';
-import { CX, CY, DAYLEN, W } from '../config';
+import { CN, CS, CX, CY, DAYLEN, W } from '../config';
 import { SET } from '../core/settings';
 import { B } from '../data/buildings';
 import { NI, NODES } from '../data/nodes';
@@ -11,7 +11,9 @@ import { RES } from '../data/resources';
 import { avail, computeAvail } from './caches';
 import { burst } from './fx';
 import { G } from './state';
-import { bMaxHp, hasT } from './upgrades';
+import { add, mul } from './bonus';
+import { hasRule } from './mods';
+import { bMaxHp } from './upgrades';
 import { note, toast } from '../ui/hud';
 import { clamp, dist } from '../util/math';
 import {
@@ -36,8 +38,12 @@ const FIRST_DAY = 3; // eerste meteoriet niet vóór deze dag
 const METEOR_ORES = ['rock', 'copper', 'tin', 'iron', 'gold', 'coal', 'lithium', 'starmetal'];
 
 /** Elke speltik: plan de volgende meteoriet, tel af en laat hem inslaan. */
-export function updateMeteors(dt: number) {
-  if (G.nextMeteor == null) G.nextMeteor = (FIRST_DAY - 1) * DAYLEN + DAYLEN * (0.5 + Math.random());
+export function updateMeteors(dt) {
+  if (G.nextMeteor == null) {
+    // Met de spelregel Meteorietenregen valt de eerste al op dag 1
+    const firstDay = hasRule('meteorShower') ? 1 : FIRST_DAY;
+    G.nextMeteor = (firstDay - 1) * DAYLEN + DAYLEN * (0.5 + Math.random());
+  }
   // In het Sterrentijdperk is sterrenmetaal nodig: de eerste meteoriet komt dan snel
   if (G.age >= 8 && !G.starMeteor) {
     G.starMeteor = true;
@@ -62,8 +68,8 @@ function announce() {
   // Volgende: sneller als er grondstoffen op zijn, anders na 1,5 tot 3 dagen
   const scarce = scarceOres().length;
   const wait = scarce ? 1 + Math.random() : 1.5 + Math.random() * 1.5;
-  // Sterrentijdperk: vaker, en nog vaker met sterrenkaarten
-  const often = G.age >= 8 ? (hasT('starcharts') ? 0.4 : 0.6) : 1;
+  // Sterrentijdperk: vaker. Bonussen (zoals Sterrenkaarten) maken het nog vaker.
+  const often = (G.age >= 8 ? 0.6 : 1) / mul('meteor.rate');
   G.nextMeteor = G.t + DAYLEN * wait * often;
   if (!spot) return;
   G.meteor = { x: spot[0] + 0.5, y: spot[1] + 0.5, t: WARNING, falling: false };
@@ -75,8 +81,15 @@ function announce() {
   sfx('alarm');
 }
 
-/** Een plek op land, liefst net binnen of vlak naast je gebied, en niet op het stamhuis. */
+/**
+ * Een plek op land, liefst net binnen of vlak naast je gebied, en niet op het stamhuis.
+ * Met het Ruimtestation (bonus 'meteor.aim') valt hij in je eigen land, en niet op je gebouwen.
+ */
 function pickSpot() {
+  if (add('meteor.aim') > 0) {
+    const aimed = aimedSpot();
+    if (aimed) return aimed;
+  }
   for (let tries = 0; tries < 400; tries++) {
     const a = Math.random() * Math.PI * 2,
       r = 8 + Math.random() * (14 + G.unl.filter(Boolean).length * 1.2),
@@ -89,6 +102,24 @@ function pickSpot() {
     // Liever bij jouw land: buiten je gebied slaagt alleen een deel van de pogingen
     if (!isUnl(x, y) && Math.random() < 0.5) continue;
     return [x, y];
+  }
+  return null;
+}
+
+// Een vrije plek in je eigen land, ver genoeg van al je gebouwen zodat er niets beschadigd raakt
+function aimedSpot() {
+  const mine = [];
+  for (let c = 0; c < CN * CN; c++) if (G.unl[c]) mine.push(c);
+  for (let tries = 0; tries < 400 && mine.length; tries++) {
+    const c = mine[(Math.random() * mine.length) | 0];
+    const x = (c % CN) * CS + 3 + ((Math.random() * (CS - 6)) | 0),
+      y = Math.floor(c / CN) * CS + 3 + ((Math.random() * (CS - 6)) | 0);
+    if (!inb(x - 4, y - 4) || !inb(x + 4, y + 4) || !passable(y * W + x)) continue;
+    const near = G.bs.some(b => {
+      const s = B[b.type].size;
+      return dist(b.x + s / 2, b.y + s / 2, x, y) < 4 + s / 2;
+    });
+    if (!near) return [x, y];
   }
   return null;
 }
@@ -112,6 +143,7 @@ function pickOres() {
 
 function impact(m: Meteor) {
   G.meteor = null;
+  G.stats.meteors++;
   const cx = Math.floor(m.x),
     cy = Math.floor(m.y);
   // Klap: explosie, rook en een schudden van het scherm
@@ -152,7 +184,7 @@ function impact(m: Meteor) {
       if (d < 1.5 || d > 5 || !inb(x, y)) continue;
       const i = y * W + x;
       if (!passable(i) || bmap[i] || road[i] || node[i]) continue;
-      const chance = (d < 3.5 ? 0.55 : 0.25) * (hasT('starcharts') ? 1.4 : 1);
+      const chance = (d < 3.5 ? 0.55 : 0.25) * mul('meteor.ore');
       if (Math.random() > chance) continue;
       const k = d < 3.5 ? main : Math.random() < 0.6 ? extra : 'rock';
       const t = NI[k];

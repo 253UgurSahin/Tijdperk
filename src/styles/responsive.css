@@ -1,4 +1,4 @@
-/* ---- responsive ---- */
+/* Andere schermformaten: kleine laptops, tablets, telefoons staand en liggend. */
 @media (max-width: 1240px) {
   :root {
     --resw: 196px;
@@ -66,11 +66,15 @@
     padding: 0 8px;
   }
   #ageplate .age b {
-    font-size: 20px;
+    width: 32px;
+    height: 32px;
+    font-size: 14px;
   }
-  #ageplate .age b::before,
-  #ageplate .age b::after {
-    width: 10px;
+  #ageplate .age small {
+    font-size: 15px;
+  }
+  #ageplate .tl {
+    min-width: 110px;
   }
   #topright {
     top: calc(6px + env(safe-area-inset-top, 0px));
@@ -98,8 +102,7 @@
   .res {
     grid-template-columns: 14px auto;
     gap: 5px;
-    padding: 2px 6px;
-    background: rgba(0, 0, 0, 0.22);
+    padding: 2px 8px;
   }
   .res .wk,
   .res em,
@@ -157,7 +160,7 @@
   #cmdPanel {
     width: min(400px, 58%);
   }
-  /* Knoppenrij boven de onderbalk: Volk, Leger, ... plus Doel en Kaart */
+  /* Knoppenrij boven de onderbalk: Dorp, Leger, ... plus Doel en Kaart */
   #sidebtns {
     left: 6px;
     right: 6px;
@@ -193,7 +196,10 @@
 @media (max-width: 620px) {
   #title {
     padding-left: 16px;
-    background: rgba(8, 12, 18, 0.88);
+    background: rgba(38, 26, 14, 0.45);
+  }
+  #title .tw {
+    padding: 26px 20px 20px;
   }
   #ageplate .day canvas {
     display: none;
@@ -201,8 +207,20 @@
   #ageplate .speed button[data-s='4'] {
     display: none;
   }
+  /* Op een smalle telefoon: alleen de stempel en de tijdlijn, zonder naam */
+  #ageplate .age {
+    column-gap: 8px;
+    padding: 0 8px;
+  }
   #ageplate .age small {
     display: none;
+  }
+  #ageplate .age b {
+    grid-row: auto;
+  }
+  #ageplate .tl {
+    margin-top: 0;
+    min-width: 96px;
   }
   #bar {
     flex-direction: column;
@@ -221,7 +239,7 @@
     width: auto;
   }
   #cmdgrid {
-    grid-auto-rows: 80px;
+    --tile-h: 80px;
   }
   .port {
     width: 56px;
@@ -285,6 +303,9 @@
   #ageplate .age small {
     display: none;
   }
+  #ageplate .age b {
+    grid-row: auto;
+  }
   #resPanel {
     flex: 1 1 240px;
   }
@@ -318,21 +339,28 @@
   }
   .cats button {
     min-height: 30px;
-    padding: 2px 8px;
+    padding: 2px 5px;
   }
   /* Bouwknoppen in één rij die je opzij kunt vegen */
   #cmdgrid {
     grid-auto-flow: column;
     grid-template-columns: none;
-    grid-template-rows: 68px;
+    grid-template-rows: 72px;
     grid-auto-columns: 74px;
     overflow: auto hidden;
     flex: none;
   }
   .gb img,
-  .cb img {
-    width: 30px;
-    height: 30px;
+  .cb img,
+  .cb .g {
+    width: 28px;
+    height: 28px;
+  }
+  /* Met kosten eronder: plaatje nog iets kleiner, zodat naam en kosten passen */
+  .cb.has-cost img,
+  .cb.has-cost .g {
+    width: 22px;
+    height: 22px;
   }
   .port {
     width: 48px;
@@ -355,9 +383,20 @@
     padding: 0;
     font-size: 0;
   }
+  /* Drie streepjes, getekend als masker zodat ze altijd scherp en gelijk zijn */
+  #menuBtn {
+    display: grid;
+    place-items: center;
+  }
   #menuBtn::before {
-    content: '☰';
-    font-size: 20px;
+    content: '';
+    width: 20px;
+    height: 20px;
+    background: currentColor;
+    -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round'%3E%3Cpath d='M4 7h16M4 12h16M4 17h16'/%3E%3C/svg%3E")
+      center / contain no-repeat;
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round'%3E%3Cpath d='M4 7h16M4 12h16M4 17h16'/%3E%3C/svg%3E")
+      center / contain no-repeat;
   }
   #ageplate {
     margin-right: 52px;
@@ -366,8 +405,8 @@
   #ageplate .age {
     padding: 0 4px;
   }
-  #ageplate .age b::before,
-  #ageplate .age b::after {
+  /* Geen plek voor de tijdlijn: de stempel met het cijfer blijft staan */
+  #ageplate .tl {
     display: none;
   }
   .speed button {

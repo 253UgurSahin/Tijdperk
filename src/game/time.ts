@@ -1,7 +1,10 @@
 // Dag en nacht, seizoenen en wanneer aanvallen komen.
 import { sfx } from '../audio/sound';
 import { DAYLEN } from '../config';
+import { difficulty } from '../data/difficulty';
+import { seasonIndex } from '../data/modifiers';
 import { raidSize, spawnRaid } from './military';
+import { dayPace, hasRule } from './mods';
 import { G } from './state';
 import { hasT } from './upgrades';
 import { note, toast } from '../ui/hud';
@@ -12,27 +15,29 @@ const SEASONS = [
   { n: 'Herfst', food: 1, tint: 'rgba(210,130,50,.09)' },
   { n: 'Winter', food: 0.55, tint: 'rgba(190,210,240,.16)' },
 ];
-export const season = () => SEASONS[Math.floor((G.day - 1) / 4) % 4];
-export function darkness(h = G.clock): number {
+// Elk seizoen duurt 4 dagen; met de spelregel Lange winter is het vooral winter (zie data/modifiers.js)
+export const season = (day = G.day) => SEASONS[seasonIndex(day, hasRule('longWinter'))];
+export function darkness(h = G.clock) {
   if (h >= 6.5 && h < 18) return 0;
   if (h >= 18 && h < 20.5) return ((h - 18) / 2.5) * 0.78;
   if (h >= 4.5 && h < 6.5) return 0.78 * (1 - (h - 4.5) / 2);
   return 0.78;
 }
 export const isNight = () => darkness() > 0.42;
-export const raidNight = (day = G.day): boolean =>
-  !G.peaceful && day >= 2 && (G.diff === 2 || day % 2 === 0 || G.forceRaid === day);
-function crossed(p: number, c: number, h: number): boolean {
+// Op Zwaar en Meedogenloos elke nacht een aanval, anders om de nacht (zie data/difficulty.js)
+export const raidNight = (day = G.day) =>
+  !G.peaceful && day >= 2 && (difficulty(G.diff).everyNight || day % 2 === 0 || G.forceRaid === day);
+function crossed(p, c, h) {
   return p <= c ? p < h && c >= h : p < h || c >= h;
 }
 export function advanceClock(dt: number) {
   const p = G.clock;
-  G.clock = (G.clock + (dt * 24) / DAYLEN) % 24;
+  G.clock = (G.clock + (dt * 24 * dayPace()) / DAYLEN) % 24;
   const c = G.clock;
   if (crossed(p, c, 6)) {
     G.day++;
     const sn = season();
-    if ((G.day - 1) % 4 === 0 && G.day > 1) {
+    if (G.day > 1 && sn !== season(G.day - 1)) {
       toast(
         `${sn.n} begint.${sn.n === 'Winter' ? ' Akkers en struiken leveren veel minder.' : sn.n === 'Zomer' ? ' Oogsten gaan sneller.' : ''}`,
         'age',
@@ -49,10 +54,16 @@ export function advanceClock(dt: number) {
   if (crossed(p, c, 12) && raidNight() && hasT('radio'))
     toast(`Radio: vannacht valt een groep van ±${raidSize()} aan.`, 'bad');
   if (crossed(p, c, 21) && raidNight()) spawnRaid();
+  // Spelregel Dubbele aanvallen: rond middernacht komt een tweede golf (de dag telt pas om 6 uur verder)
+  if (crossed(p, c, 0.5) && raidNight() && hasRule('raidsX2')) spawnRaid();
   if (crossed(p, c, 6.3)) {
+    // Het is ochtend en het stamhuis staat nog: de aanval van vannacht is doorstaan.
+    // We kijken naar de aanval die echt begon (niet naar het rooster): de vredige modus kan intussen zijn omgezet.
+    if (G.stats.raidDay === G.day - 1 && !G.over) G.stats.survived++;
     let n = 0;
+    // (Soldaten van rivalen niet: die gaan pas naar huis als hun eigen aanval voorbij is, zie game/rivals.js)
     for (const f of G.foes)
-      if (!f.camp && !f.retreat) {
+      if (!f.camp && !f.rival && !f.retreat) {
         f.retreat = true;
         n++;
       }

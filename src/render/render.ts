@@ -10,15 +10,23 @@ import { drag, hoverChunk, mouse } from '../input/input';
 import { updateCamera } from './camera';
 import { pool, poolsBegin, poolsEnd, quadAt, rangeAt, ringAt } from './decals';
 import { drawFx, drawRain } from './effects';
+import { stepDying } from './animate';
+import { stepParticles } from './particles';
+import { drawAmbient } from './ambient';
 import { drawPlacement } from './ghost';
 import { flagpole } from './kit';
 import { applySeason, lighting } from './lighting';
 import { drawOverlay } from './overlay';
 
 import { bRec, cRec, checkWorld, eRec, syncBuildings, syncCamps, syncEntities } from './sync';
+import { rbRec, syncRivalBuildings } from './rivals3d';
+import { rbById, rivalById } from '../game/rivals';
 import { inb } from '../world/world';
 import { outlinesOn, renderFrame, setOutlined } from './post';
-import { animateWater } from './terrain';
+import { applyPendingResize } from './scene';
+import { updateScatter } from './scatter';
+import { updateGroundShade } from './terrainlook';
+import { animateWater } from './water';
 import { WIND } from './nodes';
 import { entitiesInBox } from '../input/selection';
 
@@ -28,6 +36,7 @@ const MAX_OUTLINED = 120;
 function objectFor(kind: string, id: number): T3.Group | undefined {
   if (kind === 'b') return bRec.get(id)?.g;
   if (kind === 'c') return cRec.get(id)?.g;
+  if (kind === 'rb') return rbRec.get(id)?.g;
   return eRec.get(id)?.body;
 }
 function updateOutlines() {
@@ -38,6 +47,7 @@ function updateOutlines() {
     o && list.length < MAX_OUTLINED && list.push(o);
   if (sel.b) add(selected, objectFor('b', sel.b));
   if (sel.camp) add(selected, objectFor('c', sel.camp));
+  if (sel.rb) add(selected, objectFor('rb', sel.rb));
   for (const id of sel.us) add(selected, objectFor('u', id));
   for (const id of sel.vs) add(selected, objectFor('v', id));
   if (drag && drag.mode === 'box') {
@@ -51,6 +61,7 @@ function updateOutlines() {
 }
 
 export function render() {
+  applyPendingResize();
   store.TM = performance.now() / 1000;
   animateWater(store.TM);
   WIND.value = store.TM;
@@ -62,8 +73,14 @@ export function render() {
   syncBuildings();
   syncEntities();
   syncCamps();
+  syncRivalBuildings();
+  updateGroundShade(store.TM, b => bRec.get(b.id)?.h);
+  updateScatter();
+  stepDying();
   drawFx();
   drawRain();
+  drawAmbient(dk);
+  stepParticles(store.TM);
   drawPlacement();
   lighting(dk);
   // Cirkels onder geselecteerde dingen
@@ -83,12 +100,32 @@ export function render() {
         return g;
       });
       f.position.set(sb.rally.x, 0, sb.rally.y);
+      // Stippellijn van het gebouw naar het verzamelpunt; de stippen lopen langzaam mee
+      const dx = sb.rally.x - cx,
+        dz = sb.rally.y - cz,
+        len = Math.hypot(dx, dz),
+        start = s * 0.55,
+        step = 0.45,
+        shift = (store.TM * 0.8) % step;
+      for (let t = start + shift; t < len - 0.3; t += step)
+        quadAt(cx + (dx / len) * t, cz + (dz / len) * t, 0.12, 0.12, '#ffffff', 0.7, 0.04);
     }
   }
   if (sel.camp) {
     const c = G.camps.find(c => c.id === sel.camp);
     if (c) ringAt(c.x + 1, c.y + 1, 1.7, '#e3584a', 0.9);
   }
+  // Een gebouw van een rivaal: een rode rand, en het bereik als het een toren is
+  const rb = sel.rb && rbById.get(sel.rb);
+  if (rb) {
+    const d = B[rb.type],
+      s = d.size;
+    quadAt(rb.x + s / 2, rb.y + s / 2, s + 0.15, s + 0.15, '#e3584a', 0.28, 0.025);
+    if (d.def) rangeAt(rb.x + s / 2, rb.y + s / 2, d.def.r, '#ff9b8b');
+  }
+  // Een rivaal zelf: een ring om zijn stamhuis
+  const rival = sel.rival && rivalById(sel.rival);
+  if (rival && !rival.dead) ringAt(rival.x + 1, rival.y + 1, 1.8, '#e3584a', 0.9);
   if (sel.node >= 0) ringAt((sel.node % W) + 0.5, ((sel.node / W) | 0) + 0.5, 0.45, '#ffffff', 0.9);
   if (
     mouse.in &&

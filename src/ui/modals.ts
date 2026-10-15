@@ -1,32 +1,57 @@
-// Schermen: titelscherm, pauze, instellingen, hulp, winst en verlies.
+// Schermen: titelscherm, pauze, instellingen en hulp. (Winst en verlies: zie ui/endscreen.js.)
 import { store } from '../core/store';
-import { MG, setSound, sfx, sndOn } from '../audio/sound';
-import { SET, applyLayoutSettings, saveSet } from '../core/settings';
+import { setSound, setVolume, sfx, sndOn } from '../audio/sound';
+import { SET, applyLayoutSettings, resetSet, saveSet } from '../core/settings';
 import { AGES } from '../data/ages';
+import { MAP } from '../data/maps';
+import { DEFAULT_PEOPLE, isPeopleUnlocked } from '../data/peoples';
+import { DIFF_NAMES } from '../data/score';
+import { DAILY, SCENARIOS, goalText } from '../data/scenarios';
 import { SKEY, load, save, wipe } from '../game/save';
+import { currentChallenge } from '../game/scenario';
 import { G, newGame, placeName } from '../game/state';
 import { setView } from '../input/input';
 import { measureHud } from '../main';
-import { fmt } from './format';
+import { dailyLine, medalCount, modsHTML, showChallenges } from './challenges';
+import { ageTimeline, fmt } from './format';
+import { ico } from './glyphs';
 import { sigs } from './header';
 import { setSpeed, toast } from './hud';
 import { togglePanel } from './panel';
+import { newGameDraft, showNewGame } from './newgame';
+import { peopleBarHTML, playerProfile } from './peoples';
+import { achievementCount, showProfile } from './profile';
 import { $, isCompact } from '../util/dom';
 import { LEVELS, setQuality } from '../render/quality';
 
-/** De instellingen die je met een schakelaar aan- of uitzet. */
-type ToggleKey = 'edge' | 'hp' | 'shake' | 'dragSelect' | 'hudWide';
-
 let prevSpeed = 1;
-function openModal(html: string) {
+// Wat er moet gebeuren als het open venster dichtgaat (op welke manier dan ook), of null
+let onModalClose = null;
+/**
+ * Open een venster en zet het spel stil. Met `locked` gaat het niet dicht met Esc of een klik
+ * ernaast: je moet echt iets kiezen (zoals een zegening). `cls` geeft het blad een extra class.
+ * `onClose` draait als dit venster dichtgaat, ook met Esc of een klik ernaast.
+ */
+export function openModal(html, { locked = false, cls = '', onClose = null } = {}) {
   $('#sheet').innerHTML = html;
+  $('#sheet').className = cls ? `sheet ${cls}` : 'sheet';
+  store.modalLocked = locked;
+  onModalClose = onClose;
   if ($('#modal').hidden) prevSpeed = G.speed;
   $('#modal').hidden = false;
+  // Een nieuw venster begint bovenaan, ook als het vorige naar beneden was gescrold.
+  // (Pas na het tonen: in een verborgen venster telt de scrollpositie niet.)
+  $('#sheet').scrollTop = 0;
   setSpeed(0);
 }
 export function closeModal() {
   $('#modal').hidden = true;
+  store.modalLocked = false;
   setSpeed($('#title').hidden ? prevSpeed : 0);
+  // Eerst leegmaken: zo kan onClose zelf weer een venster openen of sluiten
+  const afterClose = onModalClose;
+  onModalClose = null;
+  if (afterClose) afterClose();
 }
 // Accentkleur per tijdperk, gelijk aan body[data-age] in styles/base.css
 const AGE_COLORS = [
@@ -41,13 +66,24 @@ const AGE_COLORS = [
   '#b49cff',
 ];
 $('#modal').addEventListener('click', e => {
-  const t = (e.target as HTMLElement).closest<HTMLElement>(
-    '[data-m],[data-view],[data-snd],[data-q],[data-set]',
-  );
-  if ((e.target as HTMLElement).id === 'modal' && !G.over) {
+  if (e.target.id === 'modal' && !G.over && !store.modalLocked) {
     closeModal();
     return;
   }
+  // Knoppen in de instellingen
+  const sb = e.target.closest('[data-tab],[data-set],[data-seg]');
+  if (sb) {
+    if (sb.dataset.tab) setTab = sb.dataset.tab;
+    else if (sb.dataset.set) changeSetting(sb.dataset.set);
+    else {
+      const raw = sb.dataset.v;
+      changeSetting(sb.dataset.seg, isNaN(+raw) ? raw : +raw);
+    }
+    sfx('tick');
+    showSettings();
+    return;
+  }
+  const t = e.target.closest('[data-m]');
   if (!t) return;
   const m = t.dataset.m;
   if (m === 'close') closeModal();
@@ -64,12 +100,15 @@ $('#modal').addEventListener('click', e => {
       ? (t.querySelector('span')!.textContent = 'Zeker? Klik nogmaals')
       : (t.textContent = 'Zeker? Klik nogmaals');
   } else if (m === 'newok') {
-    wipe();
-    newGame(undefined, G.diff);
+    // Naar het nieuw-spelscherm. Een verloren spel hoeft niet bewaard; anders kun je nog terug ("Verder spelen").
+    if (G.over) wipe();
+    else save();
     prevSpeed = 1;
     closeModal();
+    showTitle({ setup: true });
   } else if (m === 'help') showHelp();
   else if (m === 'settings') showSettings();
+  else if (m === 'profile') showProfile({ back: openPause });
   else if (m === 'title') {
     save();
     $('#modal').hidden = true;
@@ -85,58 +124,263 @@ $('#modal').addEventListener('click', e => {
       sigs.mission = null;
       measureHud();
     } else togglePanel(m === 'pl' ? 'left' : 'right');
-  } else if (t.dataset.view !== undefined) {
-    setView(!store.V2, true);
-    t.classList.toggle('on', store.V2);
-  } else if (t.dataset.snd !== undefined) {
-    setSound(!sndOn);
-    t.classList.toggle('on', sndOn);
-  } else if (t.dataset.q) {
-    setQuality(t.dataset.q);
+  } else if (m === 'resetset') {
+    resetSet();
+    if (!sndOn) setSound(true);
+    setVolume(SET.vol);
+    setQuality(SET.quality);
+    store.uiDirty = true;
+    setTimeout(measureHud, 30);
+    toast('Instellingen staan weer op standaard.');
     showSettings();
-  } else if (t.dataset.set) {
-    const k = t.dataset.set as ToggleKey;
-    if (k === 'hudWide') setTimeout(applyLayoutSettings);
-    SET[k] = !SET[k];
-    saveSet();
-    t.classList.toggle('on', SET[k]);
-    if (k === 'hp') store.uiDirty = true;
   }
 });
 $('#modal').addEventListener('input', e => {
-  const input = e.target as HTMLInputElement;
-  if (input.id === 'vol') {
-    SET.vol = +input.value / 100;
-    saveSet();
-    if (MG) MG.gain.value = SET.vol;
+  // Schuifjes: waarde direct toepassen en het getal ernaast bijwerken
+  const k = e.target.dataset.range;
+  if (!k) return;
+  const pct = +e.target.value;
+  e.target.nextElementSibling.textContent = pct + '%';
+  if (k === 'vol') {
+    setVolume(pct / 100);
     sfx('tick', 0.1);
+  } else if (k === 'camSpeed') {
+    SET.camSpeed = pct / 100;
+    saveSet();
+  } else if (k === 'gfx.scale') {
+    SET.gfx.scale = pct / 100;
+    saveSet();
+    setQuality('custom');
   }
 });
+$('#modal').addEventListener('change', e => {
+  if (e.target.id === 'peace') setPeaceful(e.target.checked);
+});
+
+/** Vredige modus aan of uit. Eén keer aan is genoeg om de score van dit spel half te laten tellen. */
+function setPeaceful(on) {
+  G.peaceful = on;
+  if (on) G.stats.peaceUsed = true;
+  toast(
+    on ? 'Vredige modus aan: geen aanvallen meer. Je score telt dit spel half.' : 'Aanvallen staan weer aan.',
+  );
+  sigs.def = null;
+}
+/** Korte regel voor de knop Prestaties, zoals "12 van 40 gehaald". */
+function achievementsLine() {
+  const { got, total } = achievementCount();
+  return `${got} van ${total} gehaald`;
+}
 export function openPause() {
+  const stats = [
+    `${fmt(G.stats.gathered)} grondstoffen`,
+    `${G.stats.killed} vijanden verslagen`,
+    `${G.stats.camps} kampen veroverd`,
+    `${Object.keys(G.tech).length} uitvindingen`,
+    `${G.blessings.length} ${G.blessings.length === 1 ? 'zegening' : 'zegeningen'}`,
+  ].join(' · ');
+  // Op een smal scherm staan de panelen niet open: dan kun je ze hier openen
+  const panelButtons = isCompact()
+    ? `<button class="mbtn" data-m="pg"><span>Volgend tijdperk</span><small>wat er nog nodig is</small></button>
+      <div class="mpair">
+        <button class="mbtn" data-m="pr"><span>Kaart</span><small>overzicht · uitbreiden</small></button>
+        <button class="mbtn" data-m="pl"><span>Dorp en leger</span><small>verdediging · onderzoek</small></button>
+      </div>`
+    : '';
+  // Je wereld in één regel, zodat je de zaadcode kunt delen (in een uitdaging staat de naam ervoor)
+  const challenge = currentChallenge();
+  const world = `${challenge ? `${challenge.n} · ` : ''}Zaadcode <b>${G.opts.seedCode}</b> · ${MAP[G.opts.map].n} · ${DIFF_NAMES[G.diff]}`;
+  // In een uitdaging: het doel en wat elke spelregel doet, zodat je het ook op een telefoon kunt nalezen
+  const challengeInfo = challenge
+    ? `<div class="sect">Doel: ${goalText(challenge.goal)}</div>${modsHTML(challenge)}`
+    : '';
   openModal(`<div class="eyebrow">${placeName()} · dag ${G.day} · ${AGES[G.age].n}</div><h1>Gepauzeerd</h1>
-  <p>${fmt(G.stats.gathered)} grondstoffen · ${G.stats.killed} vijanden verslagen · ${G.stats.camps} kampen veroverd · ${Object.keys(G.tech).length} uitvindingen</p>
-  <div class="mstack" style="margin-top:18px"><button class="mbtn primary" data-m="close"><span>Hervatten</span><small>terug naar het spel</small></button>${isCompact() ? `<button class="mbtn" data-m="pg"><span>Volgend tijdperk</span><small>wat er nog nodig is</small></button><button class="mbtn" data-m="pr"><span>Kaart</span><small>overzicht · uitbreiden</small></button><button class="mbtn" data-m="pl"><span>Volk en leger</span><small>dorpelingen · verdediging · onderzoek</small></button>` : ''}<button class="mbtn" data-m="save"><span>Opslaan</span><small>automatisch elke minuut</small></button><button class="mbtn" data-m="load"><span>Laden</span><small>laatste opslag</small></button><button class="mbtn" data-m="settings"><span>Instellingen</span><small>geluid · weergave</small></button><button class="mbtn" data-m="help"><span>Uitleg</span><small>besturing</small></button><button class="mbtn" data-m="title"><span>Hoofdmenu</span><small>slaat eerst op</small></button></div>`);
+  <p>${stats}</p>
+  <p class="pworld">${world}</p>
+  ${challengeInfo}
+  ${peopleBarHTML()}
+  <div class="mstack" style="margin-top:18px">
+    <button class="mbtn primary" data-m="close"><span>Hervatten</span><small>terug naar het spel</small></button>
+    ${panelButtons}
+    <div class="mpair">
+      <button class="mbtn" data-m="save"><span>Opslaan</span><small>automatisch elke minuut</small></button>
+      <button class="mbtn" data-m="load"><span>Laden</span><small>laatste opslag</small></button>
+    </div>
+    <div class="mpair">
+      <button class="mbtn" data-m="profile"><span>Prestaties</span><small>${achievementsLine()}</small></button>
+      <button class="mbtn" data-m="help"><span>Uitleg</span><small>besturing</small></button>
+    </div>
+    <div class="mpair">
+      <button class="mbtn" data-m="settings"><span>Instellingen</span><small>geluid · weergave</small></button>
+      <button class="mbtn" data-m="title"><span>Hoofdmenu</span><small>slaat eerst op</small></button>
+    </div>
+  </div>`);
 }
+// Instellingen: vier tabbladen. Elke knop zegt met data-* wat hij verandert, zodat één
+// klik-afhandeling (hieronder) alles kan doen.
+let setTab = 'game';
+const SET_TABS = [
+  ['game', 'Spel'],
+  ['view', 'Beeld'],
+  ['sound', 'Geluid'],
+  ['control', 'Besturing'],
+];
 function showSettings() {
-  const tg = (k: ToggleKey, l: string, d: string) =>
-    `<div class="setrow"><div><b>${l}</b><small>${d}</small></div><button class="tog ${SET[k] ? 'on' : ''}" data-set="${k}" aria-label="${l}"></button></div>`;
-  openModal(`<button class="quiet x" data-m="pause" aria-label="Terug">×</button><div class="eyebrow">Instellingen</div><h1>Spel en camera</h1>
-  <div class="setrow"><div><b>Volume</b><small>Effecten en signalen</small></div><input type="range" id="vol" min="0" max="100" value="${Math.round(SET.vol * 100)}" aria-label="Volume"></div>
-  <div class="setrow"><div><b>Geluid</b><small>Effecten aan of uit</small></div><button class="tog ${sndOn ? 'on' : ''}" data-snd="1" aria-label="Geluid"></button></div>
-  <div class="setrow"><div><b>Bovenaanzicht</b><small>Camera recht van boven in plaats van schuin</small></div><button class="tog ${store.V2 ? 'on' : ''}" data-view="1" aria-label="Bovenaanzicht"></button></div>
-  ${tg('edge', 'Randscrollen', 'Kaart schuift als de muis de rand van het scherm raakt')}${tg('hp', 'Levensbalken altijd tonen', 'Ook bij gezonde eenheden en gebouwen')}${tg('shake', 'Schermschudden', 'Bij instortende gebouwen')}${tg('dragSelect', 'Slepen = selecteren', 'Uit: linkermuis slepen verschuift de kaart')}${innerWidth / innerHeight > 2.15 ? tg('hudWide', 'HUD over volle breedte', 'Ultrabreed scherm: panelen in de hoeken in plaats van in het midden') : ''}
-  <div class="setrow"><div><b>Beeldkwaliteit</b><small>${SET.quality === 'auto' ? `Automatisch past zich aan je apparaat aan (nu: ${LEVELS[store.quality!].name.toLowerCase()})` : 'Vaste kwaliteit'}</small></div>
-    <div class="seg">${[
-      ['auto', 'Auto'],
-      ['low', 'Laag'],
-      ['mid', 'Middel'],
-      ['high', 'Hoog'],
-    ]
-      .map(([k, l]) => `<button class="${SET.quality === k ? 'on' : ''}" data-q="${k}">${l}</button>`)
-      .join('')}</div></div>
-  <div class="row"><button class="primary" data-m="pause">Terug</button></div>`);
+  const row = (l, d, ctrl) => `<div class="setrow"><div><b>${l}</b><small>${d}</small></div>${ctrl}</div>`;
+  const tog = (k, l, d, on = SET[k]) =>
+    row(
+      l,
+      d,
+      `<button class="tog ${on ? 'on' : ''}" data-set="${k}" role="switch" aria-checked="${!!on}" aria-label="${l}"></button>`,
+    );
+  const seg = (k, l, d, opts, cur = SET[k]) =>
+    row(
+      l,
+      d,
+      `<div class="seg" role="radiogroup" aria-label="${l}">${opts
+        .map(
+          ([v, t]) =>
+            `<button class="${cur === v ? 'on' : ''}" data-seg="${k}" data-v="${v}" role="radio" aria-checked="${cur === v}">${t}</button>`,
+        )
+        .join('')}</div>`,
+    );
+  const slider = (k, l, d, min, max, step, val, show) =>
+    row(
+      l,
+      d,
+      `<span class="rng"><input type="range" data-range="${k}" min="${min}" max="${max}" step="${step}" value="${val}" aria-label="${l}"><output>${show}</output></span>`,
+    );
+  const inGame = $('#title').hidden && G && !G.over;
+  // In een uitdaging kun je de vredige modus niet aanzetten: dan zou het doel te makkelijk worden
+  const peaceToggle = inGame && !G.scenario;
+  const gfx = SET.gfx;
+  const custom = SET.quality === 'custom';
+  const nowLevel =
+    store.quality === 'custom' ? 'aangepast' : (LEVELS[store.quality] || LEVELS.high).name.toLowerCase();
+  const tabs = {
+    game:
+      tog('coach', 'Tutorial', 'Stap-voor-stap hulp: "volgende stap" en oplichtende knoppen') +
+      tog('tips', 'Uitleg bij de muis', 'Tooltips als je over iets heen beweegt') +
+      tog('hp', 'Levensbalken altijd tonen', 'Ook bij gezonde eenheden en gebouwen') +
+      tog('autosave', 'Automatisch opslaan', 'Elke minuut, en als je het tabblad verlaat') +
+      (peaceToggle
+        ? tog(
+            'peaceful',
+            'Vredige modus',
+            "Geen aanvallen 's nachts · je score telt dit spel half",
+            G.peaceful,
+          )
+        : '') +
+      `<div class="setbtns"><button data-m="help">Uitleg en sneltoetsen</button></div>`,
+    view:
+      seg(
+        'quality',
+        'Beeldkwaliteit',
+        SET.quality === 'auto'
+          ? `Past zich aan je apparaat aan (nu: ${nowLevel})`
+          : custom
+            ? 'Kies hieronder zelf'
+            : 'Vaste kwaliteit',
+        [
+          ['auto', 'Auto'],
+          ['low', 'Laag'],
+          ['mid', 'Middel'],
+          ['high', 'Hoog'],
+          ['custom', 'Eigen'],
+        ],
+      ) +
+      (custom
+        ? `<div class="setsub">${
+            slider(
+              'gfx.scale',
+              'Resolutie',
+              'Lager = sneller, maar wat waziger',
+              50,
+              100,
+              5,
+              Math.round(gfx.scale * 100),
+              Math.round(gfx.scale * 100) + '%',
+            ) +
+            tog('gfx.shadows', 'Schaduwen', 'Zon en gebouwen werpen schaduw', gfx.shadows) +
+            tog('gfx.bloom', 'Gloed', 'Zachte gloed rond vuur en lampen', gfx.bloom) +
+            tog('gfx.outline', 'Omlijning', 'Rand om wat je selecteert of aanwijst', gfx.outline) +
+            tog('gfx.particles', 'Effecten', 'Rook, stof en vonken', gfx.particles !== false)
+          }</div>`
+        : '') +
+      tog('V2', 'Bovenaanzicht', 'Camera recht van boven in plaats van schuin', store.V2) +
+      tog('shake', 'Schermschudden', 'Bij inslagen en instortende gebouwen') +
+      tog('motion', 'Animaties in menu’s', 'Uit: rustiger, zonder bewegende knoppen') +
+      seg('uiScale', 'Grootte interface', 'Maakt panelen en tekst groter of kleiner', [
+        [0.9, 'S'],
+        [1, 'M'],
+        [1.15, 'L'],
+        [1.3, 'XL'],
+      ]) +
+      (innerWidth / innerHeight > 2.15
+        ? tog('hudWide', 'HUD over volle breedte', 'Ultrabreed scherm: panelen in de hoeken')
+        : '') +
+      tog('fps', 'Beeldjes per seconde', 'Toon een teller rechtsboven'),
+    sound:
+      tog('sound', 'Geluid', 'Alle geluid aan of uit (sneltoets M)', sndOn) +
+      slider(
+        'vol',
+        'Volume',
+        'Hoe hard alles klinkt',
+        0,
+        100,
+        5,
+        Math.round(SET.vol * 100),
+        Math.round(SET.vol * 100) + '%',
+      ) +
+      tog('alerts', 'Meldingen', 'Alarm bij aanvallen en vallende meteorieten') +
+      tog('uiSounds', 'Klikgeluiden', 'Tikjes bij knoppen en selecteren') +
+      tog('muteHidden', 'Stil op de achtergrond', 'Geen geluid als je een ander tabblad bekijkt'),
+    control:
+      tog('dragSelect', 'Slepen = selecteren', 'Uit: linkermuis slepen verschuift de kaart') +
+      tog('edge', 'Randscrollen', 'Kaart schuift als de muis de rand van het scherm raakt') +
+      slider(
+        'camSpeed',
+        'Camerasnelheid',
+        'Voor WASD, pijltjes en randscrollen',
+        50,
+        200,
+        10,
+        Math.round(SET.camSpeed * 100),
+        Math.round(SET.camSpeed * 100) + '%',
+      ) +
+      tog('invertZoom', 'Zoomen omkeren', 'Muiswiel de andere kant op'),
+  };
+  openModal(`<button class="quiet x" data-m="pause" aria-label="Terug">${ico('✕')}</button><div class="eyebrow">Instellingen</div><h1>Zoals jij het wilt</h1>
+  <div class="settabs" role="tablist">${SET_TABS.map(([k, l]) => `<button role="tab" aria-selected="${setTab === k}" class="${setTab === k ? 'on' : ''}" data-tab="${k}">${l}</button>`).join('')}</div>
+  <div class="setpane" role="tabpanel">${tabs[setTab]}</div>
+  <div class="row"><button class="primary" data-m="pause">Klaar</button><button class="quiet" data-m="resetset">Standaard herstellen</button></div>`);
 }
-export function showTitle() {
+
+/** Een instelling omzetten of kiezen, en meteen laten werken. */
+function changeSetting(k, v) {
+  if (k === 'sound') return setSound(!sndOn);
+  if (k === 'V2') return setView(!store.V2, true);
+  if (k === 'peaceful') return setPeaceful(!G.peaceful);
+  if (k === 'quality') return setQuality(v);
+  if (k.startsWith('gfx.')) {
+    const g = k.slice(4);
+    SET.gfx[g] = v === undefined ? !SET.gfx[g] : v;
+    saveSet();
+    return setQuality('custom');
+  }
+  SET[k] = v === undefined ? !SET[k] : v;
+  saveSet();
+  applyLayoutSettings();
+  if (k === 'hp') store.uiDirty = true;
+  if (k === 'coach' || k === 'uiScale' || k === 'hudWide') setTimeout(measureHud, 30);
+}
+
+/**
+ * Het titelscherm: verder spelen, een nieuwe wereld, uitdagingen, prestaties, uitleg en instellingen.
+ * Met `setup` opent meteen het nieuw-spelscherm (zie ui/newgame.js), met `challenges` de lijst met
+ * uitdagingen (zie ui/challenges.js); `focus` is dan de uitdaging die open staat.
+ */
+export function showTitle({ setup = false, challenges = false, focus = null } = {}) {
   const has_ = (() => {
     try {
       return !!localStorage.getItem(SKEY);
@@ -144,78 +388,92 @@ export function showTitle() {
       return false;
     }
   })();
-  let diff = G ? G.diff : 1;
+  // Zonder opslag ligt er al een verse wereld achter het titelscherm: die zaadcode bieden we als eerste aan
+  const fresh = !has_ && G && G.t <= 5;
+  const draft = newGameDraft(fresh);
   const el = $('#title');
   setSpeed(0);
   el.hidden = false;
   document.body.classList.add('titled');
-  const D = [
-    ['Vredig', 'Geen aanvallen. Alleen bouwen.'],
-    ['Normaal', 'Om de nacht een aanval.'],
-    ['Zwaar', 'Elke nacht, grotere groepen.'],
-  ];
-  const draw = () => {
-    el.innerHTML = `<div class="tw"><div class="tag">Van vuursteen tot de sterren</div><div class="logo">TIJD<br>PERKEN</div><div class="agesrow">${AGES.map((a, i) => `<span style="background:${AGE_COLORS[i]}" title="${a.n}">${a.r}</span>`).join('')}</div>
-    <div class="mstack">${has_ ? `<button class="mbtn primary" data-t="cont"><span>Verder spelen</span><small>${placeName()} · dag ${G.day} · ${AGES[G.age].n}</small></button>` : ''}<button class="mbtn ${has_ ? '' : 'primary'}" data-t="new"><span>${has_ ? 'Nieuwe wereld' : 'Begin'}</span><small>${D[diff][0].toLowerCase()}</small></button></div>
-    <div><div class="eyebrow" style="margin-bottom:6px">Moeilijkheid</div><div class="diff">${D.map((d, i) => `<button class="${i === diff ? 'on' : ''}" data-d="${i}"><b>${d[0]}</b><small>${d[1]}</small></button>`).join('')}</div></div>
-    <div class="mstack"><button class="mbtn" data-t="help"><span>Uitleg</span><small>besturing</small></button><button class="mbtn" data-t="settings"><span>Instellingen</span><small>geluid · camera</small></button></div>
-    <div class="tfoot">Negen tijdperken · seizoenen · muren · onderzoek · voortgang wordt in deze browser bewaard</div></div>`;
-  };
-  draw();
-  el.onclick = e => {
-    const t = (e.target as HTMLElement).closest('button');
-    if (!t) return;
-    sfx('tick');
-    if (t.dataset.d !== undefined) {
-      diff = +t.dataset.d;
-      draw();
-      return;
-    }
-    if (t.dataset.t === 'help') {
-      showHelp();
-      return;
-    }
-    if (t.dataset.t === 'settings') {
-      showSettings();
-      return;
-    }
-    if (t.dataset.t === 'new') {
-      if (has_ || G.t > 5) {
-        wipe();
-        newGame(undefined, diff);
-      } else {
-        G.diff = diff;
-        G.peaceful = diff === 0;
-        Object.assign(
-          G.res,
-          diff === 2 ? { food: 150, wood: 120, stone: 40 } : { food: 200, wood: 160, stone: 60 },
-        );
-      }
-    }
+  const leaveTitle = () => {
     el.hidden = true;
     document.body.classList.remove('titled');
     setSpeed(1);
   };
+  const drawHome = () => {
+    // Bij een uitdaging staat haar naam erbij, anders de naam van je stad
+    const where = currentChallenge() ? currentChallenge().n : placeName();
+    const continueButton = has_
+      ? `<button class="mbtn primary" data-t="cont"><span>Verder spelen</span><small>${where} · dag&nbsp;${G.day} · ${AGES[G.age].n}</small></button>`
+      : '';
+    el.innerHTML = `<div class="tw">
+    <div class="tag">Van vuursteen tot sterrenpoort</div>
+    <div class="logo">Tijdperken</div>
+    <div class="agesrow">${ageTimeline(has_ ? G.age : 0, true)}<div class="tlends"><span>vuursteen</span><span>sterrenpoort</span></div></div>
+    <div class="mstack">
+      ${continueButton}
+      <button class="mbtn ${has_ ? '' : 'primary'}" data-t="new"><span>Nieuwe wereld</span><small class="whole">volk · kaart · doel</small></button>
+      <div class="mpair">
+        <button class="mbtn" data-t="challenges"><span>Uitdagingen</span><small class="whole">${medalCount()}/${SCENARIOS.length} medailles</small></button>
+        <button class="mbtn" data-t="daily"><span>Wereld van de dag</span><small class="whole">${dailyLine()}</small></button>
+      </div>
+    </div>
+    <div class="mstack">
+      <button class="mbtn" data-t="profile"><span>Prestaties</span><small>${achievementsLine()}</small></button>
+      <div class="mpair">
+        <button class="mbtn" data-t="help"><span>Uitleg</span><small>besturing</small></button>
+        <button class="mbtn" data-t="settings"><span>Instellingen</span><small>geluid · camera</small></button>
+      </div>
+    </div>
+    <div class="tfoot">Negen tijdperken · seizoenen · muren · onderzoek · voortgang wordt in deze browser bewaard</div>
+    </div>`;
+    el.onclick = onHomeClick;
+    el.oninput = el.onchange = el.onkeydown = null;
+  };
+  // Een nieuwe wereld of uitdaging beginnen: oude opslag weg, nieuwe wereld, titelscherm dicht
+  const startGame = opts => {
+    // Voor de zekerheid: nooit beginnen met een volk dat (weer) op slot zit
+    if (opts.people && !isPeopleUnlocked(opts.people, playerProfile())) opts.people = DEFAULT_PEOPLE;
+    wipe();
+    newGame(opts);
+    leaveTitle();
+  };
+  const openSetup = () => showNewGame(el, draft, { onBack: drawHome, onStart: startGame });
+  const openChallenges = (focusOn = null) =>
+    showChallenges(el, { focus: focusOn, hasSave: has_, onBack: drawHome, onStart: startGame });
+  const onHomeClick = e => {
+    const t = e.target.closest('button');
+    if (!t) return;
+    sfx('tick');
+    if (t.dataset.t === 'help') showHelp();
+    else if (t.dataset.t === 'settings') showSettings();
+    // Hoe het venster ook dichtgaat (Klaar, Esc of een klik ernaast): daarna het titelscherm opnieuw tekenen
+    else if (t.dataset.t === 'profile') showProfile({ onClose: drawHome });
+    else if (t.dataset.t === 'new') openSetup();
+    else if (t.dataset.t === 'challenges') openChallenges();
+    else if (t.dataset.t === 'daily') openChallenges(DAILY);
+    else if (t.dataset.t === 'cont') leaveTitle();
+  };
+  if (setup) openSetup();
+  else if (challenges) openChallenges(focus);
+  else drawHome();
 }
 $('#menuBtn').onclick = () => openPause();
 export function showHelp() {
-  openModal(`<button class="quiet x" data-m="close" aria-label="Sluiten">×</button><div class="eyebrow">Welkom in ${placeName()}</div><h1>Bouw. Groei. Overleef.</h1>
-  <p>Leid je stam van de <b>steentijd</b> naar het <b>sterrentijdperk</b>, in negen hoofdstukken. Elk tijdperk onthult nieuwe grondstoffen op de kaart: koper en tin, ijzer en goud, kolen, olie en zand, en tot slot lithium.</p>
-  <p>Je <b>dorpelingen</b> werken vanzelf op wat het hardst nodig is. Wil je regie, geef ze dan een vaste taak in het paneel Volk, of selecteer ze en klik op een boom, ader of bouwplaats.</p>
+  openModal(`<button class="quiet x" data-m="close" aria-label="Sluiten">${ico('✕')}</button><div class="eyebrow">Welkom in ${placeName()}</div><h1>Bouw. Groei. Overleef.</h1>
+  <p>Leid je stam van de <b>steentijd</b> naar het <b>sterrentijdperk</b>, in negen hoofdstukken. Elk tijdperk onthult nieuwe grondstoffen op de kaart: koper en tin, ijzer, goud, kolen, olie en zand, lithium en tot slot sterrenmetaal uit meteorieten. In de Gouden Eeuw maak je buskruit in een kruitmolen.</p>
+  <p>Je <b>dorpelingen</b> werken vanzelf op wat het hardst nodig is. Wil je regie, geef ze dan een vaste taak in het paneel <b>Dorp</b>, of selecteer ze en klik op een boom, ader of bouwplaats.</p>
   <p>'s <b>Nachts</b> gaan dorpelingen buiten het licht naar huis. Elke tweede nacht vallen vijanden aan. Bouw torens, train een <b>leger</b> en verover de kampen op de kaart voor buit en grond.</p>
   <p>Herken iedereen aan de schijf eronder: <b>blauw</b> is jouw leger, <b>rood</b> is de vijand, licht zijn je dorpelingen. Soms valt er een <b>meteoriet</b>: rond de krater liggen daarna nieuwe ertsen.</p>
-  <p><b>Muren</b> houden vijanden echt tegen: ze moeten erdoorheen hakken. Bouw een <b>poort</b> zodat je eigen volk erdoor kan. <b>Wegen</b> laten iedereen sneller lopen. In het paneel <b>Onderzoek</b> doe je uitvindingen per tijdperk, en soms vraagt een <b>gebeurtenis</b> om een keuze.</p>
-  <p>Elk nieuw tijdperk ontgrendelt <b>verbeteringen</b> voor wat je al hebt: gebouwen gaan een niveau omhoog, je volk krijgt betere werktuigen en je leger beter pantser. Een pijltje boven een gebouw betekent dat er een verbetering klaarstaat.</p>
-  <div class="keys"><kbd>Slepen</kbd><span>Selectiekader (met Shift: erbij)</span><kbd>Rechts slepen · WASD</kbd><span>Kaart verschuiven · scroll om te zoomen</span><kbd>Klik</kbd><span>Bekijken en selecteren</span><kbd>Dubbelklik · Ctrl-klik</kbd><span>Alles van dat soort in beeld</span><kbd>Rechtsklik</kbd><span>Opdracht: lopen, aanvallen, verzamelen</span><kbd>Q · I</kbd><span>Hele leger · stilstaande dorpelingen</span><kbd>E</kbd><span>Gebied uitbreiden</span><kbd>V</kbd><span>Bovenaanzicht aan of uit</span><kbd>Spatie · [ ]</kbd><span>Pauze · langzamer / sneller</span><kbd>1 – 9</kbd><span>Gebouw uit de bouwbalk kiezen</span><kbd>Ctrl+F1 – F5 · F1 – F5</kbd><span>Groep instellen · groep selecteren (twee keer: ernaartoe)</span><kbd>S · F · R</kbd><span>Leger: stop · aanvalsmars · patrouille</span><kbd>Shift-klik trainen</kbd><span>Vijf eenheden tegelijk in de wachtrij</span><kbd>Slepen bij muur of weg</kbd><span>Hele lijn in één keer bouwen</span><kbd>Delete</kbd><span>Sloopmodus (of: geselecteerd gebouw afbreken)</span><kbd>Z X C B</kbd><span>Bouwcategorie wisselen</span><kbd>P · M</kbd><span>Paneel · geluid</span><kbd>Esc</kbd><span>Annuleren</span></div>
+  <p><b>Muren</b> houden vijanden echt tegen: ze moeten erdoorheen hakken. Bouw een <b>poort</b> zodat je eigen mensen erdoor kunnen. <b>Wegen</b> laten iedereen sneller lopen. In het paneel <b>Verbeteren</b> zie je per verbetering precies wat ze oplevert (nu → straks): werktuigen, wapens, gebouwen en uitvindingen, en soms vraagt een <b>gebeurtenis</b> om een keuze.</p>
+  <p>Elk nieuw tijdperk ontgrendelt <b>verbeteringen</b> voor wat je al hebt: gebouwen gaan een niveau omhoog, je dorpelingen krijgen betere werktuigen en je leger beter pantser. Een pijltje boven een gebouw betekent dat er een verbetering klaarstaat.</p>
+  <p>Zin in iets anders? Onder <b>Uitdagingen</b> staan opdrachten met eigen regels, zoals een lange winter of geen leger, en een doel binnen een tijd. Haal je het, dan krijg je een medaille. De <b>wereld van de dag</b> is elke dag nieuw en voor iedereen hetzelfde.</p>
+  <p>Bij een <b>nieuwe wereld</b> kies je je volk, de moeilijkheid, de kaart en hoe je wint: de sterrenpoort bouwen, 30 nachten overleven, een kort spel tot de Gouden Eeuw of alle rivalen verslaan (Verovering). Je doelen staan op de doelenkaart onder <b>Winnen</b> (op een telefoon: knop <b>Doel</b>). Met dezelfde <b>zaadcode</b> krijg je dezelfde wereld; je vindt hem onder <b>Menu</b>.</p>
+  <p><b>Rivalen</b> zijn andere volken op de kaart (je kiest er 0 tot 3 bij een nieuwe wereld). Ze bouwen en gaan door de tijdperken net als jij, en vallen soms overdag aan. Hun land heeft hun kleur; in het paneel <b>Leger</b> zie je hoe sterk ze zijn. Verwoest hun stamhuis: dan zijn ze verslagen en wordt hun land van jou. Versla ze allemaal en je wint met <b>Verovering</b>.</p>
+  <p>Elk tijdperk heeft één <b>wereldwonder</b>, zoals het Hunebed of de Eiffeltoren (bouwcategorie <b>Wonderen</b>). Elk wonder bestaat maar één keer per wereld en geeft een sterke bonus. Een rivaal met het karakter Bouwer bouwt ook wonderen. Op de doelenkaart zie je als hij ervoor spaart of eraan bouwt: sloop zijn bouwplaats of wees sneller. Is hij eerder klaar, dan is het wonder bezet tot je het verwoest of hem verslaat. Met vier wonderen tegelijk kun je winnen.</p>
+  <p>Elk <b>volk</b> heeft eigen voordelen; je ziet ze onder <b>Menu</b>, en in het overzicht onderin als je niets hebt geselecteerd.</p>
+  <p>Onderweg haal je <b>prestaties</b>, zoals een nieuw tijdperk of een veroverd kamp. Sommige spelen een nieuw volk vrij. Aan het eind krijg je een <b>score</b> en misschien een medaille. Alles staat onder <b>Prestaties</b> in het menu.</p>
+  <p>Na je eerste minuut en bij elk nieuw tijdperk kies je een <b>zegening</b>: één van drie kaarten met een voordeel voor de rest van het spel. Sommige hebben ook een nadeel. Je zegeningen staan bovenaan <b>Verbeteren</b>.</p>
+  <div class="keys"><kbd>Slepen</kbd><span>Selectiekader (met Shift: erbij)</span><kbd>Rechts slepen · WASD</kbd><span>Kaart verschuiven · scroll om te zoomen</span><kbd>Klik</kbd><span>Bekijken en selecteren</span><kbd>Dubbelklik · Ctrl-klik</kbd><span>Alles van dat soort in beeld</span><kbd>Rechtsklik</kbd><span>Opdracht: lopen, aanvallen, verzamelen</span><kbd>Q · I</kbd><span>Hele leger · stilstaande dorpelingen</span><kbd>E</kbd><span>Gebied uitbreiden</span><kbd>V</kbd><span>Bovenaanzicht aan of uit</span><kbd>Spatie · [ ]</kbd><span>Pauze · langzamer / sneller</span><kbd>1 – 9</kbd><span>Gebouw uit de bouwbalk kiezen</span><kbd>Ctrl+F1 – F5 · F1 – F5</kbd><span>Groep instellen · groep selecteren (twee keer: ernaartoe)</span><kbd>S · F · R</kbd><span>Leger: stop · aanvalsmars · patrouille</span><kbd>Shift-klik trainen</kbd><span>Vijf eenheden tegelijk in de wachtrij</span><kbd>Slepen bij muur of weg</kbd><span>Hele lijn in één keer bouwen</span><kbd>Delete</kbd><span>Sloopmodus (of: geselecteerd gebouw afbreken)</span><kbd>Z X C B N</kbd><span>Bouwcategorie wisselen (N: wereldwonderen)</span><kbd>P · M</kbd><span>Paneel · geluid</span><kbd>Esc</kbd><span>Annuleren</span></div>
   <div class="row"><button class="primary" data-m="close">Op avontuur →</button></div>`);
-}
-export function showVictory() {
-  openModal(
-    `<div class="eyebrow">Hoofdstuk IX voltooid</div><h1>Van vuursteen tot de sterren.</h1><p>${placeName()} doorliep de hele geschiedenis in ${G.day} dagen. ${fmt(G.stats.gathered)} grondstoffen verzameld, ${G.stats.killed} vijanden verslagen, ${G.stats.camps} kampen veroverd.</p><div class="row"><button class="primary" data-m="close">Verder bouwen</button><button data-m="new">Nieuwe wereld</button></div>`,
-  );
-}
-export function showGameOver() {
-  openModal(
-    `<div class="eyebrow">Dag ${G.day}</div><h1>Het stamhuis is gevallen.</h1><p>${placeName()} hield ${G.day} dagen stand en bereikte de ${AGES[G.age].n.toLowerCase()}. Bouw volgende keer eerder torens en een leger, of speel in de vredige modus.</p><div class="row"><button class="primary" data-m="newok">Nieuwe wereld</button></div>`,
-  );
 }

@@ -1,11 +1,13 @@
 // Beeldkwaliteit. Vast (laag / middel / hoog) of automatisch: automatisch begint hoog en zet
 // zelf de resolutie en zware effecten lager als het spel hapert, en weer hoger als er ruimte is.
 // Zo blijft het op elk apparaat vloeiend.
-import type * as T3 from 'three';
 import { store } from '../core/store';
 import { SET, saveSet } from '../core/settings';
-import { configurePost, type PostSettings } from './post';
-import { resize, sun } from './scene';
+import { configurePost } from './post';
+import { requestResize, resize, sun } from './scene';
+import { setScatterDensity } from './scatter';
+import { setFineDetail } from './terrainlook';
+import { setNodeDetail } from './nodes';
 
 /** Eén kwaliteitsstand: naam, resolutie-factor, maximum aantal pixels, schaduwen en nabewerking. */
 interface QualityLevel extends PostSettings {
@@ -25,6 +27,9 @@ export const LEVELS: Record<string, QualityLevel> = {
     post: false,
     bloom: false,
     outline: false,
+    particles: false,
+    scatter: 0, // geen grassprieten en steentjes
+    fine: false, // eenvoudiger grond, water, bomen en bergen
   },
   mid: {
     name: 'Middel',
@@ -35,6 +40,8 @@ export const LEVELS: Record<string, QualityLevel> = {
     post: true,
     bloom: false,
     outline: true,
+    scatter: 0.5,
+    fine: true,
   },
   high: {
     name: 'Hoog',
@@ -45,6 +52,10 @@ export const LEVELS: Record<string, QualityLevel> = {
     post: true,
     bloom: true,
     outline: true,
+    sharpen: 0.22,
+    hdr: true, // felle kleuren: alleen echte lichten gloeien
+    scatter: 1,
+    fine: true,
   },
 };
 const ORDER = ['low', 'mid', 'high'];
@@ -56,12 +67,35 @@ let level: string = 'high',
   slow: number = 0,
   fast: number = 0;
 
-function apply(name: string) {
+/** Eigen keuze uit de instellingen: schaduwen, gloed, omlijning en resolutie los aan of uit. */
+function customLevel() {
+  const g = SET.gfx || {};
+  return {
+    name: 'Aangepast',
+    scale: g.scale || 1,
+    pixels: 14e6,
+    shadows: !!g.shadows,
+    shadowMap: 2048,
+    post: !!(g.bloom || g.outline),
+    bloom: !!g.bloom,
+    outline: !!g.outline,
+    particles: g.particles !== false,
+    sharpen: g.bloom ? 0.22 : 0,
+    hdr: !!g.bloom,
+    scatter: g.shadows ? 1 : 0.5,
+    fine: (g.scale || 1) >= 0.8,
+  };
+}
+
+// later = true: de nieuwe resolutie pas vlak vóór het volgende beeldje instellen. Een canvas
+// van grootte veranderen maakt het leeg; midden in een beeldje gaf dat een kort zwart beeld.
+function apply(name, later) {
   level = name;
-  const L = LEVELS[name];
+  const L = name === 'custom' ? customLevel() : LEVELS[name];
   store.resScale = L.scale;
   store.pixelBudget = L.pixels; // maximaal aantal pixels voor de 3D-wereld
   store.quality = name;
+  store.noParticles = L.particles === false;
   sun.castShadow = L.shadows;
   if (sun.shadow.mapSize.x !== L.shadowMap) {
     sun.shadow.mapSize.set(L.shadowMap, L.shadowMap);
@@ -72,7 +106,11 @@ function apply(name: string) {
     }
   }
   configurePost(L);
-  resize();
+  setScatterDensity(L.scatter);
+  setFineDetail(L.fine);
+  setNodeDetail(L.fine);
+  if (later) requestResize();
+  else resize();
 }
 
 /** Kies de kwaliteit uit de instelling (bij opstarten en als de speler hem verandert). */
@@ -111,19 +149,19 @@ export function tickQuality(rdt: number) {
   // store.resScale is gezet door apply() (via initQuality bij het opstarten)
   if (slow >= 2) {
     slow = 0;
-    if (store.resScale! > L.scale - 0.2 + 0.01) {
-      store.resScale = Math.max(0.5, store.resScale! - 0.1);
-      resize();
-    } else if (ORDER.indexOf(level) > 0) apply(ORDER[ORDER.indexOf(level) - 1]);
-    else if (store.resScale! > 0.5) {
-      store.resScale = Math.max(0.5, store.resScale! - 0.1);
-      resize();
+    if (store.resScale > L.scale - 0.2 + 0.01) {
+      store.resScale = Math.max(0.5, store.resScale - 0.1);
+      requestResize();
+    } else if (ORDER.indexOf(level) > 0) apply(ORDER[ORDER.indexOf(level) - 1], true);
+    else if (store.resScale > 0.5) {
+      store.resScale = Math.max(0.5, store.resScale - 0.1);
+      requestResize();
     }
   } else if (fast >= 5) {
     fast = 0;
-    if (store.resScale! < L.scale - 0.01) {
-      store.resScale = Math.min(L.scale, store.resScale! + 0.1);
-      resize();
-    } else if (ORDER.indexOf(level) < ORDER.length - 1) apply(ORDER[ORDER.indexOf(level) + 1]);
+    if (store.resScale < L.scale - 0.01) {
+      store.resScale = Math.min(L.scale, store.resScale + 0.1);
+      requestResize();
+    } else if (ORDER.indexOf(level) < ORDER.length - 1) apply(ORDER[ORDER.indexOf(level) + 1], true);
   }
 }

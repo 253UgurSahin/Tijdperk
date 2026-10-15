@@ -4,7 +4,8 @@ import { sfx } from '../audio/sound';
 import { B } from '../data/buildings';
 import { has } from '../game/economy';
 import { th } from '../game/events';
-import { lackText } from '../game/placement';
+import { isMarching, isRaider } from '../game/military';
+import { buildCost, lackText } from '../game/placement';
 import { G, bById, sel } from '../game/state';
 import { selectArmy, selectIdle, zoomTo } from '../input/input';
 import { clearSel } from '../input/selection';
@@ -16,6 +17,7 @@ import { setHTML, sigs } from './header';
 import { $, isCompact } from '../util/dom';
 import { dist } from '../util/math';
 import { togglePanel } from './panel';
+import { ico } from './glyphs';
 
 export let lastSpeed = 1,
   toastTimer = 0;
@@ -85,14 +87,14 @@ $('#coachBtn').onclick = () => {
     store.expandMode = false;
     clearSel();
     sigs.grid = null;
-    if (!has(B[a.b].cost)) toast(`Nog ${lackText(B[a.b].cost)} nodig. Je kunt alvast een plek zoeken.`);
+    if (!has(buildCost(a.b))) toast(`Nog ${lackText(buildCost(a.b))} nodig. Je kunt alvast een plek zoeken.`);
   } else if (a.k === 'expand') setExpand(true);
   else if (a.k === 'age') ageUp();
   else if (a.k === 'alarm') {
-    const h = th()!,
-      f = G.foes
-        .filter(f => !f.camp && !f.retreat)
-        .sort((p, q) => dist(p.x, p.y, h.x, h.y) - dist(q.x, q.y, h.x, h.y))[0];
+    // De dichtstbijzijnde aanvaller, of anders de dichtstbijzijnde soldaat van een rivaal die nog onderweg is
+    const h = th(),
+      near = (p, q) => dist(p.x, p.y, h.x, h.y) - dist(q.x, q.y, h.x, h.y),
+      f = G.foes.filter(isRaider).sort(near)[0] || G.foes.filter(isMarching).sort(near)[0];
     if (f) centerOn(f.x, f.y);
   } else if (a.k === 'sel') {
     const b = bById.get(a.id!);
@@ -127,10 +129,10 @@ export function renderQuick() {
     sig,
     () =>
       (showIdle
-        ? `<button class="pbtn" data-q="idle" title="Selecteer dorpelingen zonder werk (sneltoets I)"><i>☺</i>${idle}</button>`
+        ? `<button class="pbtn" data-q="idle" title="Selecteer dorpelingen zonder werk (sneltoets I)"><i>${ico('☺')}</i>${idle}</button>`
         : '') +
       (G.us.length
-        ? `<button class="pbtn" data-q="army" title="Selecteer het hele leger (sneltoets Q)"><i>⚔</i>${G.us.length}</button>`
+        ? `<button class="pbtn" data-q="army" title="Selecteer het hele leger (sneltoets Q)"><i>${ico('⚔')}</i>${G.us.length}</button>`
         : ''),
   );
 }

@@ -7,10 +7,12 @@ import { RES } from '../data/resources';
 import { UNITS } from '../data/units';
 import { has } from '../game/economy';
 import { canBuyChunk, chunkCost } from '../game/placement';
+import { rbById } from '../game/rivals';
 import { G, sel } from '../game/state';
 import { bMaxHp, canUpg, upgCost } from '../game/upgrades';
 import { drag } from '../input/input';
 import { proj, pxu, t2s } from './camera';
+import { rbRec } from './rivals3d';
 import { DPR, VH, VW, octx } from './scene';
 import { bRec } from './sync';
 import { clamp } from '../util/math';
@@ -74,6 +76,15 @@ export function drawOverlay() {
       c.fill();
       otext(sx + 14, sy - 8, '!', '#c0392b', 12);
     }
+  }
+  // Gebouwen van rivalen: een rode levensbalk zodra ze geraakt zijn, zodat je ziet of je aanval werkt
+  for (const b of rbById.values()) {
+    const r = rbRec.get(b.id);
+    if (!r || !b.done || b.hp >= b.mhp) continue;
+    const s = B[b.type].size,
+      [sx, sy, sz] = proj(b.x + s / 2, r.h + 0.25, b.y + s / 2);
+    if (sz > 1 || sx < -50 || sy < -50 || sx > VW + 50 || sy > VH + 50) continue;
+    obar(sx, sy, Math.min(52, s * z * 0.7), b.hp / b.mhp, '#e3584a');
   }
   const ents = [
     ...G.vs.filter(v => !v.hidden && (v.hp < v.mhp || sel.vs.has(v.id))),

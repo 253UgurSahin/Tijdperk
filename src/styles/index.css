@@ -7,3 +7,13 @@
 @import './modals.css';
 @import './large.css';
 @import './responsive.css';
+@import './clarity.css';
+@import './blessings.css';
+@import './peoples.css';
+@import './achievements.css';
+@import './newgame.css';
+@import './challenges.css';
+@import './events.css';
+@import './rivals.css';
+@import './wonders.css';
+@import './settings.css'; /* als laatste: de grootte-instelling moet boven de rest winnen */

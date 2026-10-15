@@ -6,9 +6,15 @@ import { GATHER, RES } from '../data/resources';
 import { avail } from '../game/caches';
 import { built } from '../game/chapters';
 import { popCap, popNow } from '../game/entities';
+import { compass, isMarching, isRaider } from '../game/military';
+import { arrivalHour, clockText, rivalById } from '../game/rivals';
+import { RIVAL, verb } from '../data/rivals';
+import { ruleAllowsBuilding } from '../game/mods';
 import { G } from '../game/state';
 import { hoursUntilRaid, isNight } from '../game/time';
 import { fmt } from './format';
+import { VICTORY } from '../data/victories';
+import { victoryGoals } from '../game/victory';
 import { canMake } from '../data/succession';
 
 export const placed = (k: string): boolean => G.bs.some(b => b.type === k);
@@ -27,26 +33,81 @@ export function lackList(nx: AgeUpDef): string[] {
 }
 export const andJoin = (a: string[]): string =>
   a.length > 2 ? a.slice(0, 2).join(', ') + ' en meer' : a.length === 2 ? a[0] + ' en ' + a[1] : a[0] || '';
-const bAct = (k: string): CoachAct => ({ l: 'Bouw ' + B[k].n.toLowerCase(), b: k });
-/** Eén stap van de coach: titel, uitleg, eventueel een gebouw om aan te wijzen en een knop. */
-interface CoachStep {
-  t: string;
-  h: string;
-  tile?: string;
-  act?: CoachAct;
+const bAct = k => ({ l: 'Bouw ' + B[k].n.toLowerCase(), b: k });
+const expandAct = r => ({ l: 'Gebied uitbreiden', k: 'expand', r });
+
+// Waar komt grondstof k vandaan? Geeft een stap terug als de speler er iets voor moet doen.
+// `left` is hoeveel er nog nodig is, `goal` waarvoor (bijv. "de bronstijd").
+function sourceStep(k, left, goal, depth = 0) {
+  const name = RES[k].n.toLowerCase();
+  // Sterrenmetaal kun je niet zomaar vinden: het valt als meteoriet uit de lucht
+  if (k === 'starmetal' && !avail.starmetal)
+    return {
+      t: 'Wacht op een meteoriet.',
+      h: `Sterrenmetaal komt uit meteorieten: na een inslag ligt het rond de krater. Verderop liggen ook oude inslagen; breid uit om erbij te kunnen. Nog ${left} nodig voor ${goal}.`,
+      act: expandAct(k),
+    };
+  if (GATHER.includes(k) && !avail[k])
+    return {
+      t: 'Breid je gebied uit.',
+      h: `Er ligt nog geen ${name} binnen je grenzen. Je hebt er nog ${left} nodig voor ${goal}.`,
+      act: expandAct(k),
+    };
+  // Olie verzamel je niet met de hand: daar is een oliepomp op een oliebron voor
+  if (k === 'oil') {
+    if (!avail.oil)
+      return {
+        t: 'Zoek een oliebron.',
+        h: 'Olie zit onder woestijnen en kusten. Breid je gebied uit tot er een oliebron in ligt.',
+        act: expandAct(k),
+      };
+    if (!placed('oilpump'))
+      return {
+        t: 'Plaats een oliepomp.',
+        h: `${B.oilpump.desc} De raffinaderij maakt er brandstof van.`,
+        tile: 'oilpump',
+        act: bAct('oilpump'),
+      };
+    return null;
+  }
+  if (!RES[k].cr || depth > 2) return null;
+  const mk = BKEYS.find(b => B[b].conv && B[b].conv.out[k]);
+  if (!mk) return null;
+  if (!placed(mk))
+    return {
+      t: `Bouw een ${B[mk].n.toLowerCase()}.`,
+      h: `Daar maak je ${name}, nodig voor ${goal}.${B[mk].desc ? ' ' + B[mk].desc : ''}`,
+      tile: mk,
+      act: bAct(mk),
+    };
+  // Wacht de fabriek op iets dat je eerst moet regelen? Dan dát als stap.
+  const inp = Object.keys(B[mk].conv.in).filter(r => G.res[r] < 5);
+  for (const r of inp) {
+    const step = sourceStep(r, 'wat', goal, depth + 1);
+    if (step) return step;
+  }
+  return {
+    t: `Nog ${left} ${name} nodig.`,
+    h: inp.length
+      ? `De ${B[mk].n.toLowerCase()} wacht op ${inp.map(r => RES[r].n.toLowerCase()).join(' en ')}.`
+      : `De ${B[mk].n.toLowerCase()} maakt het vanzelf. Een tweede ${B[mk].n.toLowerCase()} gaat twee keer zo snel.`,
+  };
 }
-export function coach(): CoachStep {
+export function coach() {
   const nx = AGE_UP[G.age + 1],
     NA = nx && AGES[G.age + 1].n.toLowerCase(),
     pn = popNow(),
     cap = popCap();
-  const raid = G.foes.filter(f => !f.camp && !f.retreat).length;
+  const raid = G.foes.filter(isRaider).length;
   if (raid)
     return {
       t: 'Aanval!',
       h: `${raid} vijanden in je land. Je dorpelingen schuilen. Torens en soldaten verdedigen.`,
       act: { l: 'Bekijk de aanval', k: 'alarm' },
+      alarm: true,
     };
+  const marching = G.foes.filter(isMarching);
+  if (marching.length) return marchStep(marching);
   const lit = G.bs.some(b => b.type !== 'townhall' && B[b.type].light && !B[b.type].gen);
   const dark = G.vs.filter(v => v.state === 'sleep' || (v.state === 'walk' && v.on === 'sleep')).length;
   const lamp = BKEYS.find(k => B[k].cat === 'light' && B[k].light && !B[k].gen && canMake(k, G.age));
@@ -109,7 +170,8 @@ export function coach(): CoachStep {
         tile: 'campfire',
         act: bAct('campfire'),
       };
-    if (!G.peaceful && !placed('barracks'))
+    // Zonder leger (spelregel van een uitdaging) is er geen kazerne om te bouwen
+    if (!G.peaceful && ruleAllowsBuilding('barracks') && !placed('barracks'))
       return {
         t: 'Bouw een kazerne.',
         h: 'Vanaf de tweede nacht vallen vijanden aan. In de kazerne train je verdedigers.',
@@ -117,27 +179,23 @@ export function coach(): CoachStep {
         act: bAct('barracks'),
       };
   }
-  if (!nx) {
-    if (!placed('command'))
-      return {
-        t: 'Bouw het commandocentrum.',
-        h: 'Daarmee voltooi je je beschaving.',
-        tile: 'command',
-        act: bAct('command'),
-      };
-    return {
-      t: G.won ? 'Je beschaving is voltooid.' : 'Het commandocentrum wordt gebouwd.',
-      h: G.won ? 'Bouw gerust verder.' : 'Nog even geduld.',
-    };
-  }
+  if (!nx) return lastAgeStep();
   for (const n of nx.need)
-    if (!placed(n))
+    if (!placed(n)) {
+      // Kun je het gebouw nog niet betalen? Zeg dan eerst waar de ontbrekende grondstof vandaan komt.
+      const cost = B[n].cost;
+      for (const k in cost) {
+        if (G.res[k] >= cost[k]) continue;
+        const step = sourceStep(k, fmt(Math.ceil(cost[k] - G.res[k])), `een ${B[n].n.toLowerCase()}`);
+        if (step) return step;
+      }
       return {
         t: `Bouw een ${B[n].n.toLowerCase()}.`,
         h: `Nodig voor de ${NA}.${B[n].desc ? ' ' + B[n].desc : ''}`,
         tile: n,
         act: bAct(n),
       };
+    }
   if (pn < nx.pop && pn >= cap) {
     const h = bestHouse();
     return {
@@ -149,32 +207,8 @@ export function coach(): CoachStep {
   }
   for (const k in nx.cost) {
     if (G.res[k] >= nx.cost[k]) continue;
-    const left = fmt(Math.ceil(nx.cost[k] - G.res[k]));
-    if (GATHER.includes(k) && !avail[k])
-      return {
-        t: 'Breid je gebied uit.',
-        h: `Er ligt nog geen ${RES[k].n.toLowerCase()} binnen je grenzen. Je hebt er nog ${left} nodig.`,
-        act: { l: 'Gebied uitbreiden', k: 'expand' },
-      };
-    if (RES[k].cr) {
-      const mk = BKEYS.find(b => B[b].conv && B[b].conv.out[k]);
-      if (mk && !placed(mk))
-        return {
-          t: `Bouw een ${B[mk].n.toLowerCase()}.`,
-          h: `Daar maak je ${RES[k].n.toLowerCase()}, nodig voor de ${NA}.`,
-          tile: mk,
-          act: bAct(mk),
-        };
-      if (mk) {
-        const inp = Object.keys(B[mk].conv!.in).filter(r => G.res[r] < 5);
-        return {
-          t: `Nog ${left} ${RES[k].n.toLowerCase()} nodig.`,
-          h: inp.length
-            ? `De ${B[mk].n.toLowerCase()} wacht op ${inp.map(r => RES[r].n.toLowerCase()).join(' en ')}.`
-            : `De ${B[mk].n.toLowerCase()} maakt het vanzelf.`,
-        };
-      }
-    }
+    const step = sourceStep(k, fmt(Math.ceil(nx.cost[k] - G.res[k])), `de ${NA}`);
+    if (step) return step;
   }
   if (pn < nx.pop)
     return {
@@ -193,5 +227,59 @@ export function coach(): CoachStep {
     t: `Klaar voor de ${NA}!`,
     h: 'Alles is binnen. Zet de stap naar een nieuw tijdperk.',
     act: { l: `Naar de ${NA}`, k: 'age' },
+  };
+}
+
+// Soldaten van een rivaal zijn onderweg naar je stad: wie, hoeveel, uit welke richting en hoe laat
+function marchStep(marching) {
+  const lead = marching[0],
+    r = rivalById(lead.rival),
+    n = marching.length;
+  const oneRival = r && marching.every(f => f.rival === lead.rival);
+  const who = oneRival ? `${RIVAL[r.k].n} ${verb(RIVAL[r.k], 'is', 'zijn')}` : 'Rivalen zijn';
+  const soldiers = `${n} ${n === 1 ? 'soldaat' : 'soldaten'}`;
+  const when = clockText(arrivalHour(marching));
+  return {
+    t: 'Aanval op komst!',
+    h: `${who} onderweg: ${soldiers} uit het ${compass(lead.x, lead.y)}, rond ${when} hier.`,
+    act: { l: 'Bekijk ze', k: 'alarm' },
+    alarm: true,
+  };
+}
+
+/** De stap in het laatste tijdperk: de sterrenpoort bouwen, of het doel dat nog over is. */
+function lastAgeStep() {
+  // In een uitdaging telt alleen het doel van de uitdaging, niet de sterrenpoort
+  if (G.scenario && G.won) return { t: 'Uitdaging gehaald.', h: 'Bouw gerust verder.' };
+  const stargateGoal = G.opts.victories.includes('stargate');
+  // Echt klaar: gewonnen met de sterrenpoort, of met een ander doel als de sterrenpoort niet meetelt
+  if (G.won && (VICTORY[G.wonBy]?.full || !stargateGoal))
+    return { t: 'Je hebt gewonnen.', h: 'Bouw gerust verder.' };
+  if (!stargateGoal) {
+    // Winnen met de sterrenpoort staat uit: wijs naar het doel dat nog over is (zoals overleven)
+    const goal = victoryGoals().find(g => g.frac < 1);
+    return {
+      t: goal ? `${goal.v.d}.` : 'Bouw gerust verder.',
+      h: `${goal ? `Nu: ${goal.text}. ` : ''}Winnen met de sterrenpoort staat uit in deze wereld.`,
+    };
+  }
+  if (built('stargate')) return { t: 'De sterrenpoort staat.', h: 'Bouw gerust verder.' };
+  if (placed('stargate')) return { t: 'De sterrenpoort wordt gebouwd.', h: 'Nog even geduld.' };
+  const cost = B.stargate.cost;
+  for (const k in cost) {
+    if (G.res[k] >= cost[k]) continue;
+    const step = sourceStep(k, fmt(Math.ceil(cost[k] - G.res[k])), 'de sterrenpoort');
+    if (step) return step;
+  }
+  const miss = Object.keys(cost)
+    .filter(k => G.res[k] < cost[k])
+    .map(k => `${fmt(Math.ceil(cost[k] - G.res[k]))} ${RES[k].n.toLowerCase()}`);
+  // Al gewonnen met een kort doel? Dan telt de sterrenpoort nog voor de prestaties (zie game/victory.js)
+  const why = G.won ? 'Dan telt je winst ook voor de prestaties.' : 'Daarmee voltooi je je beschaving.';
+  return {
+    t: 'Bouw de sterrenpoort.',
+    h: miss.length ? `${why} Nog ${andJoin(miss)} nodig.` : why,
+    tile: 'stargate',
+    act: bAct('stargate'),
   };
 }

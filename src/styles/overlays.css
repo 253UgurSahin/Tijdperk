@@ -1,4 +1,4 @@
-/* hint bar (placing / orders) */
+/* Meldingen boven de wereld: hintbalk, toasts, gebeurtenissen, tooltip en de tijdperk-banner. */
 #hintbar {
   position: absolute;
   z-index: 11;
@@ -14,14 +14,17 @@
   color: var(--fg-2);
 }
 #hintbar b {
-  color: var(--gold-2);
+  font-family: var(--f-display);
+  font-size: 15px;
+  color: var(--ink);
   white-space: nowrap;
 }
 #hintbar .dot {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: var(--gold);
+  background: var(--acc);
+  box-shadow: 0 0 0 3px var(--acc-soft);
   flex: none;
 }
 #hintbar .dot.army {
@@ -45,35 +48,53 @@
   pointer-events: none;
   width: min(460px, calc(100% - 32px));
 }
+/* Melding: een papieren strookje met links een gekleurd streepje (goed, slecht of tijdperk) */
 #toast {
-  padding: 9px 14px;
-  border-radius: 3px;
-  background: var(--p2);
-  border: 1px solid var(--line-2);
-  color: var(--fg);
+  --mark: var(--acc);
+  position: relative;
+  padding: 10px 16px 10px 22px;
+  border-radius: var(--r);
+  background: var(--panel);
+  border: 1px solid var(--rule-2);
+  color: var(--ink);
   font-size: 13px;
   opacity: 0;
-  transform: translateY(-6px);
+  transform: translateY(-8px) scale(0.98);
   transition:
-    opacity 0.25s,
-    transform 0.25s;
+    opacity 0.2s ease-in,
+    transform 0.2s ease-in;
   max-width: 100%;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+  line-height: 1.45;
+  box-shadow: var(--card-shadow);
+}
+#toast:empty {
+  display: none;
 }
 #toast.show {
   opacity: 1;
   transform: none;
+  transition:
+    opacity 0.22s ease-out,
+    transform 0.32s cubic-bezier(0.2, 0.9, 0.3, 1.25);
+}
+#toast::before {
+  content: '';
+  position: absolute;
+  left: 9px;
+  top: 9px;
+  bottom: 9px;
+  width: 4px;
+  border-radius: 2px;
+  background: var(--mark);
 }
 #toast.bad {
-  border-color: var(--bad);
-  color: #ffd9d4;
+  --mark: var(--bad);
 }
 #toast.good {
-  border-color: var(--good);
+  --mark: var(--good);
 }
 #toast.age {
-  border-color: var(--gold);
-  color: var(--gold-2);
+  background: var(--grain), var(--acc-soft);
 }
 #feed {
   display: flex;
@@ -84,11 +105,12 @@
 }
 #feed .e {
   font-size: 12px;
-  padding: 5px 11px;
-  border-radius: 3px;
-  background: rgba(15, 22, 34, 0.88);
-  border: 1px solid var(--line);
-  color: var(--fg-2);
+  padding: 4px 12px;
+  border-radius: 99px;
+  background: rgba(252, 247, 236, 0.92);
+  border: 1px solid var(--rule);
+  box-shadow: 0 2px 0 rgba(43, 37, 32, 0.2);
+  color: var(--ink-2);
   animation: fin 0.3s ease-out;
   max-width: 100%;
 }
@@ -99,18 +121,30 @@
   margin-right: 6px;
 }
 #feed .e.bad {
-  color: #ffd9d4;
+  color: var(--bad);
 }
 #feed .e.good {
   color: var(--good);
 }
 #feed .e.age {
-  color: var(--gold-2);
+  color: var(--acc-ink);
+  font-weight: 600;
 }
 @keyframes fin {
   from {
     opacity: 0;
     transform: translateY(-5px);
+  }
+}
+/* Kaartjes die binnenkomen: even van boven op tafel gelegd */
+#offer:not([hidden]),
+#event:not([hidden]) {
+  animation: cardin 0.32s cubic-bezier(0.2, 0.9, 0.3, 1.2);
+}
+@keyframes cardin {
+  from {
+    opacity: 0;
+    transform: translateY(-10px) rotate(-0.6deg);
   }
 }
 #offer {
@@ -124,18 +158,27 @@
 #offer .ic {
   width: 40px;
   height: 40px;
-  border-radius: 3px;
-  background: rgba(0, 0, 0, 0.3);
+  border-radius: 12px;
+  background: var(--well);
   display: grid;
   place-items: center;
   font-size: 20px;
   flex: none;
+  color: var(--acc-ink);
+}
+#offer .ic .ico {
+  width: 22px;
+  height: 22px;
+}
+#offer .quiet .ico {
+  width: 16px;
+  height: 16px;
 }
 #offer b {
   display: block;
   font-family: var(--f-display);
-  font-size: 13px;
-  letter-spacing: 0.06em;
+  font-size: 15px;
+  font-weight: 650;
 }
 #offer .t {
   flex: 1;
@@ -163,41 +206,33 @@
 #event .ic {
   width: 42px;
   height: 42px;
-  border-radius: 3px;
-  background: var(--soft);
-  border: 1px solid var(--gold);
+  border-radius: 50%;
+  background: var(--acc-soft);
+  border: 2px dashed var(--acc-edge);
   display: grid;
   place-items: center;
   font-size: 21px;
   flex: none;
-  color: var(--gold-2);
+  color: var(--acc-ink);
+  rotate: -6deg;
 }
 #event b {
   display: block;
   font-family: var(--f-display);
-  font-size: 15px;
-  letter-spacing: 0.06em;
+  font-size: 18px;
+  font-weight: 700;
 }
 #event p {
   margin: 2px 0 0;
   font-size: 12.5px;
-  color: var(--fg-2);
+  color: var(--ink-2);
   line-height: 1.45;
 }
-#event .ch {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 6px;
+#event .ic .ico {
+  width: 22px;
+  height: 22px;
 }
-#event .ch button {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 3px;
-  padding: 8px 10px;
-  font-weight: 600;
-  text-align: left;
-}
+/* De keuzes van een gebeurtenis staan in events.css */
 #event .bar {
   height: 3px;
 }
@@ -205,21 +240,46 @@
   position: absolute;
   z-index: 20;
   pointer-events: none;
-  background: #121a26;
-  border: 1px solid var(--line-2);
-  border-radius: 3px;
-  padding: 8px 11px;
+  background: var(--panel);
+  color: var(--ink);
+  border: 1px solid var(--rule-2);
+  border-top: 3px solid var(--acc);
+  border-radius: 12px;
+  padding: 8px 12px 9px;
   font-size: 12px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  box-shadow: var(--card-shadow);
   max-width: 270px;
   line-height: 1.45;
+}
+/* De tip verschijnt met een korte fade, zodat hij niet "knippert" */
+#hovertip:not([hidden]) {
+  animation: tipin 0.14s ease-out;
+}
+@keyframes tipin {
+  from {
+    opacity: 0;
+    translate: 0 3px;
+  }
+}
+#hovertip .lack {
+  color: var(--bad);
+  font-weight: 500;
+}
+#hovertip kbd {
+  font: 500 11px var(--f-mono);
+  color: var(--ink);
+  border: 1px solid var(--rule-2);
+  border-bottom-width: 2px;
+  border-radius: 5px;
+  padding: 0 5px;
+  background: var(--paper-hi);
 }
 #hovertip b {
   display: block;
   font-family: var(--f-display);
-  font-size: 14px;
-  letter-spacing: 0.04em;
-  color: var(--gold-2);
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--ink);
 }
 #hovertip span {
   color: var(--fg-2);
@@ -227,23 +287,27 @@
 }
 #hovertip .key {
   color: var(--muted);
-  font-family: var(--f-mono);
-  margin-top: 4px;
+  margin-top: 6px;
+  padding-top: 5px;
+  border-top: 1px dashed var(--rule-2);
 }
 #hovertip.ok {
-  border-color: var(--good);
+  border-top-color: var(--good);
 }
 #hovertip.ok b {
   color: var(--good);
 }
 #hovertip.bad {
-  border-color: var(--bad);
+  border-top-color: var(--bad);
 }
 #hovertip.bad b {
-  color: #ff9a8c;
+  color: var(--bad);
 }
 #hovertip .cost {
-  margin-top: 5px;
+  margin-top: 6px;
+}
+#hovertip .cost span {
+  display: inline-flex;
 }
 #banner {
   position: absolute;
@@ -253,31 +317,39 @@
   pointer-events: none;
   z-index: 13;
 }
+/* Nieuw tijdperk: een grote kaart die even scheef op de wereld wordt gelegd */
 #banner .in {
   text-align: center;
+  padding: 22px 48px 24px;
+  border-radius: 22px;
+  background: var(--panel);
+  border-top: 8px solid var(--acc);
+  box-shadow:
+    0 5px 0 var(--paper-edge),
+    0 30px 70px rgba(20, 12, 4, 0.45);
+  rotate: -1.5deg;
   animation: ban 4.4s cubic-bezier(0.2, 0.7, 0.2, 1) forwards;
 }
 #banner .eyebrow {
-  color: var(--fg-2);
-  letter-spacing: 0.4em;
+  font-size: 18px;
 }
 #banner .t {
   font-family: var(--f-display);
   font-weight: 800;
-  font-size: clamp(44px, 9vw, 96px);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  font-size: clamp(40px, 7vw, 84px);
+  letter-spacing: -0.02em;
   line-height: 1;
-  margin-top: 8px;
-  color: var(--gold-2);
-  text-shadow: 0 4px 30px rgba(0, 0, 0, 0.6);
+  margin-top: 4px;
+  color: var(--ink);
+  font-variation-settings:
+    'SOFT' 100,
+    'WONK' 1;
 }
 #banner .y {
   font-family: var(--f-mono);
-  color: var(--fg);
-  margin-top: 8px;
+  color: var(--ink-3);
+  margin-top: 10px;
   font-size: 13px;
-  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.6);
 }
 @keyframes ban {
   0% {

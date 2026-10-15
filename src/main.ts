@@ -6,15 +6,19 @@ import './util/dom';
 import './util/math';
 import './util/random';
 import './core/settings';
+import './core/profile';
+import './data/achievements';
 import './data/ages';
 import './data/buildings';
 import './data/names';
 import './data/nodes';
 import './data/resources';
+import './data/score';
 import './data/tech';
 import './data/units';
 import './world/pathfinding';
 import './world/world';
+import './game/achievements';
 import './game/buildings';
 import './game/caches';
 import './game/chapters';
@@ -52,9 +56,12 @@ import './input/input';
 import './input/selection';
 import './audio/sound';
 import './ui/format';
+import './ui/achievements';
 import './ui/age';
+import './ui/blessings';
 import './ui/buildmenu';
 import './ui/coach';
+import './ui/endscreen';
 import './ui/event';
 import './ui/header';
 import './ui/hover';
@@ -63,10 +70,13 @@ import './ui/inspector';
 import './ui/modals';
 import './ui/objectives';
 import './ui/panel';
+import './ui/peoples';
+import './ui/profile';
 import './ui/panes/defense';
 import './ui/panes/jobs';
 import './ui/panes/log';
 import './ui/panes/upgrades';
+import './ui/rivals';
 import './ui/resources';
 import { store } from './core/store';
 import { SET } from './core/settings';
@@ -80,6 +90,7 @@ import { renderMini } from './render/minimap';
 import { render } from './render/render';
 import { cam, worldEl } from './render/scene';
 import { onAgeChange } from './ui/age';
+import { checkBlessing } from './ui/blessings';
 import { renderCmd } from './ui/buildmenu';
 import { updateHeader, updateWorldTop } from './ui/header';
 import { updateHover } from './ui/hover';
@@ -90,6 +101,7 @@ import { renderDefense } from './ui/panes/defense';
 import { renderJobs } from './ui/panes/jobs';
 import { renderLog } from './ui/panes/log';
 import { renderUpgrades } from './ui/panes/upgrades';
+import { renderRivals } from './ui/rivals';
 import { rate } from './ui/resources';
 import { $, isCompact } from './util/dom';
 import { measure } from './core/perf';
@@ -115,7 +127,7 @@ function frame(now: number) {
   const rdt = Math.min(0.1, (now - lastT) / 1000);
   lastT = now;
   if ($('#modal').hidden) {
-    const pp = 900 * rdt;
+    const pp = 900 * rdt * (SET.camSpeed || 1);
     let kx = 0,
       ky = 0;
     if (keys.has('w') || keys.has('arrowup')) ky -= 1;
@@ -177,6 +189,7 @@ function frame(now: number) {
   t0 = performance.now();
   render();
   tickQuality(rdt);
+  if (SET.fps) showFps(rdt);
   measure('render', t0);
   t0 = performance.now();
   updateHover();
@@ -191,9 +204,11 @@ function frame(now: number) {
     renderUpgrades();
     renderJobs();
     renderDefense();
+    renderRivals();
     renderLog();
     renderInspector();
     renderCmd();
+    checkBlessing(); // ligt er een zegening klaar om te kiezen?
   }
   measure('ui', t0);
   miniT -= rdt;
@@ -219,9 +234,21 @@ function frame(now: number) {
   saveT += rdt;
   if (saveT > 60) {
     saveT = 0;
-    if (!G.over) save();
+    if (!G.over && SET.autosave) save();
   }
   requestAnimationFrame(frame);
+}
+// Teller met beeldjes per seconde (aan te zetten in de instellingen)
+const fpsEl = Object.assign(document.createElement('div'), { id: 'fps', hidden: !SET.fps });
+document.body.appendChild(fpsEl);
+let fpsFrames = 0,
+  fpsTime = 0;
+function showFps(rdt) {
+  fpsFrames++;
+  fpsTime += rdt;
+  if (fpsTime < 0.5) return;
+  fpsEl.textContent = Math.round(fpsFrames / fpsTime) + ' fps';
+  fpsFrames = fpsTime = 0;
 }
 export function measureHud() {
   const ds = document.documentElement.style,
@@ -235,6 +262,8 @@ export function measureHud() {
   } else {
     ds.removeProperty('--topH');
     ds.removeProperty('--barH');
+    // Zo breed is het blok met tijd en tijdperk: de grondstoffenstrook blijft links daarvan (zie clarity.css)
+    ds.setProperty('--agew', Math.ceil($('#ageplate').getBoundingClientRect().width) + 'px');
   }
 }
 try {

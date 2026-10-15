@@ -1,11 +1,12 @@
 // Tussenresultaten die elke halve seconde opnieuw worden berekend (licht, stroom, wie wat verzamelt).
 import { W } from '../config';
 import { B } from '../data/buildings';
-import { NODES, RES_NODES } from '../data/nodes';
+import { NI, NODES, RES_NODES } from '../data/nodes';
 import { GATHER, RES } from '../data/resources';
 import { G } from './state';
 import { darkness } from './time';
-import { bLight, bRate, hasT } from './upgrades';
+import { mul } from './bonus';
+import { bLight, bRate } from './upgrades';
 import { dist } from '../util/math';
 import { amt, claims, isUnl, node, nodeLists } from '../world/world';
 
@@ -14,13 +15,13 @@ export let lights: { x: number; y: number; r: number; warm: boolean }[] = [],
   powerRatio = 1,
   powerSup = 0,
   powerDem = 0,
-  /** Wat er te verzamelen valt, hoeveel dorpelingen per grondstof werken, en wat gebouwen nodig hebben. */
-  avail: Record<string, number> = {},
-  wr: Record<string, number> = {},
-  demand: Record<string, number> = {};
-/** Hoeveel dorpelingen op weg zijn naar elke bouwplaats en akker. */
-export const siteCnt = new Map<number, number>(),
-  farmCnt = new Map<number, number>();
+  avail = {},
+  wr = {},
+  siteCnt = new Map(),
+  farmCnt = new Map(),
+  demand = {};
+/** Hoeveel stroom centrale b levert als hij draait. */
+export const genPower = b => B[b.type].gen.power * bRate(b) * mul('power');
 export function computeCaches() {
   powerSup = 0;
   powerDem = 0;
@@ -28,7 +29,7 @@ export function computeCaches() {
     if (!b.done) continue;
     const d = B[b.type];
     if (d.gen && b.on) {
-      const pw = d.gen.power * bRate(b) * (hasT('electric') ? 1.25 : 1);
+      const pw = genPower(b);
       if (d.gen.solar) powerSup += pw * (darkness() > 0.3 ? 0.15 : 1);
       else if (b.run) powerSup += pw;
     }
@@ -93,6 +94,9 @@ export function computeAvail() {
       if (avail[r]) break;
     }
   }
+  // Olie pomp je op: is er een oliebron binnen je gebied? (de coach gebruikt dit)
+  if (G.age >= RES.oil.age)
+    avail.oil = nodeLists[NI.oil].some(i => node[i] === NI.oil && amt[i] > 0 && isUnl(i % W, (i / W) | 0));
 }
 export function litAt(x: number, y: number): boolean {
   for (const L of lights) if (dist(x, y, L.x, L.y) <= L.r - 0.3) return true;

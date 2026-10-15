@@ -62,3 +62,16 @@ export const BASEW: Record<string, number> = {
   lithium: 0.8,
   starmetal: 0.6,
 };
+
+/**
+ * Marktprijzen in goud voor 100 stuks van grondstof r. `level` is het niveau van de markt,
+ * `marketMul` de marktbonus (1 = geen bonus, 1.2 = 20% betere prijzen).
+ */
+export function tradePrices(r, level, marketMul) {
+  const base = 1 + RES[r].age * 0.5;
+  const buy = Math.round((20 * base * (1 - 0.1 * level)) / marketMul);
+  const sell = Math.round(8 * base * (1 + 0.15 * level) * marketMul);
+  // Verkopen levert altijd minder op dan kopen kost: anders verdien je eindeloos goud
+  // door steeds hetzelfde te kopen en te verkopen (veel marktbonussen samen).
+  return { buy, sell: Math.max(0, Math.min(sell, buy - 1)) };
+}

@@ -90,20 +90,20 @@ export const AGE_UP: (AgeUpDef | null)[] = [
   null,
   { cost: { food: 250, wood: 250, stone: 120 }, pop: 8, need: ['storage', 'farm'] },
   { cost: { food: 400, wood: 400, stone: 250, bronze: 50 }, pop: 12, need: ['foundry'] },
-  { cost: { food: 600, wood: 500, stone: 400, iron: 120 }, pop: 16, need: ['smithy'] },
-  { cost: { food: 900, wood: 700, stone: 600, iron: 200, gold: 80 }, pop: 22, need: ['market'] },
+  { cost: { food: 600, wood: 500, stone: 400, iron: 200 }, pop: 16, need: ['smithy'] },
+  { cost: { food: 900, wood: 700, stone: 600, iron: 200, gold: 120 }, pop: 22, need: ['market'] },
   {
-    cost: { food: 1200, wood: 600, stone: 700, gold: 150, powder: 80 },
+    cost: { food: 1200, wood: 600, stone: 700, gold: 150, powder: 120 },
     pop: 28,
     need: ['windmill', 'powdermill'],
   },
   {
-    cost: { food: 1400, stone: 800, coal: 300, steel: 200, gold: 200 },
+    cost: { food: 1400, stone: 800, coal: 300, steel: 250, gold: 200 },
     pop: 34,
     need: ['blastfurnace', 'powerplant'],
   },
-  { cost: { food: 2000, steel: 500, fuel: 200, silicon: 150 }, pop: 45, need: ['refinery', 'silicaworks'] },
-  { cost: { food: 2600, steel: 800, chips: 150, battery: 150 }, pop: 60, need: ['command'] },
+  { cost: { food: 2000, steel: 350, fuel: 150, silicon: 120 }, pop: 45, need: ['refinery', 'silicaworks'] },
+  { cost: { food: 2600, steel: 500, chips: 150, battery: 150 }, pop: 60, need: ['command'] },
 ];
 
 // Extra materiaal dat een verbetering van een gebouw kost, per tijdperk

@@ -7,17 +7,22 @@ import { TK } from '../data/tech';
 import { bUpdate } from './buildings';
 import { computeAvail, computeCaches } from './caches';
 import { spawnFoe } from './entities';
-import { makeOffer, resolveEvent, spawnEvent, th } from './events';
-import { fUpdate, uUpdate, updateProj } from './military';
+import { makeOffer, th, updateEvents } from './events';
+import { fUpdate, isRaider, uUpdate, updateProj } from './military';
+import { updateRivals } from './rivals';
 import { G } from './state';
 import { advanceClock, isNight } from './time';
-import { bMaxHp, hasT } from './upgrades';
+import { add, applyBonusChange, mul } from './bonus';
+import { hasRule } from './mods';
+import { bMaxHp, researchTime } from './upgrades';
 import { vUpdate } from './villagers';
 import { sigs } from '../ui/header';
 import { note, toast } from '../ui/hud';
 import { dist } from '../util/math';
 import { amt, bmap, node, nodeLists } from '../world/world';
 import { updateMeteors } from './meteors';
+import { checkAchievements } from './achievements';
+import { checkVictory } from './victory';
 
 /** Onthoud waar alles stond vóór de volgende speltik, zodat de weergave ertussen kan tekenen. */
 export function rememberPositions() {
@@ -32,7 +37,15 @@ export function update(dt: number) {
   if (G.over) return;
   G.t += dt;
   advanceClock(dt);
-  if (!G.offer && G.day >= 2 && !isNight() && Math.random() < dt / 420) makeOffer();
+  // Af en toe komt er een reizende handelaar langs (bij de Hanze vaker, met Gesloten grenzen nooit)
+  const tradersCome = !G.offer && !hasRule('noTrade') && G.day >= 2 && !isNight();
+  if (tradersCome && Math.random() < (dt / 420) * mul('trader.rate')) makeOffer();
+  // Met het Oost-Indisch Huis (bonus 'trader.daily') komt er elke ochtend zeker een handelaar
+  const dailyTrader = add('trader.daily') > 0 && G.traderDay !== G.day && G.clock >= 8 && !isNight();
+  if (dailyTrader && !G.offer && !hasRule('noTrade')) {
+    G.traderDay = G.day;
+    makeOffer();
+  }
   if (G.offer && G.t > G.offer.until) {
     G.offer = null;
     sigs.offer = null;
@@ -41,19 +54,20 @@ export function update(dt: number) {
   if (G.research) {
     G.research.t += dt;
     const T = TK[G.research.k];
-    if (G.research.t >= T.t) {
-      G.tech[T.k] = 1;
-      if (T.k === 'masonry') G.bs.forEach(b => (b.hp *= 1.25));
+    if (G.research.t >= researchTime(T)) {
+      // Via het bonusregister: geeft het onderzoek meer levens, dan groeit wat er al staat mee
+      applyBonusChange(() => (G.tech[T.k] = 1));
       G.research = null;
       toast(`Onderzoek klaar: ${T.n}. ${T.d}.`, 'good');
       sfx('upgrade');
       sigs.upg = null;
     }
   }
-  if (hasT('medicine')) for (const v of G.vs) if (!v.hidden) v.hp = Math.min(v.mhp, v.hp + dt);
-  if (!G.event && G.day >= 2 && !isNight() && G.t - G.lastEvent > 150 && Math.random() < dt / 220)
-    spawnEvent();
-  if (G.event && G.t > G.event.until) resolveEvent('b', true);
+  // Genezen (bijv. door Kruidenkunde): je volk krijgt elke seconde levens terug
+  const heal = add('heal');
+  if (heal) for (const v of G.vs) if (!v.hidden) v.hp = Math.min(v.mhp, v.hp + dt * heal);
+  // Gebeurtenissen met keuzes, hun vervolgen en tijdelijke bonussen (zie game/events.js)
+  updateEvents(dt);
   store.histT -= dt;
   if (store.histT <= 0) {
     store.histT = 10;
@@ -64,11 +78,17 @@ export function update(dt: number) {
   if (store.periodic <= 0) {
     store.periodic = 0.5;
     computeCaches();
+    checkVictory(); // een gekozen doel gehaald, zoals 30 nachten of de Gouden Eeuw?
   }
   store.slowP -= dt;
   if (store.slowP <= 0) {
     store.slowP = 2;
     computeAvail();
+  }
+  store.achievementTimer -= dt;
+  if (store.achievementTimer <= 0) {
+    store.achievementTimer = 3;
+    checkAchievements();
   }
   G.res.food -= (G.vs.length * 0.05 + G.us.length * 0.08) * dt;
   if (G.res.food < 0) {
@@ -86,10 +106,16 @@ export function update(dt: number) {
   if (G.spawnQ.length) {
     const now = G.spawnQ.filter(s => s.at <= G.t);
     if (now.length) {
-      for (const s of now) spawnFoe(s.type, s.x, s.y, s.scale);
+      for (const s of now) {
+        const f = spawnFoe(s.type, s.x, s.y, s.scale);
+        // Bonussen kunnen aanvallers sterker of zwakker maken
+        f.hp *= mul('raid.hp');
+        f.mhp *= mul('raid.hp');
+      }
       G.spawnQ = G.spawnQ.filter(s => s.at > G.t);
     }
   }
+  updateRivals(dt); // rivaliserende beschavingen: bouwen, trainen, aanvallen (zie game/rivals.js)
   updateMeteors(dt);
   updateProj(dt);
   for (const e of G.fx) {
@@ -112,8 +138,9 @@ export function update(dt: number) {
     const h = th();
     if (h && h.done && !G.over) {
       const mx = bMaxHp(h);
-      if (h.hp < mx && !G.foes.some(f => !f.retreat && (!f.camp || dist(f.x, f.y, h.x + 1, h.y + 1) < 12)))
-        h.hp = Math.min(mx, h.hp + (mx * dt) / 240);
+      // Herstellen zolang er geen aanvallers zijn (kampbewakers en rivalen thuis tellen alleen als ze dichtbij zijn)
+      const threat = f => !f.retreat && (isRaider(f) || dist(f.x, f.y, h.x + 1, h.y + 1) < 12);
+      if (h.hp < mx && !G.foes.some(threat)) h.hp = Math.min(mx, h.hp + (mx * dt) / 240);
     }
   }
   if (G.regrow.length && Math.random() < dt)
