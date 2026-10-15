@@ -75,11 +75,13 @@ export interface EventRules {
 }
 
 /** Bedragen die meegroeien: perAge({ food: [60, 20] }) geeft in tijdperk 2 { food: 100 }. */
-export const perAge = (table: Record<string, [number, number]>) => (age: number): Cost => {
-  const out: Cost = {};
-  for (const [r, [base, step]] of Object.entries(table)) out[r] = base + step * age;
-  return out;
-};
+export const perAge =
+  (table: Record<string, [number, number]>) =>
+  (age: number): Cost => {
+    const out: Cost = {};
+    for (const [r, [base, step]] of Object.entries(table)) out[r] = base + step * age;
+    return out;
+  };
 
 /** De nieuwste grondstof om te delven in dit tijdperk (geen voedsel of hout): steen, tin, ijzer, ... */
 // Steen (tijdperk 0) zit er altijd in, dus pop() geeft altijd iets

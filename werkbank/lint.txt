@@ -1,0 +1,10 @@
+
+/home/runner/work/Tijdperk/Tijdperk/src/game/caches.ts
+  23:3  warning  'siteCnt' is never reassigned. Use 'const' instead  prefer-const
+  24:3  warning  'farmCnt' is never reassigned. Use 'const' instead  prefer-const
+
+/home/runner/work/Tijdperk/Tijdperk/src/ui/objectives.ts
+  36:7  warning  'rows' is never reassigned. Use 'const' instead  prefer-const
+
+✖ 3 problems (0 errors, 3 warnings)
+

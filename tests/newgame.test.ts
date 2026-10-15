@@ -16,14 +16,7 @@ import {
   reachedVictory,
   victoryAllowed,
 } from '../src/data/victories';
-import {
-  CODE_LEN,
-  SEED_MAX,
-  cleanCode,
-  codeFromSeed,
-  randomSeed,
-  seedFromCode,
-} from '../src/util/seedcode';
+import { CODE_LEN, SEED_MAX, cleanCode, codeFromSeed, randomSeed, seedFromCode } from '../src/util/seedcode';
 
 describe('zaadcodes', () => {
   it('code → seed → code geeft hetzelfde terug', () => {

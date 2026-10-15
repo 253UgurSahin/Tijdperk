@@ -25,8 +25,7 @@ export function bossAfterAgeUp(): void {
 }
 
 /** De kampioen die nog moet komen, of null. */
-export const pendingBoss = (): BossDef | null =>
-  G && G.boss && !G.peaceful ? bossForAge(G.boss.age) : null;
+export const pendingBoss = (): BossDef | null => (G && G.boss && !G.peaceful ? bossForAge(G.boss.age) : null);
 
 /** De kampioen die nu in het veld staat (en niet vlucht), of null. */
 export const liveBoss = (): Foe | null =>

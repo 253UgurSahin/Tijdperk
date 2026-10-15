@@ -28,8 +28,7 @@ import { SEED_MAX } from '../util/seedcode';
  */
 /** Het doel van een uitdaging, zoals { type: 'age', value: 3 }. Bij 'build' is value een gebouw. */
 export type ScenarioGoal =
-  | { type: 'age' | 'survive' | 'pop' | 'camps'; value: number }
-  | { type: 'build'; value: string };
+  { type: 'age' | 'survive' | 'pop' | 'camps'; value: number } | { type: 'build'; value: string };
 
 /** Grenzen voor de medailles: speltijd in seconden ('time') of wat je kwijtraakte ('lost'). Lager is beter. */
 export interface ScenarioMedals {

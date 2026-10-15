@@ -8,14 +8,7 @@ import { MAP, MAPS, cleanMap } from '../data/maps';
 import { PLACES } from '../data/names';
 import { DEFAULT_PEOPLE, PEOPLE, isPeopleUnlocked } from '../data/peoples';
 import { SELECTABLE_VICTORIES, VICTORY, cleanVictories, victoryAllowed } from '../data/victories';
-import {
-  DEFAULT_RIVALS,
-  MAX_RIVALS,
-  PERSONALITY,
-  RIVAL,
-  cleanRivalCount,
-  rivalLineup,
-} from '../data/rivals';
+import { DEFAULT_RIVALS, MAX_RIVALS, PERSONALITY, RIVAL, cleanRivalCount, rivalLineup } from '../data/rivals';
 import { pickRivalSites, type RivalSite } from '../world/rivalsites';
 import { G } from '../game/state';
 import { esc } from './format';

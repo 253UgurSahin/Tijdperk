@@ -30,7 +30,7 @@ export const DEFAULTS = {
 /** Alle instellingen, met hun soort (zie DEFAULTS). */
 export type Settings = typeof DEFAULTS;
 
-export let SET: Settings = structuredClone(DEFAULTS);
+export const SET: Settings = structuredClone(DEFAULTS);
 try {
   const saved = JSON.parse(localStorage.getItem('tijdperken-set') || '{}');
   Object.assign(SET, saved, { gfx: { ...DEFAULTS.gfx, ...(saved.gfx || {}) } });

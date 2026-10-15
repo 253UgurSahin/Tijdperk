@@ -64,7 +64,7 @@ export function costHTML(c: Cost, tight = false): string {
 export const esc = (s: string | number): string =>
   String(s).replace(
     /[&<>"]/g,
-    c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' } as Record<string, string>)[c],
+    c => (({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }) as Record<string, string>)[c],
   );
 
 // De tijdlijn: één kraal per tijdperk. Voorbij = gevuld, nu = groot, nog te komen = open.

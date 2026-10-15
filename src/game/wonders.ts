@@ -5,14 +5,7 @@ import { sfx } from '../audio/sound';
 import { W } from '../config';
 import { B } from '../data/buildings';
 import { RIVAL, verb } from '../data/rivals';
-import {
-  TheWonder,
-  ownWonders,
-  theWonder,
-  winBackText,
-  wonderStatusText,
-  wonderVerb,
-} from '../data/wonders';
+import { TheWonder, ownWonders, theWonder, winBackText, wonderStatusText, wonderVerb } from '../data/wonders';
 import type { WonderStatus } from '../data/wonders';
 import { applyBonusChange } from './bonus';
 import { gain } from './economy';
