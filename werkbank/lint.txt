@@ -1,6 +1,0 @@
-
-/home/runner/work/Tijdperk/Tijdperk/src/ui/objectives.ts
-  22:7  warning  'rows' is never reassigned. Use 'const' instead  prefer-const
-
-✖ 1 problem (0 errors, 1 warning)
-
