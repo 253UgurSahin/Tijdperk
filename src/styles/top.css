@@ -132,14 +132,14 @@
   box-shadow: 0 0 0 var(--paper-edge);
 }
 
-/* ---- doelen (linksboven) ---- */
+/* ---- doelen (linksboven): de volgende stap in één regel, daaronder het volgende tijdperk ---- */
 #objectives {
   position: absolute;
   z-index: 10;
   top: 8px;
   left: var(--edge);
-  width: 300px;
-  padding: 11px 14px 14px;
+  width: 280px;
+  padding: 8px 10px 8px 12px;
   max-height: calc(100% - var(--barh) - 80px);
   overflow-y: auto;
   scrollbar-width: thin;
@@ -148,134 +148,107 @@
     opacity 0.2s,
     translate 0.2s;
 }
-/* Staat er een paneel open (Dorp, Leger, ...), dan schuift de doelenkaart even opzij */
+/* Staat er een paneel open (Dorp, Leger, ...), dan schuift de doelenkaart even opzij. Op de computer ook
+   als de lijst met alle grondstoffen open is: die valt anders half over de doelen heen. */
 body.panelopen #objectives {
   opacity: 0;
   translate: -12px 0;
   pointer-events: none;
 }
-.oh {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-family: var(--f-display);
-  font-style: italic;
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--acc-ink);
-  margin: 0 0 4px;
+@media (min-width: 901px) and (min-height: 561px) {
+  body.respop #objectives {
+    opacity: 0;
+    translate: -12px 0;
+    pointer-events: none;
+  }
 }
-.oh::before {
-  content: '';
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--acc);
-  box-shadow: 0 0 0 3px var(--acc-soft);
-  flex: none;
+/* De volgende stap: één regel met een pijltje; klik erop en de uitleg klapt open */
+#stepTxt {
+  all: unset;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: start;
+  gap: 6px;
+  width: 100%;
+  box-sizing: border-box;
+  cursor: pointer;
+}
+#stepTxt:focus-visible,
+#ageToggle:focus-visible {
+  outline: 2px solid var(--acc-edge);
+  outline-offset: 2px;
+  border-radius: 6px;
 }
 #step b {
   display: block;
   font-family: var(--f-display);
-  font-size: 19px;
+  font-size: 16px;
   font-weight: 700;
   color: var(--ink);
-  line-height: 1.2;
+  line-height: 1.25;
+}
+.caret {
+  display: inline-flex;
+  color: var(--ink-3);
+}
+.caret .ico {
+  width: 16px;
+  height: 16px;
 }
 #step p {
+  display: none;
   margin: 4px 0 0;
   color: var(--ink-2);
-  font-size: 13px;
+  font-size: 12.5px;
   line-height: 1.45;
 }
+#objectives.stepopen #step p {
+  display: block;
+}
 #step .primary {
-  margin-top: 10px;
-  width: 100%;
+  margin-top: 7px;
+  padding: 5px 12px;
+  min-height: 30px;
 }
 #step.alarm b {
   color: var(--bad);
 }
+/* Het volgende tijdperk: één regel met hoe ver je bent en een dun balkje; klik voor alle eisen */
 #mission {
   border-top: 1px dashed var(--rule-2);
-  margin-top: 12px;
-  padding-top: 8px;
+  margin-top: 8px;
+  padding-top: 2px;
 }
 #ageToggle {
   all: unset;
   cursor: pointer;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: 8px;
   width: 100%;
-  min-height: 32px;
+  min-height: 28px;
   box-sizing: border-box;
 }
-#ageToggle:focus-visible {
-  outline: 2px solid var(--acc-edge);
-}
-#ageToggle .oh {
-  margin: 0;
-}
-#ageToggle i {
-  font-style: normal;
-  color: var(--ink-3);
-  font-size: 12px;
-  font-family: var(--f-mono);
-}
-/* Kleine tijdlijn in de doelen: kralen aan een draad, het doel heeft een stippelring */
-.ages {
-  display: flex;
-  align-items: center;
-  margin: 8px 2px 10px;
-}
-.ages i {
-  flex: 1 1 0;
-  display: flex;
-  align-items: center;
-  height: 14px;
-}
-.ages i:first-child {
-  flex: none;
-}
-.ages i::before {
-  content: '';
+#ageToggle .mt {
   flex: 1;
-  height: 2px;
-  margin: 0 2px;
-  background: repeating-linear-gradient(90deg, var(--ink-4) 0 3px, transparent 3px 6px);
+  min-width: 0;
+  font-family: var(--f-display);
+  font-style: italic;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--acc-ink);
 }
-.ages i.done::before {
-  background: var(--ink-3);
+#ageToggle .mv {
+  font-family: var(--f-mono);
+  font-size: 12px;
+  color: var(--ink-3);
 }
-.ages i:first-child::before {
-  display: none;
+.bar.thin {
+  height: 4px;
+  margin-bottom: 2px;
 }
-.ages i::after {
-  content: '';
-  flex: none;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--paper-hi);
-  box-shadow: inset 0 0 0 1.5px var(--ink-4);
-}
-.ages i.done::after {
-  background: var(--acc);
-  box-shadow: inset 0 0 0 1px rgba(43, 37, 32, 0.3);
-}
-.ages i.done:not(:has(+ i.done))::after {
-  width: 12px;
-  height: 12px;
-  box-shadow:
-    0 0 0 2px var(--paper),
-    0 0 0 3.5px var(--acc);
-}
-/* het volgende tijdperk: daar werk je nu naartoe */
-.ages i.done + i:not(.done)::after {
-  width: 11px;
-  height: 11px;
-  background: var(--acc-soft);
-  box-shadow: inset 0 0 0 2px var(--acc-edge);
+#mission .body {
+  padding-top: 6px;
 }
 .why {
   font-size: 12.5px;

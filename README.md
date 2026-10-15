@@ -62,16 +62,19 @@ Een real-time strategiespel in de browser: leid je stam van de **steentijd** naa
 - Het spel wijst zelf de volgende stap aan; geen uitleg nodig
 - Voortgang wordt in de browser bewaard (localStorage)
 
-## Spelen
+## Zelf ontwikkelen
+
+De code is **TypeScript** (strict) en wordt gebouwd met [Vite](https://vite.dev). Nodig: Node.js 20.19 of nieuwer.
 
 ```bash
 npm install
-npm run dev       # ontwikkelserver op http://localhost:5173
-npm run build     # productiebuild in dist/
-npm run preview   # bekijk de build lokaal
-npm test          # unittests (Vitest)
-npm run lint      # ESLint + opmaakcontrole
-npm run format    # code netjes opmaken (Prettier)
+npm run dev        # ontwikkelserver op http://localhost:5173
+npm run typecheck  # alleen de types controleren
+npm run build      # types controleren en productiebuild in dist/
+npm run preview    # bekijk de build lokaal
+npm test           # unittests (Vitest)
+npm run lint       # ESLint + opmaakcontrole
+npm run format     # code netjes opmaken (Prettier)
 ```
 
 Bij elke push naar `main` draait de CI (lint, tests, build) en wordt `dist/` naar GitHub Pages gepubliceerd
@@ -80,10 +83,11 @@ Bij elke push naar `main` draait de CI (lint, tests, build) en wordt `dist/` naa
 ## Projectstructuur
 
 ```
-index.html            alleen de HUD-markup; laadt src/main.js
+index.html            alleen de HUD-markup; laadt src/main.ts
 src/
-  main.js             opstarten en de spellus (frame)
-  config.js           kaartgrootte en vaste getallen
+  main.ts             opstarten en de spellus (frame)
+  types.ts            gedeelde types: gebouwen, dorpelingen, soldaten, de spelstand
+  config.ts           kaartgrootte en vaste getallen
   core/               gedeelde mutabele toestand (store) en instellingen
   data/               pure speldata: grondstoffen, gebouwen, eenheden, tijdperken, techniek
   world/              kaartgeneratie, terreinlagen en padvinding
@@ -107,6 +111,9 @@ tests/                Vitest-tests voor data, wereldgeneratie en hulpfuncties
     schermschudden, animaties, grootte van de interface (S–XL), teller met beeldjes per seconde
   - _Geluid:_ aan/uit, volume, meldingen, klikgeluiden, stil op de achtergrond
   - _Besturing:_ slepen = selecteren, randscrollen, camerasnelheid, zoomen omkeren
+- **2D en 3D:** kies op de minikaart (of met V) tussen het bovenaanzicht (2D) en het 3D-aanzicht. In 3D kun je
+  het beeld helemaal rond draaien: met de middelste muisknop, met `,` en `.`, met de draaiknoppen op de minikaart
+  of met twee vingers. Het kompas op de minikaart wijst naar het noorden; klik erop om de draaiing terug te zetten.
 - **Beeldkwaliteit:** Automatisch (standaard), Laag, Middel of Hoog. Automatisch verlaagt zelf de resolutie en
   zware effecten als het spel hapert, zodat het vloeiend blijft.
 - **Grote schermen:** op ultrabrede schermen (21:9 en breder, ook 5K2K) blijft de HUD in een centraal gebied
@@ -116,8 +123,8 @@ tests/                Vitest-tests voor data, wereldgeneratie en hulpfuncties
 ## Op telefoon en tablet
 
 Het spel past zich aan elk scherm aan, staand en liggend. Tik om te selecteren of te bouwen, sleep om de kaart
-te verschuiven en knijp om te zoomen. Onderin staan knoppen voor **Dorp**, **Leger**, **Verbeteren**, **Doel** en
-**Kaart**. Tik op de "volgende stap" bovenin voor meer uitleg.
+te verschuiven, knijp om te zoomen en draai met twee vingers om het 3D-beeld te draaien. Onderin staan knoppen
+voor **Dorp**, **Leger**, **Verbeteren**, **Doel** en **Kaart**. Tik op de "volgende stap" bovenin voor meer uitleg.
 
 ## Besturing
 
@@ -131,7 +138,8 @@ te verschuiven en knijp om te zoomen. Onderin staan knoppen voor **Dorp**, **Leg
 | Bouwcategorie                           | Z · X · C · B, daarna 1–9                   |
 | Gebied uitbreiden                       | E                                           |
 | Hele leger · dorpelingen zonder werk    | Q · I                                       |
-| Bovenaanzicht aan/uit                   | V                                           |
+| Bovenaanzicht (2D) of 3D                | V, of de knop op de minikaart               |
+| 3D-beeld draaien                        | Middelste muisknop slepen · `,` en `.`      |
 
 ## Claude-artifact
 

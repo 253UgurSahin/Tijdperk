@@ -1,0 +1,71 @@
+// Zegeningen in het spel: wanneer je mag kiezen, welke kaarten er liggen en wat een keuze doet.
+import type { BlessingSlot } from '../types';
+import { blessingOffer, bossOffer } from '../data/blessings';
+import type { BlessingDef } from '../data/blessings';
+import { applyBonusChange } from './bonus';
+import { spawnUnit, spawnVillager } from './entities';
+import { hasRule } from './mods';
+import { bestMerc, th } from './events';
+import { G } from './state';
+
+/*
+ * G.blessings: de sleutels van de zegeningen die je koos (de bonussen telt game/bonus.ts).
+ * G.blessingQueue: keuzes die nog komen, als { age, at }. Vanaf speltijd `at` liggen de kaarten
+ * van tijdperk `age` klaar. De interface (ui/blessings.ts) laat ze zien als het scherm vrij is.
+ * Met boss: true is het de beloning voor een verslagen kampioen (zie game/bosses.ts).
+ */
+
+/** Een nieuw tijdperk: er komt een keuze bij. */
+export function earnBlessing(): void {
+  G.blessingQueue.push({ age: G.age, at: G.t });
+}
+
+/** De keuze die nu klaarligt, of null als er (nog) niets te kiezen is. */
+export function waitingBlessing(): BlessingSlot | null {
+  const next = G && G.blessingQueue && G.blessingQueue[0];
+  return next && G.t >= next.at ? next : null;
+}
+
+/** De kaarten voor de keuze die nu klaarligt. */
+export function blessingChoices(): BlessingDef[] {
+  const next = waitingBlessing();
+  if (!next) return [];
+  const opts = { peaceful: G.peaceful, noArmy: hasRule('noArmy') };
+  // Na een verslagen kampioen: andere kaarten dan bij de gewone keuze (zie game/bosses.ts)
+  if (next.boss) return bossOffer(G.seed, next.age, G.blessings, opts);
+  return blessingOffer(G.seed, next.age, G.blessings, opts);
+}
+
+/** Kies zegening k uit de kaarten die nu klaarliggen. Geeft de zegening terug, of null. */
+export function takeBlessing(k: string): BlessingDef | null {
+  const blessing = blessingChoices().find(card => card.k === k);
+  if (!blessing) return null;
+  G.blessingQueue.shift();
+  // Via het register: geeft de zegening meer (of minder) levens, dan verandert wat er staat mee
+  applyBonusChange(() => G.blessings.push(blessing.k));
+  if (blessing.oneoff) ONE_OFFS[blessing.oneoff]();
+  return blessing;
+}
+
+/** Geen kaarten meer over? Dan vervalt deze keuze. */
+export function skipBlessing(): void {
+  G.blessingQueue.shift();
+}
+
+// Wat eenmalige zegeningen meteen doen (de namen staan bij `oneoff` in data/blessings.ts)
+export const ONE_OFFS: Record<string, () => void> = {
+  villagers3() {
+    const home = th();
+    if (!home) return;
+    for (let k = 0; k < 3; k++) spawnVillager(home.x + 0.5 + k * 0.6, home.y + 2.4);
+  },
+  soldiers3() {
+    const home = th(),
+      kind = bestMerc();
+    if (!home || !kind) return;
+    for (let i = 0; i < 3; i++) {
+      const soldier = spawnUnit(kind, home.x + 1 + i * 0.6, home.y + 3);
+      soldier.stance = G.stance;
+    }
+  },
+};

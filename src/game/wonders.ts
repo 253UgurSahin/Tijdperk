@@ -1,0 +1,256 @@
+// Wereldwonderen in het spel: wie welk wonder heeft, wie eraan bouwt, en wat er gebeurt als er een af of kapot is.
+import type { Building, Rival, RivalBuilding, WonderOwner } from '../types';
+import { store } from '../core/store';
+import { sfx } from '../audio/sound';
+import { W } from '../config';
+import { B } from '../data/buildings';
+import { RIVAL, verb } from '../data/rivals';
+import { TheWonder, ownWonders, theWonder, winBackText, wonderStatusText, wonderVerb } from '../data/wonders';
+import type { WonderStatus } from '../data/wonders';
+import { applyBonusChange } from './bonus';
+import { gain } from './economy';
+import { floater, fxRing } from './fx';
+import { buildCost } from './placement';
+import { cancelRivalWonder, rivalWonderSaving } from './rivals';
+import { G, bById, sel } from './state';
+import { isCharging } from './finale';
+import { checkVictory } from './victory';
+import { toast } from '../ui/hud';
+import { bmap, setBlk } from '../world/world';
+
+/** Een bouwplaats van een wonder: van wie ('you' of de sleutel van een rivaal), hoe ver (0 tot 1), het gebouw. */
+export interface WonderSite {
+  by: string;
+  frac: number;
+  b: Building | RivalBuilding;
+  rival: Rival | null;
+}
+
+/** Alles over één wonder (zie wonderStatus): eigenaar, bouwplaatsen, en de tekst erover. */
+export interface WonderInfo extends WonderStatus {
+  owner: string | null;
+  sites: WonderSite[];
+}
+
+/** Een rivaal die zichtbaar spaart voor wonder k: hoe ver hij is (0 tot 1). */
+export interface WonderSaving {
+  k: string;
+  frac: number;
+  rival: Rival;
+}
+
+/** Een wonder waaraan een rivaal nu bouwt: zijn bouwplaats en hoe ver hij is (0 tot 1). */
+export interface WonderRace {
+  k: string;
+  rival: Rival;
+  b: RivalBuilding;
+  frac: number;
+}
+
+// ---- Wie heeft wat ----
+
+/**
+ * Wie welk wonder heeft, uit de gebouwen die nu af zijn (van jou en van rivalen).
+ * `before` is de vorige lijst: wie zijn wonder houdt, houdt ook de dag waarop hij het kreeg.
+ */
+export function wondersFromBuildings(before: Record<string, WonderOwner> = {}): Record<string, WonderOwner> {
+  const now: Record<string, WonderOwner> = {};
+  const put = (k: string, by: string) => {
+    const old = before[k];
+    now[k] = { by, day: old && old.by === by ? old.day : G.day };
+  };
+  for (const b of G.bs) if (b.done && B[b.type].wonder) put(b.type, 'you');
+  for (const r of G.rivals || [])
+    if (!r.dead) for (const b of r.bs) if (b.done && B[b.type].wonder) put(b.type, r.k);
+  return now;
+}
+
+/** Zet G.wonders opnieuw na een verandering. Via het bonusregister, zodat de bonussen meteen gelden. */
+export function refreshWonders(): void {
+  applyBonusChange(() => (G.wonders = wondersFromBuildings(G.wonders)));
+  store.uiDirty = true;
+}
+
+/** Hoeveel wonderen nu van jou zijn. */
+export const myWonderCount = (): number => ownWonders(G.wonders).length;
+
+/** De rivaal die dit wonder heeft, of null. */
+const ownerRival = (k: string): Rival | null => {
+  const w = G.wonders[k];
+  return w && w.by !== 'you' ? G.rivals.find(r => r.k === w.by) || null : null;
+};
+
+/** Bouwplaatsen van een wonder: [{ by: 'you' of rivaalsleutel, frac, b, rival }] */
+export function wonderSites(k: string): WonderSite[] {
+  const sites: WonderSite[] = [];
+  for (const b of G.bs)
+    if (b.type === k && !b.done) sites.push({ by: 'you', frac: b.prog / b.bt, b, rival: null });
+  for (const r of G.rivals || [])
+    if (!r.dead)
+      for (const b of r.bs)
+        if (b.type === k && !b.done) sites.push({ by: r.k, frac: b.prog / b.bt, b, rival: r });
+  return sites;
+}
+
+/** Alles over één wonder: eigenaar, wie eraan bouwt of ervoor spaart, en de tekst daarvan (zie wonderStatusText). */
+export function wonderStatus(k: string): WonderInfo {
+  const owner = G.wonders[k] ? G.wonders[k].by : null;
+  const sites = wonderSites(k);
+  const saving = rivalWonderSavings()
+    .filter(s => s.k === k)
+    .map(s => ({ by: s.rival.k, frac: s.frac }));
+  return { owner, sites, ...wonderStatusText(owner, sites, saving) };
+}
+
+/** Rivalen die zichtbaar sparen voor een wonder (vanaf de helft): [{ k, rival, frac }], de verste eerst. */
+export function rivalWonderSavings(): WonderSaving[] {
+  const list: WonderSaving[] = [];
+  for (const r of G.rivals || []) {
+    const saving = rivalWonderSaving(r);
+    if (saving) list.push({ ...saving, rival: r });
+  }
+  return list.sort((a, b) => b.frac - a.frac);
+}
+
+/** Wonderen waaraan een rivaal nu bouwt, de verste eerst: voor de doelenkaart. */
+export function rivalWonderRaces(): WonderRace[] {
+  const list: WonderRace[] = [];
+  for (const r of G.rivals || [])
+    if (!r.dead)
+      for (const b of r.bs)
+        if (B[b.type].wonder && !b.done) list.push({ k: b.type, rival: r, b, frac: b.prog / b.bt });
+  return list.sort((a, b) => b.frac - a.frac);
+}
+
+/** Waarom je dit wonder nu niet kunt neerzetten, of null als het mag. */
+export function wonderBlocked(k: string): string | null {
+  const owner = G.wonders[k];
+  if (owner && owner.by === 'you') return `${TheWonder(k)} ${wonderVerb(k, 'is', 'zijn')} al van jou`;
+  if (owner) return `${TheWonder(k)} ${wonderVerb(k, 'is', 'zijn')} al gebouwd door ${rivalName(owner.by)}`;
+  if (G.bs.some(b => b.type === k)) return `Je bouwt al aan ${theWonder(k)}`;
+  return null;
+}
+const rivalName = (k: string): string => (RIVAL[k] ? RIVAL[k].n : 'een rivaal');
+
+/** Hetzelfde als een hele melding, en bij een wonder van een rivaal ook hoe je het terugkrijgt (of null). */
+export function wonderBlockedNote(k: string): string | null {
+  const why = wonderBlocked(k);
+  if (!why) return null;
+  const owner = G.wonders[k];
+  return owner && owner.by !== 'you' ? `${why}. ${winBackText(k, owner.by)}` : `${why}.`;
+}
+
+// ---- Af ----
+
+/** Jij hebt een wonder af (vanuit completeBuilding). `silent`: bij het veroveren, zonder feest. */
+export function playerWonderDone(b: Building, silent?: boolean): void {
+  const k = b.type;
+  // Bouwde een rivaal aan hetzelfde wonder? Dan was dat voor niets: hij krijgt zijn spaargeld terug.
+  const beaten: Rival[] = [];
+  for (const r of G.rivals || [])
+    for (const site of r.bs.slice())
+      if (site.type === k && !site.done) {
+        cancelRivalWonder(r, site);
+        beaten.push(r);
+      }
+  refreshWonders();
+  if (silent) return;
+  G.stats.wondersBuilt++;
+  if (beaten.length) G.stats.wonderRaces++;
+  const s = B[k].size / 2;
+  fxRing(b.x + s, b.y + s, '#e2b92c');
+  floater(b.x + s, b.y + s, 'WERELDWONDER', '#e2b92c');
+  sfx('age');
+  const race = beaten.length ? ` Je was ${RIVAL[beaten[0].k].n} net voor!` : '';
+  toast(`${TheWonder(k)} ${wonderVerb(k, 'is', 'zijn')} klaar!${race} ${B[k].perk}.`, 'good');
+  checkVictory(); // misschien is dit je vierde wonder
+}
+
+/**
+ * Een rivaal heeft een wonder af (vanuit game/rivals.ts); `wonder` is zijn gebouw. Bouwde jij er ook aan, dan is dat voorbij:
+ * je bouwplaats verdwijnt en je krijgt alles terug wat je ervoor betaalde.
+ */
+export function rivalWonderDone(r: Rival, wonder: RivalBuilding): void {
+  const k = wonder.type;
+  const mine = G.bs.filter(b => b.type === k && !b.done);
+  for (const b of mine) removeSite(b);
+  refreshWonders();
+  const who = `${RIVAL[r.k].n} ${verb(RIVAL[r.k], 'heeft', 'hebben')}`;
+  const back = mine.length ? ' Je bouwplaats is weg; je krijgt je grondstoffen terug.' : '';
+  store.notePos = [wonder.x + 1.5, wonder.y + 1.5];
+  toast(`${who} ${theWonder(k)} gebouwd.${back} ${winBackText(k, r.k)}`, 'bad');
+}
+
+// Een bouwplaats van jou weghalen, met alles wat je ervoor betaalde terug
+function removeSite(b: Building): void {
+  const d = B[b.type];
+  gain(buildCost(b.type));
+  b.dead = true;
+  setBlk(b, false);
+  for (let dy = 0; dy < d.size; dy++)
+    for (let dx = 0; dx < d.size; dx++) {
+      const i = (b.y + dy) * W + b.x + dx;
+      if (bmap[i] === b.id) bmap[i] = 0;
+    }
+  G.bs = G.bs.filter(o => o !== b);
+  bById.delete(b.id);
+  if (sel.b === b.id) sel.b = null;
+  store.mapVersion++;
+}
+
+// ---- Kapot ----
+
+/**
+ * Een wonder is verwoest (van jou of van een rivaal), of een bouwplaats ervan. Het wonder is dan weer vrij:
+ * iedereen kan het opnieuw bouwen.
+ */
+export function wonderDestroyed(b: Building | RivalBuilding): void {
+  const k = b.type;
+  refreshWonders();
+  store.notePos = [b.x + 1.5, b.y + 1.5];
+  if (b.kind === 'b') {
+    if (b.done)
+      toast(
+        `Je ${B[k].n} ${wonderVerb(k, 'is', 'zijn')} verwoest. Het wonder is weer vrij: iedereen kan het opnieuw bouwen.`,
+        'bad',
+      );
+    else toast(`Je bouwplaats van ${theWonder(k)} is verwoest.`, 'bad');
+    return;
+  }
+  // De rivaal van dit gebouw (kan al verslagen en weg zijn): zijn naam, of niets
+  const owner = G.rivals.find(o => o.id === b.rival);
+  const info = owner ? RIVAL[owner.k] : undefined;
+  if (b.done) {
+    const whose = info ? ` van ${info.n}` : '';
+    toast(
+      `${TheWonder(k)}${whose} ${wonderVerb(k, 'is', 'zijn')} verwoest. Het wonder is weer vrij.`,
+      'good',
+    );
+  } else {
+    const again = info ? ` ${info.n} ${verb(info, 'moet', 'moeten')} opnieuw sparen.` : '';
+    toast(`De bouwplaats van ${theWonder(k)} is verwoest.${again}`, 'good');
+  }
+}
+
+/** Breek je dit gebouw af? Het stamhuis en een af wereldwonder niet, en de sterrenpoort niet terwijl hij oplaadt. */
+export function canDemolish(b: Building): boolean {
+  if (b.type === 'townhall') return false;
+  if (B[b.type].wonder && b.done) return false;
+  if (B[b.type].win && b.done && isCharging()) return false;
+  return true;
+}
+
+/** Waarom je dit gebouw niet kunt afbreken, in één zin (zie canDemolish). */
+export function noDemolishText(b: Building): string {
+  if (B[b.type].win && isCharging()) return 'De sterrenpoort laadt op: die kun je nu niet afbreken.';
+  return `${B[b.type].n} kun je niet afbreken.`;
+}
+
+/** Wie heeft het wonder, in een paar woorden (voor het selectiepaneel). */
+export function ownerLine(k: string): string {
+  const w = G.wonders[k];
+  if (!w) return '';
+  if (w.by === 'you') return `Van jou sinds dag ${w.day}`;
+  const r = ownerRival(k);
+  return r ? `Van ${RIVAL[r.k].n} sinds dag ${w.day}` : '';
+}

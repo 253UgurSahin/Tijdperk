@@ -1,4 +1,4 @@
-/* Effecten over het hele scherm (zie screenEffect in ui/hud.js): een gloed bij een nieuw tijdperk,
+/* Effecten over het hele scherm (zie screenEffect in ui/hud.ts): een gloed bij een nieuw tijdperk,
    goud als je wint, en een korte rode rand als je stamhuis geraakt wordt. Ze liggen onder de HUD. */
 #screenfx {
   position: absolute;

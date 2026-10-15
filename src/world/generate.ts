@@ -1,0 +1,608 @@
+import type { Tile } from '../types';
+// Wereldgenerator: maakt uit één getal (de seed) een complete kaart.
+// Werkwijze, zoals de natuur het ook doet:
+//   1. hoogtekaart  → zee, kust, vlakten, heuvels en bergen
+//   2. rivieren     → stromen van de heuvels omlaag naar zee of een meer
+//   3. vochtigheid  → bossen waar het nat is, woestijn waar het droog is
+//   4. grondstoffen → elk erts in het landschap waar het hoort (koper in heuvels, olie in de woestijn, ...)
+//   5. eerlijkheid  → elke grondstof ligt op een redelijke afstand van je startplek
+//   6. bereikbaarheid → geen stukken land die je nooit kunt bereiken
+// Zelfde seed en kaartsoort = altijd dezelfde wereld. Dit bestand gebruikt geen spelstand of browser,
+// dus het is te testen. De kaartsoorten (continent, eilanden, bergland) staan in data/maps.ts.
+import { DEFAULT_MAP, MAP, cleanMap } from '../data/maps';
+import { NI, NODES } from '../data/nodes';
+import { clamp, dist } from '../util/math';
+import { fbm, hash2, mulberry32 } from '../util/random';
+
+// Terreinsoorten voor de spelregels (waar je mag lopen en bouwen)
+export const TER = { LAND: 0, WATER: 1, SAND: 2, SALT: 3, ROCK: 4 };
+
+// Landschappen, voor de kleur van de grond en waar grondstoffen liggen
+export const BIOME = { WATER: 0, BEACH: 1, GRASS: 2, FOREST: 3, HILLS: 4, MOUNTAIN: 5, DESERT: 6, SALT: 7 };
+
+/** Kun je over deze tegel lopen? (geen water en geen berg) */
+export const isPassable = (t: number): boolean => t !== TER.WATER && t !== TER.ROCK;
+
+// Hoe ver (in tegels) elke grondstof hoogstens van de start mag liggen. Vroege tijdperken dichtbij.
+export const MAX_START_DIST: Record<string, number> = {
+  tree: 9,
+  bush: 10,
+  rock: 12,
+  copper: 24,
+  tin: 28,
+  iron: 36,
+  gold: 36,
+  coal: 34,
+  oil: 36,
+  sand: 38,
+  lithium: 54,
+  starmetal: 70,
+};
+
+/**
+ * Maximale afstand (in tegels) van de start tot grondstof `k` op een kaart van breedte W.
+ * Een kaart groter dan de gewone (256) houdt de afstanden van de gewone kaart: je begint niet verder van alles af.
+ */
+export const startLimit = (k: string, W: number): number =>
+  k === 'tree' || k === 'bush' || k === 'rock'
+    ? MAX_START_DIST[k]
+    : MAX_START_DIST[k] * (Math.min(W, 256) / 128) * 0.7;
+
+/** Wat de wereldgenerator oplevert. */
+export interface GeneratedWorld {
+  ter: Uint8Array;
+  biome: Uint8Array;
+  node: Uint8Array;
+  amt: Uint16Array;
+  elev: Float32Array;
+  moist: Float32Array;
+  /** Hoogtegrenzen: zeeniveau, diep water, voet en top van de bergen. */
+  levels: { sea: number; deep: number; peak: number; top: number };
+  start: { x: number; y: number };
+}
+
+/**
+ * Maak een wereld van W bij H tegels uit een seed. `mapKind` is een sleutel uit data/maps.ts.
+ * Het continent is de standaard: zo blijven oude opslagen precies dezelfde wereld houden.
+ */
+export function generateWorld(
+  seed: number,
+  W: number,
+  H: number,
+  mapKind: string = DEFAULT_MAP,
+): GeneratedWorld {
+  // Per kaartsoort: hoeveel zee, heuvels en bergen (als deel van de kaart), en hoe groot het land is
+  const { levels: LEVELS, landSize, edgeDrop, ridges, straits } = MAP[cleanMap(mapKind)].gen;
+  // Grotere kaart = ruimere afstanden (scale). Boven de gewone grootte (256) blijven heuvels, bossen, ertsen en
+  // afstanden even groot als op een gewone kaart (er komen er dan meer van); alleen de grote vorm van het land
+  // groeit mee met de kaart (landScale), zodat een continent één groot land blijft.
+  const N = W * H,
+    R = mulberry32(seed),
+    s = seed % 9973,
+    cx = W / 2,
+    cy = H / 2,
+    scale = Math.min(W, 256) / 128,
+    landScale = W / 128;
+  const ter = new Uint8Array(N),
+    biome = new Uint8Array(N),
+    node = new Uint8Array(N),
+    amt = new Uint16Array(N),
+    elev = new Float32Array(N),
+    moist = new Float32Array(N);
+  const idx = (x: number, y: number) => y * W + x;
+  const inside = (x: number, y: number) => x >= 0 && y >= 0 && x < W && y < H;
+
+  // ---- 1. Hoogte: grote landmassa's + middelgrote heuvels + kleine oneffenheden ----
+  for (let y = 0; y < H; y++)
+    for (let x = 0; x < W; x++) {
+      let e =
+        0.55 * fbm(x / (landSize * landScale), y / (landSize * landScale), s) +
+        0.3 * fbm(x / (14 * scale), y / (14 * scale), s + 11) +
+        0.15 * fbm(x / 5, y / 5, s + 23);
+      // Bergland: lange bergkammen erbovenop (hoog waar de ruis precies door het midden gaat)
+      if (ridges) e += ridges * ridge(x / (18 * scale), y / (18 * scale), s + 41);
+      // Eilanden: lange zeestraten snijden het land in stukken (laag waar de ruis door het midden gaat)
+      if (straits) e -= straits * ridge(x / (30 * scale), y / (30 * scale), s + 53);
+      // Naar de rand van de kaart toe zakt het land weg in zee
+      const edge = Math.min(x, y, W - 1 - x, H - 1 - y) / (W * 0.1);
+      e -= Math.pow(1 - clamp(edge, 0, 1), 2) * edgeDrop;
+      elev[idx(x, y)] = e;
+    }
+  // Grenzen bepalen uit de hoogteverdeling van deze wereld
+  const sorted = Float32Array.from(elev).sort(),
+    q = (p: number) => sorted[Math.floor(p * (N - 1))];
+  const SEA = q(LEVELS.sea),
+    SHORE = q(LEVELS.shore),
+    HILL = q(LEVELS.hill),
+    PEAK = q(LEVELS.peak);
+  // De startplek is altijd vlak, droog land
+  const flat = (SHORE + HILL) / 2,
+    flatR = 16 * scale * 0.7;
+  for (let y = 0; y < H; y++)
+    for (let x = 0; x < W; x++) {
+      const d = dist(x, y, cx, cy);
+      if (d >= flatR) continue;
+      const k = 1 - d / flatR,
+        i = idx(x, y);
+      elev[i] = elev[i] * (1 - k) + flat * k;
+    }
+
+  // ---- 2. Basisterrein uit de hoogte ----
+  for (let i = 0; i < N; i++) {
+    const e = elev[i];
+    if (e < SEA) [ter[i], biome[i]] = [TER.WATER, BIOME.WATER];
+    else if (e < SHORE) [ter[i], biome[i]] = [TER.SAND, BIOME.BEACH];
+    else if (e >= PEAK) [ter[i], biome[i]] = [TER.ROCK, BIOME.MOUNTAIN];
+    else if (e >= HILL) [ter[i], biome[i]] = [TER.LAND, BIOME.HILLS];
+    else [ter[i], biome[i]] = [TER.LAND, BIOME.GRASS];
+  }
+
+  // Losse rotstegels worden heuvel: bergen horen in ketens, niet als losse blokjes
+  for (let y = 1; y < H - 1; y++)
+    for (let x = 1; x < W - 1; x++) {
+      const i = idx(x, y);
+      if (ter[i] !== TER.ROCK) continue;
+      let n = 0;
+      for (const j of [i - 1, i + 1, i - W, i + W]) if (ter[j] === TER.ROCK) n++;
+      if (n < 2) [ter[i], biome[i]] = [TER.LAND, BIOME.HILLS];
+    }
+
+  // ---- 3. Rivieren: van de heuvels omlaag naar zee ----
+  // Een rivier kiest steeds de laagste buur, met een duwtje richting de dichtstbijzijnde zee.
+  // In een kuil mag hij even omhoog; lukt dat te lang niet, dan ontstaat er een meer.
+  const seaDist = distanceTo(i => elev[i] < SEA, W, H, 255);
+  const riverCount = Math.round((N / 9000) * 1.2);
+  const startClear = 14 * scale * 0.7;
+  const isRiver = new Uint8Array(N);
+  for (let r = 0, tries = 0; r < riverCount && tries < 600; tries++) {
+    const x0 = (R() * W) | 0,
+      y0 = (R() * H) | 0,
+      i0 = idx(x0, y0);
+    if (elev[i0] < HILL || elev[i0] >= PEAK || dist(x0, y0, cx, cy) < startClear * 2) continue;
+    r++;
+    let x = x0,
+      y = y0,
+      sinceFord = 0,
+      uphill = 0;
+    for (let step = 0; step < 600; step++) {
+      const i = idx(x, y);
+      if (ter[i] === TER.WATER && !isRiver[i]) break; // aangekomen bij zee, meer of andere rivier
+      if (dist(x, y, cx, cy) < startClear) break; // nooit door je startplek
+      isRiver[i] = 1;
+      // Om de zoveel tegels een doorwaadbare plek, zodat je kunt oversteken
+      if (++sinceFord > 12 + R() * 8) {
+        [ter[i], biome[i]] = [TER.SAND, BIOME.BEACH];
+        sinceFord = 0;
+      } else [ter[i], biome[i]] = [TER.WATER, BIOME.WATER];
+      let best = null,
+        bs = Infinity;
+      for (const [dx, dy] of [
+        [1, 0],
+        [-1, 0],
+        [0, 1],
+        [0, -1],
+      ]) {
+        const nx = x + dx,
+          ny = y + dy;
+        if (!inside(nx, ny)) continue;
+        const j = idx(nx, ny);
+        if (isRiver[j]) continue;
+        const score = elev[j] + seaDist[j] * 0.0015 + (hash2(nx, ny, s + r) - 0.5) * 0.01;
+        if (score < bs) {
+          bs = score;
+          best = [nx, ny];
+        }
+      }
+      if (best && elev[idx(best[0], best[1])] > elev[i]) uphill++;
+      else uphill = 0;
+      if (!best || uphill > 6) {
+        // Vastgelopen in een kom: hier ontstaat een meertje
+        for (let dy = -2; dy <= 2; dy++)
+          for (let dx = -2; dx <= 2; dx++)
+            if (inside(x + dx, y + dy) && dx * dx + dy * dy <= 5 && dist(x + dx, y + dy, cx, cy) > startClear)
+              [ter[idx(x + dx, y + dy)], biome[idx(x + dx, y + dy)]] = [TER.WATER, BIOME.WATER];
+        break;
+      }
+      [x, y] = best;
+    }
+  }
+
+  // ---- 4. Vochtigheid: grote weerpatronen + extra vocht vlak bij water ----
+  const waterDist = distanceTo(i => ter[i] === TER.WATER, W, H, 8);
+  for (let y = 0; y < H; y++)
+    for (let x = 0; x < W; x++) {
+      const i = idx(x, y);
+      let m = fbm(x / (28 * scale), y / (28 * scale), s + 500);
+      m += 0.14 * (1 - waterDist[i] / 8);
+      if (dist(x, y, cx, cy) < 22 * scale * 0.7) m = Math.max(m, 0.45); // geen woestijn bij de start
+      moist[i] = m;
+      if (biome[i] !== BIOME.GRASS && biome[i] !== BIOME.HILLS) continue;
+      if (biome[i] === BIOME.GRASS && m < 0.36) {
+        // Droog en laag: woestijn, met hier en daar een zoutvlakte
+        [ter[i], biome[i]] = [TER.SAND, BIOME.DESERT];
+        if (m < 0.31 && fbm(x / 9, y / 9, s + 600) > 0.55 && dist(x, y, cx, cy) > 30 * scale * 0.7)
+          [ter[i], biome[i]] = [TER.SALT, BIOME.SALT];
+      } else if (biome[i] === BIOME.GRASS && m > 0.55) biome[i] = BIOME.FOREST;
+    }
+
+  // ---- 5. Begroeiing en losse stenen per landschap ----
+  for (let y = 0; y < H; y++)
+    for (let x = 0; x < W; x++) {
+      const i = idx(x, y),
+        b = biome[i],
+        clump = fbm(x / 7, y / 7, s + 100);
+      if (b === BIOME.FOREST && R() < 0.35 + clump * 0.45) node[i] = NI.tree;
+      else if (b === BIOME.GRASS) {
+        if (clump > 0.64 && R() < 0.55)
+          node[i] = NI.tree; // bosjes
+        else if (fbm(x / 6, y / 6, s + 200) > 0.69 && R() < 0.45) node[i] = NI.bush;
+        else if (R() < 0.004) node[i] = NI.rock;
+      } else if (b === BIOME.HILLS) {
+        if (fbm(x / 6, y / 6, s + 300) > 0.6 && R() < 0.35) node[i] = NI.rock;
+        else if (clump > 0.68 && R() < 0.3) node[i] = NI.tree;
+      } else if (b === BIOME.DESERT && fbm(x / 5, y / 5, s + 700) > 0.55 && R() < 0.4) node[i] = NI.sand;
+      else if (b === BIOME.BEACH && R() < 0.12) node[i] = NI.sand;
+    }
+
+  // ---- 6. Ertsen: elk in het landschap waar het hoort ----
+  const deposits: Record<string, Tile[]> = {};
+  const blob = (bx: number, by: number, r: number, k: string) => {
+    const t = NI[k];
+    for (let y = Math.floor(by - r - 1); y <= by + r + 1; y++)
+      for (let x = Math.floor(bx - r - 1); x <= bx + r + 1; x++) {
+        if (!inside(x, y) || dist(x, y, bx, by) > r || R() > 0.72) continue;
+        const i = idx(x, y);
+        if (!isPassable(ter[i])) continue;
+        if (k === 'lithium') [ter[i], biome[i]] = [TER.SALT, BIOME.SALT];
+        node[i] = t;
+      }
+    (deposits[k] = deposits[k] || []).push([bx, by]);
+  };
+  const near = (x: number, y: number, b: number, r: number) => {
+    for (let dy = -r; dy <= r; dy++)
+      for (let dx = -r; dx <= r; dx++)
+        if (inside(x + dx, y + dy) && biome[idx(x + dx, y + dy)] === b) return true;
+    return false;
+  };
+  // [erts, aantal per 128×128, grootte, waar het mag liggen]
+  const ORES: [string, number, number, (x: number, y: number, b: number) => boolean][] = [
+    ['copper', 5, 2, (_x, _y, b) => b === BIOME.HILLS],
+    ['tin', 4, 1.8, (_x, _y, b) => b === BIOME.HILLS],
+    ['iron', 5, 2.2, (x, y, b) => b === BIOME.HILLS && near(x, y, BIOME.MOUNTAIN, 4)],
+    ['gold', 3, 1.6, (x, y, b) => (b === BIOME.HILLS || b === BIOME.BEACH) && near(x, y, BIOME.WATER, 5)],
+    ['coal', 5, 2.3, (x, y, b) => b === BIOME.HILLS || (b === BIOME.FOREST && near(x, y, BIOME.HILLS, 3))],
+    ['oil', 5, 1.5, (_x, _y, b) => b === BIOME.DESERT || b === BIOME.BEACH],
+    ['lithium', 3, 2.2, (_x, _y, b) => b === BIOME.SALT || b === BIOME.DESERT],
+    // Oude inslagen: een paar plekken met sterrenmetaal, overal op land
+    ['starmetal', 2, 1.6, (_x, _y, b) => b === BIOME.GRASS || b === BIOME.DESERT || b === BIOME.HILLS],
+  ];
+  const area = (W * H) / (128 * 128);
+  for (const [k, perMap, size, fits] of ORES) {
+    const want = Math.round(perMap * Math.max(1, area * 0.75));
+    for (let n = 0, tries = 0; n < want && tries < 3000; tries++) {
+      const x = (R() * W) | 0,
+        y = (R() * H) | 0;
+      if (!fits(x, y, biome[idx(x, y)]) || dist(x, y, cx, cy) < 7) continue;
+      if ((deposits[k] || []).some(([px, py]) => dist(px, py, x, y) < 12 * scale * 0.7)) continue;
+      blob(x, y, size * (0.8 + R() * 0.5), k);
+      n++;
+    }
+  }
+
+  // ---- 7. Eerlijkheid: zorg dat elke grondstof bereikbaar dichtbij ligt ----
+  for (const k of Object.keys(MAX_START_DIST)) {
+    const limit = startLimit(k, W);
+    const t = NI[k];
+    let ok = false;
+    for (let y = Math.max(0, cy - limit); y < Math.min(H, cy + limit) && !ok; y++)
+      for (let x = Math.max(0, cx - limit); x < Math.min(W, cx + limit); x++)
+        if (node[idx(x, y)] === t && dist(x, y, cx, cy) <= limit) {
+          ok = true;
+          break;
+        }
+    if (ok) continue;
+    // Niet gevonden: leg zelf een plek aan, ergens in de ring rond de start
+    for (let tries = 0; tries < 200; tries++) {
+      const a = R() * Math.PI * 2,
+        rr = limit * (0.55 + R() * 0.4),
+        x = Math.round(cx + Math.cos(a) * rr),
+        y = Math.round(cy + Math.sin(a) * rr);
+      if (!inside(x, y) || !isPassable(ter[idx(x, y)])) continue;
+      const size = k === 'tree' ? 3.5 : k === 'bush' || k === 'rock' ? 2.2 : 2;
+      if (k === 'oil' || k === 'sand')
+        for (let dy = -3; dy <= 3; dy++)
+          for (let dx = -3; dx <= 3; dx++) {
+            const i = idx(x + dx, y + dy);
+            if (inside(x + dx, y + dy) && ter[i] === TER.LAND && dx * dx + dy * dy <= 9)
+              [ter[i], biome[i]] = [TER.SAND, BIOME.DESERT];
+          }
+      blob(x, y, size, k);
+      break;
+    }
+  }
+
+  // ---- 8. Startplek vrij maken ----
+  for (let y = cy - 3; y <= cy + 3; y++)
+    for (let x = cx - 3; x <= cx + 3; x++) {
+      const i = idx(x, y);
+      node[i] = 0;
+      [ter[i], biome[i]] = [TER.LAND, BIOME.GRASS];
+    }
+
+  // ---- 9. Bereikbaarheid: verbind losse stukken land met een pas of doorwaadbare plek ----
+  connectRegions(ter, biome, node, W, H, idx(cx, cy));
+  // Ligt een grondstof van stap 7 op een eilandje dat niet verbonden is? Leg er dan een op bereikbaar land.
+  // (Op het continent gebeurt dit bijna nooit; op de eilandenkaart wel.)
+  ensureReachable({ ter, node, W, H, start: { x: cx, y: cy }, R, place: blob });
+  // De startplek weer vrij maken: ensureReachable kan er net een grondstof neergelegd hebben
+  for (let y = cy - 3; y <= cy + 3; y++) {
+    for (let x = cx - 3; x <= cx + 3; x++) {
+      node[idx(x, y)] = 0;
+    }
+  }
+
+  // ---- 10. Hoeveelheid per bron ----
+  for (let i = 0; i < N; i++)
+    if (node[i]) {
+      if (!isPassable(ter[i])) {
+        node[i] = 0;
+        continue;
+      }
+      const a = NODES[node[i]].amt;
+      amt[i] = Math.round(a[0] + R() * (a[1] - a[0]));
+    }
+
+  // levels: hoogtegrenzen van deze wereld (voor kleuren en de hoogte van bergen)
+  const levels = { sea: SEA, deep: q(0.03), peak: PEAK, top: q(0.997) };
+  return { ter, biome, node, amt, elev, moist, levels, start: { x: cx, y: cy } };
+}
+
+/** Kamruis: 1 op lange, smalle lijnen (de bergkammen), 0 ver ervandaan. */
+function ridge(x: number, y: number, s: number): number {
+  const r = 1 - Math.abs(2 * fbm(x, y, s) - 1);
+  return r * r * r;
+}
+
+/** Wat ensureReachable nodig heeft: de kaart, de startplek, het toeval en hoe je grondstof neerlegt. */
+interface ReachableInput {
+  ter: Uint8Array;
+  node: Uint8Array;
+  W: number;
+  H: number;
+  start: { x: number; y: number };
+  R: () => number;
+  place: (x: number, y: number, r: number, k: string) => void;
+}
+
+/**
+ * Zorg dat elke grondstof te voet bereikbaar binnen zijn afstand van de start ligt.
+ * Wat ontbreekt, komt via `place` op een bereikbare plek in de ring rond de start.
+ * (Stap 7 lijkt hierop, maar kijkt niet of je er kunt komen. Die blijft zoals hij was,
+ * zodat werelden uit oude opslag precies hetzelfde blijven.)
+ */
+function ensureReachable({ ter, node, W, H, start, R, place }: ReachableInput) {
+  const reachable = reachableFrom(ter, W, H, start.y * W + start.x);
+  for (const k of Object.keys(MAX_START_DIST)) {
+    const limit = startLimit(k, W);
+    if (hasNodeNear(node, W, H, start, NI[k], limit, i => reachable[i])) continue;
+    for (let tries = 0; tries < 400; tries++) {
+      const a = R() * Math.PI * 2,
+        rr = limit * (0.55 + R() * 0.4),
+        x = Math.round(start.x + Math.cos(a) * rr),
+        y = Math.round(start.y + Math.sin(a) * rr);
+      if (x < 0 || y < 0 || x >= W || y >= H || !reachable[y * W + x]) continue;
+      place(x, y, 1.6, k);
+      node[y * W + x] = NI[k]; // het midden altijd, zodat er zeker iets bereikbaars ligt
+      break;
+    }
+  }
+}
+
+/** Ligt grondstof `t` ergens binnen `limit` tegels van de start, op een tegel waarvoor ook `ok(i)` geldt? */
+function hasNodeNear(
+  node: Uint8Array,
+  W: number,
+  H: number,
+  start: { x: number; y: number },
+  t: number,
+  limit: number,
+  ok: (i: number) => number | boolean,
+): boolean {
+  const r = Math.ceil(limit);
+  for (let y = Math.max(0, start.y - r); y < Math.min(H, start.y + r); y++)
+    for (let x = Math.max(0, start.x - r); x < Math.min(W, start.x + r); x++) {
+      const i = y * W + x;
+      if (node[i] === t && ok(i) && dist(x, y, start.x, start.y) <= limit) return true;
+    }
+  return false;
+}
+
+/** Alle tegels die je vanaf `from` te voet kunt bereiken (1 = bereikbaar). */
+export function reachableFrom(ter: Uint8Array, W: number, H: number, from: number): Uint8Array {
+  const seen = new Uint8Array(W * H),
+    q = [from];
+  seen[from] = 1;
+  for (let h = 0; h < q.length; h++) {
+    const i = q[h],
+      x = i % W;
+    for (const j of [x > 0 ? i - 1 : -1, x < W - 1 ? i + 1 : -1, i - W, i + W])
+      if (j >= 0 && j < W * H && !seen[j] && isPassable(ter[j])) {
+        seen[j] = 1;
+        q.push(j);
+      }
+  }
+  return seen;
+}
+
+/**
+ * Per tegel het nummer (1, 2, 3, ...) van het stuk land waarop hij ligt; 0 = water of berg.
+ * Tegels met hetzelfde nummer kun je te voet van elkaar bereiken, met een ander nummer nooit (een ander eiland).
+ */
+export function landParts(ter: Uint8Array, W: number, H: number): Int32Array {
+  const n = W * H,
+    part = new Int32Array(n),
+    queue = new Int32Array(n);
+  let id = 0,
+    tail = 0;
+  const visit = (i: number) => {
+    if (part[i] || !isPassable(ter[i])) return;
+    part[i] = id;
+    queue[tail++] = i;
+  };
+  for (let i = 0; i < n; i++) {
+    if (part[i] || !isPassable(ter[i])) continue;
+    id++;
+    tail = 0;
+    visit(i);
+    // Alles wat je vanaf hier bereikt door naar links, rechts, boven of onder te stappen
+    for (let head = 0; head < tail; head++) {
+      const c = queue[head],
+        x = c % W;
+      if (x > 0) visit(c - 1);
+      if (x < W - 1) visit(c + 1);
+      if (c >= W) visit(c - W);
+      if (c < n - W) visit(c + W);
+    }
+  }
+  return part;
+}
+
+/** Afstand (in tegels, tot `max`) van elke tegel tot de dichtstbijzijnde tegel waarvoor `is(i)` geldt. */
+function distanceTo(is: (i: number) => boolean, W: number, H: number, max: number) {
+  const N = W * H,
+    d = new Uint8Array(N).fill(max),
+    q: number[] = [];
+  for (let i = 0; i < N; i++)
+    if (is(i)) {
+      d[i] = 0;
+      q.push(i);
+    }
+  for (let h = 0; h < q.length; h++) {
+    const i = q[h],
+      x = i % W,
+      y = (i / W) | 0;
+    if (d[i] + 1 >= max) continue;
+    for (const [nx, ny] of [
+      [x + 1, y],
+      [x - 1, y],
+      [x, y + 1],
+      [x, y - 1],
+    ]) {
+      if (nx < 0 || ny < 0 || nx >= W || ny >= H) continue;
+      const j = ny * W + nx;
+      if (d[j] > d[i] + 1) {
+        d[j] = d[i] + 1;
+        q.push(j);
+      }
+    }
+  }
+  return d;
+}
+
+/**
+ * Zoekt stukken land die je vanaf de start niet kunt bereiken (achter een rivier of bergkam)
+ * en maakt een doorgang: water wordt een doorwaadbare plek, berg wordt een bergpas.
+ * Hele kleine eilandjes (minder dan 25 tegels) laten we liggen.
+ * (Werkt met vaste rijen getallen in plaats van lijsten: op een grote kaart scheelt dat veel tijd.
+ * De volgorde van zoeken is precies die van vroeger, zodat bestaande werelden gelijk blijven.)
+ */
+export function connectRegions(
+  ter: Uint8Array,
+  biome: Uint8Array,
+  node: Uint8Array,
+  W: number,
+  H: number,
+  startIdx: number,
+) {
+  const N = W * H,
+    main = new Uint8Array(N),
+    queue = new Int32Array(N), // werkrij voor het zoeken: elke tegel komt er per zoektocht hooguit één keer in
+    around = new Int32Array(4);
+  // Zet de buren van tegel i (links, rechts, boven, onder) in `around` en geef terug hoeveel het er zijn
+  const neighbours = (i: number): number => {
+    const x = i % W,
+      y = (i / W) | 0;
+    let n = 0;
+    if (x > 0) around[n++] = i - 1;
+    if (x < W - 1) around[n++] = i + 1;
+    if (y > 0) around[n++] = i - W;
+    if (y < H - 1) around[n++] = i + W;
+    return n;
+  };
+  // Markeer alles wat je te voet bereikt vanaf de tegels in `starts`
+  const flood = (starts: number[], mark: Uint8Array) => {
+    let tail = 0;
+    for (const t of starts) {
+      if (mark[t]) continue;
+      mark[t] = 1;
+      queue[tail++] = t;
+    }
+    for (let h = 0; h < tail; h++)
+      for (let k = 0, n = neighbours(queue[h]); k < n; k++) {
+        const j = around[k];
+        if (!mark[j] && isPassable(ter[j])) {
+          mark[j] = 1;
+          queue[tail++] = j;
+        }
+      }
+  };
+  flood([startIdx], main);
+
+  // Geef elk los stuk land een nummer en tel hoe groot het is, om kleine eilandjes over te slaan
+  const label = new Int32Array(N).fill(-1),
+    sizes: number[] = [];
+  for (let i = 0; i < N; i++) {
+    if (label[i] >= 0 || !isPassable(ter[i])) continue;
+    const id = sizes.length;
+    label[i] = id;
+    queue[0] = i;
+    let tail = 1;
+    for (let h = 0; h < tail; h++)
+      for (let k = 0, n = neighbours(queue[h]); k < n; k++) {
+        const j = around[k];
+        if (label[j] < 0 && isPassable(ter[j])) {
+          label[j] = id;
+          queue[tail++] = j;
+        }
+      }
+    sizes.push(tail);
+  }
+  const bigEnough = (i: number) => label[i] >= 0 && sizes[label[i]] >= 25;
+
+  // Herhaal: zoek vanaf het verbonden land het dichtstbijzijnde losse stuk en graaf een doorgang.
+  // (Een eilandenkaart heeft veel losse stukken, daarom mag dit vaak.)
+  const from = new Int32Array(N);
+  for (let round = 0; round < 250; round++) {
+    from.fill(-1);
+    let tail = 0;
+    for (let i = 0; i < N; i++)
+      if (main[i]) {
+        from[i] = i;
+        queue[tail++] = i;
+      }
+    let hit = -1;
+    for (let h = 0; h < tail && hit < 0; h++) {
+      const c = queue[h];
+      for (let k = 0, n = neighbours(c); k < n; k++) {
+        const j = around[k];
+        if (from[j] >= 0) continue;
+        from[j] = c;
+        if (bigEnough(j) && !main[j]) {
+          hit = j;
+          break;
+        }
+        if (!isPassable(ter[j])) queue[tail++] = j; // alleen door water en berg zoeken
+      }
+    }
+    if (hit < 0) break;
+    const dug: number[] = [];
+    for (let k = from[hit]; !main[k]; k = from[k]) {
+      if (ter[k] === TER.WATER) [ter[k], biome[k]] = [TER.SAND, BIOME.BEACH];
+      else [ter[k], biome[k]] = [TER.LAND, BIOME.HILLS];
+      node[k] = 0;
+      dug.push(k);
+    }
+    // Het gegraven pad en wat je daarlangs nu bereikt (het nieuwe stuk land) horen bij het verbonden land
+    flood(dug, main);
+  }
+}

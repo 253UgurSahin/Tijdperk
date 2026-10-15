@@ -81,40 +81,37 @@
     right: 6px;
   }
   #resPanel {
-    flex-direction: row;
-    flex-wrap: wrap;
-    align-items: center;
     padding: 4px 6px;
     gap: 4px;
   }
   .poprow {
-    border: 0;
-    margin: 0;
-    padding: 0;
+    padding-right: 4px;
   }
+  .pstat {
+    padding: 2px 6px;
+  }
+  /* Op een telefoon vult de strook de hele rij */
   #resbar {
-    flex-direction: row;
-    flex-wrap: nowrap;
-    gap: 3px;
     flex: 1;
-    min-width: 0;
   }
-  .res {
-    grid-template-columns: 14px auto;
+  #resbar .res {
     gap: 5px;
-    padding: 2px 8px;
+    padding: 2px 6px;
+    min-height: 32px;
   }
-  .res .wk,
-  .res em,
-  .res small {
+  /* De lijst met alles: over de volle breedte, net onder de bovenbalk */
+  #resPop {
+    left: 6px;
+    right: 6px;
+    top: calc(var(--topH, 120px) + 4px);
+    width: auto;
+  }
+  #resPop::before {
     display: none;
   }
-  #resMore {
-    margin: 0;
-  }
-  #resPop {
-    bottom: auto;
-    top: calc(var(--topH, 120px) + 4px);
+  /* (en hij blijft boven de knoppen Dorp, Leger, ...; --sideH is hoe hoog die zijn, zie ui/panel.ts) */
+  .rpl {
+    max-height: calc(100dvh - var(--topH, 120px) - var(--barH, 240px) - var(--sideH, 36px) - 80px);
   }
   #objectives {
     padding: 8px 10px;
@@ -125,9 +122,12 @@
   body.showgoal #mission {
     display: block;
   }
+  body.showgoal #mission .body {
+    display: block;
+  }
   /* Het open doel mag niet onder de knoppen verdwijnen: dan scrollt het */
   body.showgoal #objectives {
-    max-height: calc(100dvh - var(--barH, 240px) - 110px);
+    max-height: calc(100dvh - var(--barH, 240px) - var(--sideH, 36px) - 74px);
     overflow-y: auto;
   }
   #bar {
@@ -153,6 +153,10 @@
   body.showmap #mini {
     height: auto;
   }
+  /* Op een telefoon is de kaart al groot (knop Kaart): geen aparte grote kaart */
+  #mapBig {
+    display: none;
+  }
   #selPanel {
     max-height: 46vh;
     align-self: stretch;
@@ -174,7 +178,7 @@
     min-height: 36px;
     padding: 6px 10px;
   }
-  /* Boven de knoppenrij (--sideH: zo hoog is die rij, één of twee rijen; zie measureHud in main.js) */
+  /* Boven de knoppenrij (--sideH: zo hoog is die rij, één of twee rijen; zie ui/panel.ts) */
   #panel {
     position: fixed;
     left: 6px;
@@ -190,7 +194,30 @@
   #notes {
     top: calc(var(--topH, 120px) + 8px);
   }
-  #feed {
+  /* Staat er een paneel of het doel open, dan wacht alles boven in het midden even (meldingen, een
+     prestatie, een gebeurtenis of een aanbod): zo ligt er nooit een kaartje over het paneel heen.
+     Meldingen staan ook in het Logboek; een gebeurtenis of aanbod staat er weer als het paneel dicht is. */
+  body.panelopen #notes,
+  body.showgoal #notes {
+    visibility: hidden;
+  }
+  /* Een kleiner kaartje bij een prestatie */
+  #achv .achpop {
+    gap: 9px;
+    padding: 6px 12px 6px 8px;
+  }
+  #achv .achic {
+    width: 34px;
+    height: 34px;
+  }
+  #achv .achtx > b {
+    font-size: 15px;
+  }
+  #achv .achtx > span {
+    display: none;
+  }
+  /* Hier sluit een tik op de regel het doel weer: dan is het pijltje niet nodig */
+  #ageToggle .caret {
     display: none;
   }
 }
@@ -242,6 +269,15 @@
   #cmdgrid {
     --tile-h: 80px;
   }
+  /* Zes knoppen (Dorp, Leger, Verbeteren, Logboek, Doel, Kaart) op één rij, ook op een smalle telefoon */
+  #sidebtns {
+    gap: 4px;
+  }
+  #sidebtns button,
+  #sidebtns .mob {
+    padding: 5px 7px;
+    font-size: 13px;
+  }
   .port {
     width: 56px;
     height: 56px;
@@ -265,7 +301,8 @@
     gap: 2px 10px;
     cursor: pointer;
   }
-  #step .oh {
+  /* Tik op de regel: dan opent het doel met alles erover (het pijltje is hier niet nodig) */
+  #step .caret {
     display: none;
   }
   #step b {
@@ -299,19 +336,63 @@
   #ageplate {
     margin-right: 0;
   }
+  /* Plat houden: geen klokje, geen naam van het tijdperk en geen tijdlijn (de stempel met het cijfer blijft) */
   #ageplate .day canvas,
   #ageplate .day small,
-  #ageplate .age small {
+  #ageplate .age small,
+  #ageplate .tl {
     display: none;
   }
   #ageplate .age b {
     grid-row: auto;
   }
+  /* De strook past zich aan de plek naast de klok aan (resources.ts haalt er grondstoffen af als het
+     niet past), zodat hij niet op een eigen rij belandt */
   #resPanel {
     flex: 1 1 240px;
+    min-width: 0;
   }
   #objectives {
     flex: 1 1 280px;
+  }
+  /* Het doel gebruikt dan, net als een paneel, de hele hoogte boven de knoppen */
+  body.showgoal #objectives {
+    position: fixed !important;
+    z-index: 12;
+    top: calc(6px + env(safe-area-inset-top, 0px));
+    left: 6px;
+    right: 102px;
+    bottom: calc(var(--barH, 240px) + var(--sideH, 36px) + 20px);
+    max-height: none;
+  }
+  /* Kaartjes net onder de bovenbalk, en één tegelijk, anders vallen ze over de knoppen onderin.
+     Een gebeurtenis gaat voor, dan een aanbod; een prestatie en meldingen wachten zolang. */
+  #notes {
+    top: calc(var(--topH, 100px) + 4px);
+  }
+  /* Een gebeurtenis vraagt om een antwoord: dan wijken de volgende stap en de knoppen Dorp, Leger, ...
+     even, zodat het kaartje past. Een aanbod is kleiner: daarvoor wijkt de volgende stap alleen als er
+     ook iets gekozen is (dan staan de knoppen hoger). Na je antwoord staan ze er weer. */
+  body.evopen:not(.showgoal) #objectives,
+  body.insp.offeropen:not(.showgoal) #objectives {
+    display: none;
+  }
+  body.evopen #sidebtns {
+    visibility: hidden;
+  }
+  #event:not([hidden]) ~ #offer,
+  #notes:has(#event:not([hidden]), #offer:not([hidden])) #achv,
+  #notes:has(#event:not([hidden]), #offer:not([hidden]), .achpop) #toast {
+    display: none !important;
+  }
+  /* De lijst met alle grondstoffen in twee kolommen, zodat hij niet te hoog wordt. Hier mag hij over de
+     knoppen onderin vallen (daarboven is geen plek), maar niet onder de rand van het scherm. */
+  .rpl {
+    grid-template-columns: repeat(2, 14px minmax(0, 1fr) auto auto auto);
+    max-height: calc(100dvh - var(--topH, 100px) - 72px);
+  }
+  #resPop .res {
+    grid-column: span 5;
   }
   #bar {
     flex-direction: row;
