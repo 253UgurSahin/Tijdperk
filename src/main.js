@@ -126,7 +126,8 @@ addEventListener('blur', () => {
   edge.x = -1;
 });
 function frame(now) {
-  const rdt = Math.min(0.1, (now - lastT) / 1000);
+  const realDt = (now - lastT) / 1000,
+    rdt = Math.min(0.1, realDt);
   lastT = now;
   if ($('#modal').hidden) {
     const pp = 900 * rdt * (SET.camSpeed || 1);
@@ -236,7 +237,8 @@ function frame(now) {
     }
     store.rateSnap = { t: G.t, r: { ...G.res } };
   }
-  saveT += rdt;
+  // Echte tijd tellen (ook als het spel hapert), zodat automatisch opslaan echt elke minuut gebeurt
+  saveT += Math.min(realDt, 5);
   if (saveT > 60) {
     saveT = 0;
     // Niet op het titelscherm: daar ligt soms een wereld waarin je nog niet speelt

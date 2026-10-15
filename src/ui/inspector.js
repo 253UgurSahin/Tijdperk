@@ -49,6 +49,7 @@ import { $ } from '../util/dom.js';
 import { clamp, dist } from '../util/math.js';
 import { amt, bmap, isUnl, node, setBlk } from '../world/world.js';
 import { canMake, fitsPeople } from '../data/succession.js';
+import { isNight } from '../game/time.js';
 import { canDemolish, noDemolishText, ownerLine, refreshWonders, wonderStatus } from '../game/wonders.js';
 
 // Selectiepaneel
@@ -383,7 +384,7 @@ export function renderInspector() {
     if (!b.done)
       return (
         h +
-        `<div class="statline ${siteCnt.get(b.id) ? '' : 'warn'}"><i class="dot"></i>${siteCnt.get(b.id) ? siteCnt.get(b.id) + ' bouwers aan het werk' : 'Nog geen bouwers: stuur er een paar heen'}</div>` +
+        `<div class="statline ${siteCnt.get(b.id) ? '' : 'warn'}"><i class="dot"></i>${builderLine(b)}</div>` +
         (d.wonder ? wonderCardHTML(b) : '')
       );
     if (d.wonder) h += wonderCardHTML(b);
@@ -462,6 +463,13 @@ function wonderCardHTML(b) {
   const line = b.done ? ownerLine(b.type) : w.tone === 'warn' ? w.text : 'Nog niemand anders bouwt eraan';
   const tone = b.done ? 'good' : w.tone;
   return `<div class="wcard"><div class="wperk">${ico('★')}<span><b>Bonus:</b> ${esc(d.perk)}</span></div><div class="statline ${tone}"><i class="dot"></i>${esc(line)}</div></div>`;
+}
+// Wat de bouwers van een bouwplaats doen. 's Nachts rusten ze buiten het licht: dat is geen fout.
+function builderLine(b) {
+  const n = siteCnt.get(b.id);
+  if (n) return `${n} ${n === 1 ? 'bouwer' : 'bouwers'} aan het werk`;
+  if (isNight()) return "Bouwers rusten 's nachts. Bij licht (kampvuur, lantaarn) werken ze door.";
+  return 'Nog geen bouwers: stuur er een paar heen';
 }
 export function insHandler(e) {
   const t = e.target.closest('button');
