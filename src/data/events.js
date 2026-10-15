@@ -50,7 +50,7 @@ export const EVENT_NEEDS = {
   town: 'Je hebt meer dan 6 gebouwen',
   farm: 'Er staat een akker',
   maker: 'Er staat een werkplaats die iets maakt (gieterij, fabriek, ...)',
-  stormy: 'Het is geen zomer',
+  stormy: 'Het is geen zomer, en je hebt geen Deltawerken',
   dry: 'Het is lente of zomer',
 };
 
@@ -580,6 +580,7 @@ export const EVENTS = [
     n: 'Stormvloed',
     g: '≈',
     ages: [4, 5],
+    need: ['stormy'],
     x: 'Een stormvloed beukt op de dijken.',
     choices: [
       { l: 'Versterk de dijken', cost: { stone: 250, wood: 150 }, d: 'De dijken houden' },

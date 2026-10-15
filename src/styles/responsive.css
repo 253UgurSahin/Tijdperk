@@ -339,7 +339,7 @@
   }
   .cats button {
     min-height: 30px;
-    padding: 2px 8px;
+    padding: 2px 5px;
   }
   /* Bouwknoppen in één rij die je opzij kunt vegen */
   #cmdgrid {

@@ -1,9 +1,10 @@
-// Bonusregister: één plek die alle bonussen bij elkaar telt (onderzoek, volk, zegeningen, regels, gebeurtenissen).
+// Bonusregister: één plek die alle bonussen bij elkaar telt (onderzoek, volk, zegeningen, wonderen, regels, ...).
 import { blessingBonuses } from '../data/blessings.js';
-import { bonusesIn, limitTotal, sumAll } from '../data/bonus.js';
+import { limitTotal, sumAll } from '../data/bonus.js';
 import { modifierBonuses } from '../data/modifiers.js';
 import { peopleBonuses } from '../data/peoples.js';
 import { TECH } from '../data/tech.js';
+import { wonderBonuses } from '../data/wonders.js';
 import { G } from './state.js';
 
 /*
@@ -23,8 +24,8 @@ const SOURCES = [
   g => modifierBonuses(g.mods),
   // Tijdelijke bonussen uit gebeurtenissen (G.buffs; game/events.js haalt ze eraf als ze voorbij zijn)
   g => (g.buffs || []).map(b => b.bonus),
-  // Nog leeg: dit vult een later onderdeel van het spel
-  g => bonusesIn(g.wonders), // wereldwonderen
+  // Wereldwonderen die van jou zijn (G.wonders: wie welk wonder heeft, zie src/data/wonders.js)
+  g => wonderBonuses(g.wonders),
 ];
 
 /** Alle bonussen die nu gelden, als losse objecten. */
@@ -58,12 +59,16 @@ const growth = (before, after) => (before > 0 ? after / before : 1);
  */
 export function applyBonusChange(change) {
   const bldBefore = mul('bld.hp'),
+    hallBefore = mul('hall.hp'),
     armyBefore = mul('army.hp');
   change();
   lastCount.game = null; // zo telt het register bij de volgende vraag opnieuw
   const bldGrow = growth(bldBefore, mul('bld.hp')),
+    hallGrow = growth(hallBefore, mul('hall.hp')),
     armyGrow = growth(armyBefore, mul('army.hp'));
   if (bldGrow !== 1) for (const b of G.bs) b.hp *= bldGrow;
+  // Het stamhuis heeft er een eigen sleutel bij (zoals bij de Piramide)
+  if (hallGrow !== 1) for (const b of G.bs) if (b.type === 'townhall') b.hp *= hallGrow;
   if (armyGrow !== 1)
     for (const u of G.us) {
       u.mhp *= armyGrow;

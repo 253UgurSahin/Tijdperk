@@ -15,4 +15,5 @@
 @import './challenges.css';
 @import './events.css';
 @import './rivals.css';
+@import './wonders.css';
 @import './settings.css'; /* als laatste: de grootte-instelling moet boven de rest winnen */

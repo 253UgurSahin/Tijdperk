@@ -43,6 +43,7 @@ export const BONUS_KEYS = {
 
   // Gebouwen en verdediging
   'bld.hp': { d: 'Gebouwen en muren hebben meer levenspunten' },
+  'hall.hp': { d: 'Het stamhuis heeft meer levenspunten' }, // bovenop 'bld.hp'
   'build.speed': { d: 'Bouwen gaat sneller' },
   'wall.cost': { d: 'Muren en poorten zijn goedkoper', min: -0.75 }, // negatief = goedkoper
   'tower.dmg': { d: 'Torens en het stamhuis doen meer schade' },
@@ -62,10 +63,13 @@ export const BONUS_KEYS = {
   'chunk.cost': { d: 'Nieuw gebied is goedkoper', min: -0.75 }, // negatief = goedkoper
   market: { d: 'Betere prijzen op de markt' }, // goedkoper kopen en meer krijgen voor verkopen
   'trader.rate': { d: 'Reizende handelaars komen vaker' }, // 1 = twee keer zo vaak
+  'trader.daily': { d: 'Elke ochtend komt er een handelaar', flat: true }, // 1 = aan
 
   // Wereld en vijanden
   'meteor.rate': { d: 'Meteorieten vallen vaker' }, // 0.5 = anderhalf keer zo vaak
   'meteor.ore': { d: 'Meer erts rond een meteorietinslag' },
+  'meteor.aim': { d: 'Meteorieten vallen in je eigen land, nooit op je gebouwen', flat: true }, // 1 = aan
+  'storm.safe': { d: 'Stormen en stormvloeden doen geen schade', flat: true }, // 1 = aan: ze komen niet meer
   'raid.size': { d: 'Aanvallen zijn kleiner' }, // negatief = kleiner
   'raid.hp': { d: 'Aanvallers zijn zwakker' }, // levenspunten; negatief = zwakker
 };
@@ -101,7 +105,7 @@ export function limitTotal(key, total) {
 
 /**
  * Haal de bonussen uit iets met een `bonus`-veld: één ding, een lijst, of een object met dingen.
- * Zo kan een later onderdeel (volk, zegeningen, wonderen) zijn spullen gewoon in G zetten.
+ * Zo kan een onderdeel (volk, zegeningen, wonderen) zijn spullen gewoon in G zetten.
  */
 export function bonusesIn(things) {
   if (!things) return [];

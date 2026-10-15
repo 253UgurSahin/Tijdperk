@@ -47,6 +47,7 @@ import { $ } from '../util/dom.js';
 import { clamp, dist } from '../util/math.js';
 import { amt, bmap, isUnl, node, setBlk } from '../world/world.js';
 import { canMake, fitsPeople } from '../data/succession.js';
+import { canDemolish, ownerLine, refreshWonders, wonderStatus } from '../game/wonders.js';
 
 // Selectiepaneel
 // Een opdrachttegel. De uitleg (data-tip) toont buildmenu.js in een eigen tooltip.
@@ -325,7 +326,8 @@ export function renderInspector() {
         cost: costHTML(armsCost(), true),
         tip: '+15% schade en levenspunten voor het hele leger',
       });
-    if (b.type !== 'townhall')
+    // Het stamhuis en een wereldwonder breek je niet af
+    if (canDemolish(b))
       cmd += CB('data-b="demolish"', '✕', store.demolishArm ? 'Zeker?' : 'Afbreken', {
         danger: 1,
         tip: 'Krijg 50% van de kosten terug (Delete)',
@@ -349,13 +351,18 @@ export function renderInspector() {
     b.blocked +
     (siteCnt.get(b.id) || 0) +
     lvlOf(b) +
-    powerRatio.toFixed(2);
+    powerRatio.toFixed(2) +
+    (d.wonder ? wonderStatus(b.type).text : '');
   setHTML(p, 'ins', sig, () => {
     const mh = bMaxHp(b);
     let h = head(
       im(iconFor(b.type)),
       d.n + (lvlOf(b) ? ` <span class="lv">niv. ${lvlOf(b) + 1}</span>` : ''),
-      b.done ? esc(bShort(b.type)) : 'In aanbouw · ' + Math.floor((b.prog / b.bt) * 100) + '%',
+      b.done
+        ? d.wonder
+          ? `Wereldwonder · ${AGES[d.age].n}` // de bonus staat in de kaart eronder
+          : esc(bShort(b.type))
+        : 'In aanbouw · ' + Math.floor((b.prog / b.bt) * 100) + '%',
     );
     h += b.done
       ? hpl(b.hp / mh, `${Math.ceil(b.hp)}/${Math.ceil(mh)}`)
@@ -363,8 +370,10 @@ export function renderInspector() {
     if (!b.done)
       return (
         h +
-        `<div class="statline ${siteCnt.get(b.id) ? '' : 'warn'}"><i class="dot"></i>${siteCnt.get(b.id) ? siteCnt.get(b.id) + ' bouwers aan het werk' : 'Nog geen bouwers: stuur er een paar heen'}</div>`
+        `<div class="statline ${siteCnt.get(b.id) ? '' : 'warn'}"><i class="dot"></i>${siteCnt.get(b.id) ? siteCnt.get(b.id) + ' bouwers aan het werk' : 'Nog geen bouwers: stuur er een paar heen'}</div>` +
+        (d.wonder ? wonderCardHTML(b) : '')
       );
+    if (d.wonder) h += wonderCardHTML(b);
     if (d.conv || d.gen || d.pump) {
       const stt = !b.on
         ? 'Uit'
@@ -432,6 +441,14 @@ export function renderInspector() {
       h += `<div class="statline"><i class="dot"></i>Traint dorpelingen${G.trainQ ? ` · ${G.trainQ} in wachtrij` : ''}</div>`;
     return h;
   });
+}
+// Bij een wereldwonder van jou: de bonus, en hoe het ervoor staat (af, of een race met een rivaal)
+function wonderCardHTML(b) {
+  const d = B[b.type],
+    w = wonderStatus(b.type);
+  const line = b.done ? ownerLine(b.type) : w.tone === 'warn' ? w.text : 'Nog niemand anders bouwt eraan';
+  const tone = b.done ? 'good' : w.tone;
+  return `<div class="wcard"><div class="wperk">${ico('★')}<span><b>Bonus:</b> ${esc(d.perk)}</span></div><div class="statline ${tone}"><i class="dot"></i>${esc(line)}</div></div>`;
 }
 export function insHandler(e) {
   const t = e.target.closest('button');
@@ -607,6 +624,8 @@ export function demolish(b) {
   for (const v of G.vs) if (v.hidden && v.shelter === b.id) unhide(v);
   if (!d.wall) toast(`${d.n} afgebroken.`);
   burst(b.x + 0.5, b.y + 0.5, '#8a7a62');
+  // Een wonder (of de bouwplaats ervan) weg: zet de lijst met eigenaars en de bonussen opnieuw
+  if (d.wonder) refreshWonders();
   store.demolishArm = 0;
   store.uiDirty = true;
 }

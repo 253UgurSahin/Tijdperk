@@ -139,7 +139,7 @@ function winNotes(draft) {
   if (!stargate) notes.push('Zonder de sterrenpoort tellen prestaties voor winnen niet mee.');
   else if (short)
     notes.push(
-      'Prestaties voor winnen tellen alleen met de sterrenpoort. Na een kort doel kun je daarvoor doorspelen.',
+      'Prestaties voor winnen tellen alleen met de sterrenpoort. Win je eerst op een andere manier, dan kun je daarvoor doorspelen.',
     );
   // Op Vredig komt er niemand: dan is overleven alleen wachten
   if (DIFFICULTIES[draft.diff].peaceful && draft.victories.includes('survive'))

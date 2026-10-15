@@ -40,6 +40,12 @@ export function update(dt) {
   // Af en toe komt er een reizende handelaar langs (bij de Hanze vaker, met Gesloten grenzen nooit)
   const tradersCome = !G.offer && !hasRule('noTrade') && G.day >= 2 && !isNight();
   if (tradersCome && Math.random() < (dt / 420) * mul('trader.rate')) makeOffer();
+  // Met het Oost-Indisch Huis (bonus 'trader.daily') komt er elke ochtend zeker een handelaar
+  const dailyTrader = add('trader.daily') > 0 && G.traderDay !== G.day && G.clock >= 8 && !isNight();
+  if (dailyTrader && !G.offer && !hasRule('noTrade')) {
+    G.traderDay = G.day;
+    makeOffer();
+  }
   if (G.offer && G.t > G.offer.until) {
     G.offer = null;
     sigs.offer = null;

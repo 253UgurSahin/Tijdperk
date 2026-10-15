@@ -5,6 +5,7 @@ import { AGE_UP } from '../data/ages.js';
 import { B } from '../data/buildings.js';
 import { NI, NODES, RES_NODES } from '../data/nodes.js';
 import { BASEW, GATHER, HARD, RES } from '../data/resources.js';
+import { wonderBuildRate } from '../data/wonders.js';
 import { avail, demand, farmCnt, litAt, siteCnt, wr } from './caches.js';
 import { completeBuilding } from './entities.js';
 import { chips, floater } from './fx.js';
@@ -444,7 +445,9 @@ function doBuild(v, dt) {
     goHome(v);
     return;
   }
-  b.prog += dt * (1 + G.age * 0.1) * mul('build.speed');
+  // Aan een wereldwonder werken bouwers samen: meer bouwers helpen, maar steeds minder (zie data/wonders.js)
+  const rate = B[b.type].wonder ? wonderBuildRate(siteCnt.get(b.id) || 1) : 1 + G.age * 0.1;
+  b.prog += dt * rate * mul('build.speed');
   const mh = bMaxHp(b);
   b.hp = Math.min(mh, b.hp + (mh * 0.85 * dt) / b.bt);
   if (b.prog >= b.bt) {

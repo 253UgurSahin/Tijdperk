@@ -29,6 +29,7 @@ import {
   rbById,
 } from './rivals.js';
 import { bmap, foeWalk, freeWalk, isUnl, nearestWall, setBlk, walkable } from '../world/world.js';
+import { wonderDestroyed } from './wonders.js';
 
 function tpos(t) {
   // Een gebouw: van jou ('b') of van een rivaal ('rb')
@@ -89,6 +90,8 @@ function destroyBuilding(b) {
   if (b.type === 'townhall') {
     G.over = true;
     endGame(false, 900);
+  } else if (d.wonder) {
+    wonderDestroyed(b); // het wonder is weer vrij (zie game/wonders.js)
   } else if (d.wall) {
     note(`${d.n} doorbroken.`, 'bad');
   } else {

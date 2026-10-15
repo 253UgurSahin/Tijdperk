@@ -2,7 +2,7 @@
 // vooral van grondstoffen die bij jou schaars of op zijn. Zo raakt de wereld nooit helemaal leeg.
 import { store } from '../core/store.js';
 import { sfx } from '../audio/sound.js';
-import { CX, CY, DAYLEN, W } from '../config.js';
+import { CN, CS, CX, CY, DAYLEN, W } from '../config.js';
 import { SET } from '../core/settings.js';
 import { B } from '../data/buildings.js';
 import { NI, NODES } from '../data/nodes.js';
@@ -10,7 +10,7 @@ import { RES } from '../data/resources.js';
 import { avail, computeAvail } from './caches.js';
 import { burst } from './fx.js';
 import { G } from './state.js';
-import { mul } from './bonus.js';
+import { add, mul } from './bonus.js';
 import { hasRule } from './mods.js';
 import { bMaxHp } from './upgrades.js';
 import { note, toast } from '../ui/hud.js';
@@ -80,8 +80,15 @@ function announce() {
   sfx('alarm');
 }
 
-/** Een plek op land, liefst net binnen of vlak naast je gebied, en niet op het stamhuis. */
+/**
+ * Een plek op land, liefst net binnen of vlak naast je gebied, en niet op het stamhuis.
+ * Met het Ruimtestation (bonus 'meteor.aim') valt hij in je eigen land, en niet op je gebouwen.
+ */
 function pickSpot() {
+  if (add('meteor.aim') > 0) {
+    const aimed = aimedSpot();
+    if (aimed) return aimed;
+  }
   for (let tries = 0; tries < 400; tries++) {
     const a = Math.random() * Math.PI * 2,
       r = 8 + Math.random() * (14 + G.unl.filter(Boolean).length * 1.2),
@@ -94,6 +101,24 @@ function pickSpot() {
     // Liever bij jouw land: buiten je gebied slaagt alleen een deel van de pogingen
     if (!isUnl(x, y) && Math.random() < 0.5) continue;
     return [x, y];
+  }
+  return null;
+}
+
+// Een vrije plek in je eigen land, ver genoeg van al je gebouwen zodat er niets beschadigd raakt
+function aimedSpot() {
+  const mine = [];
+  for (let c = 0; c < CN * CN; c++) if (G.unl[c]) mine.push(c);
+  for (let tries = 0; tries < 400 && mine.length; tries++) {
+    const c = mine[(Math.random() * mine.length) | 0];
+    const x = (c % CN) * CS + 3 + ((Math.random() * (CS - 6)) | 0),
+      y = Math.floor(c / CN) * CS + 3 + ((Math.random() * (CS - 6)) | 0);
+    if (!inb(x - 4, y - 4) || !inb(x + 4, y + 4) || !passable(y * W + x)) continue;
+    const near = G.bs.some(b => {
+      const s = B[b.type].size;
+      return dist(b.x + s / 2, b.y + s / 2, x, y) < 4 + s / 2;
+    });
+    if (!near) return [x, y];
   }
   return null;
 }

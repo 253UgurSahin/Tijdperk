@@ -6,6 +6,7 @@ import { endGame, upgradeWin } from './achievements.js';
 import { built } from './chapters.js';
 import { checkChallenge } from './scenario.js';
 import { G, placeName } from './state.js';
+import { myWonderCount } from './wonders.js';
 
 /** Alles wat de doelen willen weten, uit de spelstand van nu. */
 export function victoryFacts() {
@@ -15,7 +16,7 @@ export function victoryFacts() {
     stargate: built('stargate'),
     stargateBusy: G.bs.some(b => b.type === 'stargate'),
     campsLeft: G.camps.filter(c => c.alive).length,
-    wonders: 0, // wonderen komen later
+    wonders: myWonderCount(), // wereldwonderen die nu van jou zijn
     rivals: G.rivals.length,
     rivalsBeaten: G.rivals.filter(r => r.dead).length,
     place: placeName(),

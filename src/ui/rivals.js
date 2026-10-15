@@ -2,7 +2,8 @@
 import { store } from '../core/store.js';
 import { AGES } from '../data/ages.js';
 import { B } from '../data/buildings.js';
-import { PERSONALITY, RIVAL, armyPower, armyToAttack, strengthWord } from '../data/rivals.js';
+import { PERSONALITY, RIVAL, armyPower, armyToAttack, strengthWord, verb } from '../data/rivals.js';
+import { theWonder } from '../data/wonders.js';
 import { canMake } from '../data/succession.js';
 import { UNITS } from '../data/units.js';
 import { isDead } from '../game/military.js';
@@ -15,12 +16,14 @@ import {
   rivalArmy,
   rivalById,
   rivalHall,
+  rivalWonderSaving,
 } from '../game/rivals.js';
 import { armsMul } from '../game/upgrades.js';
 import { clearSel } from '../input/selection.js';
 import { centerOn } from '../render/camera.js';
 import { iconFor } from '../render/icons.js';
 import { esc } from './format.js';
+import { ico } from './glyphs.js';
 import { setHTML, sigs } from './header.js';
 import { toast } from './hud.js';
 import { bannerHTML } from './peoples.js';
@@ -82,6 +85,20 @@ export function rivalStatus(r) {
 // Naam, karakter en tijdperk op één regel
 const subLine = r => `${PERSONALITY[r.p].n} · ${AGES[r.age].n}`;
 
+/**
+ * Het wereldwonder waar een rivaal aan bouwt of voor spaart (vanaf de helft),
+ * of hoeveel wonderen hij al heeft, in een paar woorden (of leeg).
+ */
+function rivalWonderLine(r) {
+  if (r.dead) return '';
+  const site = r.bs.find(b => B[b.type].wonder && !b.done);
+  if (site) return `Bouwt ${theWonder(site.type)}: ${Math.floor((site.prog / site.bt) * 100)}%`;
+  const saving = rivalWonderSaving(r);
+  if (saving) return `Spaart voor ${theWonder(saving.k)}: ${Math.floor(saving.frac * 100)}%`;
+  const owned = r.bs.filter(b => B[b.type].wonder && b.done).length;
+  return owned ? `${owned} ${owned === 1 ? 'wereldwonder' : 'wereldwonderen'}` : '';
+}
+
 // Wat een soldaat van een rivaal nu doet, in een paar woorden
 const DOING = { home: 'op wacht', march: 'onderweg naar jou', raid: 'valt aan', return: 'gaat naar huis' };
 
@@ -100,7 +117,9 @@ export function rivalBuildingTip(b) {
   const r = rivalById(b.rival);
   if (!r) return '';
   const title = `${B[b.type].n} · ${RIVAL[r.k].n}`;
-  const line = `${subLine(r)} · ${Math.ceil(b.hp)}/${Math.round(b.mhp)} leven`;
+  // Bij een wereldwonder in aanbouw: hoe ver ze zijn
+  const busy = B[b.type].wonder && !b.done ? ` · wonder ${Math.floor((b.prog / b.bt) * 100)}% gebouwd` : '';
+  const line = `${subLine(r)} · ${Math.ceil(b.hp)}/${Math.round(b.mhp)} leven${busy}`;
   return `<b>${title}</b><span>${line}</span>`;
 }
 /** Tooltip boven het land van een rivaal. */
@@ -119,16 +138,28 @@ export function renderRivals() {
   const list = (G && G.rivals) || [];
   box.hidden = head.hidden = !list.length;
   if (!list.length) return;
-  const rows = list.map(r => ({ r, status: rivalStatus(r), power: r.dead ? '' : rivalStrength(r) }));
+  const rows = list.map(r => ({
+    r,
+    status: rivalStatus(r),
+    power: r.dead ? '' : rivalStrength(r),
+    wonder: rivalWonderLine(r),
+  }));
   const sig = JSON.stringify(
-    rows.map(({ r, status, power }) => [r.age, r.dead, rivalArmy(r).length, status.text, power]),
+    rows.map(({ r, status, power, wonder }) => [
+      r.age,
+      r.dead,
+      rivalArmy(r).length,
+      status.text,
+      power,
+      wonder,
+    ]),
   );
   const left = list.filter(r => !r.dead).length;
   head.lastChild.textContent = left ? `${left} van ${list.length} over` : 'allemaal verslagen';
   setHTML(box, 'rivals', sig, () => rows.map(rowHTML).join(''));
 }
 
-function rowHTML({ r, status, power }) {
+function rowHTML({ r, status, power, wonder }) {
   const info = RIVAL[r.k],
     n = rivalArmy(r).length;
   const army = r.dead ? '' : ` · ${soldiersText(n)}`;
@@ -142,6 +173,7 @@ function rowHTML({ r, status, power }) {
       <b>${esc(info.n)}</b>
       <small>${subLine(r)}${army}</small>
       <small class="rivstat ${status.tone}">${status.text}</small>
+      ${wonder ? `<small class="rivwonder">${ico('★')}${wonder}</small>` : ''}
     </span>
     ${chip}
   </button>`;
@@ -225,7 +257,7 @@ export function rivalSelection({ head, hpl, CB, im }) {
     const siegeNote = siege
       ? ` Een ${siege.n.toLowerCase()} doet ${siege.bonus.mul}× schade tegen gebouwen.`
       : '';
-    const note = hall ? HALL_NOTE : `Gebouw van ${esc(info.n)}.${siegeNote}`;
+    const note = hall ? HALL_NOTE : d.wonder ? wonderNote(b, info) : `Gebouw van ${esc(info.n)}.${siegeNote}`;
     // Het pictogram van het gebouw, met hun vaandel ervoor: zo zie je meteen dat het niet van jou is
     const portrait = im(iconFor(b.type)) + bannerHTML(info, 'rivbadge');
     const attack = CB('data-riv="attack"', '⚔', `Leger (${soldiers}) valt aan`, {
@@ -239,10 +271,13 @@ export function rivalSelection({ head, hpl, CB, im }) {
     return {
       ctx: info.n,
       cmds: attack + look + toHall,
-      sig: `rb${b.id}|${Math.round(b.hp)}|${b.done}|${G.age}|${shared}`,
+      sig: `rb${b.id}|${Math.round(b.hp)}|${b.done}|${Math.floor(b.prog)}|${G.age}|${shared}`,
       html:
         head(portrait, d.n, `${esc(info.n)} · ${subLine(r)}`) +
         hpl(b.hp / b.mhp, `${Math.ceil(b.hp)}/${Math.round(b.mhp)}`, 'bad') +
+        (d.wonder && !b.done
+          ? hpl(b.prog / b.bt, `${Math.floor((b.prog / b.bt) * 100)}% gebouwd`, 'warn')
+          : '') +
         `<p class="small rivnote">${note}</p>` +
         facts,
     };
@@ -276,6 +311,15 @@ export function rivalSelection({ head, hpl, CB, im }) {
       unitLine +
       facts,
   };
+}
+
+// Uitleg bij een wereldwonder van een rivaal (of de bouwplaats ervan): wat je ertegen kunt doen
+function wonderNote(b, info) {
+  const d = B[b.type];
+  if (!b.done)
+    return `${esc(info.n)} ${verb(info, 'bouwt', 'bouwen')} hier ${theWonder(b.type)}. Sloop de bouwplaats, dan is het wonder weer vrij.`;
+  const perk = d.perk[0].toLowerCase() + d.perk.slice(1);
+  return `Wereldwonder van ${esc(info.n)}. Verwoest je het, dan is het weer vrij. Versla je ${esc(info.n)}, dan wordt het van jou, met de bonus: ${esc(perk)}.`;
 }
 
 // Het midden van je leger (voor "zoveel tegels lopen")

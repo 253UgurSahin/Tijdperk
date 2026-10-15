@@ -14,6 +14,7 @@ import { mul } from './bonus.js';
 import { ruleAllowsBuilding } from './mods.js';
 import { roadTier } from './upgrades.js';
 import { landOwner } from './rivals.js';
+import { wonderBlocked } from './wonders.js';
 import { mouse } from '../input/input.js';
 import { resetV, selVills } from '../input/selection.js';
 import { fmt } from '../ui/format.js';
@@ -91,6 +92,8 @@ export function canPlace(type, x, y, skipCost) {
   const d = B[type];
   if (G.age < d.age) return 'Nog niet ontdekt';
   if (!ruleAllowsBuilding(type)) return 'Geen leger in deze uitdaging';
+  // Een wereldwonder bestaat maar één keer per wereld (zie game/wonders.js)
+  if (d.wonder && wonderBlocked(type)) return wonderBlocked(type);
   if (!canMake(type, G.age)) return 'Verouderd: bouw een ' + B[SUCCESSOR[type]].n.toLowerCase();
   if (d.road) {
     if (!isUnl(x, y)) return 'Buiten je gebied';

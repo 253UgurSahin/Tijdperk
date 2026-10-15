@@ -5,6 +5,7 @@ import { CS } from '../config.js';
 import { B } from '../data/buildings.js';
 import { placeLine } from '../game/placement.js';
 import { G, bById, sel } from '../game/state.js';
+import { canDemolish } from '../game/wonders.js';
 import { CUR } from './cursors.js';
 import {
   boxSelect,
@@ -268,8 +269,8 @@ addEventListener('keydown', e => {
   else if (k === 'e') setExpand(!store.expandMode);
   else if (k === 'v') setView(!store.V2);
   else if (k === 'm') setSound(!sndOn);
-  else if (k === 'z' || k === 'x' || k === 'c' || k === 'b') {
-    const t = { z: 'home', x: 'eco', c: 'light', b: 'mil' }[k];
+  else if (k === 'z' || k === 'x' || k === 'c' || k === 'b' || k === 'n') {
+    const t = { z: 'home', x: 'eco', c: 'light', b: 'mil', n: 'wonder' }[k];
     if (selCmds != null && !sel.vs.size) clearSel();
     setTab(t);
   } else if (k === 'p') {
@@ -285,7 +286,9 @@ addEventListener('keydown', e => {
   else if ((k === 'delete' || k === 'backspace') && sel.b) {
     e.preventDefault();
     const b = bById.get(sel.b);
-    if (b && b.type !== 'townhall') {
+    // Het stamhuis en een af wereldwonder breek je niet af
+    if (b && !canDemolish(b)) toast(`${B[b.type].n} kun je niet afbreken.`);
+    else if (b) {
       if (store.demolishArm === b.id) demolish(b);
       else {
         store.demolishArm = b.id;

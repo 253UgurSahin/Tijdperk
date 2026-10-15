@@ -10,6 +10,7 @@ import { G, bById } from './state.js';
 import { add, mul } from './bonus.js';
 import { armsMul, bMaxHp, bPop } from './upgrades.js';
 import { checkVictory } from './victory.js';
+import { playerWonderDone } from './wonders.js';
 import { toast } from '../ui/hud.js';
 import { clamp } from '../util/math.js';
 import { bmap, node, setBlk } from '../world/world.js';
@@ -26,7 +27,10 @@ export function placeBuilding(type, x, y, instant) {
     hp: instant ? d.hp : Math.max(1, d.hp * 0.15),
     done: false,
     prog: 0,
-    bt: type === 'stargate' ? 160 : type === 'command' ? 120 : d.wall ? 3 : clamp(4 + tot / 12, 5, 80),
+    // Bouwtijd: een eigen getal (zoals bij wonderen), anders afhankelijk van de kosten
+    bt:
+      d.bt ||
+      (type === 'stargate' ? 160 : type === 'command' ? 120 : d.wall ? 3 : clamp(4 + tot / 12, 5, 80)),
     on: true,
     ct: 0,
     cd: 0,
@@ -61,11 +65,13 @@ export function completeBuilding(b, silent) {
   if (d.wall) G.stats.walls++; // voor de prestatie "win zonder muren"
   if (!silent) {
     store.notePos = [b.x + d.size / 2, b.y + d.size / 2];
-    toast(d.n + ' is klaar');
+    if (!d.wonder) toast(d.n + ' is klaar'); // een wonder krijgt een eigen melding, hieronder
     fxRing(b.x + d.size / 2, b.y + d.size / 2, '#ffffff');
     sfx('done');
     if (d.snd === 'creak') sfx('creak'); // de wieken van een nieuwe molen gaan draaien
   }
+  // Een wereldwonder: nu van jou, met zijn bonus (zie game/wonders.js)
+  if (d.wonder) playerWonderDone(b, silent);
   // De sterrenpoort: winnen, als dat een van de gekozen doelen is (zie game/victory.js)
   if (d.win) checkVictory();
   store.uiDirty = true;

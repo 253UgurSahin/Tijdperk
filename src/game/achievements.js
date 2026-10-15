@@ -16,6 +16,7 @@ import { gameScore } from '../data/score.js';
 import { VICTORY } from '../data/victories.js';
 import { challengeOutcome, currentChallenge } from './scenario.js';
 import { G } from './state.js';
+import { myWonderCount } from './wonders.js';
 import { showAchievement } from '../ui/achievements.js';
 import { showEndScreen } from '../ui/endscreen.js';
 import { note } from '../ui/hud.js';
@@ -56,6 +57,10 @@ export function gameFacts() {
     expansions: G.bought,
     meteors: G.stats.meteors,
     rivalsBeaten: G.stats.rivals || 0,
+    wonders: myWonderCount(),
+    wondersBuilt: G.stats.wondersBuilt || 0,
+    wonderRaces: G.stats.wonderRaces || 0,
+    wondersTaken: G.stats.wondersTaken || 0,
   };
 }
 
@@ -93,7 +98,7 @@ function scoreNow() {
   const challenge = challengeOutcome(); // in een uitdaging: medaille, tijd en verlies
   const score = gameScore({
     age: G.age - startAge(), // alleen de tijdperken die je zelf haalde
-    wonders: 0, // wonderen komen later
+    wonders: myWonderCount(), // wereldwonderen die aan het eind van jou zijn
     camps: G.stats.camps,
     kills: G.stats.killed,
     days: G.day,

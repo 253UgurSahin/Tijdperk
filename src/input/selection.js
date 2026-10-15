@@ -19,6 +19,7 @@ import { landOwner, orderRivalAttack, rbById } from '../game/rivals.js';
 import { RIVAL } from '../data/rivals.js';
 import { setExpand, toast } from '../ui/hud.js';
 import { demolish } from '../ui/inspector.js';
+import { canDemolish } from '../game/wonders.js';
 import { bmap, inb, isUnl, node, nodeVis, road, walkable } from '../world/world.js';
 import { VH, VW } from '../render/scene.js';
 
@@ -186,14 +187,15 @@ export function leftClick(sx, sy, shift, ctrl) {
   }
   if (store.demoMode) {
     const b = bAtScreen(X, Y);
-    if (b && b.type !== 'townhall') {
+    // Het stamhuis en een af wereldwonder breek je niet af (zie canDemolish)
+    if (b && canDemolish(b)) {
       demolish(b);
       sfx('boom');
     } else if (inb(ix, iy) && road[iy * W + ix]) {
       road[iy * W + ix] = 0;
       burst(ix + 0.5, iy + 0.5, '#8a7a62');
       sfx('tick');
-    } else if (b) toast('Het stamhuis kun je niet afbreken.', 'bad');
+    } else if (b) toast(`${B[b.type].n} kun je niet afbreken.`, 'bad');
     return;
   }
   if (store.cmdMode && sel.us.size) {

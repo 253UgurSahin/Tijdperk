@@ -105,6 +105,9 @@ export function baseState(seed) {
       raidDay: 0, // de dag waarop de laatste aanval echt begon
       meteors: 0, // meteorieten ingeslagen
       rivals: 0, // rivalen verslagen
+      wondersBuilt: 0, // wereldwonderen die jij afmaakte
+      wonderRaces: 0, // wonderen die je afmaakte terwijl een rivaal hetzelfde wonder bouwde
+      wondersTaken: 0, // wonderen die je veroverde door een rivaal te verslaan
       lost: 0, // dorpelingen en gebouwen (geen muren) die je kwijtraakte, voor de medailles van uitdagingen
       peaceUsed: false, // stond de vredige modus ooit aan in dit spel? (dan telt de score half)
     },
@@ -115,6 +118,8 @@ export function baseState(seed) {
     scenario: null, // de uitdaging van dit spel, of null (zie cleanScenarioState in data/scenarios.js)
     mods: [], // spelregels van een uitdaging (sleutels uit data/modifiers.js); het bonusregister telt ze mee
     rivals: [], // rivaliserende beschavingen (zie game/rivals.js)
+    wonders: {}, // wie welk wereldwonder heeft: { pyramid: { by: 'you', day: 12 } } (zie data/wonders.js)
+    traderDay: 0, // de dag waarop de handelaar van het Oost-Indisch Huis voor het laatst kwam
   };
   RKEYS.forEach(k => (g.res[k] = 0));
   return g;

@@ -39,6 +39,10 @@ export const emptyFacts = () => ({
   expansions: 0, // keren gebied uitgebreid
   meteors: 0, // meteorieten ingeslagen
   rivalsBeaten: 0, // rivalen verslagen
+  wonders: 0, // wereldwonderen die nu van jou zijn
+  wondersBuilt: 0, // wereldwonderen die je zelf afmaakte
+  wonderRaces: 0, // wonderen afgemaakt terwijl een rivaal hetzelfde wonder bouwde
+  wondersTaken: 0, // wonderen veroverd door een rivaal te verslaan
 });
 
 /** Prestatie: win een spel met dit volk. */
@@ -193,6 +197,14 @@ export const ACHIEVEMENTS = [
     when: f => f.rivalsBeaten >= 3,
   },
   {
+    k: 'wonder_taken',
+    n: 'Buitgemaakt',
+    cat: 'war',
+    g: '★',
+    d: 'Verover een wereldwonder: versla een rivaal die er een heeft',
+    when: f => f.wondersTaken >= 1,
+  },
+  {
     k: 'raids3',
     n: 'Standgehouden',
     cat: 'war',
@@ -299,6 +311,30 @@ export const ACHIEVEMENTS = [
     when: f => f.inventions >= TECH.length,
   },
   {
+    k: 'wonder1',
+    n: 'Wereldwonder',
+    cat: 'town',
+    g: '★',
+    d: 'Bouw een wereldwonder',
+    when: f => f.wondersBuilt >= 1,
+  },
+  {
+    k: 'wonders4',
+    n: 'Wonderen van de wereld',
+    cat: 'town',
+    g: '★',
+    d: 'Heb 4 wereldwonderen tegelijk',
+    when: f => f.wonders >= 4,
+  },
+  {
+    k: 'wonder_race',
+    n: 'Net op tijd',
+    cat: 'town',
+    g: '⌛',
+    d: 'Maak een wonder af terwijl een rivaal hetzelfde wonder bouwt',
+    when: f => f.wonderRaces >= 1,
+  },
+  {
     k: 'risky3',
     n: 'Waaghals',
     cat: 'town',
@@ -374,10 +410,13 @@ export function newAchievements(facts, have = {}) {
   return earned;
 }
 
-/** Gebouwen die je zelf kunt neerzetten, per tijdperk (zonder het stamhuis en paden). */
+/**
+ * Gebouwen die je zelf kunt neerzetten, per tijdperk (zonder het stamhuis en paden).
+ * Wereldwonderen tellen niet mee: een rivaal kan je er een afpakken.
+ */
 export const AGE_BUILDINGS = [];
 for (const [k, d] of Object.entries(B)) {
-  if (d.nobuild || d.road) continue;
+  if (d.nobuild || d.road || d.wonder) continue;
   (AGE_BUILDINGS[d.age] = AGE_BUILDINGS[d.age] || []).push(k);
 }
 

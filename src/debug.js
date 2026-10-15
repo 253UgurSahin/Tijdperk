@@ -136,3 +136,19 @@ window.__tp.rivalAttack = (i = 0, n = 4) => {
       .slice(0, n),
   );
 };
+// Wereldwonderen: bekijk wie wat heeft (__tp.wonders), geef een rivaal (Bouwer) meteen genoeg spaargeld
+// voor zijn volgende wonder (__tp.rivalWonder()), of zet een wonder van jou meteen neer (__tp.myWonder('pyramid'))
+import * as wonders from './game/wonders.js';
+import { costValue } from './data/rivals.js';
+import { WONDERS, wonderStartDay } from './data/wonders.js';
+window.__tp.wonders = wonders;
+window.__tp.rivalWonder = (i = G.rivals.findIndex(r => r.p === 'bouwer')) => {
+  const r = G.rivals[i];
+  if (!r) return null;
+  r.wonderPot = Math.max(...WONDERS.map(k => costValue(B[k].cost)));
+  r.wonderWait = 0;
+  // Rivalen sparen pas vanaf een vaste dag: spring daarom zo nodig vooruit naar die dag
+  G.day = Math.max(G.day, wonderStartDay(WONDERS[r.age]));
+  return r;
+};
+window.__tp.myWonder = (k, x, y) => placeBuilding(k, x, y, true);

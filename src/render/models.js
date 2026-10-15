@@ -36,6 +36,7 @@ import {
 } from './kit.js';
 import { bmap } from '../world/world.js';
 import { makeUnit } from './people.js';
+import { WONDER_MODELS } from './wondermodels.js';
 
 // Het gloeiende vlak in de Sterrenpoort (van twee kanten zichtbaar)
 const GATE_DISC = new T3.CircleGeometry(0.68, 32);
@@ -1075,6 +1076,8 @@ const MODELS = {
     mergeStatic(s);
     g.add(s);
   },
+  // De wereldwonderen staan in een eigen bestand (render/wondermodels.js)
+  ...WONDER_MODELS,
 };
 // Muren: een paal met armen naar de buurmuren
 export function wallMask(b) {

@@ -24,15 +24,27 @@ import {
   verb,
 } from '../data/rivals.js';
 import { UNITS } from '../data/units.js';
+import {
+  SAVING_SHOWN,
+  TheWonder,
+  nextFreeWonder,
+  rivalWonderTime,
+  theWonder,
+  wonderIt,
+  wonderStartDay,
+  wonderVerb,
+} from '../data/wonders.js';
 import { mul } from './bonus.js';
 import { computeAvail } from './caches.js';
 import { gain } from './economy.js';
+import { placeBuilding } from './entities.js';
 import { th } from './events.js';
 import { burst, floater, fxRing } from './fx.js';
 import { compass, fire, foeTarget, isDead, moveToward } from './military.js';
 import { dayPace } from './mods.js';
 import { G, sel } from './state.js';
 import { checkVictory } from './victory.js';
+import { refreshWonders, rivalWonderDone, wonderDestroyed } from './wonders.js';
 import { note, toast } from '../ui/hud.js';
 import { dist } from '../util/math.js';
 import { findPath, follow } from '../world/pathfinding.js';
@@ -136,6 +148,8 @@ function newRival(id, pick, site) {
     angry: -1e9, // speltijd van de laatste keer dat jij hen aanviel
     alarm: -1e9, // speltijd van de laatste treffer op hun stad (dan komen de wachters kijken)
     buildWait: 0, // seconden niet proberen te bouwen (er was geen plek)
+    wonderPot: 0, // spaarpot voor een wereldwonder (alleen de Bouwer, in waarde)
+    wonderWait: 0, // seconden niet proberen een wonder neer te zetten (er was geen plek)
     dead: false,
     deadDay: 0,
   };
@@ -223,6 +237,11 @@ export function rivalBuildingDestroyed(b) {
   if (!r || r.dead) return;
   if (b.type === 'townhall') {
     rivalDefeated(r);
+    return;
+  }
+  // Een wereldwonder (of de bouwplaats ervan): het wonder is weer vrij
+  if (d.wonder) {
+    wonderDestroyed(b);
     return;
   }
   store.notePos = [b.x + d.size / 2, b.y + d.size / 2];
@@ -501,6 +520,7 @@ function rivalSecond(r) {
   } else r.bank += income;
   if (short) train(r);
   build(r);
+  wonderWork(r, income);
   grow(r);
   if (!G.peaceful && !G.over) maybeAttack(r, army);
   if (P.gifts) maybeGift(r);
@@ -520,9 +540,9 @@ function train(r) {
 }
 
 function build(r) {
-  // Wat in aanbouw is, groeit eerst af
+  // Wat in aanbouw is, groeit eerst af (een wereldwonder groeit apart, zie wonderWork)
   for (const b of r.bs)
-    if (!b.done) {
+    if (!b.done && !B[b.type].wonder) {
       b.prog += 1;
       b.hp = Math.min(b.mhp, b.hp + (b.mhp * 0.8) / b.bt);
       if (b.prog >= b.bt) {
@@ -606,6 +626,108 @@ function landShare(ci) {
   let land = 0;
   for (let y = y0; y < y0 + CS; y++) for (let x = x0; x < x0 + CS; x++) if (passable(y * W + x)) land++;
   return land / (CS * CS);
+}
+
+// ---- Wereldwonderen (alleen de Bouwer) ----
+
+/*
+ * Een Bouwer spaart naast zijn gewone inkomen voor een wereldwonder: het oudste dat nog vrij is,
+ * en pas vanaf een vaste dag (zie wonderStartDay). Vanaf de helft van de prijs zie je dat hij spaart.
+ * Heeft hij genoeg, dan zet hij de bouwplaats neer op zijn land. Hij doet er anderhalf keer zo lang over
+ * als jij met 3 bouwers (zie rivalWonderTime), zodat je tijd hebt om het eerst af te maken of de bouwplaats te slopen.
+ */
+function wonderWork(r, income) {
+  const site = r.bs.find(b => B[b.type].wonder && !b.done);
+  if (site) {
+    growWonder(r, site);
+    return;
+  }
+  const k = savingTarget(r);
+  if (!k) return;
+  const price = costValue(B[k].cost);
+  const before = r.wonderPot || 0;
+  r.wonderPot = Math.min(price, before + income * PERSONALITY[r.p].wonders);
+  // Over de helft: een seintje, zodat je weet dat er een race aankomt
+  if (before < price * SAVING_SHOWN && r.wonderPot >= price * SAVING_SHOWN) {
+    store.notePos = [r.x + 1, r.y + 1];
+    toast(
+      `${RIVAL[r.k].n} ${verb(RIVAL[r.k], 'spaart', 'sparen')} voor ${theWonder(k)} en ${verb(RIVAL[r.k], 'heeft', 'hebben')} al de helft. Bouw ${wonderIt(k)} zelf eerst!`,
+    );
+  }
+  if (r.wonderPot < price) return;
+  if (r.wonderWait > 0) {
+    r.wonderWait--;
+    return;
+  }
+  const spot = findSpot(r, B[k].size);
+  if (!spot) {
+    r.wonderWait = 30; // geen plek: over een halve minuut opnieuw (misschien met meer land)
+    return;
+  }
+  r.wonderPot -= price;
+  const b = addBuilding(r, k, spot.x, spot.y, false);
+  b.bt = rivalWonderTime(k);
+  const days = Math.max(1, Math.round(b.bt / DAYLEN));
+  store.notePos = [spot.x + 1.5, spot.y + 1.5];
+  toast(
+    `${RIVAL[r.k].n} ${verb(RIVAL[r.k], 'begint', 'beginnen')} aan ${theWonder(k)}. Over ongeveer ${days} ${days === 1 ? 'dag' : 'dagen'} ${wonderVerb(k, 'is het', 'zijn ze')} af. ${STOP_HINT}`,
+    'bad',
+  );
+  store.uiDirty = true;
+}
+
+// Wat je kunt doen als een rivaal een wonder bouwt
+const STOP_HINT = 'Sloop de bouwplaats of maak het zelf eerder af.';
+
+// Voor welk wonder een Bouwer nu spaart: het oudste dat nog vrij is, maar pas vanaf zijn startdag (anders null)
+function savingTarget(r) {
+  if (!PERSONALITY[r.p].wonders) return null;
+  const k = nextFreeWonder(r.age, takenWonders());
+  return k && G.day >= wonderStartDay(k) ? k : null;
+}
+
+/**
+ * Waar een rivaal voor spaart en hoe ver hij is: { k, frac } (frac van 0 tot 1).
+ * Pas vanaf de helft van de prijs (SAVING_SHOWN), anders null. Ook null als hij al aan een wonder bouwt.
+ */
+export function rivalWonderSaving(r) {
+  if (r.dead || r.bs.some(b => B[b.type].wonder && !b.done)) return null;
+  const k = savingTarget(r);
+  if (!k) return null;
+  const frac = Math.min(1, (r.wonderPot || 0) / costValue(B[k].cost));
+  return frac >= SAVING_SHOWN ? { k, frac } : null;
+}
+
+// Wonderen die al een eigenaar hebben, of waar een rivaal al aan bouwt
+function takenWonders() {
+  const taken = new Set(Object.keys(G.wonders || {}));
+  for (const r of G.rivals) if (!r.dead) for (const b of r.bs) if (B[b.type].wonder) taken.add(b.type);
+  return taken;
+}
+
+// De bouwplaats van een wonder groeit elke seconde een stukje; bij driekwart krijg je een waarschuwing
+function growWonder(r, b) {
+  const k = b.type;
+  const before = b.prog / b.bt;
+  b.prog += 1;
+  b.hp = Math.min(b.mhp, b.hp + (b.mhp * 0.8) / b.bt);
+  if (before < 0.75 && b.prog / b.bt >= 0.75) {
+    store.notePos = [b.x + 1.5, b.y + 1.5];
+    toast(
+      `${TheWonder(k)} van ${RIVAL[r.k].n} ${wonderVerb(k, 'is', 'zijn')} voor 75% klaar. ${STOP_HINT}`,
+      'bad',
+    );
+  }
+  if (b.prog < b.bt) return;
+  b.done = true;
+  b.hp = b.mhp;
+  rivalWonderDone(r, b);
+}
+
+/** Jij was eerder klaar met hetzelfde wonder: de bouwplaats van de rivaal verdwijnt en hij krijgt zijn spaargeld terug. */
+export function cancelRivalWonder(r, b) {
+  r.wonderPot = (r.wonderPot || 0) + costValue(B[b.type].cost);
+  removeBuilding(b);
 }
 
 // ---- Aanvallen ----
@@ -692,16 +814,21 @@ export const resText = res =>
 export function rivalDefeated(r) {
   r.dead = true;
   r.deadDay = G.day;
+  // Hun wereldwonderen blijven staan: die worden van jou (zie hieronder)
+  const wonders = r.bs.filter(b => b.done && B[b.type].wonder).map(b => ({ type: b.type, x: b.x, y: b.y }));
   // Wat er nog staat, stort in
   for (const b of r.bs.slice()) {
     const d = B[b.type];
     removeBuilding(b);
-    burst(b.x + d.size / 2, b.y + d.size / 2, '#8a7a62');
+    if (!d.wonder || !b.done) burst(b.x + d.size / 2, b.y + d.size / 2, '#8a7a62');
   }
   for (const f of G.foes) if (f.rival === r.id) f.retreat = true;
   // Hun land wordt van jou
   for (const c of r.chunks) G.unl[c] = 1;
   rebuildLand();
+  for (const w of wonders) placeBuilding(w.type, w.x, w.y, true);
+  if (wonders.length) G.stats.wondersTaken = (G.stats.wondersTaken || 0) + wonders.length;
+  refreshWonders();
   const loot = rivalLoot(r.age);
   for (const k in loot) loot[k] = Math.round(loot[k] * mul('loot'));
   gain(loot);
@@ -710,8 +837,13 @@ export function rivalDefeated(r) {
   fxRing(r.x + 1, r.y + 1, '#e2b92c');
   floater(r.x + 1, r.y + 1, 'VERSLAGEN', '#e2b92c');
   store.notePos = [r.x + 1, r.y + 1];
+  const names = wonders.map(w => theWonder(w.type));
+  const list = names.length > 1 ? `${names.slice(0, -1).join(', ')} en ${names[names.length - 1]}` : names[0];
+  const taken = names.length
+    ? ` Je krijgt ook hun wereldwonder${names.length > 1 ? 'en' : ''}: ${list}.`
+    : '';
   toast(
-    `${RIVAL[r.k].n} ${verb(RIVAL[r.k], 'is', 'zijn')} verslagen! Hun land is nu van jou. Buit: ${resText(loot)}.`,
+    `${RIVAL[r.k].n} ${verb(RIVAL[r.k], 'is', 'zijn')} verslagen! Hun land is nu van jou. Buit: ${resText(loot)}.${taken}`,
     'good',
   );
   sfx('age');
@@ -830,6 +962,7 @@ export function saveRivals() {
     ...r,
     bank: Math.round(r.bank),
     war: Math.round(r.war),
+    wonderPot: Math.round(r.wonderPot || 0),
     bs: r.bs.map(b => ({
       id: b.id,
       type: b.type,

@@ -11,10 +11,12 @@ import { DEFAULT_PEOPLE, PEOPLE } from '../data/peoples.js';
 import { RKEYS } from '../data/resources.js';
 import { cleanScenarioState } from '../data/scenarios.js';
 import { VICTORY } from '../data/victories.js';
+import { cleanWonders } from '../data/wonders.js';
 import { computeAvail, computeCaches } from './caches.js';
 import { spawnFoe, spawnUnit, spawnVillager } from './entities.js';
 import { loadRivals, saveRivals } from './rivals.js';
 import { G, bById, baseState, gameOpts, setGame } from './state.js';
+import { refreshWonders } from './wonders.js';
 import { setZoom } from '../input/input.js';
 import { clearSel } from '../input/selection.js';
 import { clampCam } from '../render/camera.js';
@@ -87,6 +89,8 @@ export function serialize() {
     'wonBy',
     'scenario',
     'mods',
+    'wonders',
+    'traderDay',
   ])
     g[k] = G[k];
   return JSON.stringify({
@@ -177,6 +181,10 @@ export function deserialize(str) {
   G.followups = cleanFollowups(s.g.followups);
   G.eventsSeen = cleanEventsSeen(s.g.eventsSeen);
   G.event = cleanActiveEvent(s.g.event);
+  // Wereldwonderen (ook vóór de soldaten: het Colosseum geeft levens). Opslag van daarvóór: geen wonderen,
+  // en de handelaar van het Oost-Indisch Huis is nog niet geweest. Na de gebouwen kijken we het nog na.
+  G.wonders = cleanWonders(s.g.wonders);
+  G.traderDay = Number.isInteger(s.g.traderDay) ? s.g.traderDay : 0;
   // Volk: opslag van vóór de volken (of met een volk dat niet meer bestaat) speelt als Friezen
   if (!PEOPLE[G.people]) G.people = DEFAULT_PEOPLE;
   if (!Array.isArray(G.blessingQueue)) G.blessingQueue = [];
@@ -247,6 +255,8 @@ export function deserialize(str) {
   // Rivalen: opslag van daarvóór heeft er geen. Het gekozen aantal is wat er in het spel zit.
   loadRivals(s.rivals);
   G.opts.rivals = G.rivals.length;
+  // Wereldwonderen: wie welk wonder heeft, volgt uit de gebouwen die er nu weer staan
+  refreshWonders();
   if (s.cam) {
     let x = s.cam.x,
       y = s.cam.y;

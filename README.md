@@ -17,10 +17,10 @@ Een real-time strategiespel in de browser: leid je stam van de **steentijd** naa
   een tijdelijke bonus (onder de kaartjes zie je wat hij doet en hoe lang nog; tik erop voor uitleg) of krijgen
   dagen later een vervolg dat afhangt van wat je koos. Kies je niet op tijd, dan gebeurt de laatste keuze vanzelf
 - Nieuwe wereld: kies je volk, moeilijkheid (Vredig, Normaal, Zwaar of Meedogenloos), kaart (Continent,
-  Eilanden of Bergland) en hoe je wint: de sterrenpoort bouwen, 30 nachten overleven of een kort spel tot de
-  Gouden Eeuw. Elke wereld heeft een zaadcode zoals `TP-7K2Q`: dezelfde code met dezelfde kaart geeft dezelfde
+  Eilanden of Bergland) en hoe je wint: de sterrenpoort bouwen, 30 nachten overleven, een kort spel tot de
+  Gouden Eeuw, alle rivalen verslaan of vier wereldwonderen hebben. Elke wereld heeft een zaadcode zoals `TP-7K2Q`: dezelfde code met dezelfde kaart geeft dezelfde
   wereld, dus je kunt hem delen. Je ziet de code in het pauzemenu. Prestaties voor winnen tellen alleen met de
-  sterrenpoort; win je eerst met een kort doel, dan kun je daarvoor gewoon doorspelen
+  sterrenpoort; win je eerst op een andere manier, dan kun je daarvoor gewoon doorspelen
 - Uitdagingen: tien opdrachten van 20 tot 45 minuten met eigen spelregels, zoals Lange winter, Belegering (10
   nachten overleven tegen grotere aanvallen), Alleen torens (geen leger), Eilandvolk en Sprint naar de sterren
   (begin in het Dronetijdperk). Haal je het doel, dan krijg je brons, zilver of goud, op tijd of op hoe weinig je
@@ -30,6 +30,13 @@ Een real-time strategiespel in de browser: leid je stam van de **steentijd** naa
 - Volken: kies bij een nieuwe wereld met welk volk je begint. Elk volk heeft eigen voordelen; de Noormannen trainen
   zelfs een eigen soldaat (de Berserker). Friezen, Noormannen en Hanze zijn vrij; Bergvolk, Sterrenkijkers en
   Nomaden speel je vrij met prestaties
+- Wereldwonderen: elk tijdperk heeft één wonder (Hunebed, Piramide, Colosseum, Dom van Utrecht, Oost-Indisch
+  Huis, Eiffeltoren, Deltawerken, Ruimtestation en Ruimtelift), elk maar één keer per wereld en met een sterke
+  bonus. Met 3 bouwers duurt een wonder 2 tot 3 minuten; meer bouwers helpen, maar steeds minder. Een rivaal met
+  het karakter Bouwer bouwt ze ook (vanaf dag 10) en doet er anderhalf keer zo lang over. Op de doelenkaart zie
+  je al als hij ervoor spaart, en daarna de race; sloop zijn bouwplaats of wees sneller. Is hij eerder klaar,
+  dan is het wonder bezet tot je het verwoest of hem verslaat: dan wordt het van jou. Met vier wonderen tegelijk
+  kun je winnen (kies Wonderen bij een nieuwe wereld); elk wonder telt 500 punten
 - Prestaties en profiel: ruim 40 prestaties (elk tijdperk, winnen op Zwaar of hoger, winnen met elk volk,
   kampen veroveren, aanvallen doorstaan, en een paar geheime). Je haalt ze in het spel met een eigen geluid en
   kaartje; op het titelscherm zie je onder **Prestaties** wat je hebt, je beste scores en je laatste spellen. Het

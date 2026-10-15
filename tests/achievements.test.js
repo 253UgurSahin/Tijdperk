@@ -26,9 +26,9 @@ import { ico } from '../src/ui/glyphs.js';
 const facts = changes => ({ ...emptyFacts(), ...changes });
 
 describe('prestaties: gegevens', () => {
-  it('rond de 35 prestaties, elk met een eigen sleutel, naam, uitleg en groep', () => {
+  it('30 tot 50 prestaties, elk met een eigen sleutel, naam, uitleg en groep', () => {
     expect(ACHIEVEMENTS.length).toBeGreaterThanOrEqual(30);
-    expect(ACHIEVEMENTS.length).toBeLessThanOrEqual(45);
+    expect(ACHIEVEMENTS.length).toBeLessThanOrEqual(50);
     expect(new Set(ACHIEVEMENTS.map(a => a.k)).size).toBe(ACHIEVEMENTS.length);
     for (const a of ACHIEVEMENTS) {
       expect(a.k, a.k).toMatch(/^[a-z0-9_]+$/);

@@ -34,7 +34,7 @@ const SHAPE = {
 export const gem = k => `<i class="gem" style="--c:${RES[k].c};--clip:${SHAPE[k] || 'none'}"></i>`;
 export const hy = s =>
   String(s).replace(
-    /^(.{4,}?)(woning|menten|lantaarn|fabriek|batterij|centrum|gieterij|centrale|afweer|plaats|toren|koepel|schutter|drager|drone|hangar|punt|werker|pand|soldaat|werper|molen|poort|smidse|reactor|werf|fort|wagen|vechter|centrum|wapen)$/i,
+    /^(.{4,}?)(woning|menten|lantaarn|fabriek|batterij|centrum|gieterij|centrale|afweer|plaats|toren|koepel|schutter|drager|drone|hangar|punt|werker|pand|soldaat|werper|molen|poort|smidse|reactor|werf|fort|wagen|vechter|centrum|wapen|seum|station|werken)$/i,
     '$1\u00AD$2',
   );
 export const TOUCH = matchMedia('(pointer:coarse)').matches;

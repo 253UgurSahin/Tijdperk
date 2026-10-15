@@ -1,0 +1,204 @@
+/* Wereldwonderen: stickers op de bouwtegels, de tooltip, de kaart in het selectiepaneel en de race op de doelenkaart. */
+:root {
+  /* goud voor wonderen: rand, sterretje en een zachte achtergrond */
+  --wonder: #c39a2e;
+  --wonder-edge: #d2a531;
+  --wonder-soft: #fff8e2;
+  --wonder-soft-2: #f6e7bb;
+}
+
+/* ---- bouwtegels in de categorie Wonderen ---- */
+/* Lange namen als "Oost-Indisch Huis" mogen over drie regels; daarvoor zijn plaatje en letters iets kleiner */
+.gb.wonder {
+  gap: 2px;
+}
+.gb.wonder img {
+  width: 28px;
+  height: 28px;
+}
+.gb.wonder b {
+  font-size: 10.5px;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+}
+/* Hoe het ervoor staat, als stickertje rechtsboven: jij 25%, 40% (met vaandel van de rivaal), spaart, van jou, of bezet */
+.gb .wst {
+  position: absolute;
+  z-index: 2;
+  top: -6px;
+  right: -5px;
+  padding: 0 6px;
+  border-radius: 99px;
+  font: 700 10px/16px var(--f-mono);
+  color: var(--ink);
+  background: var(--paper-hi);
+  box-shadow: 0 0 0 1px var(--rule-2);
+  rotate: 5deg;
+}
+.gb .wst .ico {
+  width: 10px;
+  height: 10px;
+  margin-right: 2px;
+  vertical-align: -1px;
+}
+.gb .wst.warn {
+  color: #fff;
+  background: var(--warn);
+  box-shadow: 0 1px 0 color-mix(in srgb, var(--warn) 70%, #000);
+}
+.gb .wst.good {
+  color: #fff;
+  background: var(--good);
+  box-shadow: 0 1px 0 color-mix(in srgb, var(--good) 70%, #000);
+}
+.gb .wst.bad {
+  color: var(--ink-3);
+  background: var(--well);
+}
+/* Van jou: een gouden rand, zoals een prijs */
+.gb.mine {
+  border-color: var(--wonder-edge);
+  background: linear-gradient(180deg, var(--wonder-soft), var(--wonder-soft-2));
+  box-shadow: 0 3px 0 var(--wonder);
+}
+/* Al van een rivaal: plat en grijs, het kan niet meer */
+.gb.taken {
+  cursor: not-allowed;
+  border-style: dashed;
+  background: transparent;
+  box-shadow: none;
+}
+.gb.taken img {
+  filter: grayscale(1) opacity(0.5);
+}
+.gb.taken b {
+  color: var(--ink-3);
+  text-decoration: line-through;
+  text-decoration-color: color-mix(in srgb, var(--ink-3) 60%, transparent);
+}
+
+/* ---- tooltip ---- */
+#hovertip .wperk {
+  margin-top: 4px;
+  color: var(--ink);
+  font-weight: 600;
+}
+#hovertip .wtip {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin: 5px 0 2px;
+  font-family: var(--f-mono);
+  font-size: 11.5px;
+  color: var(--fg-2);
+}
+#hovertip .wtip .ico {
+  width: 13px;
+  height: 13px;
+  color: var(--wonder);
+}
+#hovertip .wtip.good {
+  color: var(--good);
+}
+#hovertip .wtip.bad {
+  color: var(--bad);
+}
+#hovertip .wtip.warn {
+  color: var(--warn);
+}
+
+/* ---- selectiepaneel: de bonus van een wonder van jou ---- */
+.wcard {
+  margin-top: 8px;
+  padding: 7px 9px;
+  border-radius: 10px;
+  background: linear-gradient(180deg, var(--wonder-soft), var(--wonder-soft-2));
+  box-shadow: inset 0 0 0 1px var(--wonder-edge);
+}
+.wcard .wperk {
+  display: flex;
+  gap: 7px;
+  align-items: flex-start;
+  font-size: 12.5px;
+  line-height: 1.35;
+  color: var(--ink);
+}
+.wcard .wperk .ico {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  color: var(--wonder);
+}
+.wcard .wperk b {
+  font-family: var(--f-display);
+}
+.wcard .statline {
+  margin-top: 4px;
+}
+.statline.bad {
+  color: var(--bad);
+}
+.statline.bad .dot {
+  background: var(--bad);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--bad) 22%, transparent);
+}
+
+/* ---- paneel Leger: een rivaal die een wonder bouwt ---- */
+.rivtxt .rivwonder {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--warn);
+}
+.rivwonder .ico {
+  width: 12px;
+  height: 12px;
+}
+
+/* ---- doelenkaart: een rivaal bouwt een wonder (de race) ---- */
+.wrace {
+  display: grid;
+  grid-template-columns: 14px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  margin-top: 4px;
+  padding: 3px 7px;
+  min-height: 0;
+  border: 1px solid color-mix(in srgb, var(--warn) 45%, transparent);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--warn) 10%, var(--paper-hi));
+  box-shadow: none;
+  font-size: 12px;
+  line-height: 1.5;
+  text-align: left;
+  color: var(--ink);
+  cursor: pointer;
+}
+.wrace:hover {
+  border-color: var(--warn);
+}
+.wrace .ico {
+  width: 14px;
+  height: 14px;
+  color: var(--warn);
+}
+/* De naam mag over twee regels lopen: "Het Wolvenvolk bouwt het Oost-Indisch Huis" is lang */
+.wrace span {
+  line-height: 1.3;
+  padding: 1px 0;
+}
+.wrace b {
+  font-family: var(--f-mono);
+  font-size: 11.5px;
+  color: var(--warn);
+}
+/* Een rivaal spaart nog maar: zelfde regel, maar met een stippelrand en niet klikbaar */
+.wrace.saving {
+  cursor: default;
+  border-style: dashed;
+  background: var(--paper-hi);
+}
+.wrace.saving:hover {
+  border-color: color-mix(in srgb, var(--warn) 45%, transparent);
+}

@@ -9,6 +9,7 @@ import {
   SELECTABLE_VICTORIES,
   SHORT_AGE,
   SURVIVE_NIGHTS,
+  WONDER_GOAL,
   VICTORIES,
   VICTORY,
   cleanVictories,
@@ -146,10 +147,10 @@ describe('manieren om te winnen', () => {
     expect(VICTORY.stargate.end.story(facts({ day: 40 }))).toContain('in 40 dagen.');
   });
 
-  it('nu te kiezen: sterrenpoort, overleven, kort spel en verovering; wonderen komen later', () => {
-    expect(SELECTABLE_VICTORIES.map(v => v.k)).toEqual(['stargate', 'survive', 'age', 'conquest']);
+  it('nu te kiezen: sterrenpoort, overleven, kort spel, verovering en wonderen', () => {
+    expect(SELECTABLE_VICTORIES.map(v => v.k)).toEqual(['stargate', 'survive', 'age', 'conquest', 'wonders']);
     expect(VICTORY.conquest.soon).toBeFalsy();
-    expect(VICTORY.wonders.soon).toBe(true);
+    expect(VICTORY.wonders.soon).toBeFalsy();
     expect(DEFAULT_VICTORIES).toEqual(['stargate']);
     // Alleen de sterrenpoort telt als volledige overwinning voor prestaties
     expect(VICTORIES.filter(v => v.full).map(v => v.k)).toEqual(['stargate']);
@@ -171,7 +172,8 @@ describe('manieren om te winnen', () => {
 
   it('een gekozen lijst wordt netjes gemaakt, en is nooit leeg', () => {
     expect(cleanVictories(['age', 'stargate', 'age'])).toEqual(['stargate', 'age']);
-    expect(cleanVictories(['conquest', 'wonders'])).toEqual(DEFAULT_VICTORIES);
+    expect(cleanVictories(['conquest', 'onzin'])).toEqual(DEFAULT_VICTORIES);
+    expect(cleanVictories(['conquest', 'wonders'])).toEqual(['wonders']);
     expect(cleanVictories([])).toEqual(DEFAULT_VICTORIES);
     expect(cleanVictories('stargate')).toEqual(DEFAULT_VICTORIES);
     expect(cleanVictories(['survive', 'onzin'])).toEqual(['survive']);
@@ -182,6 +184,15 @@ describe('manieren om te winnen', () => {
     expect(reachedVictory(['stargate'], facts({ age: 8, stargate: true }))).toBe('stargate');
     expect(VICTORY.stargate.frac(facts({ age: 8 }))).toBeLessThan(1);
     expect(VICTORY.stargate.text(facts({ age: 8, stargateBusy: true }))).toBe('in aanbouw');
+  });
+
+  it(`wonderen: gewonnen met ${WONDER_GOAL} wereldwonderen tegelijk`, () => {
+    expect(WONDER_GOAL).toBe(4);
+    expect(reachedVictory(['wonders'], facts({ wonders: WONDER_GOAL - 1 }))).toBeNull();
+    expect(reachedVictory(['wonders'], facts({ wonders: WONDER_GOAL }))).toBe('wonders');
+    expect(VICTORY.wonders.text(facts({ wonders: 1 }))).toBe(`1 van ${WONDER_GOAL} wonderen`);
+    // Geen volledige overwinning: de prestaties voor winnen horen bij de sterrenpoort
+    expect(VICTORY.wonders.full).toBeFalsy();
   });
 
   it(`overleven: gewonnen na ${SURVIVE_NIGHTS} nachten`, () => {

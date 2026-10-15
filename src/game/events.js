@@ -24,7 +24,7 @@ import { NI } from '../data/nodes.js';
 import { GATHER, RES } from '../data/resources.js';
 import { canMake } from '../data/succession.js';
 import { UNITS } from '../data/units.js';
-import { applyBonusChange, mul } from './bonus.js';
+import { add, applyBonusChange, mul } from './bonus.js';
 import { built } from './chapters.js';
 import { pay } from './economy.js';
 import { spawnUnit, spawnVillager } from './entities.js';
@@ -79,7 +79,8 @@ const NEED_CHECKS = {
   town: () => G.bs.length > 6,
   farm: () => built('farm'),
   maker: () => G.bs.some(b => b.done && B[b.type].conv),
-  stormy: () => season().n !== 'Zomer',
+  // Met de Deltawerken (bonus 'storm.safe') komen stormen en stormvloeden niet meer
+  stormy: () => season().n !== 'Zomer' && add('storm.safe') <= 0,
   dry: () => season().n === 'Lente' || season().n === 'Zomer',
 };
 

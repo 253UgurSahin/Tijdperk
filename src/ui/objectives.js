@@ -11,7 +11,13 @@ import { GOAL_ICON, challengeMedal, clockText } from '../data/scenarios.js';
 import { avail } from '../game/caches.js';
 import { CHAPTERS, built } from '../game/chapters.js';
 import { popNow } from '../game/entities.js';
-import { G } from '../game/state.js';
+import { RIVAL, verb } from '../data/rivals.js';
+import { theWonder } from '../data/wonders.js';
+import { rbById } from '../game/rivals.js';
+import { G, sel } from '../game/state.js';
+import { rivalWonderRaces, rivalWonderSavings } from '../game/wonders.js';
+import { clearSel } from '../input/selection.js';
+import { centerOn } from '../render/camera.js';
 import { challengeStatus } from '../game/scenario.js';
 import { victoryGoals } from '../game/victory.js';
 import { measureHud } from '../main.js';
@@ -91,7 +97,33 @@ function goalsHTML() {
     const won = G.won && G.wonBy === v.k;
     return `<div class="wg ${won ? 'ok' : ''}" title="${v.d}">${ico(v.g)}<span>${v.n}</span><small>${won ? 'gewonnen' : text}</small></div>`;
   });
-  return `<div class="wingoals"><span class="wgl">Winnen</span><div class="wgrows">${rows.join('')}</div></div>`;
+  return `<div class="wingoals"><span class="wgl">Winnen</span><div class="wgrows">${rows.join('')}</div>${racesHTML()}</div>`;
+}
+/**
+ * Bouwt een rivaal aan een wereldwonder? Dan staat dat hier, met hoe ver hij is: zo zie je de race.
+ * Klik erop om naar de bouwplaats te gaan. Spaart hij ervoor (vanaf de helft), dan staat dat er ook al.
+ */
+function racesHTML() {
+  const pct = frac => `${Math.floor(frac * 100)}%`;
+  const races = rivalWonderRaces().map(({ k, rival, b, frac }) => {
+    const who = RIVAL[rival.k];
+    return `<button class="wrace" data-race="${b.id}" title="Bekijk de bouwplaats">${ico('★')}<span>${who.n} ${verb(who, 'bouwt', 'bouwen')} ${theWonder(k)}</span><b>${pct(frac)}</b></button>`;
+  });
+  const savings = rivalWonderSavings().map(({ k, rival, frac }) => {
+    const who = RIVAL[rival.k];
+    return `<div class="wrace saving" title="Zo vol is hun spaarpot. Bouw het wonder zelf eerst!">${ico('★')}<span>${who.n} ${verb(who, 'spaart', 'sparen')} voor ${theWonder(k)}</span><b>${pct(frac)}</b></div>`;
+  });
+  return races.join('') + savings.join('');
+}
+// Naar de bouwplaats van een rivaal, en die selecteren
+function showRace(id) {
+  const b = rbById.get(id);
+  if (!b) return;
+  centerOn(b.x + 1.5, b.y + 1.5);
+  clearSel();
+  sel.rb = b.id;
+  sigs.ins = null;
+  store.uiDirty = true;
 }
 /**
  * In een uitdaging: de naam, het doel met een balk, en de klok als er een tijdsgrens is.
@@ -176,6 +208,11 @@ $('#mission').addEventListener('click', e => {
   }
   const t = e.target.closest('button');
   if (!t) return;
+  if (t.dataset.race) {
+    sfx('tick');
+    showRace(+t.dataset.race);
+    return;
+  }
   if (t.id === 'ageBtn') ageUp();
   else if (t.id === 'fixBtn') {
     sfx('tick');

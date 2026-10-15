@@ -5,12 +5,14 @@ import { AGES } from './ages.js';
 export const SURVIVE_NIGHTS = 30;
 /** Het tijdperk voor het korte spel: de Gouden Eeuw. */
 export const SHORT_AGE = 4;
+/** Zoveel wereldwonderen moet je tegelijk hebben voor de overwinning "Wonderen". */
+export const WONDER_GOAL = 4;
 const LAST_AGE = AGES.length - 1;
 
 /*
  * Feiten (`f`) die de doelen gebruiken, zoals game/victory.js ze verzamelt:
  * age (tijdperk), day (dag), stargate (sterrenpoort af), stargateBusy (sterrenpoort neergezet),
- * campsLeft (kampen die nog over zijn), wonders (wonderen gebouwd),
+ * campsLeft (kampen die nog over zijn), wonders (wereldwonderen die nu van jou zijn),
  * rivals (rivalen in dit spel), rivalsBeaten (rivalen verslagen).
  *
  * Elke manier om te winnen:
@@ -89,20 +91,18 @@ export const VICTORIES = [
       story: f => `${f.place} versloeg alle rivalen in ${days(f.day)}.`,
     },
   },
-  // Komt later: de gegevens staan klaar, maar je kunt hem nog niet kiezen
   {
     k: 'wonders',
     n: 'Wonderen',
-    d: 'Bouw drie wereldwonderen',
+    d: `Heb ${WONDER_GOAL} wereldwonderen tegelijk`,
     g: '★',
     len: 'Lang spel',
-    soon: true,
-    frac: f => Math.min(1, (f.wonders || 0) / 3),
-    text: f => `${Math.min(f.wonders || 0, 3)} van 3 wonderen`,
+    frac: f => Math.min(1, (f.wonders || 0) / WONDER_GOAL),
+    text: f => `${Math.min(f.wonders || 0, WONDER_GOAL)} van ${WONDER_GOAL} wonderen`,
     end: {
-      eyebrow: 'Drie wonderen gebouwd',
+      eyebrow: `${WONDER_GOAL} wereldwonderen`,
       title: 'Een wonder van de wereld.',
-      story: f => `${f.place} bouwde drie wonderen in ${days(f.day)}.`,
+      story: f => `${f.place} bezat ${WONDER_GOAL} wereldwonderen na ${days(f.day)}.`,
     },
   },
 ];

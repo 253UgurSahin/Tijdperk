@@ -18,6 +18,7 @@ export const UPG_OK = k => {
   return (
     k !== 'command' &&
     k !== 'stargate' &&
+    !d.wonder &&
     !!(d.pop || d.def || d.conv || d.gen || d.pump || d.light || d.work || d.market || d.train)
   );
 };
@@ -25,7 +26,8 @@ export const lvlOf = b => (b && b.lvl) || 0;
 export const maxLvl = b => (UPG_OK(b.type) ? Math.max(0, G.age - B[b.type].age) : 0);
 export const canUpg = b => b.done && lvlOf(b) < maxLvl(b);
 // Het stamhuis groeit mee met je tijdperk, anders is het in latere tijdperken te snel gesloopt
-const ageHp = b => (b.type === 'townhall' && G ? 1 + 0.3 * G.age : 1);
+// (en een bonus zoals die van de Piramide maakt het nog sterker)
+const ageHp = b => (b.type === 'townhall' && G ? (1 + 0.3 * G.age) * mul('hall.hp') : 1);
 // Torens (alles wat schiet, behalve het stamhuis) kunnen extra levens krijgen, zoals bij het Bergvolk
 const towerHp = b => (B[b.type].def && b.type !== 'townhall' ? mul('tower.hp') : 1);
 export const bMaxHp = (b, l = lvlOf(b)) =>

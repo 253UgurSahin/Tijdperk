@@ -6,6 +6,7 @@ import { SET } from '../core/settings.js';
 import { B, BKEYS, CATS } from '../data/buildings.js';
 import { RES } from '../data/resources.js';
 import { UNITS } from '../data/units.js';
+import { mul } from '../game/bonus.js';
 import { has } from '../game/economy.js';
 import { ruleAllowsBuilding } from '../game/mods.js';
 import { buildCost, lackText } from '../game/placement.js';
@@ -21,6 +22,10 @@ import { insHandler, selCmds, selCtx } from './inspector.js';
 import { $ } from '../util/dom.js';
 import { clamp } from '../util/math.js';
 import { canMake } from '../data/succession.js';
+import { wonderBlockedNote, wonderStatus } from '../game/wonders.js';
+import { RIVAL } from '../data/rivals.js';
+import { WONDER_CREW, rivalWonderTime, winBackText, wonderBuildTime } from '../data/wonders.js';
+import { ico } from './glyphs.js';
 
 export const costText = c =>
   Object.keys(c)
@@ -30,6 +35,7 @@ export const costText = c =>
 // Bouwmenu
 export function bShort(k) {
   const d = B[k];
+  if (d.wonder) return d.perk;
   if (d.road) return 'Sneller lopen · sleep om aan te leggen';
   if (d.wall) return d.gate ? 'Eigen volk door, vijand niet' : `Muur · ${d.hp} leven · sleep een lijn`;
   if (d.pop) return `+${d.pop} inwoners`;
@@ -83,7 +89,7 @@ function bDesc(k) {
   const d = B[k];
   return (d.desc ? d.desc + ' ' : '') + bShort(k) + (d.power ? ` · verbruikt ${d.power} stroom` : '');
 }
-const CATKEY = { home: 'Z', eco: 'X', light: 'C', mil: 'B' };
+const CATKEY = { home: 'Z', eco: 'X', light: 'C', mil: 'B', wonder: 'N' };
 function renderCats() {
   const hc = store.coachTile && B[store.coachTile].cat;
   setHTML($('#cats'), 'cats', 'b' + store.tab + hc, () =>
@@ -112,13 +118,19 @@ function renderBuilds() {
   const inTab = k => !B[k].nobuild && B[k].cat === store.tab && ruleAllowsBuilding(k);
   const avail = BKEYS.filter(k => inTab(k) && canMake(k, G.age)),
     next = BKEYS.filter(k => inTab(k) && B[k].age === G.age + 1);
+  // Wereldwonderen: hoe het ervoor staat (vrij, van jou, weg, of iemand bouwt eraan), zie game/wonders.js
+  const wonder = {};
+  for (const k of avail) if (B[k].wonder) wonder[k] = wonderStatus(k);
   const sig =
     'b' +
     store.tab +
     G.age +
     store.placing +
     store.coachTile +
-    avail.map(k => (has(buildCost(k)) ? 1 : 0)).join('');
+    avail.map(k => (has(buildCost(k)) ? 1 : 0)).join('') +
+    Object.values(wonder)
+      .map(w => w.short + w.tone + w.rival)
+      .join();
   setHTML(
     $('#cmdgrid'),
     'grid',
@@ -127,7 +139,15 @@ function renderBuilds() {
       avail
         .map(k => {
           const d = B[k];
-          return `<button class="gb ${store.placing === k ? 'active' : ''} ${has(buildCost(k)) ? '' : 'poor'} ${store.coachTile === k && store.placing !== k ? 'hint' : ''}" data-b="${k}" aria-pressed="${store.placing === k}" aria-label="${d.n}">${d.age === G.age && G.age > 0 ? '<span class="nw">nieuw</span>' : ''}<img src="${iconFor(k)}" alt=""><b>${hy(d.n)}</b></button>`;
+          const w = wonder[k];
+          // Een wonder dat al van iemand is, kun je niet meer neerzetten
+          const owned = w && w.owner ? (w.owner === 'you' ? 'mine' : 'taken') : '';
+          // Rechtsboven: hoe het ervoor staat, met het vaandel van de rivaal als het over hem gaat
+          const flag = w && w.rival && RIVAL[w.rival] ? ico(RIVAL[w.rival].g) : '';
+          const badge = w && w.short ? `<span class="wst ${w.tone}">${flag}${w.short}</span>` : '';
+          // Bij wonderen geen "nieuw": daar staat rechtsboven al hoe het ervoor staat (en ze botsen anders)
+          const isNew = d.age === G.age && G.age > 0 && !w;
+          return `<button class="gb ${w ? 'wonder' : ''} ${owned} ${store.placing === k ? 'active' : ''} ${has(buildCost(k)) || owned ? '' : 'poor'} ${store.coachTile === k && store.placing !== k ? 'hint' : ''}" data-b="${k}" aria-pressed="${store.placing === k}" aria-label="${d.n}${w ? ', ' + w.text : ''}">${isNew ? '<span class="nw">nieuw</span>' : ''}${badge}<img src="${iconFor(k)}" alt=""><b>${hy(d.n)}</b></button>`;
         })
         .join('') +
       (next.length && G.age < AGES.length - 1
@@ -161,6 +181,12 @@ function buildTileClick(c) {
     return;
   }
   const k = c.dataset.b;
+  // Een wereldwonder dat al van iemand is (of waar je al aan bouwt): zeg waarom het niet kan
+  const blocked = B[k].wonder && wonderBlockedNote(k);
+  if (blocked) {
+    toast(blocked);
+    return;
+  }
   store.placing = store.placing === k ? null : k;
   store.expandMode = false;
   const keepV = [...sel.vs];
@@ -215,6 +241,10 @@ $('#cmdgrid').addEventListener('pointerover', e => {
   const cost = buildCost(k);
   const lack = has(cost) ? '' : `<span class="lack">Nog ${lackText(cost)} nodig.</span>`;
   const key = idx >= 0 && idx < 9 ? `<span class="key">Sneltoets <kbd>${idx + 1}</kbd></span>` : '';
+  if (d.wonder) {
+    showTileTip(c, wonderTip(k, d.age > G.age ? when : costHTML(cost) + lack, key));
+    return;
+  }
   showTileTip(
     c,
     `<b>${d.n}</b><span>${esc(bDesc(k))}</span>${d.age > G.age ? when : costHTML(cost) + lack}${key}`,
@@ -223,6 +253,19 @@ $('#cmdgrid').addEventListener('pointerover', e => {
 $('#cmdgrid').addEventListener('pointerout', e => {
   if (!e.relatedTarget || !e.relatedTarget.closest || !e.relatedTarget.closest('.gb,.cb')) hideTip();
 });
+// Tooltip bij een wereldwonder: wat het is, de bonus, de bouwtijd, hoe het ervoor staat en de kosten
+function wonderTip(k, costPart, key) {
+  const d = B[k],
+    w = wonderStatus(k);
+  const status = `<span class="wtip ${w.tone}">${ico('★')}${esc(w.text)}</span>`;
+  // Van een rivaal: zeg erbij dat je het nog terug kunt krijgen
+  const winBack = w.owner && w.owner !== 'you' ? `<span>${esc(winBackText(k, w.owner))}</span>` : '';
+  // Bouwtijd in seconden, met je bouwbonussen erbij
+  const secs = builders => Math.round(wonderBuildTime(k, builders) / mul('build.speed'));
+  const time = `<span class="wtime">Bouwtijd: ${secs(WONDER_CREW)} s met ${WONDER_CREW} bouwers, ${secs(8)} s met 8. Een rivaal doet er ${rivalWonderTime(k)} s over.</span>`;
+  const rest = w.owner ? '' : time + costPart + key;
+  return `<b>${d.n}</b><span>${esc(d.desc)}</span><span class="wperk">Bonus: ${esc(d.perk)}.</span>${status}${winBack}${rest}`;
+}
 function hideTip() {
   delete $('#hovertip').dataset.tile;
   $('#hovertip').hidden = true;

@@ -38,12 +38,13 @@ export const verb = (rival, one, many) => (rival.plural ? many : one);
  * - army: hun aanvallen zijn zo groot (keer) · every: dagen tussen twee aanvallen · first: eerste aanval op deze dag
  * - grow: elke zoveel dagen een nieuw gebied · gifts: stuurt af en toe een geschenk
  * - extra: wat ze per tijdperk extra bouwen (home = woning, tower = toren, eco = werkplaats)
+ * - wonders: dit deel van hun inkomen sparen ze daarbovenop voor wereldwonderen (0 = bouwt geen wonderen)
  */
 export const PERSONALITIES = [
   {
     k: 'bouwer',
     n: 'Bouwer',
-    d: 'Bouwt veel en gaat sneller door de tijdperken. Valt om de 4 dagen aan.',
+    d: 'Bouwt veel, gaat sneller door de tijdperken en bouwt wereldwonderen. Valt om de 4 dagen aan.',
     econ: 1.25,
     war: 0.25,
     army: 0.9,
@@ -52,6 +53,7 @@ export const PERSONALITIES = [
     grow: 2,
     gifts: false,
     extra: ['home', 'eco'],
+    wonders: 0.5,
   },
   {
     k: 'krijger',
@@ -65,6 +67,7 @@ export const PERSONALITIES = [
     grow: 3,
     gifts: false,
     extra: ['tower'],
+    wonders: 0,
   },
   {
     k: 'handelaar',
@@ -78,6 +81,7 @@ export const PERSONALITIES = [
     grow: 3,
     gifts: true,
     extra: ['eco'],
+    wonders: 0,
   },
 ];
 export const PERSONALITY = Object.fromEntries(PERSONALITIES.map(p => [p.k, p]));
@@ -281,5 +285,9 @@ function shuffled(list, R) {
   return out;
 }
 
-/** Bouwbare gebouwen voor rivalen: geen muren, wegen, stamhuis of gebouwen op een bron (zoals een oliepomp). */
-export const rivalCanBuild = k => !!B[k] && !B[k].nobuild && !B[k].wall && !B[k].road && !B[k].needNode;
+/**
+ * Bouwbare gebouwen voor de bouwlijsten van rivalen: geen muren, wegen, stamhuis of gebouwen op een bron
+ * (zoals een oliepomp). Wereldwonderen ook niet: die bouwt alleen de Bouwer, apart (zie game/rivals.js).
+ */
+export const rivalCanBuild = k =>
+  !!B[k] && !B[k].nobuild && !B[k].wall && !B[k].road && !B[k].needNode && !B[k].wonder;
