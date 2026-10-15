@@ -16,7 +16,8 @@ window.__tp = {
   B,
   cam,
   world,
-  newGame,
+  // newGame() of newGame({ seed, people, diff, map, victories }); een getal is de seed
+  newGame: o => newGame(typeof o === 'number' ? { seed: o } : o),
   centerOn,
   place: (type, x, y) => placeBuilding(type, x, y, true),
 };
@@ -72,14 +73,20 @@ window.__tp.unlockPeoples = () => {
   }
   profile.saveProfile();
 };
-window.__tp.playAs = (people, diff = 1) => newGame(undefined, diff, people);
+window.__tp.playAs = (people, diff = 1) => newGame({ people, diff });
 // Prestaties en score: het profiel bekijken, alles kijken wat je nu haalt, of meteen winnen of verliezen
 import * as achievements from './game/achievements.js';
 window.__tp.profile = profile;
 window.__tp.achievements = achievements;
 window.__tp.checkAchievements = () => achievements.checkAchievements();
-window.__tp.endGame = (won = true) => {
-  if (won) G.won = true;
-  else G.over = true;
+window.__tp.endGame = (won = true, by = 'stargate') => {
+  if (won) {
+    G.won = true;
+    G.wonBy = by;
+  } else G.over = true;
   achievements.endGame(won, 0);
 };
+// Winnen: kijk nu of een gekozen doel gehaald is, of spring naar een dag (bijv. __tp.day(31) voor 30 nachten)
+import * as victory from './game/victory.js';
+window.__tp.victory = victory;
+window.__tp.day = n => (G.day = n);

@@ -1,4 +1,4 @@
-// Doelen linksboven: wat je nodig hebt voor het volgende tijdperk.
+// Doelen linksboven: wat je nodig hebt voor het volgende tijdperk, en hoe ver je bent met winnen.
 import { store } from '../core/store.js';
 import { sfx } from '../audio/sound.js';
 import { AGES, AGE_UP } from '../data/ages.js';
@@ -8,6 +8,7 @@ import { avail } from '../game/caches.js';
 import { CHAPTERS, built } from '../game/chapters.js';
 import { popNow } from '../game/entities.js';
 import { G } from '../game/state.js';
+import { victoryGoals } from '../game/victory.js';
 import { measureHud } from '../main.js';
 import { ageUp } from './age.js';
 import { andJoin, lackList, placed } from './coach.js';
@@ -62,27 +63,27 @@ export function renderChronicle() {
       Object.keys(nx.cost).filter(k => G.res[k] >= nx.cost[k]).length;
   }
   const miss = nx ? lackList(nx) : [];
-  const sig = JSON.stringify([
-    G.age,
-    rows,
-    ready,
-    allReq,
-    G.won,
-    fix,
-    miss,
-    placed('stargate'),
-    store.missionOpen,
-  ]);
+  const goals = goalsHTML();
+  const sig = JSON.stringify([G.age, rows, ready, allReq, G.won, fix, miss, goals, store.missionOpen]);
   setHTML($('#mission'), 'mission', sig, () => {
     if (!nx)
-      return `<button id="ageToggle" aria-expanded="${store.missionOpen}"><span class="oh">Laatste tijdperk</span><i>${store.missionOpen ? '▲' : '▼'}</i></button><div class="body"><p class="why">${CHAPTERS[G.age].s}</p><div class="reqs"><span class="ck ${built('stargate') ? 'ok' : placed('stargate') ? 'busy' : ''}">${built('stargate') ? ico('✓') : ''}</span><span>Sterrenpoort</span><span class="v">${built('stargate') ? 'klaar' : 'nodig'}</span></div>${G.won ? '<p class="why">Je beschaving heeft de hele geschiedenis doorlopen.</p>' : ''}</div>`;
+      return `${goals}<button id="ageToggle" aria-expanded="${store.missionOpen}"><span class="oh">Laatste tijdperk</span><i>${store.missionOpen ? '▲' : '▼'}</i></button><div class="body"><p class="why">${CHAPTERS[G.age].s}</p>${G.won ? '<p class="why">Je hebt gewonnen. Bouw gerust verder.</p>' : ''}</div>`;
     const A = AGES[G.age + 1];
-    return `<button id="ageToggle" aria-expanded="${store.missionOpen}"><span class="oh">Naar de ${A.n.toLowerCase()}</span><i>${AGES[G.age].r} → ${A.r} ${store.missionOpen ? '▲' : '▼'}</i></button><div class="body"><div class="ages">${AGES.map((a, i) => `<i class="${i <= G.age ? 'done' : ''}" title="${a.n}"></i>`).join('')}</div><p class="why">${A.sub}</p><div class="rqsum"><span>${ready} van ${total} eisen klaar</span><div class="bar ${ready >= total ? '' : 'acc'}"><i style="width:${(ready / total) * 100}%"></i></div></div>
+    // Het vak "Winnen" boven het tijdperk, zodat alles over het volgende tijdperk bij elkaar blijft
+    return `${goals}<button id="ageToggle" aria-expanded="${store.missionOpen}"><span class="oh">Naar de ${A.n.toLowerCase()}</span><i>${AGES[G.age].r} → ${A.r} ${store.missionOpen ? '▲' : '▼'}</i></button><div class="body"><div class="ages">${AGES.map((a, i) => `<i class="${i <= G.age ? 'done' : ''}" title="${a.n}"></i>`).join('')}</div><p class="why">${A.sub}</p><div class="rqsum"><span>${ready} van ${total} eisen klaar</span><div class="bar ${ready >= total ? '' : 'acc'}"><i style="width:${(ready / total) * 100}%"></i></div></div>
     <button class="primary" id="ageBtn" ${allReq ? '' : 'disabled'}>${allReq ? 'Ga naar de ' + A.n.toLowerCase() + ' →' : 'Nog ' + andJoin(miss) + ' nodig'}</button>
     ${fix ? `<button id="fixBtn">Gebied uitbreiden</button><p class="why">Er ligt nog geen ${RES[fix].n.toLowerCase()} binnen je grenzen.</p>` : ''}
     <div class="reqs">${rows.join('')}</div></div>`;
   });
   $('#mission').classList.toggle('closed', !store.missionOpen);
+}
+/** Zo win je: een klein vak met één korte regel per gekozen doel (zie data/victories.js) en hoe ver je bent. */
+function goalsHTML() {
+  const rows = victoryGoals().map(({ v, text }) => {
+    const won = G.won && G.wonBy === v.k;
+    return `<div class="wg ${won ? 'ok' : ''}" title="${v.d}">${ico(v.g)}<span>${v.n}</span><small>${won ? 'gewonnen' : text}</small></div>`;
+  });
+  return `<div class="wingoals"><span class="wgl">Winnen</span><div class="wgrows">${rows.join('')}</div></div>`;
 }
 $('#mission').addEventListener('click', e => {
   const t = e.target.closest('button');

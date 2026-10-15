@@ -10,6 +10,7 @@ import { CHAPTERS, built } from '../game/chapters.js';
 import { has, pay } from '../game/economy.js';
 import { popNow } from '../game/entities.js';
 import { G } from '../game/state.js';
+import { checkVictory } from '../game/victory.js';
 import { canUpg, roadTier } from '../game/upgrades.js';
 import { sigs } from './header.js';
 import { toast } from './hud.js';
@@ -45,6 +46,7 @@ export function enterNextAge() {
   computeAvail();
   onAgeChange();
   earnBlessing(); // het kiesvenster komt pas als de banner weg is (zie ui/blessings.js)
+  checkVictory(); // was dit tijdperk je doel (kort spel)? Dan meteen winnen
   setTimeout(
     () =>
       document.querySelectorAll('#resbar .res').forEach(el => {

@@ -1,13 +1,14 @@
 // De eindscore van een spel en de medaille die erbij hoort. Puur, zodat het te testen is.
+import { DIFFICULTIES } from './difficulty.js';
 
 /** Punten per onderdeel. Tijdperken tellen vanaf de Steentijd (0). Dagen kosten punten: hoe sneller, hoe beter. */
 export const POINTS = { age: 1000, wonders: 500, camps: 200, kills: 5, days: -15 };
 
-/** De moeilijkheden, zoals op het titelscherm. */
-export const DIFF_NAMES = ['Vredig', 'Normaal', 'Zwaar'];
+/** De moeilijkheden, zoals op het nieuw-spelscherm (zie data/difficulty.js). */
+export const DIFF_NAMES = DIFFICULTIES.map(d => d.n);
 
-/** De score gaat keer dit getal, per moeilijkheid (0 = Vredig, 1 = Normaal, 2 = Zwaar). */
-export const DIFF_FACTOR = [0.5, 1, 1.5];
+/** De score gaat keer dit getal, per moeilijkheid (0 = Vredig, 1 = Normaal, 2 = Zwaar, 3 = Meedogenloos). */
+export const DIFF_FACTOR = DIFFICULTIES.map(d => d.score);
 
 /** Medailles, van hoog naar laag. Onder de laagste grens krijg je geen medaille. */
 export const MEDALS = [

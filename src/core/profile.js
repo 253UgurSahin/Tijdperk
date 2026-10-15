@@ -71,13 +71,31 @@ export function addPeople(p, k) {
  * `game` = { score, medal, won, age, day, people, diff }. Geeft true als het een nieuw record is.
  */
 export function addResult(p, game, at = Date.now()) {
+  const record = raiseBest(p, game);
+  if (game.won) p.wins++;
+  p.recent.unshift({ ...game, at });
+  p.recent.length = Math.min(p.recent.length, RECENT);
+  return record;
+}
+
+/**
+ * Een spel dat al in het profiel staat opnieuw invullen, met een nieuwe score. Voor wie eerst een kort doel
+ * haalt en daarna doorspeelt tot de sterrenpoort. `at` zegt welk spel (zie addResult). Telt niet als extra
+ * gewonnen spel. Geeft true als het een nieuw record is.
+ */
+export function replaceResult(p, at, game) {
+  const record = raiseBest(p, game);
+  const i = p.recent.findIndex(old => old.at === at);
+  if (i >= 0) p.recent[i] = { ...game, at };
+  return record;
+}
+
+/** Beste scores ophogen (in totaal, per volk, per moeilijkheid). Geeft true als het een nieuw record is. */
+function raiseBest(p, game) {
   const record = game.score > p.best.score;
   p.best.score = Math.max(p.best.score, game.score);
   p.best.perPeople[game.people] = Math.max(p.best.perPeople[game.people] || 0, game.score);
   p.best.perDiff[game.diff] = Math.max(p.best.perDiff[game.diff] || 0, game.score);
-  if (game.won) p.wins++;
-  p.recent.unshift({ ...game, at });
-  p.recent.length = Math.min(p.recent.length, RECENT);
   return record;
 }
 

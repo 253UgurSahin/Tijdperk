@@ -19,10 +19,10 @@ import { TECH } from './tech.js';
 export const emptyFacts = () => ({
   age: 0, // tijdperk (0 = Steentijd)
   day: 1,
-  diff: 1, // 0 = Vredig, 1 = Normaal, 2 = Zwaar
+  diff: 1, // 0 = Vredig, 1 = Normaal, 2 = Zwaar, 3 = Meedogenloos
   peaceful: false, // vredige modus stond in dit spel aan (nu of eerder)
   people: DEFAULT_PEOPLE,
-  won: false, // Sterrenpoort gebouwd
+  won: false, // gewonnen met de Sterrenpoort (een kort spel of overleven telt hier niet)
   lost: false, // stamhuis gevallen
   villagers: 0, // dorpelingen nu
   soldiers: 0, // soldaten nu
@@ -105,8 +105,8 @@ export const ACHIEVEMENTS = [
     n: 'IJzeren wil',
     cat: 'win',
     g: '⛨',
-    d: 'Win op Zwaar, zonder vredige modus',
-    when: f => f.won && f.diff === 2 && !f.peaceful,
+    d: 'Win op Zwaar of Meedogenloos, zonder vredige modus',
+    when: f => f.won && f.diff >= 2 && !f.peaceful,
   },
   {
     k: 'win_walls',

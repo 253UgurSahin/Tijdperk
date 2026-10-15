@@ -12,13 +12,18 @@ Een real-time strategiespel in de browser: leid je stam van de **steentijd** naa
 - Zegeningen: na de eerste minuut en bij elk nieuw tijdperk kies je één van drie kaarten met een voordeel voor de
   rest van het spel (sommige met een nadeel erbij). Dezelfde wereld geeft dezelfde kaarten; je zegeningen staan
   bovenaan het paneel Verbeteren
-- Volken: kies op het titelscherm met welk volk je begint. Elk volk heeft eigen voordelen; de Noormannen trainen
+- Nieuwe wereld: kies je volk, moeilijkheid (Vredig, Normaal, Zwaar of Meedogenloos), kaart (Continent,
+  Eilanden of Bergland) en hoe je wint: de sterrenpoort bouwen, 30 nachten overleven of een kort spel tot de
+  Gouden Eeuw. Elke wereld heeft een zaadcode zoals `TP-7K2Q`: dezelfde code met dezelfde kaart geeft dezelfde
+  wereld, dus je kunt hem delen. Je ziet de code in het pauzemenu. Prestaties voor winnen tellen alleen met de
+  sterrenpoort; win je eerst met een kort doel, dan kun je daarvoor gewoon doorspelen
+- Volken: kies bij een nieuwe wereld met welk volk je begint. Elk volk heeft eigen voordelen; de Noormannen trainen
   zelfs een eigen soldaat (de Berserker). Friezen, Noormannen en Hanze zijn vrij; Bergvolk, Sterrenkijkers en
   Nomaden speel je vrij met prestaties
-- Prestaties en profiel: ruim 40 prestaties (elk tijdperk, winnen op Zwaar, winnen met elk volk, kampen veroveren,
-  aanvallen doorstaan, en een paar geheime). Je haalt ze in het spel met een eigen geluid en kaartje; op het
-  titelscherm zie je onder **Prestaties** wat je hebt, je beste scores en je laatste spellen. Het profiel blijft
-  bewaard, ook als je een nieuwe wereld begint
+- Prestaties en profiel: ruim 40 prestaties (elk tijdperk, winnen op Zwaar of hoger, winnen met elk volk,
+  kampen veroveren, aanvallen doorstaan, en een paar geheime). Je haalt ze in het spel met een eigen geluid en
+  kaartje; op het titelscherm zie je onder **Prestaties** wat je hebt, je beste scores en je laatste spellen. Het
+  profiel blijft bewaard, ook als je een nieuwe wereld begint
 - Eindscore: bij winst of verlies rekent het spel je score uit (tijdperken verder, kampen, vijanden, min de dagen,
   keer de moeilijkheid) en krijg je een medaille van brons, zilver of goud. Zet je de vredige modus aan, dan telt
   de score van dat spel half

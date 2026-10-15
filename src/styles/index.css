@@ -11,4 +11,5 @@
 @import './blessings.css';
 @import './peoples.css';
 @import './achievements.css';
+@import './newgame.css';
 @import './settings.css'; /* als laatste: de grootte-instelling moet boven de rest winnen */

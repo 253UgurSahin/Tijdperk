@@ -1,6 +1,7 @@
 // Dag en nacht, seizoenen en wanneer aanvallen komen.
 import { sfx } from '../audio/sound.js';
 import { DAYLEN } from '../config.js';
+import { difficulty } from '../data/difficulty.js';
 import { raidSize, spawnRaid } from './military.js';
 import { G } from './state.js';
 import { hasT } from './upgrades.js';
@@ -20,8 +21,9 @@ export function darkness(h = G.clock) {
   return 0.78;
 }
 export const isNight = () => darkness() > 0.42;
+// Op Zwaar en Meedogenloos elke nacht een aanval, anders om de nacht (zie data/difficulty.js)
 export const raidNight = (day = G.day) =>
-  !G.peaceful && day >= 2 && (G.diff === 2 || day % 2 === 0 || G.forceRaid === day);
+  !G.peaceful && day >= 2 && (difficulty(G.diff).everyNight || day % 2 === 0 || G.forceRaid === day);
 function crossed(p, c, h) {
   return p <= c ? p < h && c >= h : p < h || c >= h;
 }

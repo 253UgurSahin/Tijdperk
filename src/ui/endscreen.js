@@ -4,9 +4,11 @@ import { AGES } from '../data/ages.js';
 import { ACHIEVEMENT } from '../data/achievements.js';
 import { RES } from '../data/resources.js';
 import { DIFF_NAMES, MEDALS } from '../data/score.js';
+import { VICTORY } from '../data/victories.js';
 import { finishGame } from '../game/achievements.js';
 import { wipe } from '../game/save.js';
 import { G, placeName } from '../game/state.js';
+import { victoryFacts } from '../game/victory.js';
 import { achievementIcon, clearAchievementCards, medalHTML, scoreText } from './achievements.js';
 import { ageTimeline, fmt, gem } from './format.js';
 import { ico } from './glyphs.js';
@@ -100,24 +102,28 @@ function chartHTML(keys) {
     <div class="chartkey">${keys.map(k => `<span>${gem(k)}${RES[k].n}</span>`).join('')}</div>`;
 }
 
-/** Laat het eindscherm zien. `won`: gewonnen (Sterrenpoort) of verloren (stamhuis gevallen). */
+/** Laat het eindscherm zien. `won`: gewonnen (zie G.wonBy) of verloren (stamhuis gevallen). */
 export function showEndScreen(won) {
   const result = G.result || finishGame(); // meestal al bewaard bij het einde (zie game/achievements.js)
   // De kaartjes bovenin zijn niet meer nodig: hieronder staan alle nieuwe prestaties van dit spel
   if (clearAchievementCards()) sfx('achieve');
   const keys = chartKeys(G.age);
-  const last = AGES.length - 1;
+  // Waarmee je won (sterrenpoort, overleven of een kort spel) bepaalt de kop en het verhaal
+  const victory = VICTORY[G.wonBy] || VICTORY.stargate;
   const head = won
-    ? `<div class="eyebrow">Hoofdstuk ${AGES[last].r} voltooid</div><h1>Van vuursteen tot sterrenpoort.</h1>`
+    ? `<div class="eyebrow">${victory.end.eyebrow}</div><h1>${victory.end.title}</h1>`
     : `<div class="eyebrow">Dag ${G.day}</div><h1>Het stamhuis is gevallen.</h1>`;
   const story = won
-    ? `${placeName()} doorliep de hele geschiedenis in ${G.day} dagen.`
+    ? victory.end.story(victoryFacts())
     : `${placeName()} hield ${G.day} dagen stand en bereikte de ${AGES[G.age].n.toLowerCase()}. Bouw volgende keer eerder torens en een leger, of speel in de vredige modus.`;
+  // De tijdlijn: bij de sterrenpoort helemaal vol, anders tot waar je kwam
+  const timelineAge = won && victory.k === 'stargate' ? AGES.length - 1 : G.age;
+  // "Nieuwe wereld" opent meteen het nieuw-spelscherm: er gaat niets verloren, want het spel wordt eerst bewaard
   const buttons = won
-    ? `<button class="primary" data-m="close">Verder bouwen</button><button data-m="new">Nieuwe wereld</button>`
+    ? `<button class="primary" data-m="close">Verder bouwen</button><button data-m="newok">Nieuwe wereld</button>`
     : `<button class="primary" data-m="newok">Nieuwe wereld</button><button data-end="menu">Hoofdmenu</button>`;
   openModal(
-    `${head}<div class="sheettl">${ageTimeline(won ? last : G.age, true)}</div>
+    `${head}<div class="sheettl">${ageTimeline(timelineAge, true)}</div>
     <p>${story} ${fmt(G.stats.gathered)} grondstoffen verzameld, ${G.stats.killed} vijanden verslagen, ${G.stats.camps} kampen veroverd.</p>
     <div class="endscore">${scoreHeadHTML(result)}${scoreTableHTML(result)}</div>
     <div class="sect">Nieuwe prestaties <span>${G.achieved.length}</span></div>

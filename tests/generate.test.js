@@ -1,10 +1,18 @@
 import { describe, expect, it } from 'vitest';
 import { BIOME, MAX_START_DIST, TER, generateWorld, isPassable, startLimit } from '../src/world/generate.js';
+import { MAPS } from '../src/data/maps.js';
 import { NI } from '../src/data/nodes.js';
 
 const W = 256,
   H = 256;
 const worlds = [11, 4242, 987654].map(seed => [seed, generateWorld(seed, W, H)]);
+// Elke kaartsoort met twee seeds (het continent is hierboven al getest)
+const mapWorlds = MAPS.filter(m => m.k !== 'continent').flatMap(m =>
+  [5, 4242].map(seed => [`${m.n} ${seed}`, generateWorld(seed, W, H, m.k)]),
+);
+
+// Hoeveel van de kaart (als deel van 1) dit landschap heeft
+const share = (w, ...biomes) => w.biome.filter(b => biomes.includes(b)).length / (W * H);
 
 // Alle tegels die je vanaf de start lopend kunt bereiken
 function reachable(w) {
@@ -44,7 +52,40 @@ describe('wereldgenerator', () => {
     expect(worlds[0][1].ter).not.toEqual(worlds[1][1].ter);
   });
 
-  for (const [seed, w] of worlds) {
+  it('zonder kaartsoort is het een continent', () => {
+    const a = generateWorld(77, 128, 128),
+      b = generateWorld(77, 128, 128, 'continent'),
+      c = generateWorld(77, 128, 128, 'bestaat-niet');
+    expect(b.ter).toEqual(a.ter);
+    expect(c.ter).toEqual(a.ter);
+  });
+
+  it('zelfde seed en kaartsoort geeft dezelfde wereld, een andere kaartsoort een andere', () => {
+    for (const m of MAPS) {
+      const a = generateWorld(31, 128, 128, m.k),
+        b = generateWorld(31, 128, 128, m.k);
+      expect(a.ter, m.k).toEqual(b.ter);
+      expect(a.node, m.k).toEqual(b.node);
+    }
+    const continent = generateWorld(31, 128, 128, 'continent');
+    expect(generateWorld(31, 128, 128, 'islands').ter).not.toEqual(continent.ter);
+    expect(generateWorld(31, 128, 128, 'highlands').ter).not.toEqual(continent.ter);
+  });
+
+  it('eilanden hebben meer zee, bergland meer heuvels en bergen', () => {
+    for (const seed of [5, 4242]) {
+      const continent = generateWorld(seed, W, H, 'continent');
+      const islands = mapWorlds.find(([name]) => name === `Eilanden ${seed}`)[1];
+      const highlands = mapWorlds.find(([name]) => name === `Bergland ${seed}`)[1];
+      expect(share(islands, BIOME.WATER)).toBeGreaterThan(share(continent, BIOME.WATER) + 0.1);
+      expect(share(highlands, BIOME.HILLS, BIOME.MOUNTAIN)).toBeGreaterThan(
+        share(continent, BIOME.HILLS, BIOME.MOUNTAIN) + 0.1,
+      );
+      expect(share(highlands, BIOME.WATER)).toBeLessThan(share(continent, BIOME.WATER));
+    }
+  });
+
+  for (const [seed, w] of [...worlds, ...mapWorlds]) {
     it(`seed ${seed}: startplek is vrij, droog land`, () => {
       for (let dy = -3; dy <= 3; dy++)
         for (let dx = -3; dx <= 3; dx++) {

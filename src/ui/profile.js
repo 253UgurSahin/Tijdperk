@@ -93,7 +93,7 @@ function bestHTML(profile) {
     return `<div class="pbest diff"><span><small>${name}</small><b>${score ? scoreText(score) : '–'}</b></span></div>`;
   }).join('');
   return `<div class="sect">Beste score <span>per volk en per moeilijkheid</span></div>
-    <div class="pbests">${perPeople}</div><div class="pbests three">${perDiff}</div>`;
+    <div class="pbests">${perPeople}</div><div class="pbests diffs">${perDiff}</div>`;
 }
 
 /** Je laatste spellen als lijstje. */

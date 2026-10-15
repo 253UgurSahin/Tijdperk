@@ -69,7 +69,11 @@ export function bShort(k) {
   if (d.market) return 'Handel tegen goud';
   if (d.once) return '+30% verzamelsnelheid';
   if (d.pump) return 'Pompt olie op een bron';
-  if (d.win) return 'Voltooi je beschaving';
+  // Of de sterrenpoort laat winnen, hangt af van de doelen die je bij een nieuwe wereld koos
+  if (d.win)
+    return G.opts.victories.includes('stargate')
+      ? 'Hiermee win je'
+      : 'Winnen hiermee staat uit in deze wereld';
   return '';
 }
 function bDesc(k) {

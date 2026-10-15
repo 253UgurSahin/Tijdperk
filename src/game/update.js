@@ -20,6 +20,7 @@ import { dist } from '../util/math.js';
 import { amt, bmap, node, nodeLists } from '../world/world.js';
 import { updateMeteors } from './meteors.js';
 import { checkAchievements } from './achievements.js';
+import { checkVictory } from './victory.js';
 
 /** Onthoud waar alles stond vóór de volgende speltik, zodat de weergave ertussen kan tekenen. */
 export function rememberPositions() {
@@ -69,6 +70,7 @@ export function update(dt) {
   if (store.periodic <= 0) {
     store.periodic = 0.5;
     computeCaches();
+    checkVictory(); // een gekozen doel gehaald, zoals 30 nachten of de Gouden Eeuw?
   }
   store.slowP -= dt;
   if (store.slowP <= 0) {

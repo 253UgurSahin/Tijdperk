@@ -12,8 +12,9 @@ export { BIOME, TER };
 // ground: kleur van de grond per tegel (r, g, b)
 export let levels, ter, biome, elev, node, amt, bmap, ground, nodeLists, unreach, claims, blk, road;
 
-export function genWorld(seed) {
-  const w = generateWorld(seed, W, H);
+/** Maak de wereld uit een seed en een kaartsoort (zie data/maps.js). */
+export function genWorld(seed, mapKind) {
+  const w = generateWorld(seed, W, H, mapKind);
   ({ ter, biome, elev, node, amt, levels } = w);
   blk = new Uint8Array(W * H);
   road = new Uint8Array(W * H);

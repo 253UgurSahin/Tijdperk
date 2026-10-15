@@ -105,6 +105,20 @@ const PATHS = {
   '⌛': '<path d="M6 3h12M6 21h12"/><path d="M7.5 3c0 4.5 4.5 6 4.5 9s-4.5 4.5-4.5 9M16.5 3c0 4.5-4.5 6-4.5 9s4.5 4.5 4.5 9"/>',
   // kroon: alle volken
   '♛': '<path d="M4 18L3 7.5l5 4 4-6.5 4 6.5 5-4L20 18z"/><path d="M4 21h16"/>',
+  // Voor het nieuw-spelscherm
+  // een stuk land: de kaartsoort Continent
+  '⬟': '<path d="M5 8.5c2-3.5 6.5-4.5 9.5-2.5s6.5 1 6 5.5-2.5 7-6.5 7-4.5 1.8-7.5.8S2.8 15.5 3.3 12.5 4 10 5 8.5z"/>',
+  // twee eilandjes in de golven: de kaartsoort Eilanden
+  '≈': '<path d="M3.5 13c1.3-3.6 5.7-3.6 7 0M13 11c1.3-3.4 5.2-3.4 6.5 0"/><path d="M2 17c2-1.6 4-1.6 6 0s4 1.6 6 0 4-1.6 6 0"/>',
+  // bergen met sneeuw: de kaartsoort Bergland
+  '⛰': '<path d="M2 20l7-13 4 6.5 2.5-3.5L22 20z"/><path d="M6.6 11.5l2.4 1.5 2-1.5"/>',
+  // dobbelsteen: een willekeurige wereld
+  '⚄': '<rect x="4" y="4" width="16" height="16" rx="3.5"/><circle cx="8.8" cy="8.8" r="1.1" fill="currentColor"/><circle cx="15.2" cy="8.8" r="1.1" fill="currentColor"/><circle cx="12" cy="12" r="1.1" fill="currentColor"/><circle cx="8.8" cy="15.2" r="1.1" fill="currentColor"/><circle cx="15.2" cy="15.2" r="1.1" fill="currentColor"/>',
+  // maan: nachten overleven
+  '☾': '<path d="M19 14.5A7.5 7.5 0 1 1 9.5 5a6 6 0 0 0 9.5 9.5z"/>',
+  // pijl naar links: terug
+  '←': '<path d="M20 12H5M11 6l-6 6 6 6"/>',
+
   // vraagteken: geheime prestatie
   '?': '<path d="M9 9a3 3 0 1 1 4.2 2.8c-.8.4-1.2 1-1.2 1.9V15"/><circle cx="12" cy="18.6" r=".6" fill="currentColor"/>',
 };

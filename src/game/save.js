@@ -4,11 +4,13 @@ import { CX, CY, H, TH, TW, W } from '../config.js';
 import { ACHIEVEMENT } from '../data/achievements.js';
 import { BLESSING } from '../data/blessings.js';
 import { B } from '../data/buildings.js';
+import { cleanDiff } from '../data/difficulty.js';
 import { DEFAULT_PEOPLE, PEOPLE } from '../data/peoples.js';
 import { RKEYS } from '../data/resources.js';
+import { VICTORY } from '../data/victories.js';
 import { computeAvail, computeCaches } from './caches.js';
 import { spawnFoe, spawnUnit, spawnVillager } from './entities.js';
-import { G, bById, baseState, setGame } from './state.js';
+import { G, bById, baseState, gameOpts, setGame } from './state.js';
 import { setZoom } from '../input/input.js';
 import { clearSel } from '../input/selection.js';
 import { clampCam } from '../render/camera.js';
@@ -74,6 +76,8 @@ export function serialize() {
     'achieved',
     'result',
     'countedAsPlayed',
+    'opts',
+    'wonBy',
   ])
     g[k] = G[k];
   return JSON.stringify({
@@ -120,9 +124,15 @@ export function serialize() {
 export function deserialize(str) {
   const s = JSON.parse(str);
   if (s.v !== 4 || s.size !== W) return false;
+  // De keuzes van het nieuw-spelscherm. Opslag van daarvóór: volk en moeilijkheid uit het spel, de rest standaard
+  // (een continent, winnen met de sterrenpoort). De kaartsoort is nodig om dezelfde wereld te maken.
+  const opts = gameOpts(s.seed, { people: s.g.people, diff: s.g.diff, ...s.g.opts });
   setGame(baseState(s.seed));
-  genWorld(s.seed);
+  genWorld(s.seed, opts.map);
   Object.assign(G, s.g);
+  G.opts = opts;
+  // Al gewonnen in opslag van vóór de keuze: dat was altijd met de sterrenpoort
+  G.wonBy = G.won ? (VICTORY[s.g.wonBy] ? s.g.wonBy : 'stargate') : '';
   // Opslag van vóór de negen tijdperken: zet oude tijdperk- en vijandnummers om
   const fromOld = s.ages !== 9;
   if (fromOld) G.age = OLD_AGE[G.age] ?? G.age;
@@ -153,7 +163,7 @@ export function deserialize(str) {
   G.armsLvl = s.g.armsLvl || 0;
   G.tech = G.tech || {};
   G.buff = G.buff || {};
-  G.diff = G.diff == null ? 1 : G.diff;
+  G.diff = cleanDiff(G.diff);
   // Opslag van vóór deze teller: stond de vredige modus aan (of speel je Vredig), dan telt dat als gebruikt
   if (G.peaceful || G.diff === 0) G.stats.peaceUsed = true;
   G.event = null;

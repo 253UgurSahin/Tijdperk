@@ -260,8 +260,8 @@
   grid-template-columns: repeat(6, 1fr);
   gap: 8px;
 }
-.pbests.three {
-  grid-template-columns: repeat(3, 1fr);
+.pbests.diffs {
+  grid-template-columns: repeat(4, 1fr);
   margin-top: 8px;
 }
 .pbest {
@@ -295,12 +295,12 @@
   color: var(--ink-4);
 }
 /* Per volk: vaandel boven naam en score, zodat ook lange namen passen */
-.pbests:not(.three) .pbest {
+.pbests:not(.diffs) .pbest {
   flex-direction: column;
   gap: 4px;
   text-align: center;
 }
-.pbests:not(.three) .pbest > span {
+.pbests:not(.diffs) .pbest > span {
   align-items: center;
 }
 .pbest.locked {
@@ -595,7 +595,7 @@
   .pstile.wide {
     grid-column: 1 / -1;
   }
-  .pbests {
+  .pbests:not(.diffs) {
     grid-template-columns: repeat(3, 1fr);
   }
 }
@@ -619,6 +619,10 @@
   }
   .pbests {
     grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  /* Vier moeilijkheden: twee bij twee */
+  .pbests.diffs {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   /* Laatste spellen: de kolom met moeilijkheid en dag weglaten, en de uitslag mag over twee regels */
   .recent td:nth-child(3) {

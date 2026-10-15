@@ -1,10 +1,18 @@
 // Prestaties tijdens het spel: kijkt om de paar tellen wat je bereikt hebt, en rekent aan het eind je score uit.
-import { addAchievement, addPeople, addResult, getProfile, saveProfile } from '../core/profile.js';
+import {
+  addAchievement,
+  addPeople,
+  addResult,
+  getProfile,
+  replaceResult,
+  saveProfile,
+} from '../core/profile.js';
 import { ACHIEVEMENT, emptyFacts, fullAge, newAchievements } from '../data/achievements.js';
 import { BLESSING } from '../data/blessings.js';
 import { B } from '../data/buildings.js';
 import { PEOPLE } from '../data/peoples.js';
 import { gameScore } from '../data/score.js';
+import { VICTORY } from '../data/victories.js';
 import { G } from './state.js';
 import { showAchievement } from '../ui/achievements.js';
 import { showEndScreen } from '../ui/endscreen.js';
@@ -23,7 +31,8 @@ export function gameFacts() {
     diff: G.diff,
     peaceful: peaceUsed(),
     people: G.people,
-    won: G.won,
+    // Prestaties voor winnen tellen alleen een volledige overwinning (de sterrenpoort), geen kort spel
+    won: G.won && VICTORY[G.wonBy]?.full === true,
     lost: G.over,
     villagers: G.vs.length,
     soldiers: G.us.length,
@@ -70,13 +79,8 @@ function unlock(k) {
   note(`Prestatie behaald: ${achievement.n}.${people ? ` Nieuw volk: ${people.n}.` : ''}`, 'good');
 }
 
-/**
- * De eindscore van dit spel. Wordt één keer bewaard (bij winst of verlies, wat het eerst komt);
- * wie na het winnen doorspeelt, houdt de score van het moment van winnen.
- */
-export function finishGame() {
-  checkAchievements();
-  if (G.result) return G.result;
+/** De score van dit spel zoals hij nu is, en de regel die daarvan in het profiel komt. */
+function scoreNow() {
   // Stond de vredige modus ooit aan, dan telt de score als Vredig (ook als je hem later weer uitzette)
   const diff = peaceUsed() ? 0 : G.diff;
   const score = gameScore({
@@ -91,15 +95,39 @@ export function finishGame() {
     score: score.total,
     medal: score.medal ? score.medal.k : '',
     won: G.won,
+    wonBy: G.wonBy, // waarmee je won (zie data/victories.js)
     age: G.age,
     day: G.day,
     people: G.people,
     diff,
-    peaceful: diff === 0 && G.diff !== 0, // wel Normaal of Zwaar gekozen, maar met de vredige modus
+    peaceful: diff === 0 && G.diff !== 0, // wel een moeilijkheid met aanvallen gekozen, maar met de vredige modus
   };
-  const record = addResult(getProfile(), game);
+  return { score, game };
+}
+
+/** Wat het eindscherm nodig heeft: de profielregel plus de losse regels van de score. */
+const resultOf = (score, game, at, record) => ({
+  ...game,
+  at, // wanneer het spel in het profiel kwam, om die regel later terug te vinden
+  rows: score.rows,
+  raw: score.raw,
+  sum: score.sum,
+  factor: score.factor,
+  record,
+});
+
+/**
+ * De eindscore van dit spel. Wordt één keer bewaard (bij winst of verlies, wat het eerst komt);
+ * wie na het winnen doorspeelt, houdt de score van het moment van winnen (behalve bij upgradeWin).
+ */
+export function finishGame() {
+  checkAchievements();
+  if (G.result) return G.result;
+  const { score, game } = scoreNow();
+  const at = Date.now();
+  const record = addResult(getProfile(), game, at);
   saveProfile();
-  G.result = { ...game, rows: score.rows, raw: score.raw, sum: score.sum, factor: score.factor, record };
+  G.result = resultOf(score, game, at, record);
   return G.result;
 }
 
@@ -107,4 +135,24 @@ export function finishGame() {
 export function endGame(won, delay = 800) {
   finishGame();
   setTimeout(() => showEndScreen(won), delay);
+}
+
+/**
+ * Eerst gewonnen met een kort doel, daarna doorgespeeld en nu ook een volledig doel gehaald (de sterrenpoort).
+ * Dat telt alsnog als echte winst: de prestaties voor winnen komen vrij, en de score van nu vervangt
+ * die van het korte spel in je profiel. Daarna opnieuw het eindscherm.
+ */
+export function upgradeWin(wonBy, delay = 800) {
+  const before = G.result;
+  G.wonBy = wonBy;
+  if (!before) {
+    endGame(true, delay);
+    return;
+  }
+  checkAchievements();
+  const { score, game } = scoreNow();
+  const record = replaceResult(getProfile(), before.at, game);
+  saveProfile();
+  G.result = resultOf(score, game, before.at, record);
+  setTimeout(() => showEndScreen(true), delay);
 }

@@ -1,6 +1,13 @@
 // Tests voor prestaties, score en profiel: kloppen de gegevens, de som en het bijhouden van records?
 import { describe, expect, it } from 'vitest';
-import { addAchievement, addPeople, addResult, emptyProfile, normalizeProfile } from '../src/core/profile.js';
+import {
+  addAchievement,
+  addPeople,
+  addResult,
+  emptyProfile,
+  normalizeProfile,
+  replaceResult,
+} from '../src/core/profile.js';
 import {
   ACHIEVEMENT,
   ACHIEVEMENTS,
@@ -249,5 +256,27 @@ describe('profiel', () => {
     expect(p.recent.map(g => g.at)).toEqual([3, 2, 1]);
     for (let i = 0; i < 20; i++) addResult(p, game);
     expect(p.recent.length).toBeLessThanOrEqual(10);
+  });
+
+  it('een kort spel dat doorgaat tot de sterrenpoort vervangt zijn eigen regel', () => {
+    const p = emptyProfile();
+    const short = {
+      score: 5000,
+      medal: 'brons',
+      won: true,
+      wonBy: 'age',
+      age: 4,
+      day: 30,
+      people: 'hanze',
+      diff: 1,
+    };
+    addResult(p, { ...short, score: 2000, won: false }, 1);
+    addResult(p, short, 2);
+    const full = { ...short, score: 11000, medal: 'goud', wonBy: 'stargate', age: 8, day: 70 };
+    expect(replaceResult(p, 2, full)).toBe(true);
+    expect(p.recent.map(g => g.at)).toEqual([2, 1]);
+    expect(p.recent[0]).toMatchObject({ score: 11000, wonBy: 'stargate' });
+    expect(p.best.score).toBe(11000);
+    expect(p.wins).toBe(1); // nog steeds één gewonnen spel
   });
 });

@@ -1,9 +1,12 @@
 // De spelstand (G): alles wat er nu in de wereld is. Ook een nieuw spel starten.
 import { CN, CX, CY, TAU, W } from '../config.js';
 import { FIRST_BLESSING_AT } from '../data/blessings.js';
+import { cleanDiff, difficulty } from '../data/difficulty.js';
+import { cleanMap } from '../data/maps.js';
 import { PLACES } from '../data/names.js';
 import { DEFAULT_PEOPLE, PEOPLE } from '../data/peoples.js';
 import { RKEYS } from '../data/resources.js';
+import { cleanVictories } from '../data/victories.js';
 import { placeBuilding, spawnFoe, spawnVillager } from './entities.js';
 import { afterLoad } from './save.js';
 import { clearSel } from '../input/selection.js';
@@ -12,6 +15,7 @@ import { cam } from '../render/scene.js';
 import { note } from '../ui/hud.js';
 import { dist } from '../util/math.js';
 import { mulberry32 } from '../util/random.js';
+import { codeFromSeed, randomSeed } from '../util/seedcode.js';
 import { buildLists, genWorld, inb, node, passable } from '../world/world.js';
 
 export let G = null;
@@ -64,6 +68,7 @@ export function baseState(seed) {
     trainT: 0,
     peaceful: false,
     won: false,
+    wonBy: '', // waarmee je won (sleutel uit data/victories.js), of leeg
     over: false,
     bought: 0,
     hungry: false,
@@ -84,23 +89,41 @@ export function baseState(seed) {
     achieved: [], // prestaties die je in dít spel voor het eerst haalde
     result: null, // de eindscore, zodra het spel gewonnen of verloren is (zie game/achievements.js)
     countedAsPlayed: false, // telt dit spel al mee bij "gespeeld" in je profiel?
+    opts: gameOpts(seed), // de keuzes van het nieuw-spelscherm (zie gameOpts hieronder)
   };
   RKEYS.forEach(k => (g.res[k] = 0));
   return g;
 }
-export function newGame(seed, diff = 1, people = DEFAULT_PEOPLE) {
-  seed = seed || (Math.random() * 1e9) | 0;
+/**
+ * De keuzes voor een wereld, netjes gemaakt: wat ontbreekt of niet (meer) bestaat, wordt de standaard.
+ * people: volk · diff: moeilijkheid · map: kaartsoort · seedCode: zaadcode · victories: manieren om te winnen
+ */
+export function gameOpts(seed, o = {}) {
+  return {
+    people: PEOPLE[o.people] ? o.people : DEFAULT_PEOPLE,
+    diff: cleanDiff(o.diff),
+    map: cleanMap(o.map),
+    seedCode: codeFromSeed(seed),
+    victories: cleanVictories(o.victories),
+  };
+}
+
+/**
+ * Begin een nieuwe wereld. `o` zijn de keuzes van het nieuw-spelscherm: { seed, people, diff, map, victories }.
+ * Zonder seed komt er een willekeurige wereld.
+ */
+export function newGame(o = {}) {
+  const seed = Number.isInteger(o.seed) && o.seed >= 0 ? o.seed : randomSeed();
   G = baseState(seed);
+  G.opts = gameOpts(seed, o);
   // Het volk meteen zetten: zijn bonussen tellen mee voor alles wat hieronder gebouwd wordt
-  G.people = PEOPLE[people] ? people : DEFAULT_PEOPLE;
-  G.diff = diff;
-  G.peaceful = diff === 0;
+  G.people = G.opts.people;
+  G.diff = G.opts.diff;
+  const level = difficulty(G.diff);
+  G.peaceful = level.peaceful;
   G.stats.peaceUsed = G.peaceful;
   G.blessingQueue = [{ age: 0, at: FIRST_BLESSING_AT }];
-  Object.assign(
-    G.res,
-    diff === 2 ? { food: 150, wood: 120, stone: 40 } : { food: 200, wood: 160, stone: 60 },
-  );
+  Object.assign(G.res, level.start);
   // Startvoordeel van je volk: wat extra grondstoffen en soms extra dorpelingen
   const start = PEOPLE[G.people].start || {};
   for (const [r, n] of Object.entries(start.res || {})) G.res[r] += n;
@@ -112,7 +135,7 @@ export function newGame(seed, diff = 1, people = DEFAULT_PEOPLE) {
     [CN / 2, CN / 2],
   ])
     G.unl[y * CN + x] = 1;
-  genWorld(seed);
+  genWorld(seed, G.opts.map);
   buildLists();
   bById.clear();
   placeBuilding('townhall', CX - 1, CY - 1, true);

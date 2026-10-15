@@ -501,7 +501,7 @@ export const B = {
     light: 10,
     cost: { steel: 600, starmetal: 500, fusion: 200, chips: 200 },
     h: 120,
-    desc: 'Het eindpunt van je beschaving: een poort naar de sterren. Bouw dit om te winnen.',
+    desc: 'Het eindpunt van je beschaving: een poort naar de sterren.',
   },
   palisade: {
     n: 'Palissade',

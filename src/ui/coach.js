@@ -8,6 +8,8 @@ import { popCap, popNow } from '../game/entities.js';
 import { G } from '../game/state.js';
 import { hoursUntilRaid, isNight } from '../game/time.js';
 import { fmt } from './format.js';
+import { VICTORY } from '../data/victories.js';
+import { victoryGoals } from '../game/victory.js';
 import { canMake } from '../data/succession.js';
 
 export const placed = k => G.bs.some(b => b.type === k);
@@ -168,31 +170,7 @@ export function coach() {
         act: bAct('barracks'),
       };
   }
-  if (!nx) {
-    if (!placed('stargate')) {
-      const cost = B.stargate.cost;
-      for (const k in cost) {
-        if (G.res[k] >= cost[k]) continue;
-        const step = sourceStep(k, fmt(Math.ceil(cost[k] - G.res[k])), 'de sterrenpoort');
-        if (step) return step;
-      }
-      const miss = Object.keys(cost)
-        .filter(k => G.res[k] < cost[k])
-        .map(k => `${fmt(Math.ceil(cost[k] - G.res[k]))} ${RES[k].n.toLowerCase()}`);
-      return {
-        t: 'Bouw de sterrenpoort.',
-        h: miss.length
-          ? `Daarmee voltooi je je beschaving. Nog ${andJoin(miss)} nodig.`
-          : 'Daarmee voltooi je je beschaving.',
-        tile: 'stargate',
-        act: bAct('stargate'),
-      };
-    }
-    return {
-      t: G.won ? 'Je beschaving is voltooid.' : 'De sterrenpoort wordt gebouwd.',
-      h: G.won ? 'Bouw gerust verder.' : 'Nog even geduld.',
-    };
-  }
+  if (!nx) return lastAgeStep();
   for (const n of nx.need)
     if (!placed(n)) {
       // Kun je het gebouw nog niet betalen? Zeg dan eerst waar de ontbrekende grondstof vandaan komt.
@@ -240,5 +218,40 @@ export function coach() {
     t: `Klaar voor de ${NA}!`,
     h: 'Alles is binnen. Zet de stap naar een nieuw tijdperk.',
     act: { l: `Naar de ${NA}`, k: 'age' },
+  };
+}
+
+/** De stap in het laatste tijdperk: de sterrenpoort bouwen, of het doel dat nog over is. */
+function lastAgeStep() {
+  const stargateGoal = G.opts.victories.includes('stargate');
+  // Echt klaar: gewonnen met de sterrenpoort, of met een ander doel als de sterrenpoort niet meetelt
+  if (G.won && (VICTORY[G.wonBy]?.full || !stargateGoal))
+    return { t: 'Je hebt gewonnen.', h: 'Bouw gerust verder.' };
+  if (!stargateGoal) {
+    // Winnen met de sterrenpoort staat uit: wijs naar het doel dat nog over is (zoals overleven)
+    const goal = victoryGoals().find(g => g.frac < 1);
+    return {
+      t: goal ? `${goal.v.d}.` : 'Bouw gerust verder.',
+      h: `${goal ? `Nu: ${goal.text}. ` : ''}Winnen met de sterrenpoort staat uit in deze wereld.`,
+    };
+  }
+  if (built('stargate')) return { t: 'De sterrenpoort staat.', h: 'Bouw gerust verder.' };
+  if (placed('stargate')) return { t: 'De sterrenpoort wordt gebouwd.', h: 'Nog even geduld.' };
+  const cost = B.stargate.cost;
+  for (const k in cost) {
+    if (G.res[k] >= cost[k]) continue;
+    const step = sourceStep(k, fmt(Math.ceil(cost[k] - G.res[k])), 'de sterrenpoort');
+    if (step) return step;
+  }
+  const miss = Object.keys(cost)
+    .filter(k => G.res[k] < cost[k])
+    .map(k => `${fmt(Math.ceil(cost[k] - G.res[k]))} ${RES[k].n.toLowerCase()}`);
+  // Al gewonnen met een kort doel? Dan telt de sterrenpoort nog voor de prestaties (zie game/victory.js)
+  const why = G.won ? 'Dan telt je winst ook voor de prestaties.' : 'Daarmee voltooi je je beschaving.';
+  return {
+    t: 'Bouw de sterrenpoort.',
+    h: miss.length ? `${why} Nog ${andJoin(miss)} nodig.` : why,
+    tile: 'stargate',
+    act: bAct('stargate'),
   };
 }

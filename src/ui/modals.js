@@ -3,7 +3,9 @@ import { store } from '../core/store.js';
 import { setSound, setVolume, sfx, sndOn } from '../audio/sound.js';
 import { SET, applyLayoutSettings, resetSet, saveSet } from '../core/settings.js';
 import { AGES } from '../data/ages.js';
-import { DEFAULT_PEOPLE, PEOPLE, isPeopleUnlocked } from '../data/peoples.js';
+import { MAP } from '../data/maps.js';
+import { DEFAULT_PEOPLE, isPeopleUnlocked } from '../data/peoples.js';
+import { DIFF_NAMES } from '../data/score.js';
 import { SKEY, load, save, wipe } from '../game/save.js';
 import { G, newGame, placeName } from '../game/state.js';
 import { setView } from '../input/input.js';
@@ -13,7 +15,8 @@ import { ico } from './glyphs.js';
 import { sigs } from './header.js';
 import { setSpeed, toast } from './hud.js';
 import { togglePanel } from './panel.js';
-import { peopleBarHTML, peoplePickHTML, playerProfile, showPeoplePicker } from './peoples.js';
+import { newGameDraft, showNewGame } from './newgame.js';
+import { peopleBarHTML, playerProfile } from './peoples.js';
 import { achievementCount, showProfile } from './profile.js';
 import { $, isCompact } from '../util/dom.js';
 import { LEVELS, setQuality } from '../render/quality.js';
@@ -82,10 +85,12 @@ $('#modal').addEventListener('click', e => {
       ? (t.querySelector('span').textContent = 'Zeker? Klik nogmaals')
       : (t.textContent = 'Zeker? Klik nogmaals');
   } else if (m === 'newok') {
-    wipe();
-    newGame(undefined, G.diff, G.people); // zelfde moeilijkheid en volk; een ander volk kies je in het hoofdmenu
+    // Naar het nieuw-spelscherm. Een verloren spel hoeft niet bewaard; anders kun je nog terug ("Verder spelen").
+    if (G.over) wipe();
+    else save();
     prevSpeed = 1;
     closeModal();
+    showTitle({ setup: true });
   } else if (m === 'help') showHelp();
   else if (m === 'settings') showSettings();
   else if (m === 'profile') showProfile({ back: openPause });
@@ -167,8 +172,11 @@ export function openPause() {
         <button class="mbtn" data-m="pl"><span>Dorp en leger</span><small>verdediging · onderzoek</small></button>
       </div>`
     : '';
+  // Je wereld in één regel, zodat je de zaadcode kunt delen
+  const world = `Zaadcode <b>${G.opts.seedCode}</b> · ${MAP[G.opts.map].n} · ${DIFF_NAMES[G.diff]}`;
   openModal(`<div class="eyebrow">${placeName()} · dag ${G.day} · ${AGES[G.age].n}</div><h1>Gepauzeerd</h1>
   <p>${stats}</p>
+  <p class="pworld">${world}</p>
   ${peopleBarHTML()}
   <div class="mstack" style="margin-top:18px">
     <button class="mbtn primary" data-m="close"><span>Hervatten</span><small>terug naar het spel</small></button>
@@ -344,7 +352,11 @@ function changeSetting(k, v) {
   if (k === 'coach' || k === 'uiScale' || k === 'hudWide') setTimeout(measureHud, 30);
 }
 
-export function showTitle() {
+/**
+ * Het titelscherm: verder spelen, een nieuwe wereld, prestaties, uitleg en instellingen.
+ * Met `setup` opent meteen het nieuw-spelscherm (zie ui/newgame.js).
+ */
+export function showTitle({ setup = false } = {}) {
   const has_ = (() => {
     try {
       return !!localStorage.getItem(SKEY);
@@ -352,36 +364,30 @@ export function showTitle() {
       return false;
     }
   })();
-  let diff = G ? G.diff : 1;
-  // Begin met het volk van je laatste spel, als je dat (nog) mag kiezen
-  let people = G && isPeopleUnlocked(G.people, playerProfile()) ? G.people : DEFAULT_PEOPLE;
+  // Zonder opslag ligt er al een verse wereld achter het titelscherm: die zaadcode bieden we als eerste aan
+  const fresh = !has_ && G && G.t <= 5;
+  const draft = newGameDraft(fresh);
   const el = $('#title');
   setSpeed(0);
   el.hidden = false;
   document.body.classList.add('titled');
-  const D = [
-    ['Vredig', 'Geen aanvallen. Alleen bouwen.'],
-    ['Normaal', 'Om de nacht een aanval.'],
-    ['Zwaar', 'Elke nacht, grotere groepen.'],
-  ];
-  const draw = () => {
+  const leaveTitle = () => {
+    el.hidden = true;
+    document.body.classList.remove('titled');
+    setSpeed(1);
+  };
+  const drawHome = () => {
     const continueButton = has_
-      ? `<button class="mbtn primary" data-t="cont"><span>Verder spelen</span><small>${placeName()} · dag ${G.day} · ${AGES[G.age].n}</small></button>`
+      ? `<button class="mbtn primary" data-t="cont"><span>Verder spelen</span><small>${placeName()} · dag&nbsp;${G.day} · ${AGES[G.age].n}</small></button>`
       : '';
-    const diffButtons = D.map(
-      (d, i) =>
-        `<button class="${i === diff ? 'on' : ''}" data-d="${i}"><b>${d[0]}</b><small>${d[1]}</small></button>`,
-    ).join('');
     el.innerHTML = `<div class="tw">
     <div class="tag">Van vuursteen tot sterrenpoort</div>
     <div class="logo">Tijdperken</div>
     <div class="agesrow">${ageTimeline(has_ ? G.age : 0, true)}<div class="tlends"><span>vuursteen</span><span>sterrenpoort</span></div></div>
     <div class="mstack">
       ${continueButton}
-      <button class="mbtn ${has_ ? '' : 'primary'}" data-t="new"><span>${has_ ? 'Nieuwe wereld' : 'Begin'}</span><small>${PEOPLE[people].n} · ${D[diff][0].toLowerCase()}</small></button>
+      <button class="mbtn ${has_ ? '' : 'primary'}" data-t="new"><span>Nieuwe wereld</span><small class="whole">volk · kaart · doel</small></button>
     </div>
-    <div><div class="eyebrow" style="margin-bottom:6px">Volk</div>${peoplePickHTML(people)}</div>
-    <div><div class="eyebrow" style="margin-bottom:6px">Moeilijkheid</div><div class="diff">${diffButtons}</div></div>
     <div class="mstack">
       <button class="mbtn" data-t="profile"><span>Prestaties</span><small>${achievementsLine()}</small></button>
       <div class="mpair">
@@ -391,54 +397,33 @@ export function showTitle() {
     </div>
     <div class="tfoot">Negen tijdperken · seizoenen · muren · onderzoek · voortgang wordt in deze browser bewaard</div>
     </div>`;
+    el.onclick = onHomeClick;
+    el.oninput = el.onchange = el.onkeydown = null;
   };
-  // Na het profielscherm: misschien is je profiel gewist, en is je gekozen volk weer op slot
-  const redraw = () => {
-    if (!isPeopleUnlocked(people, playerProfile())) people = DEFAULT_PEOPLE;
-    draw();
-  };
-  draw();
-  el.onclick = e => {
+  const openSetup = () =>
+    showNewGame(el, draft, {
+      onBack: drawHome,
+      onStart: opts => {
+        // Voor de zekerheid: nooit beginnen met een volk dat (weer) op slot zit
+        if (!isPeopleUnlocked(opts.people, playerProfile())) opts.people = DEFAULT_PEOPLE;
+        wipe();
+        newGame(opts);
+        leaveTitle();
+      },
+    });
+  const onHomeClick = e => {
     const t = e.target.closest('button');
     if (!t) return;
     sfx('tick');
-    if (t.dataset.d !== undefined) {
-      diff = +t.dataset.d;
-      draw();
-      return;
-    }
-    if (t.dataset.t === 'help') {
-      showHelp();
-      return;
-    }
-    if (t.dataset.t === 'settings') {
-      showSettings();
-      return;
-    }
-    if (t.dataset.t === 'profile') {
-      // Hoe het venster ook dichtgaat (Klaar, Esc of een klik ernaast): daarna het titelscherm opnieuw tekenen
-      showProfile({ onClose: redraw });
-      return;
-    }
-    if (t.dataset.t === 'people') {
-      showPeoplePicker(people, k => {
-        people = k;
-        draw();
-      });
-      return;
-    }
-    if (t.dataset.t === 'new') {
-      // Voor de zekerheid: nooit beginnen met een volk dat (weer) op slot zit
-      if (!isPeopleUnlocked(people, playerProfile())) people = DEFAULT_PEOPLE;
-      // Zonder opslag ligt er al een verse wereld achter het titelscherm: die houden we (zelfde zaadcode)
-      const fresh = !has_ && G.t <= 5;
-      wipe();
-      newGame(fresh ? G.seed : undefined, diff, people);
-    }
-    el.hidden = true;
-    document.body.classList.remove('titled');
-    setSpeed(1);
+    if (t.dataset.t === 'help') showHelp();
+    else if (t.dataset.t === 'settings') showSettings();
+    // Hoe het venster ook dichtgaat (Klaar, Esc of een klik ernaast): daarna het titelscherm opnieuw tekenen
+    else if (t.dataset.t === 'profile') showProfile({ onClose: drawHome });
+    else if (t.dataset.t === 'new') openSetup();
+    else if (t.dataset.t === 'cont') leaveTitle();
   };
+  if (setup) openSetup();
+  else drawHome();
 }
 $('#menuBtn').onclick = () => openPause();
 export function showHelp() {
@@ -449,7 +434,8 @@ export function showHelp() {
   <p>Herken iedereen aan de schijf eronder: <b>blauw</b> is jouw leger, <b>rood</b> is de vijand, licht zijn je dorpelingen. Soms valt er een <b>meteoriet</b>: rond de krater liggen daarna nieuwe ertsen.</p>
   <p><b>Muren</b> houden vijanden echt tegen: ze moeten erdoorheen hakken. Bouw een <b>poort</b> zodat je eigen mensen erdoor kunnen. <b>Wegen</b> laten iedereen sneller lopen. In het paneel <b>Verbeteren</b> zie je per verbetering precies wat ze oplevert (nu → straks): werktuigen, wapens, gebouwen en uitvindingen, en soms vraagt een <b>gebeurtenis</b> om een keuze.</p>
   <p>Elk nieuw tijdperk ontgrendelt <b>verbeteringen</b> voor wat je al hebt: gebouwen gaan een niveau omhoog, je dorpelingen krijgen betere werktuigen en je leger beter pantser. Een pijltje boven een gebouw betekent dat er een verbetering klaarstaat.</p>
-  <p>Je speelt met een <b>volk</b> dat je op het titelscherm kiest. Elk volk heeft eigen voordelen; je ziet ze onder <b>Menu</b>, en in het overzicht onderin als je niets hebt geselecteerd.</p>
+  <p>Bij een <b>nieuwe wereld</b> kies je je volk, de moeilijkheid, de kaart en hoe je wint: de sterrenpoort bouwen, 30 nachten overleven of een kort spel tot de Gouden Eeuw. Je doelen staan op de doelenkaart onder <b>Winnen</b> (op een telefoon: knop <b>Doel</b>). Met dezelfde <b>zaadcode</b> krijg je dezelfde wereld; je vindt hem onder <b>Menu</b>.</p>
+  <p>Elk <b>volk</b> heeft eigen voordelen; je ziet ze onder <b>Menu</b>, en in het overzicht onderin als je niets hebt geselecteerd.</p>
   <p>Onderweg haal je <b>prestaties</b>, zoals een nieuw tijdperk of een veroverd kamp. Sommige spelen een nieuw volk vrij. Aan het eind krijg je een <b>score</b> en misschien een medaille. Alles staat onder <b>Prestaties</b> in het menu.</p>
   <p>Na je eerste minuut en bij elk nieuw tijdperk kies je een <b>zegening</b>: één van drie kaarten met een voordeel voor de rest van het spel. Sommige hebben ook een nadeel. Je zegeningen staan bovenaan <b>Verbeteren</b>.</p>
   <div class="keys"><kbd>Slepen</kbd><span>Selectiekader (met Shift: erbij)</span><kbd>Rechts slepen · WASD</kbd><span>Kaart verschuiven · scroll om te zoomen</span><kbd>Klik</kbd><span>Bekijken en selecteren</span><kbd>Dubbelklik · Ctrl-klik</kbd><span>Alles van dat soort in beeld</span><kbd>Rechtsklik</kbd><span>Opdracht: lopen, aanvallen, verzamelen</span><kbd>Q · I</kbd><span>Hele leger · stilstaande dorpelingen</span><kbd>E</kbd><span>Gebied uitbreiden</span><kbd>V</kbd><span>Bovenaanzicht aan of uit</span><kbd>Spatie · [ ]</kbd><span>Pauze · langzamer / sneller</span><kbd>1 – 9</kbd><span>Gebouw uit de bouwbalk kiezen</span><kbd>Ctrl+F1 – F5 · F1 – F5</kbd><span>Groep instellen · groep selecteren (twee keer: ernaartoe)</span><kbd>S · F · R</kbd><span>Leger: stop · aanvalsmars · patrouille</span><kbd>Shift-klik trainen</kbd><span>Vijf eenheden tegelijk in de wachtrij</span><kbd>Slepen bij muur of weg</kbd><span>Hele lijn in één keer bouwen</span><kbd>Delete</kbd><span>Sloopmodus (of: geselecteerd gebouw afbreken)</span><kbd>Z X C B</kbd><span>Bouwcategorie wisselen</span><kbd>P · M</kbd><span>Paneel · geluid</span><kbd>Esc</kbd><span>Annuleren</span></div>

@@ -4,6 +4,7 @@ import { sfx } from '../audio/sound.js';
 import { CN, CX, CY, H, W } from '../config.js';
 import { SET } from '../core/settings.js';
 import { B } from '../data/buildings.js';
+import { difficulty } from '../data/difficulty.js';
 import { RES } from '../data/resources.js';
 import { FOES, UNITS, bonusMul } from '../data/units.js';
 import { endGame } from './achievements.js';
@@ -472,7 +473,8 @@ export function spawnRaid() {
   G.raids++;
   const a = G.age,
     n = raidSize(),
-    scale = Math.min(2.5, 1 + G.raids * 0.05), // elke aanval iets taaier, maar niet eindeloos
+    // Elke aanval iets taaier, maar niet eindeloos. Op Meedogenloos hebben aanvallers meer levens.
+    scale = Math.min(2.5, 1 + G.raids * 0.05) * difficulty(G.diff).raidHp,
     edge = [];
   for (let y = 0; y < H; y++)
     for (let x = 0; x < W; x++) {
@@ -496,11 +498,11 @@ export function spawnRaid() {
 }
 // Hoe groot de volgende aanval is: groeit met elke aanval en elk tijdperk, maar blijft te overzien.
 // (Latere vijanden zijn per stuk al veel sterker, dus het aantal groeit rustig.)
-export const raidSize = () =>
-  Math.min(
-    30,
-    Math.round((2 + Math.floor((G.raids + 1) * 0.9) + G.age) * (G.diff === 2 ? 1.4 : 1) * mul('raid.size')),
-  );
+export function raidSize() {
+  const diff = difficulty(G.diff); // Zwaar en Meedogenloos sturen grotere groepen
+  const base = 2 + Math.floor((G.raids + 1) * 0.9) + G.age;
+  return Math.min(diff.raidMax, Math.round(base * diff.raidSize * mul('raid.size')));
+}
 function compass(x, y) {
   const a = (Math.atan2(y - CY, x - CX) * 180) / Math.PI;
   const dirs = [

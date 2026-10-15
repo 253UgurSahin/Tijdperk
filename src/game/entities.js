@@ -5,11 +5,11 @@ import { W } from '../config.js';
 import { B } from '../data/buildings.js';
 import { NAMES } from '../data/names.js';
 import { FOES, UNITS } from '../data/units.js';
-import { endGame } from './achievements.js';
 import { fxRing } from './fx.js';
 import { G, bById } from './state.js';
 import { add, mul } from './bonus.js';
 import { armsMul, bMaxHp, bPop } from './upgrades.js';
+import { checkVictory } from './victory.js';
 import { toast } from '../ui/hud.js';
 import { clamp } from '../util/math.js';
 import { bmap, node, setBlk } from '../world/world.js';
@@ -66,10 +66,8 @@ export function completeBuilding(b, silent) {
     sfx('done');
     if (d.snd === 'creak') sfx('creak'); // de wieken van een nieuwe molen gaan draaien
   }
-  if (d.win && !G.won) {
-    G.won = true;
-    endGame(true, 800);
-  }
+  // De sterrenpoort: winnen, als dat een van de gekozen doelen is (zie game/victory.js)
+  if (d.win) checkVictory();
   store.uiDirty = true;
 }
 export function spawnVillager(x, y) {
