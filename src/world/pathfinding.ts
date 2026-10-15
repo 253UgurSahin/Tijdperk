@@ -1,6 +1,6 @@
 import type { Mobile, Path, Tile } from '../types';
 // Padvinding: hoe dorpelingen en soldaten om obstakels heen lopen (A*-zoekmethode).
-import { store } from '../core/store';
+import { screenRight } from '../core/view';
 import { H, W } from '../config';
 import { mul } from '../game/bonus';
 import { clamp } from '../util/math';
@@ -125,7 +125,7 @@ export function follow(e: Mobile, dt: number, spd: number): boolean {
     d = Math.hypot(dx, dy),
     st = spd * dt;
   {
-    const sd = store.V2 ? dx : dx - dy;
+    const sd = screenRight(dx, dy);
     if (sd) e.dir = sd < 0 ? -1 : 1;
   }
   if (d <= st) {

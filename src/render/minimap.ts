@@ -1,5 +1,6 @@
 // De minikaart rechtsonder.
 import { store } from '../core/store';
+import { viewYaw } from '../core/view';
 import { CN, H, W } from '../config';
 import { NODES } from '../data/nodes';
 import { RES } from '../data/resources';
@@ -14,6 +15,8 @@ import { RIVAL } from '../data/rivals';
 import { ownerAt, rbById, rivalById } from '../game/rivals';
 
 const mini = $<HTMLCanvasElement>('#mini'),
+  // De naald van het kompas op de minikaart (staat in index.html)
+  needle = document.querySelector<SVGSVGElement>('#compass .needle')!,
   mctx = mini.getContext('2d')!,
   mbuf = document.createElement('canvas');
 mbuf.width = W;
@@ -21,12 +24,25 @@ mbuf.height = H;
 const mbctx = mbuf.getContext('2d')!,
   mimg = mbctx.createImageData(W, H);
 let MW: number = 200,
-  MH: number = 200;
+  MH: number = 200,
+  needleYaw = NaN;
 /** De zes getallen voor setTransform: van kaarttegels naar pixels op de minikaart. */
 type Transform2D = [number, number, number, number, number, number];
+/**
+ * De minikaart draait mee met het beeld: wat op het scherm boven is, is ook op de minikaart boven.
+ * Hij wordt zo groot dat de gedraaide kaart er precies in past (schuin is dat een ruit).
+ */
+function miniScale(): number {
+  const a = viewYaw();
+  return MW / (W * (Math.abs(Math.cos(a)) + Math.abs(Math.sin(a))));
+}
 function miniXf(): Transform2D {
-  const k = MW / (2 * W);
-  return store.V2 ? [MW / W, 0, 0, MH / H, 0, 0] : [k, k, -k, k, MW / 2, 0];
+  const a = viewYaw(),
+    k = miniScale(),
+    c = Math.cos(a) * k,
+    s = Math.sin(a) * k;
+  // Draaien rond het midden van de kaart, en dat midden in het midden van de minikaart zetten
+  return [c, s, -s, c, MW / 2 - (c * W) / 2 + (s * H) / 2, MH / 2 - (s * W) / 2 - (c * H) / 2];
 }
 // Vaste kleuren voor bronnen op de minikaart (één keer uitgerekend)
 const hex = (c: string): [number, number, number] => [
@@ -146,27 +162,30 @@ export function renderMini() {
     clamp(p[1], -20, H + 20),
   ]);
   mctx.strokeStyle = '#f3ead2';
-  mctx.lineWidth = 1.6 / (MW / (2 * W));
+  mctx.lineWidth = 2.2 / miniScale();
   mctx.beginPath();
   pts.forEach((p, k) => (k ? mctx.lineTo(p[0], p[1]) : mctx.moveTo(p[0], p[1])));
   mctx.closePath();
   mctx.stroke();
   mctx.setTransform(1, 0, 0, 1, 0, 0);
+  // Het kompas wijst naar het noorden (de bovenkant van de kaart): in 3D draait het mee met het beeld
+  const yaw = viewYaw();
+  if (yaw !== needleYaw) {
+    needleYaw = yaw;
+    needle.style.transform = `rotate(${yaw}rad)`;
+  }
 }
 function miniTo(e: PointerEvent) {
   const r = mini.getBoundingClientRect(),
     X = ((e.clientX - r.left) / r.width) * MW,
     Y = ((e.clientY - r.top) / r.height) * MH;
-  let x: number, y: number;
-  if (store.V2) {
-    x = X / (MW / W);
-    y = Y / (MH / H);
-  } else {
-    const k = MW / (2 * W),
-      u = X - MW / 2;
-    x = (u / k + Y / k) / 2;
-    y = (Y / k - u / k) / 2;
-  }
+  // Terugrekenen: eerst het midden eraf, dan de draaiing en de schaal van miniXf ongedaan maken
+  const [c, s, , , ox, oy] = miniXf(),
+    k2 = c * c + s * s,
+    u = X - ox,
+    v = Y - oy,
+    x = (c * u + s * v) / k2,
+    y = (c * v - s * u) / k2;
   centerOn(clamp(x, 0, W), clamp(y, 0, H), true);
 }
 mini.addEventListener('pointerdown', e => {

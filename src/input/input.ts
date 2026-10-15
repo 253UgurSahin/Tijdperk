@@ -2,7 +2,7 @@ import type { Tile } from '../types';
 // Muis, touch en toetsenbord.
 import { store } from '../core/store';
 import { setSound, sfx, sndOn } from '../audio/sound';
-import { CS } from '../config';
+import { CS, TAU } from '../config';
 import { B } from '../data/buildings';
 import { placeLine } from '../game/placement';
 import { G, bById, sel } from '../game/state';
@@ -18,7 +18,17 @@ import {
   unitAt,
   villAt,
 } from './selection';
-import { centerOn, clampCam, s2iso, s2t, updateCamera } from '../render/camera';
+import {
+  TURN_STEP,
+  centerOn,
+  clampCam,
+  resetTurn,
+  s2iso,
+  s2t,
+  turnCamera,
+  turnCameraSmooth,
+  updateCamera,
+} from '../render/camera';
 import { cam, cv } from '../render/scene';
 import { setTab } from '../ui/buildmenu';
 import { sigs } from '../ui/header';
@@ -42,6 +52,13 @@ interface PinchDrag {
   /** Het punt tussen de twee vingers op het scherm. */
   mx: number;
   my: number;
+  /**
+   * Draaien met twee vingers (in 3D): de hoek tussen de vingers bij het begin en de vorige keer,
+   * en of het beeld al meedraait.
+   */
+  a0: number;
+  ang: number;
+  twist: boolean;
 }
 /** Wat een klik of sleep met één knop of vinger bijhoudt: beginpunt (sx, sy) en laatste punt (lx, ly). */
 interface Press {
@@ -55,9 +72,12 @@ interface Press {
   /** Hoeveel pixels er al gesleept is. */
   moved: number;
 }
-/** Klikken (nog niet beslist), de kaart verschuiven of een selectiekader trekken; t0 = wanneer het begon. */
+/**
+ * Klikken (nog niet beslist), de kaart verschuiven, een selectiekader trekken of het beeld draaien
+ * (middelste muisknop in 3D); t0 = wanneer het begon.
+ */
 interface PressDrag extends Press {
-  mode: 'pending' | 'pan' | 'box';
+  mode: 'pending' | 'pan' | 'box' | 'turn';
   t0: number;
 }
 /** Een muur of weg trekken, van tegel t0 naar tegel t1. */
@@ -74,6 +94,10 @@ function local(e: MouseEvent): [number, number] {
   const r = cv.getBoundingClientRect();
   return [e.clientX - r.left, e.clientY - r.top];
 }
+// Het verschil tussen twee hoeken, tussen -180° en +180°
+const angleDiff = (a: number, b: number) => ((((a - b + Math.PI) % TAU) + TAU) % TAU) - Math.PI;
+// Zo ver draait het beeld per pixel slepen met de middelste muisknop
+const TURN_PER_PX = 0.008;
 cv.addEventListener('contextmenu', e => e.preventDefault());
 cv.addEventListener('pointerdown', e => {
   cv.setPointerCapture(e.pointerId);
@@ -81,13 +105,17 @@ cv.addEventListener('pointerdown', e => {
   ptrs.set(e.pointerId, { x: sx, y: sy });
   mouse.touch = e.pointerType === 'touch';
   if (ptrs.size === 2) {
-    const [p, q] = [...ptrs.values()];
+    const [p, q] = [...ptrs.values()],
+      ang = Math.atan2(q.y - p.y, q.x - p.x);
     drag = {
       mode: 'pinch',
       d0: dist(p.x, p.y, q.x, q.y),
       z0: cam.z,
       mx: (p.x + q.x) / 2,
       my: (p.y + q.y) / 2,
+      a0: ang,
+      ang,
+      twist: false,
     };
     return;
   }
@@ -103,7 +131,8 @@ cv.addEventListener('pointerdown', e => {
     moved: 0,
     t0: performance.now(),
   };
-  if (e.button === 1) drag.mode = 'pan';
+  // Middelste muisknop: in 3D draaien, in het bovenaanzicht schuiven
+  if (e.button === 1) drag.mode = store.V2 ? 'pan' : 'turn';
   if (e.button === 0 && e.shiftKey && !store.placing && !store.expandMode) drag.mode = 'box';
   // Muur of weg trekken: t0 is dan de begintegel in plaats van de begintijd.
   if (e.button === 0 && store.placing && (B[store.placing].wall || B[store.placing].road)) {
@@ -132,6 +161,16 @@ cv.addEventListener('pointermove', e => {
       my = (p.y + q.y) / 2,
       before = s2t(drag.mx, drag.my);
     setZoom((drag.z0 * dist(p.x, p.y, q.x, q.y)) / drag.d0);
+    // Draaien met twee vingers (alleen in 3D). Pas na een duidelijke draai, zodat knijpen gewoon zoomt.
+    const ang = Math.atan2(q.y - p.y, q.x - p.x);
+    if (!drag.twist && Math.abs(angleDiff(ang, drag.a0)) > 0.2) {
+      drag.twist = true;
+      drag.ang = ang;
+    }
+    if (drag.twist) {
+      turnCamera(angleDiff(ang, drag.ang));
+      drag.ang = ang;
+    }
     updateCamera();
     const after = s2t(mx, my);
     cam.tx = null;
@@ -161,6 +200,11 @@ cv.addEventListener('pointermove', e => {
     const box = mouse.touch ? held : press.btn === 0 && SET.dragSelect !== false;
     press.mode = box && !store.placing && !store.expandMode ? 'box' : 'pan';
     if (press.mode === 'pan') cv.style.cursor = 'grabbing';
+  }
+  if (press.mode === 'turn') {
+    turnCamera(dx * TURN_PER_PX);
+    updateCamera();
+    cv.style.cursor = 'ew-resize';
   }
   if (press.mode === 'pan') {
     const a0 = s2t(press.lx, press.ly),
@@ -249,13 +293,30 @@ $('#zHome').onclick = () => {
   const t = G.bs.find(b => b.type === 'townhall');
   if (t) centerOn(t.x + 1, t.y + 1);
 };
+// Knoppen op de minikaart: 2D of 3D, draaien, en het kompas zet de draaiing terug
+$('#view2d').onclick = () => {
+  if (!store.V2) setView(true);
+};
+$('#view3d').onclick = () => {
+  if (store.V2) setView(false);
+};
+$('#rotL').onclick = () => turnCameraSmooth(-TURN_STEP);
+$('#rotR').onclick = () => turnCameraSmooth(TURN_STEP);
+$('#compass').onclick = () => resetTurn();
+// Hoe je draait, in een paar woorden: met vingers op een touchscherm, anders met muis en toetsen
+const TURN_HOW = matchMedia('(pointer:coarse)').matches
+  ? 'draai met twee vingers'
+  : 'draai met de middelste muisknop of met , en .';
+/** Bovenaanzicht (2D, true) of 3D-aanzicht (false). Wordt onthouden in de browser. */
 export function setView(v2: boolean, quiet?: boolean) {
   store.V2 = !!v2;
   document.body.classList.toggle('v2', store.V2);
+  $('#view2d').setAttribute('aria-pressed', String(store.V2));
+  $('#view3d').setAttribute('aria-pressed', String(!store.V2));
   try {
     localStorage.setItem('tijdperken-view', store.V2 ? '2d' : '3d');
   } catch (e) {}
-  if (!quiet) toast(store.V2 ? 'Bovenaanzicht aan.' : 'Schuin aanzicht aan.');
+  if (!quiet) toast(store.V2 ? 'Bovenaanzicht (2D) aan.' : `3D-aanzicht aan: ${TURN_HOW}.`);
   store.uiDirty = true;
 }
 addEventListener('keydown', e => {
@@ -325,6 +386,8 @@ addEventListener('keydown', e => {
   } else if (k === 'h' || k === '?') showHelp();
   else if (k === 'e') setExpand(!store.expandMode);
   else if (k === 'v') setView(!store.V2);
+  // Draaien met , en . (zie main.ts); in het bovenaanzicht gaat eerst het 3D-aanzicht aan
+  else if ((k === ',' || k === '.') && store.V2) setView(false);
   else if (k === 'm') setSound(!sndOn);
   else if (k === 'z' || k === 'x' || k === 'c' || k === 'b' || k === 'n') {
     const t = { z: 'home', x: 'eco', c: 'light', b: 'mil', n: 'wonder' }[k];

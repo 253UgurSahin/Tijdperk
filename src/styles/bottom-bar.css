@@ -256,6 +256,75 @@
     0 0 0 3px var(--paper-hi),
     0 0 0 4px var(--rule-2);
 }
+/* Knoppen in de hoeken van de minikaart: 2D of 3D, het kompas en draaien (alleen in 3D) */
+#miniBox {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+.viewseg {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  display: flex;
+}
+.viewseg button,
+.mmb {
+  min-height: 26px;
+  padding: 0 7px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  box-shadow: 0 1px 0 var(--paper-edge);
+}
+.viewseg button:first-child {
+  border-radius: var(--r-sm) 0 0 var(--r-sm);
+}
+.viewseg button:last-child {
+  border-radius: 0 var(--r-sm) var(--r-sm) 0;
+  margin-left: -1px;
+}
+.viewseg button[aria-pressed='true'] {
+  background: var(--acc);
+  color: var(--on-acc);
+  border-color: var(--acc-edge);
+}
+.mmb {
+  position: absolute;
+  width: 26px;
+  padding: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+}
+.mmb .ico,
+.mmb .needle {
+  width: 15px;
+  height: 15px;
+}
+.mmb .needle {
+  width: 19px;
+  height: 19px;
+}
+#compass {
+  top: 6px;
+  right: 6px;
+}
+#rotL {
+  bottom: 6px;
+  left: 6px;
+}
+#rotR {
+  bottom: 6px;
+  right: 6px;
+}
+/* In het bovenaanzicht staat het noorden altijd boven: dan valt er niets te draaien */
+body.v2 #compass,
+body.v2 #rotL,
+body.v2 #rotR {
+  display: none;
+}
 .mapbtns {
   display: flex;
   gap: 5px;

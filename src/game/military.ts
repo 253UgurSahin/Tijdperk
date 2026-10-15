@@ -1,6 +1,7 @@
 import type { Building, Camp, Cost, Foe, Mobile, Projectile, Target, Tile, Unit, Villager } from '../types';
 // Gevechten: soldaten, vijanden, torens en projectielen.
 import { store } from '../core/store';
+import { screenRight } from '../core/view';
 import { sfx } from '../audio/sound';
 import { CN, CX, CY, H, W } from '../config';
 import { SET } from '../core/settings';
@@ -385,7 +386,7 @@ function chase(e: Unit | Foe, p: { x: number; y: number }, dt: number, spd: numb
       d = Math.hypot(dx, dy) || 1;
     e.x += (dx / d) * spd * dt;
     e.y += (dy / d) * spd * dt;
-    e.dir = (store.V2 ? dx : dx - dy) < 0 ? -1 : 1;
+    e.dir = screenRight(dx, dy) < 0 ? -1 : 1;
     return;
   }
   e.pt -= dt;
@@ -443,7 +444,7 @@ export function moveToward(
     }
     e.x += (dx / d) * st;
     e.y += (dy / d) * st;
-    e.dir = (store.V2 ? dx : dx - dy) < 0 ? -1 : 1;
+    e.dir = screenRight(dx, dy) < 0 ? -1 : 1;
     return false;
   }
   if (!e.path) {

@@ -84,8 +84,9 @@ import { RKEYS } from './data/resources';
 import { deserialize, load, save, serialize } from './game/save';
 import { G, newGame, sel } from './game/state';
 import { rememberPositions, update } from './game/update';
-import { drag, keys, mouse } from './input/input';
-import { clampCam, panScreen, s2t, updateCamera } from './render/camera';
+import { drag, keys, mouse, setView } from './input/input';
+import { TURN_SPEED, clampCam, panScreen, s2t, turnCamera, updateCamera, updateTurn } from './render/camera';
+import { viewYaw } from './core/view';
 import { renderMini } from './render/minimap';
 import { render } from './render/render';
 import { cam, worldEl } from './render/scene';
@@ -113,6 +114,7 @@ let lastT = performance.now(),
   acc = 0,
   uiT = 0,
   miniT = 0,
+  miniYaw = NaN, // de draaiing waarmee de minikaart het laatst getekend is
   saveT = 0;
 const edge = { x: -1, y: -1 };
 addEventListener('mousemove', e => {
@@ -144,7 +146,11 @@ function frame(now: number) {
       else if (edge.y > innerHeight - m) ky += 1;
     }
     if (kx || ky) panScreen(kx * pp, ky * pp);
+    // Draaien met , en . (alleen in 3D; in het bovenaanzicht zet de toets eerst 3D aan, zie input.ts)
+    const turn = (keys.has('.') ? 1 : 0) - (keys.has(',') ? 1 : 0);
+    if (turn) turnCamera(turn * TURN_SPEED * rdt * (SET.camSpeed || 1));
   }
+  updateTurn(rdt);
   if (!$('#title').hidden) {
     cam.x += Math.cos(now / 9000) * 0.4 * rdt;
     cam.y += Math.sin(now / 7000) * 0.3 * rdt;
@@ -216,8 +222,11 @@ function frame(now: number) {
   }
   measure('ui', t0);
   miniT -= rdt;
-  if (miniT <= 0) {
+  // Draait het beeld, dan draait de minikaart vlot mee (anders is hij elke 0,4 seconde genoeg)
+  const turned = viewYaw() !== miniYaw;
+  if (miniT <= 0 || (turned && miniT < 0.35)) {
     miniT = 0.4;
+    miniYaw = viewYaw();
     t0 = performance.now();
     renderMini();
     measure('mini', t0);
@@ -297,7 +306,7 @@ function start(data?: HotData) {
   try {
     if (localStorage.getItem('tijdperken-view') === '2d') store.V2 = true;
   } catch (e) {}
-  document.body.classList.toggle('v2', store.V2);
+  setView(store.V2, true); // zonder melding: zet alleen de knoppen 2D/3D goed
   let ok = false;
   if (data && data.save) {
     try {

@@ -163,7 +163,55 @@
             <div id="cmdgrid"></div>
           </section>
           <section id="mapPanel" class="hud" aria-label="Kaart">
-            <canvas id="mini" width="344" height="344" aria-label="Overzichtskaart"></canvas>
+            <div id="miniBox">
+              <canvas id="mini" width="344" height="344" aria-label="Overzichtskaart"></canvas>
+              <!-- Aanzicht: bovenaanzicht (2D) of 3D; in 3D kun je draaien, het kompas zet de draaiing terug -->
+              <div class="viewseg" role="group" aria-label="Aanzicht">
+                <button id="view2d" aria-pressed="false" title="Bovenaanzicht (V)">2D</button
+                ><button id="view3d" aria-pressed="true" title="3D-aanzicht (V)">3D</button>
+              </div>
+              <button
+                id="compass"
+                class="mmb"
+                aria-label="Draaiing terugzetten"
+                title="Noorden · klik om de draaiing terug te zetten"
+              >
+                <svg class="needle" viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M12 2.5l4.2 9.5H7.8z" fill="#d1493c" />
+                  <path d="M12 21.5L7.8 12h8.4z" fill="currentColor" opacity="0.45" />
+                </svg>
+              </button>
+              <button id="rotL" class="mmb" aria-label="Draai linksom" title="Draai linksom (,)">
+                <svg
+                  class="ico"
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2.2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path d="M3 4v6h6" />
+                  <path d="M3.5 15a9 9 0 1 0 2.1-9.4L3 10" />
+                </svg>
+              </button>
+              <button id="rotR" class="mmb" aria-label="Draai rechtsom" title="Draai rechtsom (.)">
+                <svg
+                  class="ico"
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2.2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path d="M21 4v6h-6" />
+                  <path d="M20.5 15a9 9 0 1 1-2.1-9.4L21 10" />
+                </svg>
+              </button>
+            </div>
             <div class="mapbtns">
               <button id="zOut" aria-label="Uitzoomen" title="Uitzoomen">−</button
               ><button id="zIn" aria-label="Inzoomen" title="Inzoomen">+</button

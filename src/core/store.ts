@@ -18,7 +18,11 @@ export interface Store {
   histT: number;
   shake: number;
   TM: number;
+  /** Bovenaanzicht (2D) aan? Anders het 3D-aanzicht. */
   V2: boolean;
+  /** Draaiing van de 3D-camera rond het midden van het beeld (radialen), en waar hij naartoe draait. */
+  yaw: number;
+  tyaw: number | null;
   nodeSnap: Uint8Array | null;
   nodeAge: number;
   seasonSig: string;
@@ -64,6 +68,8 @@ export const store: Store = {
   shake: 0,
   TM: 0,
   V2: false,
+  yaw: Math.PI / 4, // het vaste schuine aanzicht van vroeger (zie core/view.ts)
+  tyaw: null,
   nodeSnap: null,
   nodeAge: -1,
   seasonSig: '',

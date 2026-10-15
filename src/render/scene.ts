@@ -1,6 +1,7 @@
 // De 3D-scène (three.js): renderer, licht en camera-instellingen.
 import * as T3 from 'three';
 import { store } from '../core/store';
+import { screenRight } from '../core/view';
 import { $ } from '../util/dom';
 import { CX, CY } from '../config';
 import { resizePost } from './post';
@@ -24,7 +25,8 @@ export interface CamState {
   anchor?: [number, number] | null;
 }
 export const cam: CamState = { x: CX, y: CY, z: 1, tx: null, ty: null };
-export const scrX = (x: number, y: number): number => (store.V2 ? x : x - y);
+/** Hoe ver een punt naar rechts ligt op het scherm (voor vergelijken), bij de draaiing van nu. */
+export const scrX = (x: number, y: number): number => screenRight(x, y);
 const LOWQ = matchMedia('(pointer:coarse)').matches;
 export const R3 = new T3.WebGLRenderer({ canvas: cv, antialias: !LOWQ, powerPreference: 'high-performance' });
 R3.shadowMap.enabled = true;
