@@ -1,4 +1,5 @@
 // Rivaliserende beschavingen in het spel: hun land, economie, gebouwen, leger, aanvallen en hun val.
+import type { Cost, Foe, Path, Rival, RivalBuilding, RivalMode, Unit, Villager } from '../types';
 import { store } from '../core/store';
 import { sfx } from '../audio/sound';
 import { CN, CS, DAYLEN, H, W } from '../config';
@@ -49,10 +50,43 @@ import { note, toast } from '../ui/hud';
 import { dist } from '../util/math';
 import { findPath, follow } from '../world/pathfinding';
 import { pickRivalSites } from '../world/rivalsites';
+import type { RivalSite } from '../world/rivalsites';
 import { blk, bmap, isUnl, node, passable, ter } from '../world/world';
 
+/** Een gebouw van een rivaal zoals het in de opslag staat (zie saveRivals). */
+interface SavedRivalBuilding {
+  id: number;
+  type: string;
+  x: number;
+  y: number;
+  hp: number;
+  mhp: number;
+  done: boolean;
+  prog: number;
+  bt: number;
+}
+/** Een soldaat van een rivaal zoals hij in de opslag staat (zie saveRivals). */
+interface SavedRivalUnit {
+  /** Soort soldaat (sleutel uit UNITS). */
+  k: string;
+  x: number;
+  y: number;
+  hp: number;
+  mhp: number;
+  mode: RivalMode;
+  hx: number;
+  hy: number;
+  until: number;
+  pace: number;
+}
+/** Een rivaal in de opslag: alles van de rivaal, met zijn gebouwen en soldaten als gewone gegevens. */
+export interface SavedRival extends Omit<Rival, 'bs'> {
+  bs: SavedRivalBuilding[];
+  units?: SavedRivalUnit[];
+}
+
 // Rivaalgebouwen op nummer (voor aanklikken en de minikaart). Ze staan niet in G.bs: dat zijn alleen de jouwe.
-export const rbById = new Map();
+export const rbById = new Map<number, RivalBuilding>();
 // Van wie is elk gebied? 0 = van niemand (of van jou, zie G.unl), anders het nummer van een rivaal
 const owner = new Uint8Array(CN * CN);
 // Zo lang een aanval duurt (speltijd) voordat de overlevenden naar huis gaan
@@ -64,36 +98,39 @@ let secondTimer = 0;
 // ---- Opzoeken ----
 
 /** De rivaal met dit nummer (1, 2 of 3), of null. */
-export const rivalById = id => (G && G.rivals ? G.rivals.find(r => r.id === id) : null) || null;
+export const rivalById = (id: number | null | undefined): Rival | null =>
+  (G && G.rivals ? G.rivals.find(r => r.id === id) : null) || null;
 /** De kleur van een rivaal, op nummer (voor de weergave). */
-export const rivalColour = id => {
+export const rivalColour = (id: number | null | undefined): string => {
   const r = rivalById(id);
   return r ? RIVAL[r.k].c : '#888888';
 };
 /** Het stamhuis van een rivaal, of null als het er niet meer staat. */
-export const rivalHall = r => r.bs.find(b => b.type === 'townhall') || null;
+export const rivalHall = (r: Rival): RivalBuilding | null => r.bs.find(b => b.type === 'townhall') || null;
 /** Alle soldaten van een rivaal die nog meedoen. */
-export const rivalArmy = r => G.foes.filter(f => f.rival === r.id && !f.retreat && !f.dead);
+export const rivalArmy = (r: Rival): Foe[] => G.foes.filter(f => f.rival === r.id && !f.retreat && !f.dead);
 /** "de IJzertijd" of "het Dronetijdperk": het tijdperk met het goede lidwoord. */
-export const ageWithArticle = age => (AGES[age].n.endsWith('tijdperk') ? 'het ' : 'de ') + AGES[age].n;
+export const ageWithArticle = (age: number): string =>
+  (AGES[age].n.endsWith('tijdperk') ? 'het ' : 'de ') + AGES[age].n;
 
 /** Van welke rivaal is gebied `ci`? Geeft de rivaal, of null. */
-export const landOwner = ci => (owner[ci] ? rivalById(owner[ci]) : null);
+export const landOwner = (ci: number): Rival | null => (owner[ci] ? rivalById(owner[ci]) : null);
 /** Het nummer van de rivaal die tegel (x, y) bezit, of 0. */
-export const ownerAt = (x, y) => (x < 0 || y < 0 || x >= W || y >= H ? 0 : owner[(y >> 4) * CN + (x >> 4)]);
+export const ownerAt = (x: number, y: number): number =>
+  x < 0 || y < 0 || x >= W || y >= H ? 0 : owner[(y >> 4) * CN + (x >> 4)];
 
 /** Is dit land bewoond, van jou of van een rivaal? Dan tekent de wereld het in vol licht (wildernis is donkerder). */
-export const settled = (x, y) => isUnl(x, y) || ownerAt(x, y) !== 0;
+export const settled = (x: number, y: number): boolean => isUnl(x, y) || ownerAt(x, y) !== 0;
 
 /** Een korte tekst per gebied (van jou, van een rivaal of van niemand): verandert die, dan tekent de grond opnieuw. */
-export function landSig() {
+export function landSig(): string {
   let s = '';
   for (let c = 0; c < CN * CN; c++) s += G.unl[c] ? '1' : owner[c] ? String(owner[c] + 1) : '0';
   return s;
 }
 
 // Zet de tabel "van wie is welk gebied" opnieuw, na een verandering
-function rebuildLand() {
+function rebuildLand(): void {
   owner.fill(0);
   for (const r of G.rivals || []) if (!r.dead) for (const c of r.chunks) owner[c] = r.id;
   store.mapVersion++;
@@ -102,10 +139,10 @@ function rebuildLand() {
 // ---- Een nieuw spel ----
 
 /**
- * Zet bij een nieuw spel `count` rivalen neer, ver van je stamhuis (zie world/rivalsites.js).
+ * Zet bij een nieuw spel `count` rivalen neer, ver van je stamhuis (zie world/rivalsites.ts).
  * Kampen die op hun land liggen, verdwijnen: daar wonen nu zij.
  */
-export function setupRivals(count, seed) {
+export function setupRivals(count: number, seed: number): void {
   G.rivals = [];
   rbById.clear();
   if (!count) {
@@ -127,10 +164,10 @@ export function setupRivals(count, seed) {
   rebuildLand();
 }
 
-function newRival(id, pick, site) {
+function newRival(id: number, pick: { k: string; p: string }, site: RivalSite): Rival {
   return {
     id, // klein nummer: soldaten en gebouwen verwijzen hiernaar
-    k: pick.k, // naam en kleur (data/rivals.js)
+    k: pick.k, // naam en kleur (data/rivals.ts)
     p: pick.p, // karakter: bouwer, krijger of handelaar
     age: 0,
     bank: 0, // spaarpot voor gebouwen en tijdperken (in waarde, zie costValue)
@@ -156,8 +193,8 @@ function newRival(id, pick, site) {
 }
 
 // Kampen op het land van een rivaal weghalen, met hun bewakers
-function removeCampsOn(chunks) {
-  const gone = new Set();
+function removeCampsOn(chunks: number[]): void {
+  const gone = new Set<number>();
   for (const c of G.camps) {
     const ci = ((c.y + 1) >> 4) * CN + ((c.x + 1) >> 4);
     if (c.alive && chunks.includes(ci)) {
@@ -172,20 +209,27 @@ function removeCampsOn(chunks) {
 }
 
 // Bomen en rotsen rond hun stamhuis weg, zodat er een pleintje is
-function clearAround(cx, cy, r) {
+function clearAround(cx: number, cy: number, r: number): void {
   for (let y = Math.floor(cy - r); y <= cy + r; y++)
     for (let x = Math.floor(cx - r); x <= cx + r; x++)
       if (x >= 0 && y >= 0 && x < W && y < H && dist(x + 0.5, y + 0.5, cx, cy) <= r) node[y * W + x] = 0;
 }
 
 // Leven van hun stamhuis: groeit met elk tijdperk
-const hallHp = age => Math.round(B.townhall.hp * (1 + 0.4 * age));
+const hallHp = (age: number): number => Math.round(B.townhall.hp * (1 + 0.4 * age));
 
 // ---- Gebouwen ----
 
-function addBuilding(r, type, x, y, done, id = G.nid++) {
+function addBuilding(
+  r: Rival,
+  type: string,
+  x: number,
+  y: number,
+  done: boolean,
+  id = G.nid++,
+): RivalBuilding {
   const d = B[type];
-  const b = {
+  const b: RivalBuilding = {
     id,
     kind: 'rb', // gebouw van een rivaal (jouw gebouwen zijn 'b')
     rival: r.id,
@@ -212,7 +256,7 @@ function addBuilding(r, type, x, y, done, id = G.nid++) {
   return b;
 }
 
-function removeBuilding(b) {
+function removeBuilding(b: RivalBuilding): void {
   const r = rivalById(b.rival),
     d = B[b.type];
   b.dead = true;
@@ -227,8 +271,8 @@ function removeBuilding(b) {
   store.mapVersion++;
 }
 
-/** Een gebouw van een rivaal is kapotgeschoten (zie hit in game/military.js). */
-export function rivalBuildingDestroyed(b) {
+/** Een gebouw van een rivaal is kapotgeschoten (zie hit in game/military.ts). */
+export function rivalBuildingDestroyed(b: RivalBuilding): void {
   const r = rivalById(b.rival),
     d = B[b.type];
   removeBuilding(b);
@@ -250,7 +294,7 @@ export function rivalBuildingDestroyed(b) {
 }
 
 /** Iets van een rivaal wordt geraakt: ze onthouden dat (minder geschenken) en hun wachters komen kijken. */
-export function rivalHurt(target) {
+export function rivalHurt(target: Foe | RivalBuilding): void {
   const r = rivalById(target.rival);
   if (!r) return;
   // Jezelf verdedigen telt niet als aanvallen: alleen treffers op hun gebouwen of op hun eigen land
@@ -261,14 +305,14 @@ export function rivalHurt(target) {
 }
 
 // Hoeveel gebouwen van elke soort een rivaal heeft (af of in aanbouw)
-function counts(r) {
-  const have = {};
+function counts(r: Rival): Record<string, number> {
+  const have: Record<string, number> = {};
   for (const b of r.bs) have[b.type] = (have[b.type] || 0) + 1;
   return have;
 }
 
 // Een vrije plek voor een gebouw van `size` op hun land: in ringen rond het stamhuis, met een pad ertussen
-function findSpot(r, size) {
+function findSpot(r: Rival, size: number): { x: number; y: number } | null {
   const cx = r.x + 1,
     cy = r.y + 1;
   for (let ring = 3; ring <= 22; ring++)
@@ -281,7 +325,7 @@ function findSpot(r, size) {
       }
   return null;
 }
-function fits(r, x, y, size) {
+function fits(r: Rival, x: number, y: number, size: number): boolean {
   // Eén tegel ruimte eromheen, zodat gebouwen niet tegen elkaar aan staan
   for (let yy = y - 1; yy <= y + size; yy++)
     for (let xx = x - 1; xx <= x + size; xx++) {
@@ -297,7 +341,7 @@ function fits(r, x, y, size) {
 // ---- Soldaten ----
 
 /** Laat een soldaat van een rivaal verschijnen bij hun stad. Hij is een "vijand" (in G.foes) met rival: nummer. */
-export function spawnRivalUnit(r, k, x, y) {
+export function spawnRivalUnit(r: Rival, k: string, x?: number, y?: number): Foe {
   const U = UNITS[k],
     hall = rivalHall(r);
   const { hx, hy } = guardPost(r, rivalArmy(r).length);
@@ -305,7 +349,7 @@ export function spawnRivalUnit(r, k, x, y) {
     sy = y ?? (hall ? hall.y + 2.6 : hy);
   // Hun wapens en pantser groeien mee met hun tijdperk (zoals bij jou in de smidse)
   const arms = 1 + 0.12 * r.age;
-  const f = {
+  const f: Foe = {
     id: G.nid++,
     kind: 'f',
     rival: r.id, // van welke rivaal
@@ -344,7 +388,7 @@ export function spawnRivalUnit(r, k, x, y) {
 }
 
 // Een wachtpost rond hun stamhuis: elke nieuwe soldaat een stukje verder op de cirkel, op begaanbare grond
-function guardPost(r, n) {
+function guardPost(r: Rival, n: number): { hx: number; hy: number } {
   for (let k = 0; k < 8; k++) {
     const a = (n + k) * 2.4,
       ring = 3.2 + ((n + k) % 3) * 1.1;
@@ -356,10 +400,10 @@ function guardPost(r, n) {
 }
 
 /**
- * Wat een soldaat van een rivaal nu doet (vanuit fUpdate in game/military.js).
+ * Wat een soldaat van een rivaal nu doet (vanuit fUpdate in game/military.ts).
  * Geeft true als hij een doel heeft: dan valt fUpdate aan of loopt erheen. Anders liep hij hier zelf al.
  */
-export function rivalThink(f, dt) {
+export function rivalThink(f: Foe, dt: number): boolean {
   const r = rivalById(f.rival);
   if (!r || r.dead) {
     f.retreat = true;
@@ -368,15 +412,16 @@ export function rivalThink(f, dt) {
   f.rt -= dt;
   // In de vredige modus blijft iedereen thuis
   if (G.peaceful && (f.mode === 'march' || f.mode === 'raid')) startReturn(f);
-  // Veel te lang onderweg (de route liep vast)? Dan gaan ze terug naar huis
-  if (f.mode === 'march' && G.t > f.until) startReturn(f);
+  // Veel te lang onderweg (de route liep vast)? Dan gaan ze terug naar huis.
+  // (Een soldaat van een rivaal heeft altijd een eindtijd `until`, zie spawnRivalUnit.)
+  if (f.mode === 'march' && G.t > f.until!) startReturn(f);
   if (f.mode === 'home') return guardHome(f, r, dt);
   if (f.mode === 'march' || f.mode === 'return') {
     walkRoute(f, r, dt);
     return false;
   }
   // Aanvallen, net als de nachtelijke aanvallers; na een tijdje gaan de overlevenden naar huis
-  if (G.t > f.until) {
+  if (G.t > f.until!) {
     startReturn(f);
     return false;
   }
@@ -390,7 +435,7 @@ export function rivalThink(f, dt) {
 }
 
 // Thuis op wacht: vecht met wie te dichtbij komt, en loop terug naar de wachtpost als het rustig is
-function guardHome(f, r, dt) {
+function guardHome(f: Foe, r: Rival, dt: number): boolean {
   if (f.rt <= 0 || (f.tgt && isDead(f.tgt))) {
     f.rt = 0.8;
     f.tgt = homeTarget(f, r);
@@ -407,14 +452,14 @@ function guardHome(f, r, dt) {
 }
 
 // Wie van jou is dicht bij hun stad? Wordt hun stad beschoten, dan kijken ze verder om zich heen.
-function homeTarget(f, r) {
+function homeTarget(f: Foe, r: Rival): Unit | Villager | null {
   const alarm = G.t - r.alarm < 6;
   const cx = r.x + 1,
     cy = r.y + 1,
     nearCity = alarm ? 22 : 12;
-  let best = null,
+  let best: Unit | Villager | null = null,
     bd = 1e9;
-  const look = e => {
+  const look = (e: Unit | Villager) => {
     const d = dist(f.x, f.y, e.x, e.y);
     if (d < bd && (d < 8 || dist(cx, cy, e.x, e.y) < nearCity)) {
       bd = d;
@@ -427,7 +472,7 @@ function homeTarget(f, r) {
 }
 
 // Een lange route lopen: op weg naar jouw stad (march) of terug naar huis (return)
-function walkRoute(f, r, dt) {
+function walkRoute(f: Foe, _r: Rival, dt: number): void {
   if (f.mode === 'march' && f.rt <= 0) {
     f.rt = 0.7;
     // Iets van jou in de buurt? Dan begint de aanval hier
@@ -456,20 +501,20 @@ function walkRoute(f, r, dt) {
 }
 
 // Waar een aanval heen gaat: jouw stamhuis
-function marchGoal() {
+function marchGoal(): { x: number; y: number } | null {
   const h = th();
   return h ? { x: h.x + 1, y: h.y + 2 } : null;
 }
 
 // Een route over de hele kaart. Eerst om muren heen; lukt dat niet, dan dwars over alle begaanbare grond.
-function routeTo(x, y, tx, ty) {
+function routeTo(x: number, y: number, tx: number, ty: number): Path | null {
   return (
     findPath(x | 0, y | 0, tx | 0, ty | 0, 2, LONG_SEARCH) ||
     findPath(x | 0, y | 0, tx | 0, ty | 0, 3, LONG_SEARCH)
   );
 }
 
-function startRaid(f) {
+function startRaid(f: Foe): void {
   // De aanval duurt RAID_TIME vanaf aankomst (niet vanaf vertrek), zodat ook traag geschut echt meevecht.
   // Het kleine verschil per soldaat zorgt dat ze niet allemaal in dezelfde tik naar huis gaan.
   if (f.mode === 'march') f.until = G.t + RAID_TIME + (f.id % 6) * 1.5;
@@ -479,7 +524,7 @@ function startRaid(f) {
   f.rt = 0;
 }
 
-function startReturn(f) {
+function startReturn(f: Foe): void {
   f.mode = 'return';
   f.path = null;
   f.tgt = null;
@@ -487,7 +532,7 @@ function startReturn(f) {
 }
 
 // Staat er iets van jou (dorpeling, soldaat of gebouw) binnen r tegels?
-function playerNear(x, y, r) {
+function playerNear(x: number, y: number, r: number): boolean {
   for (const u of G.us) if (dist(x, y, u.x, u.y) < r) return true;
   for (const v of G.vs) if (!v.hidden && dist(x, y, v.x, v.y) < r) return true;
   for (const b of G.bs) if (dist(x, y, b.x + 0.5, b.y + 0.5) < r) return true;
@@ -497,7 +542,7 @@ function playerNear(x, y, r) {
 // ---- Elke seconde: economie, bouwen, trainen, groeien, aanvallen ----
 
 /** Werk alle rivalen bij. Torens schieten elke tik; de rest gebeurt eens per seconde. */
-export function updateRivals(dt) {
+export function updateRivals(dt: number): void {
   if (!G.rivals || !G.rivals.length) return;
   rivalTowers(dt);
   secondTimer += dt;
@@ -507,7 +552,7 @@ export function updateRivals(dt) {
   }
 }
 
-function rivalSecond(r) {
+function rivalSecond(r: Rival): void {
   const P = PERSONALITY[r.p];
   const army = rivalArmy(r);
   const wanted = homeGuard(r.age) + attackSize(r.age, r.attacks, r.p, G.diff);
@@ -526,7 +571,7 @@ function rivalSecond(r) {
   if (P.gifts) maybeGift(r);
 }
 
-function train(r) {
+function train(r: Rival): void {
   r.trainT -= 1;
   if (r.trainT > 0) return;
   const list = rivalUnits(r.age);
@@ -539,7 +584,7 @@ function train(r) {
   spawnRivalUnit(r, k);
 }
 
-function build(r) {
+function build(r: Rival): void {
   // Wat in aanbouw is, groeit eerst af (een wereldwonder groeit apart, zie wonderWork)
   for (const b of r.bs)
     if (!b.done && !B[b.type].wonder) {
@@ -569,11 +614,11 @@ function build(r) {
   if (nothingToBuild && r.age < AGES.length - 1 && r.bank >= ageUpValue(r.age + 1)) rivalAgeUp(r);
 }
 
-/** De soldaten die een rivaal nu kan trainen (zie data/rivals.js). */
-export const rivalUnitsFor = r => rivalUnits(r.age);
+/** De soldaten die een rivaal nu kan trainen (zie data/rivals.ts). */
+export const rivalUnitsFor = (r: Rival): string[] => rivalUnits(r.age);
 
 /** Een rivaal gaat naar het volgende tijdperk. */
-export function rivalAgeUp(r) {
+export function rivalAgeUp(r: Rival): void {
   r.bank = Math.max(0, r.bank - ageUpValue(r.age + 1));
   r.age++;
   r.buildWait = 0; // nieuw tijdperk: meteen weer proberen te bouwen
@@ -589,7 +634,7 @@ export function rivalAgeUp(r) {
 }
 
 // Meer land: elke paar dagen een gebied erbij, grenzend aan wat ze al hebben
-function grow(r) {
+function grow(r: Rival): void {
   const P = PERSONALITY[r.p];
   if (G.day - r.grewDay < P.grow || r.chunks.length >= maxChunks(r.age)) return;
   r.grewDay = G.day;
@@ -609,18 +654,19 @@ function grow(r) {
   r.buildWait = 0;
   rebuildLand();
 }
-function neighbours(c) {
+function neighbours(c: number): number[] {
   const x = c % CN,
     y = Math.floor(c / CN),
-    out = [];
+    out: number[] = [];
   if (x > 0) out.push(c - 1);
   if (x < CN - 1) out.push(c + 1);
   if (y > 0) out.push(c - CN);
   if (y < CN - 1) out.push(c + CN);
   return out;
 }
-const hasCamp = ci => G.camps.some(c => c.alive && ((c.y + 1) >> 4) * CN + ((c.x + 1) >> 4) === ci);
-function landShare(ci) {
+const hasCamp = (ci: number): boolean =>
+  G.camps.some(c => c.alive && ((c.y + 1) >> 4) * CN + ((c.x + 1) >> 4) === ci);
+function landShare(ci: number): number {
   const x0 = (ci % CN) * CS,
     y0 = Math.floor(ci / CN) * CS;
   let land = 0;
@@ -636,7 +682,7 @@ function landShare(ci) {
  * Heeft hij genoeg, dan zet hij de bouwplaats neer op zijn land. Hij doet er anderhalf keer zo lang over
  * als jij met 3 bouwers (zie rivalWonderTime), zodat je tijd hebt om het eerst af te maken of de bouwplaats te slopen.
  */
-function wonderWork(r, income) {
+function wonderWork(r: Rival, income: number): void {
   const site = r.bs.find(b => B[b.type].wonder && !b.done);
   if (site) {
     growWonder(r, site);
@@ -680,7 +726,7 @@ function wonderWork(r, income) {
 const STOP_HINT = 'Sloop de bouwplaats of maak het zelf eerder af.';
 
 // Voor welk wonder een Bouwer nu spaart: het oudste dat nog vrij is, maar pas vanaf zijn startdag (anders null)
-function savingTarget(r) {
+function savingTarget(r: Rival): string | null {
   if (!PERSONALITY[r.p].wonders) return null;
   const k = nextFreeWonder(r.age, takenWonders());
   return k && G.day >= wonderStartDay(k) ? k : null;
@@ -690,7 +736,7 @@ function savingTarget(r) {
  * Waar een rivaal voor spaart en hoe ver hij is: { k, frac } (frac van 0 tot 1).
  * Pas vanaf de helft van de prijs (SAVING_SHOWN), anders null. Ook null als hij al aan een wonder bouwt.
  */
-export function rivalWonderSaving(r) {
+export function rivalWonderSaving(r: Rival): { k: string; frac: number } | null {
   if (r.dead || r.bs.some(b => B[b.type].wonder && !b.done)) return null;
   const k = savingTarget(r);
   if (!k) return null;
@@ -699,14 +745,14 @@ export function rivalWonderSaving(r) {
 }
 
 // Wonderen die al een eigenaar hebben, of waar een rivaal al aan bouwt
-function takenWonders() {
+function takenWonders(): Set<string> {
   const taken = new Set(Object.keys(G.wonders || {}));
   for (const r of G.rivals) if (!r.dead) for (const b of r.bs) if (B[b.type].wonder) taken.add(b.type);
   return taken;
 }
 
 // De bouwplaats van een wonder groeit elke seconde een stukje; bij driekwart krijg je een waarschuwing
-function growWonder(r, b) {
+function growWonder(r: Rival, b: RivalBuilding): void {
   const k = b.type;
   const before = b.prog / b.bt;
   b.prog += 1;
@@ -725,20 +771,20 @@ function growWonder(r, b) {
 }
 
 /** Jij was eerder klaar met hetzelfde wonder: de bouwplaats van de rivaal verdwijnt en hij krijgt zijn spaargeld terug. */
-export function cancelRivalWonder(r, b) {
+export function cancelRivalWonder(r: Rival, b: RivalBuilding): void {
   r.wonderPot = (r.wonderPot || 0) + costValue(B[b.type].cost);
   removeBuilding(b);
 }
 
 // ---- Aanvallen ----
 
-function maybeAttack(r, army) {
+function maybeAttack(r: Rival, army: Foe[]): void {
   const P = PERSONALITY[r.p];
   if (G.day < Math.max(4, P.first) || G.day < r.nextAttack) return;
   // Ze vertrekken 's ochtends, zodat ze er overdag zijn (de nachtelijke aanvallen komen 's avonds)
   if (G.clock < 7 || G.clock > 13) return;
   const home = army.filter(f => f.mode === 'home');
-  // Pas aanvallen als er genoeg thuis is: hun wacht plus een groep die groot genoeg is (zie data/rivals.js)
+  // Pas aanvallen als er genoeg thuis is: hun wacht plus een groep die groot genoeg is (zie data/rivals.ts)
   if (home.length < armyToAttack(r.age, r.attacks, r.p, G.diff)) return;
   const free = home.length - homeGuard(r.age);
   const size = attackSize(r.age, r.attacks, r.p, G.diff);
@@ -746,7 +792,7 @@ function maybeAttack(r, army) {
 }
 
 /** Stuur een groep soldaten van een rivaal op weg naar jouw stad, met een waarschuwing. */
-export function launchAttack(r, group) {
+export function launchAttack(r: Rival, group: Foe[]): void {
   const goal = marchGoal();
   if (!goal || !group.length) return;
   const lead = group[0];
@@ -776,23 +822,23 @@ export function launchAttack(r, group) {
 }
 
 // Hoeveel speltijd (seconden) een soldaat nog nodig heeft tot je stad: de rest van zijn route, op zijn marstempo
-function marchSeconds(f) {
+function marchSeconds(f: Foe): number {
   const tiles = f.path ? f.path.length : 0;
   // Schuin lopen is iets langer dan recht: daarom keer 1.1
   return (tiles * 1.1) / (f.pace || f.spd);
 }
 
 /** Rond welk uur (0 tot 23) deze soldaten bij je stad zijn: wie het verst weg is, telt. */
-export function arrivalHour(group) {
+export function arrivalHour(group: Foe[]): number {
   const secs = Math.max(0, ...group.map(marchSeconds));
   return Math.round(G.clock + (secs * 24 * dayPace()) / DAYLEN) % 24;
 }
 
 /** Een uur als kloktijd: 9 wordt "09:00". */
-export const clockText = hour => `${String(hour).padStart(2, '0')}:00`;
+export const clockText = (hour: number): string => `${String(hour).padStart(2, '0')}:00`;
 
 // Een vriendelijke rivaal (Handelaar) stuurt om de paar dagen een geschenk, als je hem met rust laat
-function maybeGift(r) {
+function maybeGift(r: Rival): void {
   if (G.day < 3 || G.day - r.giftDay < 3 || G.clock < 10 || G.clock > 11) return;
   if (G.t - r.angry < DAYLEN * 2) return;
   r.giftDay = G.day;
@@ -803,7 +849,7 @@ function maybeGift(r) {
 }
 
 /** "120 voedsel, 80 hout": grondstoffen als korte tekst. */
-export const resText = res =>
+export const resText = (res: Cost): string =>
   Object.entries(res)
     .map(([k, n]) => `${Math.round(n)} ${RES[k].n.toLowerCase()}`)
     .join(', ');
@@ -811,7 +857,7 @@ export const resText = res =>
 // ---- Verslagen ----
 
 /** Hun stamhuis is gevallen: de rivaal is verslagen. Je krijgt hun land en buit; wat er nog staat, stort in en verdwijnt. */
-export function rivalDefeated(r) {
+export function rivalDefeated(r: Rival): void {
   r.dead = true;
   r.deadDay = G.day;
   // Hun wereldwonderen blijven staan: die worden van jou (zie hieronder)
@@ -858,7 +904,7 @@ export function rivalDefeated(r) {
 
 // ---- Torens van rivalen schieten op jouw mensen ----
 
-function rivalTowers(dt) {
+function rivalTowers(dt: number): void {
   for (const r of G.rivals) {
     if (r.dead) continue;
     for (const b of r.bs) {
@@ -891,8 +937,8 @@ function rivalTowers(dt) {
   }
 }
 // Jouw dichtstbijzijnde soldaat of dorpeling binnen bereik (vliegende alleen als de toren in de lucht kan schieten)
-function nearestOfYours(x, y, range, air) {
-  let best = null,
+function nearestOfYours(x: number, y: number, range: number, air?: boolean | 1): Unit | Villager | null {
+  let best: Unit | Villager | null = null,
     bd = range;
   for (const u of G.us) {
     if (UNITS[u.k].fly && !air) continue;
@@ -917,8 +963,8 @@ function nearestOfYours(x, y, range, air) {
  * Het dichtstbijzijnde gebouw van een rivaal binnen r tegels (voor je soldaten in een aanvalsmars).
  * Met `rivalId` alleen gebouwen van die ene rivaal.
  */
-export function nearestRivalBuilding(x, y, r, rivalId = 0) {
-  let best = null,
+export function nearestRivalBuilding(x: number, y: number, r: number, rivalId = 0): RivalBuilding | null {
+  let best: RivalBuilding | null = null,
     bd = r;
   for (const b of rbById.values()) {
     if (rivalId && b.rival !== rivalId) continue;
@@ -933,7 +979,7 @@ export function nearestRivalBuilding(x, y, r, rivalId = 0) {
 }
 
 /** Na een gevallen gebouw: het dichtstbijzijnde andere gebouw van dezelfde rivaal (binnen 12 tegels), of null. */
-export function nextRivalBuilding(b) {
+export function nextRivalBuilding(b: RivalBuilding): RivalBuilding | null {
   const s = B[b.type].size / 2;
   return nearestRivalBuilding(b.x + s, b.y + s, 12, b.rival);
 }
@@ -942,7 +988,7 @@ export function nextRivalBuilding(b) {
  * Stuur jouw soldaten op een gebouw van een rivaal af. Hun wachtpost komt vlak voor dat gebouw,
  * zodat ze daarna in hun stad blijven staan in plaats van helemaal naar huis te lopen.
  */
-export function orderRivalAttack(units, b) {
+export function orderRivalAttack(units: Unit[], b: RivalBuilding): void {
   const s = B[b.type].size;
   units.forEach((u, k) => {
     u.tgt = b;
@@ -956,7 +1002,7 @@ export function orderRivalAttack(units, b) {
 
 // ---- Opslaan en laden ----
 
-/** De rivalen als gewone gegevens, voor de opslag (zie game/save.js). */
+/** De rivalen als gewone gegevens, voor de opslag (zie game/save.ts). */
 export function saveRivals() {
   return (G.rivals || []).map(r => ({
     ...r,
@@ -990,7 +1036,7 @@ export function saveRivals() {
 }
 
 /** Rivalen terugzetten uit de opslag. Opslag van vóór de rivalen (of kapotte gegevens): geen rivalen. */
-export function loadRivals(list) {
+export function loadRivals(list: SavedRival[] | undefined): void {
   G.rivals = [];
   rbById.clear();
   secondTimer = 0;

@@ -1,4 +1,4 @@
-import type { AgeUpDef, CoachAct } from '../types';
+import type { AgeUpDef, CoachAct, Foe } from '../types';
 // De "coach": kiest steeds één duidelijke volgende stap voor de speler.
 import { AGES, AGE_UP } from '../data/ages';
 import { B, BKEYS } from '../data/buildings';
@@ -33,12 +33,21 @@ export function lackList(nx: AgeUpDef): string[] {
 }
 export const andJoin = (a: string[]): string =>
   a.length > 2 ? a.slice(0, 2).join(', ') + ' en meer' : a.length === 2 ? a[0] + ' en ' + a[1] : a[0] || '';
-const bAct = k => ({ l: 'Bouw ' + B[k].n.toLowerCase(), b: k });
-const expandAct = r => ({ l: 'Gebied uitbreiden', k: 'expand', r });
+const bAct = (k: string): CoachAct => ({ l: 'Bouw ' + B[k].n.toLowerCase(), b: k });
+const expandAct = (r: string): CoachAct => ({ l: 'Gebied uitbreiden', k: 'expand', r });
+
+/** Eén stap van de coach: titel, uitleg, eventueel een gebouw om aan te wijzen, een knop en alarm. */
+interface CoachStep {
+  t: string;
+  h: string;
+  tile?: string;
+  act?: CoachAct;
+  alarm?: boolean;
+}
 
 // Waar komt grondstof k vandaan? Geeft een stap terug als de speler er iets voor moet doen.
 // `left` is hoeveel er nog nodig is, `goal` waarvoor (bijv. "de bronstijd").
-function sourceStep(k, left, goal, depth = 0) {
+function sourceStep(k: string, left: string, goal: string, depth = 0): CoachStep | null {
   const name = RES[k].n.toLowerCase();
   // Sterrenmetaal kun je niet zomaar vinden: het valt als meteoriet uit de lucht
   if (k === 'starmetal' && !avail.starmetal)
@@ -81,7 +90,8 @@ function sourceStep(k, left, goal, depth = 0) {
       act: bAct(mk),
     };
   // Wacht de fabriek op iets dat je eerst moet regelen? Dan dát als stap.
-  const inp = Object.keys(B[mk].conv.in).filter(r => G.res[r] < 5);
+  // (mk is hierboven gevonden omdat hij iets maakt, dus conv bestaat zeker)
+  const inp = Object.keys(B[mk].conv!.in).filter(r => G.res[r] < 5);
   for (const r of inp) {
     const step = sourceStep(r, 'wat', goal, depth + 1);
     if (step) return step;
@@ -93,7 +103,7 @@ function sourceStep(k, left, goal, depth = 0) {
       : `De ${B[mk].n.toLowerCase()} maakt het vanzelf. Een tweede ${B[mk].n.toLowerCase()} gaat twee keer zo snel.`,
   };
 }
-export function coach() {
+export function coach(): CoachStep {
   const nx = AGE_UP[G.age + 1],
     NA = nx && AGES[G.age + 1].n.toLowerCase(),
     pn = popNow(),
@@ -231,7 +241,7 @@ export function coach() {
 }
 
 // Soldaten van een rivaal zijn onderweg naar je stad: wie, hoeveel, uit welke richting en hoe laat
-function marchStep(marching) {
+function marchStep(marching: Foe[]): CoachStep {
   const lead = marching[0],
     r = rivalById(lead.rival),
     n = marching.length;
@@ -248,7 +258,7 @@ function marchStep(marching) {
 }
 
 /** De stap in het laatste tijdperk: de sterrenpoort bouwen, of het doel dat nog over is. */
-function lastAgeStep() {
+function lastAgeStep(): CoachStep {
   // In een uitdaging telt alleen het doel van de uitdaging, niet de sterrenpoort
   if (G.scenario && G.won) return { t: 'Uitdaging gehaald.', h: 'Bouw gerust verder.' };
   const stargateGoal = G.opts.victories.includes('stargate');
@@ -274,7 +284,7 @@ function lastAgeStep() {
   const miss = Object.keys(cost)
     .filter(k => G.res[k] < cost[k])
     .map(k => `${fmt(Math.ceil(cost[k] - G.res[k]))} ${RES[k].n.toLowerCase()}`);
-  // Al gewonnen met een kort doel? Dan telt de sterrenpoort nog voor de prestaties (zie game/victory.js)
+  // Al gewonnen met een kort doel? Dan telt de sterrenpoort nog voor de prestaties (zie game/victory.ts)
   const why = G.won ? 'Dan telt je winst ook voor de prestaties.' : 'Daarmee voltooi je je beschaving.';
   return {
     t: 'Bouw de sterrenpoort.',

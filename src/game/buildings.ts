@@ -15,7 +15,7 @@ import { add, mul } from './bonus';
 import { bRate, lvlOf } from './upgrades';
 import { amt, node } from '../world/world';
 
-export function bUpdate(b: Building, dt: number) {
+export function bUpdate(b: Building, dt: number): void {
   if (!b.done) return;
   const d = B[b.type],
     pr = d.power ? powerRatio : 1;
@@ -40,13 +40,14 @@ export function bUpdate(b: Building, dt: number) {
     if (!b.on) b.run = false;
     else if (d.gen.solar) b.run = true;
     else {
+      // Een centrale zonder zonlicht heeft altijd een stooktijd (t) en brandstof (in), zie data/buildings
       b.gt += dt;
       if (b.gt >= d.gen.t!) {
         b.gt = 0;
         // Alleen stoken als de stroom echt nodig is: overbodige centrales staan stil en sparen brandstof
         const needed = powerSup - (b.run ? genPower(b) : 0) < powerDem;
-        if (needed && has(d.gen.in)) {
-          pay(d.gen.in);
+        if (needed && has(d.gen.in!)) {
+          pay(d.gen.in!);
           b.run = true;
           b.act = d.gen.t!;
         } else b.run = false;
@@ -116,7 +117,9 @@ export function bUpdate(b: Building, dt: number) {
         u.order = 'move';
         u.stance = G.stance;
         G.stats.trained++;
-        G.stats[k] = (G.stats[k] || 0) + 1; // per soort tellen, voor de doelen
+        // Per soort tellen, voor de doelen (de eerste keer staat er nog niets: dan 0)
+        const count = G.stats[k];
+        G.stats[k] = (typeof count === 'number' ? count : 0) + 1;
         floater(u.x, u.y, UNITS[k].n, '#ffffff');
         store.uiDirty = true;
       }

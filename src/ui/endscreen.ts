@@ -1,10 +1,12 @@
 // Eindscherm na winst of verlies: je score met medaille, nieuwe prestaties en de voorraadgrafiek.
-// Bij een uitdaging komen kop, medaille en knoppen uit ui/challengeend.js.
+// Bij een uitdaging komen kop, medaille en knoppen uit ui/challengeend.ts.
+import type { GameResult, ScoreRow } from '../types';
 import { sfx } from '../audio/sound';
 import { AGES } from '../data/ages';
 import { ACHIEVEMENT } from '../data/achievements';
 import { RES } from '../data/resources';
 import { DIFF_NAMES, MEDALS } from '../data/score';
+import type { ScenarioDef } from '../data/scenarios';
 import { VICTORY } from '../data/victories';
 import { finishGame } from '../game/achievements';
 import { wipe } from '../game/save';
@@ -25,17 +27,17 @@ import { $ } from '../util/dom';
 let lastWon = false;
 
 // Getal met een echt minteken en punten voor duizendtallen: -900 wordt "−900"
-const signed = n => (n < 0 ? '−' + scoreText(-n) : scoreText(n));
+const signed = (n: number): string => (n < 0 ? '−' + scoreText(-n) : scoreText(n));
 // Hetzelfde, maar met een plus ervoor als het niet negatief is: "+4.638"
-const plusMinus = n => (n < 0 ? signed(n) : '+' + scoreText(n));
-const factorText = f => '×' + String(f).replace('.', ',');
+const plusMinus = (n: number): string => (n < 0 ? signed(n) : '+' + scoreText(n));
+const factorText = (f: number) => '×' + String(f).replace('.', ',');
 
 /**
  * Eén regel van de tabel: wat, hoeveel, punten per stuk en punten.
  * Altijd vier vakjes (geen colspan): op een smal scherm valt de kolom "per stuk" weg, en zo blijven
  * de punten toch netjes onder elkaar staan.
  */
-const tableRow = (label, count, per, pts, cls = '') => `<tr class="${cls}">
+const tableRow = (label: string, count: string, per: string, pts: string, cls = '') => `<tr class="${cls}">
     <th>${label}</th>
     <td class="cnt">${count}</td>
     <td class="per">${per}</td>
@@ -43,7 +45,7 @@ const tableRow = (label, count, per, pts, cls = '') => `<tr class="${cls}">
   </tr>`;
 
 /** Een onderdeel van de score, zoals "Kampen veroverd · 4 · × 200 · 800". */
-function scoreRowHTML(row, result) {
+function scoreRowHTML(row: ScoreRow, result: GameResult) {
   // Tijdperken tellen vanaf je begin (meestal de Steentijd): in het Sterrentijdperk ben je 8 tijdperken verder
   const ageName = (AGES[result.age] || AGES[row.count]).n;
   const count = row.k === 'age' ? `${row.count} (${ageName})` : fmt(row.count);
@@ -51,7 +53,7 @@ function scoreRowHTML(row, result) {
 }
 
 /** De score als tabelletje: per onderdeel aantal × punten, dan samen, dan keer de moeilijkheid. */
-function scoreTableHTML(result) {
+function scoreTableHTML(result: GameResult) {
   // Wonderen bestaan nog niet in het spel: die regel alleen tonen als er punten zijn
   const rows = result.rows.filter(row => row.k !== 'wonders' || row.count > 0);
   const raw = result.raw ?? result.sum; // raw: de som, ook als die onder 0 komt
@@ -72,7 +74,7 @@ function scoreTableHTML(result) {
 }
 
 /** Medaille en score groot, met een regel over het record of de volgende medaille. */
-function scoreHeadHTML(result) {
+function scoreHeadHTML(result: GameResult) {
   const medal = MEDALS.find(m => m.k === result.medal);
   // De eerstvolgende medaille die je nog niet hebt (de lijst loopt van hoog naar laag)
   const next = MEDALS.filter(m => m.min > result.score).pop();
@@ -100,7 +102,7 @@ function newAchievementsHTML() {
 }
 
 /** Grafiek met je voorraad over de laatste tien minuten, met een legenda eronder. */
-function chartHTML(keys) {
+function chartHTML(keys: string[]) {
   if (G.hist.length < 2) return '';
   return `<div class="sect">Voorraad <span>laatste 10 minuten</span></div>
     <canvas class="endchart" width="560" height="140" aria-label="Grafiek van je voorraad"></canvas>
@@ -108,7 +110,7 @@ function chartHTML(keys) {
 }
 
 /** Kop, verhaal, score en knoppen bij een gewoon spel (zonder uitdaging). */
-function freePlayParts(won, result) {
+function freePlayParts(won: boolean, result: GameResult) {
   // Waarmee je won (sterrenpoort, overleven of een kort spel) bepaalt de kop en het verhaal
   const victory = VICTORY[G.wonBy] || VICTORY.stargate;
   const head = won
@@ -131,8 +133,8 @@ function freePlayParts(won, result) {
   };
 }
 
-/** Kop, verhaal, medaille en knoppen bij een uitdaging (zie ui/challengeend.js). De score staat eronder. */
-function challengeParts(won, result, def) {
+/** Kop, verhaal, medaille en knoppen bij een uitdaging (zie ui/challengeend.ts). De score staat eronder. */
+function challengeParts(won: boolean, result: GameResult, def: ScenarioDef) {
   const parts = challengeEndParts(won, result, def);
   return {
     ...parts,
@@ -143,8 +145,8 @@ function challengeParts(won, result, def) {
 }
 
 /** Laat het eindscherm zien. `won`: gewonnen (zie G.wonBy) of verloren (stamhuis gevallen, of de tijd op). */
-export function showEndScreen(won) {
-  const result = G.result || finishGame(); // meestal al bewaard bij het einde (zie game/achievements.js)
+export function showEndScreen(won: boolean) {
+  const result = G.result || finishGame(); // meestal al bewaard bij het einde (zie game/achievements.ts)
   // De kaartjes bovenin zijn niet meer nodig: hieronder staan alle nieuwe prestaties van dit spel
   if (clearAchievementCards()) sfx('achieve');
   const keys = chartKeys(G.age);
@@ -165,14 +167,14 @@ export function showEndScreen(won) {
     <div class="row">${buttons}<button class="quiet" data-end="profile">${ico('★')}Alle prestaties</button></div>`,
     { cls: 'endsheet' },
   );
-  const canvas = $('#sheet .endchart');
+  const canvas = $<HTMLCanvasElement>('#sheet .endchart');
   if (canvas) drawChart(canvas, G.hist, keys);
   lastWon = won;
 }
 
-// Knoppen op het eindscherm die niet in modals.js staan
+// Knoppen op het eindscherm die niet in modals.ts staan
 $('#modal').addEventListener('click', e => {
-  const t = e.target.closest('[data-end]');
+  const t = (e.target as HTMLElement).closest<HTMLElement>('[data-end]');
   if (!t) return;
   if (t.dataset.end === 'profile') showProfile({ back: () => showEndScreen(lastWon) });
   else if (t.dataset.end === 'retry') retryChallenge();

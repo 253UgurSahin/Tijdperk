@@ -2,10 +2,31 @@
 import * as T3 from 'three';
 import { store } from '../core/store';
 import { LAYER, emit, puff } from './particles';
+import type { Limbs } from './people';
 import { S3 } from './scene';
+import type { EntityRec } from './sync';
+
+/**
+ * Wat de animatie van een figuur uit de spelstand leest: swing springt op bij elke aanval, flash bij een
+ * treffer, cd is de herlaadtijd en tgt het doel. Een dorpeling heeft geen wapen: bij hem zijn swing, cd en
+ * tgt.dead leeg.
+ */
+export interface Animated {
+  id: number;
+  swing?: number;
+  flash?: number;
+  cd: number;
+  tgt: { dead?: boolean } | null;
+}
+/** Een gesneuveld figuur dat nog omvalt (zie startDeath). */
+interface Dying extends EntityRec {
+  dieT: number;
+  machine: boolean;
+  fallDir: number;
+}
 
 // Soorten aanval, zodat elk wapen zijn eigen beweging en effect krijgt
-const ATTACK = {
+const ATTACK: Record<string, string> = {
   musketeer: 'musket',
   pirate: 'musket',
   rifle: 'gun',
@@ -33,8 +54,8 @@ const ATTACK = {
 };
 // Voertuigen en geschut vallen niet om maar zakken weg in rook
 const MACHINE = new Set(['tank', 'armored', 'rocket', 'drone', 'trebuchet', 'bombard', 'fieldgun', 'mech']);
-// Hoe ver het wapen vooruit en hoe hoog het zit (voor het mondingsvuur)
-const MUZZLE = {
+// Hoe ver het wapen vooruit en hoe hoog het zit (voor het mondingsvuur), en kleur en grootte van de vlam
+const MUZZLE: Record<string, [number, number, number, number]> = {
   musket: [0.5, 0.6, 0xffd27a, 0.13],
   gun: [0.5, 0.6, 0xffe08a, 0.1],
   blaster: [0.55, 0.65, 0xb48aff, 0.14],
@@ -45,10 +66,10 @@ const MUZZLE = {
 
 export const DG3 = new T3.Group();
 S3.add(DG3);
-const dying = [];
+const dying: Dying[] = [];
 
 /** Nieuw record: begintoestand van de animatie. */
-export function initAnim(r, kind, k) {
+export function initAnim(r: EntityRec, kind: string, k: string) {
   r.kind = kind;
   r.k = k;
   r.atk = ATTACK[k] || 'chop';
@@ -63,13 +84,13 @@ export function initAnim(r, kind, k) {
 }
 
 // Waar de loop van het wapen zit, in wereldcoördinaten
-function muzzleAt(r, fwd, h) {
+function muzzleAt(r: EntityRec, fwd: number, h: number): [number, number, number] {
   const g = r.g;
   return [g.position.x + Math.sin(r.ang) * fwd, h, g.position.z + Math.cos(r.ang) * fwd];
 }
 
 // Eenmalig bij elk schot of elke slag: vuur, rook of een stofwolkje
-function onAttack(r) {
+function onAttack(r: EntityRec) {
   const M = MUZZLE[r.atk];
   if (!M) return;
   const [x, y, z] = muzzleAt(r, M[0], M[1]),
@@ -133,13 +154,22 @@ function onAttack(r) {
 }
 
 // Eenmalig bij een treffer: een paar vonkjes, zodat je ziet wie geraakt wordt
-function onHit(r) {
+function onHit(r: EntityRec) {
   const g = r.g;
   puff(LAYER.glow, 3, g.position.x, 0.45, g.position.z, 1.2, 1.2, 0.25, 0.035, 0.01, 0xffc070, 1, -4);
 }
 
 /** Armen en benen van een mensfiguur. */
-function limbs(L, walk, t, r, fighting, q, working, tool) {
+function limbs(
+  L: Limbs,
+  walk: boolean,
+  t: number,
+  r: EntityRec,
+  fighting: boolean | null,
+  q: number,
+  working: boolean,
+  tool?: string,
+) {
   const s = walk ? Math.sin(t * 11) * 0.6 : 0;
   L.lL.rotation.x = s;
   L.lR.rotation.x = -s;
@@ -192,7 +222,7 @@ function limbs(L, walk, t, r, fighting, q, working, tool) {
 /**
  * Elk beeldje per figuur. e = de spelstand-entiteit, body = het figuur (of de ruiter), moving = loopt het.
  */
-export function animEntity(r, e, moving, working, tool) {
+export function animEntity(r: EntityRec, e: Animated, moving: boolean, working: boolean, tool?: string) {
   const t = store.TM + e.id,
     body = r.body;
   // Aanval begonnen? (e.swing springt op bij elk schot of elke slag)
@@ -230,12 +260,12 @@ export function animEntity(r, e, moving, working, tool) {
   // De werparm van de blijde slaat over bij het werpen en zakt langzaam terug
   if (r.arm)
     r.arm.rotation.x = q < 0.15 ? -0.75 + (q / 0.15) * 2.1 : q < 1 ? 1.35 - ((q - 0.15) / 0.85) * 2.1 : -0.75;
-  const L = (body.userData.rider || body).userData.limbs;
+  const L = (body.userData.rider || body).userData.limbs as Limbs | undefined;
   if (L) limbs(L, moving, t, r, fighting, q, working, tool);
 }
 
 /** Een figuur is gesneuveld: laat het omvallen en wegzakken in plaats van ineens te verdwijnen. */
-export function startDeath(r) {
+export function startDeath(r: EntityRec) {
   DG3.add(r.g);
   r.ring.visible = false;
   if (r.base) r.base.visible = false;
@@ -247,7 +277,8 @@ export function startDeath(r) {
   });
   const p = r.g.position;
   if (r.machine) puff(LAYER.soft, 6, p.x, 0.3, p.z, 0.6, 0.6, 2, 0.1, 0.45, 0x4a4440, 0.7);
-  dying.push(r);
+  // (dieT, machine en fallDir zijn hierboven gezet)
+  dying.push(r as Dying);
 }
 
 /** Elk beeldje: de gevallenen verder laten zakken. */

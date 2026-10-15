@@ -46,7 +46,7 @@ function tuftGeometry() {
   g.setAttribute(
     'normal',
     new T3.Float32BufferAttribute(
-      pos.map((v, i) => (i % 3 === 1 ? 1 : 0)),
+      pos.map((_v, i) => (i % 3 === 1 ? 1 : 0)),
       3,
     ),
   );
@@ -68,8 +68,8 @@ function pebbleGeometry() {
   return g;
 }
 
-// Gras wiegt mee met de wind, net als de bomen (zie nodes.js)
-function swaying(m) {
+// Gras wiegt mee met de wind, net als de bomen (zie nodes.ts)
+function swaying(m: T3.MeshLambertMaterial): T3.MeshLambertMaterial {
   m.onBeforeCompile = shader => {
     shader.uniforms.uWind = WIND;
     // Achterkant van een spriet niet donker maken: beide kanten krijgen licht van boven
@@ -96,7 +96,7 @@ const FLOWER_MAT = swaying(new T3.MeshLambertMaterial({ color: '#ffffff' }));
 const PEBBLE_MAT = new T3.MeshStandardMaterial({ color: '#ffffff', flatShading: true, roughness: 0.9 });
 
 // Hoeveel van elk per tegel, per landschap
-const PER_TILE = {
+const PER_TILE: Record<number, Record<string, number>> = {
   [BIOME.GRASS]: { tuft: 6, flower: 0.9, pebble: 0.25 },
   [BIOME.FOREST]: { tuft: 3.5, flower: 0.25, pebble: 0.3 },
   [BIOME.HILLS]: { tuft: 4, flower: 0.4, pebble: 1.1 },
@@ -106,8 +106,8 @@ const PER_TILE = {
   [BIOME.MOUNTAIN]: { tuft: 1, flower: 0.1, pebble: 1.5 },
 };
 const FLOWER_COLORS = ['#f4f0e6', '#f2d24a', '#b48ae0', '#e8606a', '#f29a3a'].map(c => new T3.Color(c));
-const MAX = { tuft: 14000, flower: 2200, pebble: 3500 };
-const KINDS = {
+const MAX: Record<string, number> = { tuft: 14000, flower: 2200, pebble: 3500 };
+const KINDS: Record<string, T3.InstancedMesh> = {
   tuft: new T3.InstancedMesh(tuftGeometry(), TUFT_MAT, MAX.tuft),
   flower: new T3.InstancedMesh(flowerGeometry(), FLOWER_MAT, MAX.flower),
   pebble: new T3.InstancedMesh(pebbleGeometry(), PEBBLE_MAT, MAX.pebble),
@@ -124,16 +124,21 @@ for (const m of Object.values(KINDS)) {
 
 let density = 0;
 /** Hoeveel strooisel er mag zijn: 0 = niets (laag), 0.5 = half (middel), 1 = alles (hoog). */
-export function setScatterDensity(d) {
+export function setScatterDensity(d: number) {
   density = d || 0;
   placed.r = -1; // opnieuw neerzetten
   for (const m of Object.values(KINDS)) m.visible = density > 0;
 }
 
 // Seizoenskleur: herfst wat geler, winter droog en strogeel (en zonder bloemen)
-const SEASON_TINT = { Lente: '#ffffff', Zomer: '#f4f0d8', Herfst: '#e8cf8a', Winter: '#e0d6b0' };
+const SEASON_TINT: Record<string, string> = {
+  Lente: '#ffffff',
+  Zomer: '#f4f0d8',
+  Herfst: '#e8cf8a',
+  Winter: '#e0d6b0',
+};
 let flowersOn = true;
-export function setScatterSeason(name) {
+export function setScatterSeason(name: string) {
   TUFT_MAT.color.set(SEASON_TINT[name] || '#ffffff');
   flowersOn = name !== 'Winter';
 }
@@ -169,7 +174,7 @@ export function updateScatter() {
   placed.version = groundVersion;
   placed.age = G.age;
   const thin = density * Math.min(1, 30 / d),
-    n = { tuft: 0, flower: 0, pebble: 0 },
+    n: Record<string, number> = { tuft: 0, flower: 0, pebble: 0 },
     x0 = Math.max(0, Math.floor(cam.x - R)),
     x1 = Math.min(W - 1, Math.ceil(cam.x + R)),
     y0 = Math.max(0, Math.floor(cam.y - R)),

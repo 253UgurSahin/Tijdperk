@@ -51,8 +51,27 @@ import { canMake, fitsPeople } from '../data/succession';
 import { canDemolish, ownerLine, refreshWonders, wonderStatus } from '../game/wonders';
 
 // Selectiepaneel
-// Een opdrachttegel. De uitleg (data-tip) toont buildmenu.js in een eigen tooltip.
-export const CB = (data, glyph, label, o = {}) => {
+/** Opties voor een opdrachttegel: aan, gevaarlijk, uitgeschakeld, uitleg, plaatje en kosten. */
+export interface CmdOpts {
+  on?: boolean;
+  danger?: boolean | 1;
+  dis?: boolean;
+  tip?: string;
+  img?: string;
+  cost?: string;
+}
+/** De bouwstenen van het selectiepaneel die ui/rivals.ts ook gebruikt. */
+export interface InspectorParts {
+  /** Kop met plaatje, titel en een regel eronder. */
+  head: (port: string, t: string, sub: string) => string;
+  /** Levensbalk (f van 0 tot 1) met tekst. */
+  hpl: (f: number, txt: string, cls?: string) => string;
+  CB: (data: string, glyph: string, label: string, o?: CmdOpts) => string;
+  /** Een plaatje. */
+  im: (src: string) => string;
+}
+// Een opdrachttegel. De uitleg (data-tip) toont buildmenu.ts in een eigen tooltip.
+export const CB = (data: string, glyph: string, label: string, o: CmdOpts = {}): string => {
   const cls = ['cb', o.on && 'on', o.danger && 'danger', o.cost && 'has-cost'].filter(Boolean).join(' ');
   const pic = o.img ? `<img src="${o.img}" alt="">` : `<span class="g">${ico(glyph)}</span>`;
   const cost = o.cost ? `<span class="c">${o.cost}</span>` : '';
@@ -68,15 +87,15 @@ export function renderInspector() {
     b = sel.b && bById.get(sel.b),
     camp = sel.camp && G.camps.find(c => c.id === sel.camp && c.alive);
   const X = `<button class="quiet x" data-x="1" aria-label="Sluiten">${TOUCH ? 'Sluiten' : ico('✕')}</button>`;
-  const im = src => `<img src="${src}" alt="">`;
-  const head = (port, t, sub) =>
+  const im = (src: string) => `<img src="${src}" alt="">`;
+  const head = (port: string, t: string, sub: string) =>
     `${X}<div class="selh"><div class="port">${port}</div><div><div class="selt">${t}</div><div class="sels">${sub}</div></div></div>`;
   // Levensbalk: zonder eigen kleur wordt hij oranje bij weinig en rood bij heel weinig leven
-  const hpl = (f, txt, cls = '') => {
+  const hpl = (f: number, txt: string, cls = '') => {
     const tone = cls || (f < 0.35 ? 'bad' : f < 0.65 ? 'warn' : '');
     return `<div class="hpline"><div class="bar ${tone}"><i style="width:${clamp(f, 0, 1) * 100}%"></i></div><span>${txt}</span></div>`;
   };
-  // Iets van een rivaal aangeklikt: een gebouw of de rivaal zelf (zie ui/rivals.js)
+  // Iets van een rivaal aangeklikt: een gebouw of de rivaal zelf (zie ui/rivals.ts)
   const rival = !vs.length && !us.length && !b && !camp ? rivalSelection({ head, hpl, CB, im }) : null;
   if (rival) {
     document.body.classList.add('insp');
@@ -92,7 +111,7 @@ export function renderInspector() {
     const sig =
       'e' + G.people + G.age + popNow() + popCap() + G.us.length + G.unl.filter(Boolean).length + '/' + idle;
     // Niets geselecteerd: een overzicht van je stad met snelknoppen, zodat het paneel nooit leeg is
-    const quick = (k, label, key, n) =>
+    const quick = (k: string, label: string, key: string, n?: number) =>
       `<button class="quick" data-quick="${k}">${label}${n != null ? `<b>${n}</b>` : ''}${TOUCH ? '' : `<kbd>${key}</kbd>`}</button>`;
     // Je volk, met zijn vlag: klik om te zien wat het goed kan
     const folk = PEOPLE[G.people];
@@ -430,7 +449,7 @@ export function renderInspector() {
       const first = UNITS[b.q[0]],
         pct = clamp(b.qt / first.t, 0, 1) * 100,
         left = Math.max(0, Math.ceil(first.t - b.qt));
-      const chip = (k, i) =>
+      const chip = (k: string, i: number) =>
         `<button class="qchip" data-cq="${i}" aria-label="${UNITS[k].n} annuleren" title="${UNITS[k].n} · klik om te annuleren"><img src="${portrait('u', k)}" alt=""></button>`;
       const rest = b.q.slice(1).map((k, i) => chip(k, i + 1));
       h +=
@@ -446,19 +465,20 @@ export function renderInspector() {
   });
 }
 // Bij een wereldwonder van jou: de bonus, en hoe het ervoor staat (af, of een race met een rivaal)
-function wonderCardHTML(b) {
+function wonderCardHTML(b: Building) {
   const d = B[b.type],
     w = wonderStatus(b.type);
   const line = b.done ? ownerLine(b.type) : w.tone === 'warn' ? w.text : 'Nog niemand anders bouwt eraan';
   const tone = b.done ? 'good' : w.tone;
-  return `<div class="wcard"><div class="wperk">${ico('★')}<span><b>Bonus:</b> ${esc(d.perk)}</span></div><div class="statline ${tone}"><i class="dot"></i>${esc(line)}</div></div>`;
+  // Elk wonder heeft een korte uitleg van zijn bonus (perk), zie data/buildings.ts
+  return `<div class="wcard"><div class="wperk">${ico('★')}<span><b>Bonus:</b> ${esc(d.perk!)}</span></div><div class="statline ${tone}"><i class="dot"></i>${esc(line)}</div></div>`;
 }
-export function insHandler(e) {
-  const t = e.target.closest('button');
+export function insHandler(e: MouseEvent) {
+  const t = (e.target as HTMLElement).closest('button');
   if (!t || t.disabled) return;
   sfx('tick');
   const b = sel.b && bById.get(sel.b);
-  if (rivalCommand(t)) return; // knoppen bij een rivaal (zie ui/rivals.js)
+  if (rivalCommand(t)) return; // knoppen bij een rivaal (zie ui/rivals.ts)
   // Snelknoppen in het overzicht
   if (t.dataset.quick === 'idle') return selectIdle();
   if (t.dataset.quick === 'army') return selectArmy();
@@ -594,15 +614,16 @@ export function insHandler(e) {
       }, 3000);
     }
   } else if (t.dataset.buy) {
+    // Koop- en verkoopknoppen staan alleen bij een geselecteerde markt, dus b is er
     const r = t.dataset.buy,
-      c = marketPrices(b, r).buy;
+      c = marketPrices(b as Building, r).buy;
     if (G.res.gold >= c) {
       G.res.gold -= c;
       G.res[r] += 100;
     }
   } else if (t.dataset.sell) {
     const r = t.dataset.sell,
-      c = marketPrices(b, r).sell;
+      c = marketPrices(b as Building, r).sell;
     if (G.res[r] >= 100) {
       G.res[r] -= 100;
       G.res.gold += c;

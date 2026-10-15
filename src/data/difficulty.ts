@@ -1,4 +1,5 @@
 // De vier moeilijkheden: hoe vaak en hoe zwaar aanvallen zijn, en waarmee je begint. Puur.
+import type { Cost } from '../types';
 
 /*
  * Het nummer in de lijst is G.diff (0 = Vredig, 1 = Normaal, 2 = Zwaar, 3 = Meedogenloos).
@@ -10,7 +11,20 @@
  * - start: grondstoffen bij het begin (je volk kan daar nog wat bij geven)
  * - score: je eindscore gaat keer dit getal
  */
-export const DIFFICULTIES = [
+/** Een moeilijkheid (zie de uitleg hierboven). */
+export interface DifficultyDef {
+  n: string;
+  d: string;
+  peaceful: boolean;
+  everyNight: boolean;
+  raidSize: number;
+  raidMax: number;
+  raidHp: number;
+  start: Cost;
+  score: number;
+}
+
+export const DIFFICULTIES: DifficultyDef[] = [
   {
     n: 'Vredig',
     d: 'Geen aanvallen. Alleen bouwen.',
@@ -60,8 +74,12 @@ export const DIFFICULTIES = [
 /** De standaardmoeilijkheid (Normaal). */
 export const DEFAULT_DIFF = 1;
 
-/** Een geldig moeilijkheidsnummer, of Normaal als het nummer niet bestaat. */
-export const cleanDiff = d => (Number.isInteger(d) && DIFFICULTIES[d] ? d : DEFAULT_DIFF);
+/**
+ * Een geldig moeilijkheidsnummer, of Normaal als het nummer niet bestaat.
+ * `d` kan van alles zijn (oude of kapotte opslag); na Number.isInteger is het zeker een getal.
+ */
+export const cleanDiff = (d: unknown): number =>
+  Number.isInteger(d) && DIFFICULTIES[d as number] ? (d as number) : DEFAULT_DIFF;
 
 /** De moeilijkheid bij een nummer (met Normaal als het nummer niet bestaat). */
-export const difficulty = d => DIFFICULTIES[cleanDiff(d)];
+export const difficulty = (d: unknown): DifficultyDef => DIFFICULTIES[cleanDiff(d)];

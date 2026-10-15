@@ -9,28 +9,35 @@ import { G } from './state';
 import { hasT } from './upgrades';
 import { note, toast } from '../ui/hud';
 
-const SEASONS = [
+/** Een seizoen: naam, hoeveel voedsel er komt (keer), en een kleurfilter over het beeld (of geen). */
+export interface Season {
+  n: string;
+  food: number;
+  tint: string | null;
+}
+
+const SEASONS: Season[] = [
   { n: 'Lente', food: 1.1, tint: null },
   { n: 'Zomer', food: 1.2, tint: 'rgba(255,220,120,.06)' },
   { n: 'Herfst', food: 1, tint: 'rgba(210,130,50,.09)' },
   { n: 'Winter', food: 0.55, tint: 'rgba(190,210,240,.16)' },
 ];
-// Elk seizoen duurt 4 dagen; met de spelregel Lange winter is het vooral winter (zie data/modifiers.js)
-export const season = (day = G.day) => SEASONS[seasonIndex(day, hasRule('longWinter'))];
-export function darkness(h = G.clock) {
+// Elk seizoen duurt 4 dagen; met de spelregel Lange winter is het vooral winter (zie data/modifiers.ts)
+export const season = (day = G.day): Season => SEASONS[seasonIndex(day, hasRule('longWinter'))];
+export function darkness(h = G.clock): number {
   if (h >= 6.5 && h < 18) return 0;
   if (h >= 18 && h < 20.5) return ((h - 18) / 2.5) * 0.78;
   if (h >= 4.5 && h < 6.5) return 0.78 * (1 - (h - 4.5) / 2);
   return 0.78;
 }
-export const isNight = () => darkness() > 0.42;
-// Op Zwaar en Meedogenloos elke nacht een aanval, anders om de nacht (zie data/difficulty.js)
-export const raidNight = (day = G.day) =>
+export const isNight = (): boolean => darkness() > 0.42;
+// Op Zwaar en Meedogenloos elke nacht een aanval, anders om de nacht (zie data/difficulty.ts)
+export const raidNight = (day = G.day): boolean =>
   !G.peaceful && day >= 2 && (difficulty(G.diff).everyNight || day % 2 === 0 || G.forceRaid === day);
-function crossed(p, c, h) {
+function crossed(p: number, c: number, h: number): boolean {
   return p <= c ? p < h && c >= h : p < h || c >= h;
 }
-export function advanceClock(dt: number) {
+export function advanceClock(dt: number): void {
   const p = G.clock;
   G.clock = (G.clock + (dt * 24 * dayPace()) / DAYLEN) % 24;
   const c = G.clock;
@@ -61,7 +68,7 @@ export function advanceClock(dt: number) {
     // We kijken naar de aanval die echt begon (niet naar het rooster): de vredige modus kan intussen zijn omgezet.
     if (G.stats.raidDay === G.day - 1 && !G.over) G.stats.survived++;
     let n = 0;
-    // (Soldaten van rivalen niet: die gaan pas naar huis als hun eigen aanval voorbij is, zie game/rivals.js)
+    // (Soldaten van rivalen niet: die gaan pas naar huis als hun eigen aanval voorbij is, zie game/rivals.ts)
     for (const f of G.foes)
       if (!f.camp && !f.rival && !f.retreat) {
         f.retreat = true;
@@ -73,7 +80,7 @@ export function advanceClock(dt: number) {
     }
   }
 }
-export function hoursUntilRaid() {
+export function hoursUntilRaid(): number | null {
   let day = G.day,
     h = G.clock;
   let hours = 0;

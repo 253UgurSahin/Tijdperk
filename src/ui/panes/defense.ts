@@ -1,4 +1,5 @@
 // Paneel "Leger".
+import type { Foe } from '../../types';
 import { store } from '../../core/store';
 import { CX, CY, DAYLEN } from '../../config';
 import { B } from '../../data/buildings';
@@ -28,7 +29,7 @@ function repairCost() {
   return miss < 1 ? null : { wood: Math.ceil(miss * 0.08), stone: Math.ceil(miss * 0.05) };
 }
 // Wat de aanvalskaart zegt: een aanval in je land, rivalen onderweg, of wanneer de volgende nachtelijke aanval komt
-function raidCardText(raidNow, marching, hrs, secs) {
+function raidCardText(raidNow: number, marching: Foe[], hrs: number | null, secs: number | null) {
   if (raidNow) return { title: `${raidNow} aanvallers in je land`, sub: 'Dorpelingen schuilen' };
   if (marching.length) {
     const n = marching.length;
@@ -38,9 +39,11 @@ function raidCardText(raidNow, marching, hrs, secs) {
     };
   }
   if (G.peaceful) return { title: 'Vredige modus', sub: 'Aanvallen staan uit' };
-  let title = `Aanval over ${Math.ceil(secs / 60)} min`;
+  // Is secs leeg, dan wordt deze titel hieronder toch vervangen
+  let title = `Aanval over ${Math.ceil(secs! / 60)} min`;
   if (secs == null) title = 'Geen aanval gepland';
-  else if (hrs <= 0.01) title = 'Aanval begint';
+  // secs is alleen leeg als hrs leeg is, dus hier is hrs er zeker
+  else if (hrs! <= 0.01) title = 'Aanval begint';
   const sub = `±${raidSize()} ${FOES[G.age].n.toLowerCase()}${G.speed ? '' : ' · gepauzeerd'}`;
   return { title, sub };
 }
@@ -55,7 +58,7 @@ export function renderDefense() {
   // Uren op de klok omrekenen naar echte seconden (met Snelle dagen loopt de klok sneller)
   const secs = hrs == null ? null : (hrs * DAYLEN) / 24 / dayPace() / (G.speed || 1);
   const card = raidCardText(raidNow, marching, hrs, secs);
-  const army = {};
+  const army: Record<string, number> = {};
   G.us.forEach(u => (army[u.k] = (army[u.k] || 0) + 1));
   {
     const tw = G.bs.filter(b => b.done && b.type !== 'townhall' && B[b.type].def).length;

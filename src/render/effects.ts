@@ -1,4 +1,5 @@
 // Projectielen, explosies en regen.
+import type { Fx, Projectile } from '../types';
 import * as T3 from 'three';
 import { store } from '../core/store';
 import { G } from '../game/state';
@@ -11,6 +12,11 @@ import { meteorPosition } from '../game/meteors';
 import { smoothPos } from './sync';
 import { LAYER, emit, puff } from './particles';
 import { season } from '../game/time';
+
+/** Een projectiel zoals het hier getekend wordt: sx, sy = waar het voor het eerst te zien was. */
+type DrawnProjectile = Projectile & { sx?: number; sy?: number };
+/** Een effect; seen3 = 1 zodra het voor het eerst getekend is (zie firstSight). */
+type DrawnFx = Fx & { seen3?: number };
 
 const sphM = () =>
   new T3.Mesh(gIco(0), new T3.MeshBasicMaterial({ color: '#fff', transparent: true, depthWrite: false }));
@@ -47,11 +53,19 @@ function drawMeteor() {
 }
 
 // Looporder-markeringen: een pijltje dat op de bestemming neerploft, met een uitdijende ring
-const MARKS = [];
+/** Een markering: plek, wanneer gezet, hoeveel eenheden samen, en of het een aanval is. */
+interface Mark {
+  x: number;
+  y: number;
+  t: number;
+  n: number;
+  foe: boolean;
+}
+const MARKS: Mark[] = [];
 for (let i = 0; i < 6; i++) MARKS.push({ x: 0, y: 0, t: -9, n: 0, foe: false });
 const PING = new T3.ConeGeometry(0.12, 0.3, 4).rotateX(Math.PI).translate(0, 0.15, 0);
 /** Markering zetten. Meerdere eenheden met hetzelfde bevel krijgen samen één markering (in het midden). */
-export function markOrder(x, y, attack) {
+export function markOrder(x: number, y: number, attack: boolean) {
   const now = store.TM;
   for (const m of MARKS)
     if (now - m.t < 0.15 && Math.hypot(m.x - x, m.y - y) < 3) {
@@ -96,7 +110,7 @@ function drawMarks() {
 }
 
 // Eenmalig als een effect voor het eerst getekend wordt: stof, vonken en lichtflitsen
-function firstSight(e) {
+function firstSight(e: Fx) {
   if (e.type === 'boom') {
     const big = (e.r || 0.5) >= 2;
     // Inslag: een gloeiende flits, rondvliegend puin en een stofwolk die blijft hangen
@@ -171,7 +185,7 @@ const tmpTarget = new T3.Vector3();
 export function drawFx() {
   drawMeteor();
   drawMarks();
-  for (const p of G.proj) {
+  for (const p of G.proj as DrawnProjectile[]) {
     const m = pool(p.big ? 'shell' : 'arrow', () =>
       p.big
         ? new T3.Mesh(gIco(0), mat('#2a2a2a'))
@@ -183,7 +197,8 @@ export function drawFx() {
       p.sy = py;
     }
     // Hoe ver het projectiel al is (0..1): daarmee tekenen we een boog
-    const total = Math.hypot(p.lx - p.sx, p.ly - p.sy) || 1,
+    // (sx en sy worden altijd samen gezet, hierboven)
+    const total = Math.hypot(p.lx - p.sx, p.ly - p.sy!) || 1,
       f = Math.min(1, Math.max(0, 1 - Math.hypot(p.lx - px, p.ly - py) / total)),
       arc = p.big ? Math.min(2.4, total * 0.28) : G.age < 4 ? Math.min(1.1, total * 0.14) : 0,
       y = 0.6 - f * 0.2 + arc * 4 * f * (1 - f),
@@ -201,12 +216,13 @@ export function drawFx() {
       m.material.color.set(p.col || '#fff3c4');
     }
   }
-  for (const e of G.fx) {
+  for (const e of G.fx as DrawnFx[]) {
     if (!e.seen3) {
       e.seen3 = 1;
       firstSight(e);
     }
-    const k = e.life / e.max;
+    // Hoeveel er nog over is (1 = net begonnen, 0 = voorbij); alleen gebruikt bij effecten met een max
+    const k = e.life / (e as { max: number }).max;
     if (e.type === 'smoke') {
       const m = pool('smoke', sphM);
       m.material.color.set(e.col || '#e9ebe4');
@@ -251,15 +267,16 @@ export function drawFx() {
     }
   }
 }
-// Twee lagen voor een laserstraal: brede gekleurde gloed en een smalle witte kern
-const BEAM_LAYERS = [
+// Twee lagen voor een laserstraal: brede gekleurde gloed en een smalle witte kern.
+// Per laag: naam, breedte, kleur (0 = de kleur van de laser zelf) en dekking.
+const BEAM_LAYERS: [string, number, string | 0, number][] = [
   ['beam', 0.09, 0, 0.55],
   ['beamcore', 0.03, '#ffffff', 1],
 ];
-let RAIN = null,
-  SNOW = null;
+let RAIN: T3.LineSegments<T3.BufferGeometry, T3.LineBasicMaterial> | null = null,
+  SNOW: T3.Points<T3.BufferGeometry, T3.PointsMaterial> | null = null;
 // Sneeuw: in de winter valt er sneeuw in plaats van regen. Losse puntjes die langzaam dwarrelen.
-function drawSnow(on) {
+function drawSnow(on: boolean) {
   if (!on) {
     if (SNOW) SNOW.visible = false;
     return;
@@ -282,7 +299,7 @@ function drawSnow(on) {
     S3.add(SNOW);
   }
   SNOW.visible = true;
-  const p = SNOW.geometry.attributes.position.array,
+  const p = (SNOW.geometry.attributes.position as T3.BufferAttribute).array as Float32Array,
     R = camDist() * 0.8,
     t = store.TM;
   for (let i = 0; i < p.length / 3; i++) {

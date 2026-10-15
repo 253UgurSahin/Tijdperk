@@ -1,6 +1,6 @@
 // Nabewerking van het beeld: een zachte gloed rond lichten en vuur (bloom), een omlijning rond
 // wat je selecteert of aanwijst, en kleurcorrectie. Hoeveel hiervan aan staat, hangt af van de
-// kwaliteitsinstelling (zie quality.js); op "laag" wordt het beeld direct getekend.
+// kwaliteitsinstelling (zie quality.ts); op "laag" wordt het beeld direct getekend.
 import * as T3 from 'three';
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
@@ -13,7 +13,7 @@ import { CAM3, R3, S3 } from './scene';
 // geleidelijk naar wit in plaats van hard af te kappen. Zo houden zonnig zand, sneeuw en
 // witte randen hun tekening. Dezelfde formule zit in de nabewerking en (op laag/middel) in de
 // materialen; daarom staat hij hier één keer, met een eigen naam per plek.
-const shoulder = name => `vec3 ${name}(vec3 c) {
+const shoulder = (name: string) => `vec3 ${name}(vec3 c) {
     vec3 over = max(c - 0.8, 0.0);
     return min(c, 0.8) + 0.2 * (1.0 - exp(-over / 0.2));
   }`;
@@ -56,15 +56,17 @@ const GradeShader = {
     }`,
 };
 
-let composer = null,
-  bloom = null,
-  grade = null,
-  selectOutline = null,
-  hoverOutline = null;
+// Worden pas gemaakt als de nabewerking aan gaat (zie build), en dan allemaal tegelijk
+let composer: EffectComposer | null = null,
+  bloom: UnrealBloomPass | null = null,
+  grade: ShaderPass | null = null,
+  selectOutline: OutlinePass | null = null,
+  hoverOutline: OutlinePass | null = null;
 const on = { post: false, bloom: false, outline: false, sharpen: 0, hdr: false };
-let size = [4, 4, 1];
+/** Laatste schermmaat: breedte, hoogte en pixelverhouding. */
+let size: [number, number, number] = [4, 4, 1];
 
-function build(hdr) {
+function build(hdr: boolean) {
   // Eigen render-doel met 4× multisampling, zodat randen ook met nabewerking glad blijven.
   // Op "hoog" met "half float": dan mogen kleuren feller dan wit zijn, en gloeien alleen echte
   // lichten (in plaats van alles wat in de zon wit wordt). Op "middel" gewone kleuren: lichter.
@@ -101,9 +103,10 @@ function build(hdr) {
   resizePost(...size);
 }
 
+// (alleen aangeroepen als composer bestaat, zie configurePost)
 function dispose() {
-  for (const pass of composer.passes) pass.dispose && pass.dispose();
-  composer.dispose();
+  for (const pass of composer!.passes) pass.dispose && pass.dispose();
+  composer!.dispose();
   composer = null;
 }
 
@@ -112,9 +115,13 @@ export interface PostSettings {
   post: boolean;
   bloom: boolean;
   outline: boolean;
+  /** Hoeveel het beeld verscherpt wordt (0 = niet). */
+  sharpen?: number;
+  /** Kleuren feller dan wit, zodat alleen echte lichten gloeien (alleen als de videokaart dat kan). */
+  hdr?: boolean;
 }
 /** Zet onderdelen van de nabewerking aan of uit. */
-export function configurePost({ post, bloom: useBloom, outline, sharpen = 0, hdr = false }) {
+export function configurePost({ post, bloom: useBloom, outline, sharpen = 0, hdr = false }: PostSettings) {
   // Felle kleuren alleen als de videokaart dat kan
   hdr = hdr && R3.capabilities.isWebGL2 && R3.extensions.has('EXT_color_buffer_float');
   on.post = post;
@@ -123,29 +130,30 @@ export function configurePost({ post, bloom: useBloom, outline, sharpen = 0, hdr
   on.sharpen = sharpen;
   if (composer && (!post || on.hdr !== hdr)) dispose();
   if (post && !composer) build(hdr);
+  // composer, bloom, grade en de omlijningen bestaan altijd samen (zie build)
   if (composer) {
-    bloom.enabled = useBloom;
-    selectOutline.enabled = hoverOutline.enabled = outline;
-    grade.uniforms.uSharpen.value = sharpen;
+    bloom!.enabled = useBloom;
+    selectOutline!.enabled = hoverOutline!.enabled = outline;
+    grade!.uniforms.uSharpen.value = sharpen;
   }
   // De zachte schouder voor felle kleuren zit in de laatste stap als die felle kleuren kent
   // (hoog); anders in de materialen zelf. Zo gebeurt het altijd precies één keer.
   R3.toneMapping = composer && on.hdr ? T3.NoToneMapping : T3.CustomToneMapping;
 }
 
-export function resizePost(w, h, dpr) {
+export function resizePost(w: number, h: number, dpr: number) {
   size = [w, h, dpr];
   if (!composer) return;
   composer.setPixelRatio(dpr);
   composer.setSize(w, h);
-  grade.uniforms.uTexel.value.set(1 / Math.max(1, w * dpr), 1 / Math.max(1, h * dpr));
+  grade!.uniforms.uTexel.value.set(1 / Math.max(1, w * dpr), 1 / Math.max(1, h * dpr));
 }
 
 /**
  * De gloed hangt af van het uur: overdag gloeit alleen wat feller is dan zonnig wit,
  * 's nachts ook verlichte ramen en lampen. dk = hoe donker het is (0 = dag, 1 = nacht).
  */
-export function setBloomDarkness(dk) {
+export function setBloomDarkness(dk: number) {
   if (!bloom) return;
   bloom.threshold = on.hdr ? 1.35 - dk * 0.6 : 0.82;
 }

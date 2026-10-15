@@ -45,7 +45,7 @@ export function enterNextAge() {
   );
   computeAvail();
   onAgeChange();
-  earnBlessing(); // het kiesvenster komt pas als de banner weg is (zie ui/blessings.js)
+  earnBlessing(); // het kiesvenster komt pas als de banner weg is (zie ui/blessings.ts)
   checkVictory(); // was dit tijdperk je doel (kort spel)? Dan meteen winnen
   setTimeout(
     () =>
@@ -77,9 +77,9 @@ export function onAgeChange() {
 
 // De kleur van het tijdperk kleurt de hele interface mee (CSS-variabele --acc).
 // Daarop kiezen we donkere of lichte tekst, wat het best leesbaar is.
-export function paintAgeColour(acc) {
+export function paintAgeColour(acc: string): void {
   const n = parseInt(acc.slice(1), 16);
-  const lin = c => ((c /= 255) <= 0.04 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
+  const lin = (c: number): number => ((c /= 255) <= 0.04 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
   const lum = 0.2126 * lin(n >> 16) + 0.7152 * lin((n >> 8) & 255) + 0.0722 * lin(n & 255);
   const darkText = (lum + 0.05) / 0.07 > 1.05 / (lum + 0.05);
   const root = document.documentElement.style;

@@ -11,10 +11,10 @@ import { TER, ter } from '../world/world';
 function waveNormals(size = 128) {
   const c = document.createElement('canvas');
   c.width = c.height = size;
-  const x = c.getContext('2d'),
+  const x = c.getContext('2d')!,
     im = x.createImageData(size, size),
     T = (Math.PI * 2) / size;
-  const h = (i, j) =>
+  const h = (i: number, j: number) =>
     Math.sin(i * T * 3 + j * T * 2) * 0.5 +
     Math.sin(i * T * 7 - j * T * 5 + 1.3) * 0.3 +
     Math.sin(-i * T * 11 + j * T * 13 + 0.7) * 0.15;
@@ -49,7 +49,7 @@ export function updateWaterDepth() {
   for (let i = 0; i < W * H; i++) dist[i] = ter[i] === TER.WATER ? far : 0;
   // Afstand tot het land in twee vegen (heen en terug), schuin telt als 1,4:
   // zo worden de dieptelijnen rond in plaats van ruitvormig
-  const step = (x, y, dx, dy, cost) => {
+  const step = (x: number, y: number, dx: number, dy: number, cost: number) => {
     const xx = x + dx,
       yy = y + dy;
     if (xx < 0 || yy < 0 || xx >= W || yy >= H) return;
@@ -158,7 +158,7 @@ const WATER_COLOR = `
 `;
 
 /** Laat de golfjes langzaam drijven (aangeroepen bij elk beeldje). */
-export function animateWater(t) {
+export function animateWater(t: number) {
   WNORM.offset.set(t * 0.012, t * 0.007);
   TIME.value = t;
 }
@@ -170,9 +170,9 @@ WATER.position.y = -0.16;
 S3.add(WATER);
 const MARGIN = 200;
 function buildWaterSurface() {
-  const pos = [],
-    uv = [],
-    quad = (x0, z0, x1, z1) => {
+  const pos: number[] = [],
+    uv: number[] = [],
+    quad = (x0: number, z0: number, x1: number, z1: number) => {
       for (const [x, z] of [
         [x0, z0],
         [x0, z1],
@@ -187,7 +187,7 @@ function buildWaterSurface() {
       }
     };
   // Is er water op of naast deze tegel? (De oever loopt een stukje schuin het water in.)
-  const wet = (x, y) => {
+  const wet = (x: number, y: number) => {
     for (let dy = -1; dy <= 1; dy++)
       for (let dx = -1; dx <= 1; dx++) {
         const xx = x + dx,
@@ -219,7 +219,7 @@ function buildWaterSurface() {
   g.setAttribute(
     'normal',
     new T3.Float32BufferAttribute(
-      pos.map((v, i) => (i % 3 === 1 ? 1 : 0)),
+      pos.map((_v, i) => (i % 3 === 1 ? 1 : 0)),
       3,
     ),
   );

@@ -1,4 +1,3 @@
-import type { BuildingDef, UnitDef } from '../types';
 // Opvolging: welk gebouw of welke eenheid door welke wordt vervangen. Zodra het
 // tijdperk van de opvolger begint, kun je het oude niet meer maken (wat er al staat blijft werken).
 import { B } from './buildings';
@@ -56,7 +55,8 @@ export const SUCCESSOR: Record<string, string> = {
   fieldgun: 'rocket',
 };
 
-const def = (k: string): BuildingDef | UnitDef => B[k] || UNITS[k];
+/** Wat we van een gebouw of eenheid nodig hebben: het tijdperk, en (bij een eigen soldaat) het volk. */
+const def = (k: string): { age: number; people?: string } => B[k] || UNITS[k];
 
 /** Tijdperk waarin `k` wordt vervangen (Infinity = nooit). */
 export const retiredAt = (k: string): number => (SUCCESSOR[k] ? def(SUCCESSOR[k]).age : Infinity);
@@ -64,8 +64,9 @@ export const retiredAt = (k: string): number => (SUCCESSOR[k] ? def(SUCCESSOR[k]
 /**
  * Hoort `k` bij jouw volk? Een eigen soldaat (zoals de Berserker) alleen bij zijn eigen volk,
  * en de soldaat die hij vervangt (de zwaardvechter) juist niet bij dat volk.
+ * Zonder volk ('') hoort alles erbij behalve de eigen soldaten van een volk.
  */
-export function fitsPeople(k, people) {
+export function fitsPeople(k: string, people = ''): boolean {
   const own = def(k).people;
   if (own) return own === people;
   const unique = PEOPLE[people] && PEOPLE[people].unique;
@@ -73,8 +74,9 @@ export function fitsPeople(k, people) {
 }
 
 /** Kun je `k` maken in dit tijdperk, met dit volk? (al ontdekt, nog niet vervangen, en van jouw volk) */
-export const canMake = (k, age, people) => def(k).age <= age && age < retiredAt(k) && fitsPeople(k, people);
+export const canMake = (k: string, age: number, people?: string): boolean =>
+  def(k).age <= age && age < retiredAt(k) && fitsPeople(k, people);
 
 /** Alles wat verouderd raakt bij de stap naar dit tijdperk (met dit volk). */
-export const retiredIn = (age, people) =>
+export const retiredIn = (age: number, people?: string): string[] =>
   Object.keys(SUCCESSOR).filter(k => retiredAt(k) === age && def(k).age < age && fitsPeople(k, people));

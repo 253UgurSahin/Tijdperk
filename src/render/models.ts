@@ -1,5 +1,5 @@
 // De 3D-modellen van alle gebouwen.
-import type { Building } from '../types';
+import type { Building, RivalBuilding } from '../types';
 import * as T3 from 'three';
 import { TAU, W } from '../config';
 import { B } from '../data/buildings';
@@ -57,7 +57,7 @@ const GATE_MAT2 = new T3.MeshBasicMaterial({
 });
 
 /** Bouwt het model van één soort gebouw in groep g (a = het tijdperk, voor het stadhuis). */
-type ModelFn = (g: T3.Group, a: number, b?: Building | null) => void;
+type ModelFn = (g: T3.Group, a: number, b?: Building | RivalBuilding | null) => void;
 const MODELS: Record<string, ModelFn> = {
   townhall(g, a) {
     // Elk tijdperk krijgt een eigen stamhuis (a = nummer van het tijdperk)
@@ -448,7 +448,7 @@ const MODELS: Record<string, ModelFn> = {
       [-0.8, 0.7, '#a07a4c'],
       [-0.62, 0.78, '#8b6a40'],
       [-0.72, 0.72, '#c9b48a'],
-    ])
+    ] as [number, number, string][])
       bx(g, 0.16, 0.14, 0.16, c, x, x === -0.72 ? 0.14 : 0, z);
     bx(g, 0.03, 0.4, 0.03, C.woodd, 0.85, 0, -0.85); // uithangbord
     bx(g, 0.2, 0.14, 0.02, '#e0b240', 0.85, 0.24, -0.84);
@@ -787,7 +787,7 @@ const MODELS: Record<string, ModelFn> = {
     for (let k = 0; k < 4; k++) {
       const th = (k / 4) * TAU;
       // Zet een balkje in het draaiende vlak van de wiek met hoek th
-      const part = (w, h, d, c, lx, ly, z) => {
+      const part = (w: number, h: number, d: number, c: string, lx: number, ly: number, z: number) => {
         const o = bx(
           s,
           w,
@@ -1066,7 +1066,7 @@ const MODELS: Record<string, ModelFn> = {
     for (const [m2, sc] of [
       [GATE_MAT, 1],
       [GATE_MAT2, 0.55],
-    ])
+    ] as [T3.Material, number][])
       mk(GATE_DISC, m2, s, 0, rc, 0, sc, sc, 1).castShadow = false;
     const spin = new T3.Group();
     spin.position.y = rc;
@@ -1081,11 +1081,11 @@ const MODELS: Record<string, ModelFn> = {
     mergeStatic(s);
     g.add(s);
   },
-  // De wereldwonderen staan in een eigen bestand (render/wondermodels.js)
+  // De wereldwonderen staan in een eigen bestand (render/wondermodels.ts)
   ...WONDER_MODELS,
 };
 // Muren: een paal met armen naar de buurmuren
-export function wallMask(b: Building): number {
+export function wallMask(b: Building | RivalBuilding): number {
   let m = 0;
   const n = [
     [0, -1],
@@ -1206,7 +1206,7 @@ export function makeCamp(g: T3.Group, tier: number) {
   }
 }
 // Een hangend doek in de legerkleur, zodat verdediging en leger direct opvallen
-function banner(g, x, y, z) {
+function banner(g: T3.Object3D, x: number, y: number, z: number) {
   bx(g, 0.16, 0.36, 0.02, paint.team, x, y, z);
   bx(g, 0.16, 0.05, 0.022, '#e9d9a6', x, y + 0.31, z);
 }
@@ -1216,8 +1216,8 @@ function banner(g, x, y, z) {
 const PLATE: Record<string, string> = { home: '#c4ad84', eco: '#8a7454', mil: '#5f6672' };
 const NO_PLATE = new Set(['farm', 'oilpump', 'campfire', 'lantern', 'streetlamp', 'road', 'townhall']);
 
-/** Maak het model van een gebouw; zonder b (null) voor een voorbeeld of pictogram. */
-export function makeBuilding(type: string, age: number, b?: Building | null): T3.Group {
+/** Maak het model van een gebouw (van jou of een rivaal); zonder b (null) voor een voorbeeld of pictogram. */
+export function makeBuilding(type: string, age: number, b?: Building | RivalBuilding | null): T3.Group {
   const g = new T3.Group(),
     d = B[type];
   if (d.wall) makeWall(g, type, b ? wallMask(b) : 0);

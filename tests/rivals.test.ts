@@ -36,9 +36,9 @@ import { ico } from '../src/ui/glyphs';
 import { generateWorld, isPassable, reachableFrom } from '../src/world/generate';
 import { RIVAL_MIN_DIST, pickRivalSites } from '../src/world/rivalsites';
 
-const rgb = hex => [1, 3, 5].map(k => parseInt(hex.slice(k, k + 2), 16));
-const colourGap = (a, b) => Math.hypot(...rgb(a).map((v, k) => v - rgb(b)[k]));
-// Jouw leger is blauw en gewone vijanden zijn rood (zie render/kit.js): rivalen moeten daar duidelijk van verschillen
+const rgb = (hex: string) => [1, 3, 5].map(k => parseInt(hex.slice(k, k + 2), 16));
+const colourGap = (a: string, b: string) => Math.hypot(...rgb(a).map((v, k) => v - rgb(b)[k]));
+// Jouw leger is blauw en gewone vijanden zijn rood (zie render/kit.ts): rivalen moeten daar duidelijk van verschillen
 const TEAM = '#2f6fd6',
   FOE = '#b8352c';
 
@@ -130,7 +130,7 @@ describe('rivalen: bouwen en trainen', () => {
     const first = BUILD_ORDER[0].base[0];
     expect(nextBuild(0, 'krijger', {})).toBe(first);
     // Alles van de Steentijd staat: niets meer te bouwen, dus sparen voor de Bronstijd
-    const all = {};
+    const all: Record<string, number> = {};
     for (const k of buildOrder(0, 'krijger')) all[k] = (all[k] || 0) + 1;
     expect(nextBuild(0, 'krijger', all)).toBeNull();
     // Een kazerne kwijt: die komt terug
@@ -164,7 +164,7 @@ describe('rivalen: getallen', () => {
   });
 
   it('inkomen groeit met tijdperk, land en moeilijkheid', () => {
-    const at = (age, chunks = 4, diff = 1, p = 'krijger') => rivalIncome(age, chunks, diff, p);
+    const at = (age: number, chunks = 4, diff = 1, p = 'krijger') => rivalIncome(age, chunks, diff, p);
     for (let a = 1; a < AGES.length; a++) expect(at(a)).toBeGreaterThan(at(a - 1));
     expect(at(2, 8)).toBeGreaterThan(at(2, 4));
     // Elk tijdperk mag er één gebied bij, tot 10
@@ -226,7 +226,7 @@ describe('rivalen: getallen', () => {
   });
 
   it('tempo op Normaal: de bouwer gaat het snelst, en niemand is al na dag 3 in de IJzertijd', () => {
-    const reached = p => simulate(p, 1);
+    const reached = (p: string) => simulate(p, 1);
     const krijger = reached('krijger'),
       bouwer = reached('bouwer');
     // Bronstijd rond dag 3 tot 5
@@ -240,21 +240,22 @@ describe('rivalen: getallen', () => {
   });
 });
 
-// Een eenvoudige rekensom zoals game/rivals.js het speelt (zonder kaart): wanneer bereikt hij elk tijdperk?
+// Een eenvoudige rekensom zoals game/rivals.ts het speelt (zonder kaart): wanneer bereikt hij elk tijdperk?
 // Aanvallers sneuvelen allemaal, dus de krijger moet steeds nieuwe soldaten kopen.
-function simulate(p, diff) {
+function simulate(p: string, diff: number) {
   const P = PERSONALITY[p],
     DAY = 200,
     first = ((24 - 7 + 6) / 24) * DAY; // dag 2 begint om 6 uur 's ochtends
-  const dayAt = t => (t < first ? 1 : 2 + Math.floor((t - first) / DAY));
+  const dayAt = (t: number) => (t < first ? 1 : 2 + Math.floor((t - first) / DAY));
   let age = 0,
     bank = 0,
     war = 0,
     army = 2,
     attacks = 0,
     next = P.first;
-  const have = {},
-    when = {};
+  // Hoeveel ze van elk gebouw hebben, en op welke dag ze elk tijdperk bereikten
+  const have: Record<string, number> = {},
+    when: Record<number, number> = {};
   for (let t = 0; t < 60 * DAY && age < AGES.length - 1; t++) {
     const day = dayAt(t);
     if (day >= next && army - homeGuard(age) >= 2) {
@@ -294,7 +295,7 @@ describe('rivalen: waar ze wonen', () => {
     ['continent', 98765],
     ['islands', 4242],
     ['highlands', 7],
-  ])
+  ] as const)
     it(`${map} ${seed}: drie plekken, ver weg, op bereikbaar land en zonder overlap`, () => {
       const world = generateWorld(seed, W, H, map);
       const sites = pickRivalSites(world.ter, W, H, seed);

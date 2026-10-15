@@ -1,18 +1,43 @@
 // De zes volken waaruit je kiest bij een nieuwe wereld, elk met eigen voordelen. Puur, zodat het te testen is.
+import type { Bonus, Cost } from '../types';
 import { RES } from './resources';
 
 /*
  * Elk volk:
  * - k: vaste sleutel (wordt opgeslagen in G.people), n: naam
- * - c: kleur van de vlag, g: teken op de vlag (zie ui/glyphs.js)
+ * - c: kleur van de vlag, g: teken op de vlag (zie ui/glyphs.ts)
  * - motto: een korte zin voor op de kaart
  * - d: wat het volk goed kan, in gewone taal en met dezelfde getallen als in `bonus`
  * - start: wat je extra krijgt bij het begin: grondstoffen (res) en dorpelingen (villagers)
- * - bonus: sleutels uit src/data/bonus.js; die gelden het hele spel
+ * - bonus: sleutels uit src/data/bonus.ts; die gelden het hele spel
  * - unique: een eigen soldaat (unit) die bij dit volk een gewone soldaat (replaces) vervangt
  * - locked: nog op slot tot je prestatie `by` haalt; `text` zegt wat je daarvoor moet doen
  */
-export const PEOPLES = [
+/** Een volk waarmee je kunt spelen (zie de uitleg hierboven). */
+export interface PeopleDef {
+  k: string;
+  n: string;
+  c: string;
+  g: string;
+  motto: string;
+  /** Wat het volk goed kan: één regel per voordeel. */
+  d: string[];
+  start: { res?: Cost; villagers?: number };
+  bonus: Bonus;
+  unique?: { replaces: string; unit: string };
+  locked?: { by: string; text: string };
+}
+
+/**
+ * Het deel van het spelersprofiel dat zegt welke volken vrij zijn (zie core/profile.ts).
+ * Bij `achievements` telt alleen óf een prestatie er staat.
+ */
+export interface UnlockInfo {
+  achievements?: Record<string, unknown>;
+  unlockedPeoples?: string[];
+}
+
+export const PEOPLES: PeopleDef[] = [
   {
     k: 'friezen',
     n: 'Friezen',
@@ -93,22 +118,22 @@ export const PEOPLES = [
 ];
 
 /** Volk opzoeken op sleutel: PEOPLE.norse */
-export const PEOPLE = {};
+export const PEOPLE: Record<string, PeopleDef> = {};
 PEOPLES.forEach(p => (PEOPLE[p.k] = p));
 
 /** Met dit volk begin je als je niets kiest, en dit krijgen oude opslagen zonder volk. */
 export const DEFAULT_PEOPLE = 'friezen';
 
-/** De bonussen van een volk, als lijst (G.people bewaart alleen de sleutel). */
-export const peopleBonuses = k => (PEOPLE[k] && PEOPLE[k].bonus ? [PEOPLE[k].bonus] : []);
+/** De bonussen van een volk als lijst (G.people bewaart alleen de sleutel); zonder volk een lege lijst. */
+export const peopleBonuses = (k = ''): Bonus[] => (PEOPLE[k] && PEOPLE[k].bonus ? [PEOPLE[k].bonus] : []);
 
 /**
- * Mag je met dit volk spelen? `profile` is het spelersprofiel (zie core/profile.js), zoals
+ * Mag je met dit volk spelen? `profile` is het spelersprofiel (zie core/profile.ts), zoals
  * { achievements: { age3: 1760000000000 }, unlockedPeoples: ['bergvolk'] }.
  * Het slot gaat eraf met de prestatie die het volk noemt, of als het volk al vrijgespeeld is.
  * Zonder profiel (of met een leeg profiel) kun je alleen de vrije volken kiezen.
  */
-export function isPeopleUnlocked(k, profile = {}) {
+export function isPeopleUnlocked(k: string, profile: UnlockInfo | null = {}): boolean {
   const people = PEOPLE[k];
   if (!people) return false;
   if (!people.locked) return true;
@@ -118,13 +143,13 @@ export function isPeopleUnlocked(k, profile = {}) {
 }
 
 /** Wat je nog moet doen om dit volk vrij te spelen, of '' als dat al gelukt is. */
-export function lockText(k, profile) {
+export function lockText(k: string, profile?: UnlockInfo | null): string {
   if (isPeopleUnlocked(k, profile)) return '';
   return (PEOPLE[k] && PEOPLE[k].locked && PEOPLE[k].locked.text) || '';
 }
 
 /** Het startvoordeel in één regel, zoals 'Start: +80 voedsel', of '' als er geen is. */
-export function startLine(k) {
+export function startLine(k: string): string {
   const start = (PEOPLE[k] && PEOPLE[k].start) || {};
   const parts = Object.entries(start.res || {}).map(([r, n]) => `+${n} ${RES[r].n.toLowerCase()}`);
   if (start.villagers) parts.push(`+${start.villagers} dorpelingen`);

@@ -1,4 +1,5 @@
 // Algemene HUD: meldingen, snelheid en knoppen.
+import type { Foe } from '../types';
 import { store } from '../core/store';
 import { sfx } from '../audio/sound';
 import { B } from '../data/buildings';
@@ -92,8 +93,9 @@ $('#coachBtn').onclick = () => {
   else if (a.k === 'age') ageUp();
   else if (a.k === 'alarm') {
     // De dichtstbijzijnde aanvaller, of anders de dichtstbijzijnde soldaat van een rivaal die nog onderweg is
-    const h = th(),
-      near = (p, q) => dist(p.x, p.y, h.x, h.y) - dist(q.x, q.y, h.x, h.y),
+    // (het stamhuis staat er zolang je speelt)
+    const h = th()!,
+      near = (p: Foe, q: Foe) => dist(p.x, p.y, h.x, h.y) - dist(q.x, q.y, h.x, h.y),
       f = G.foes.filter(isRaider).sort(near)[0] || G.foes.filter(isMarching).sort(near)[0];
     if (f) centerOn(f.x, f.y);
   } else if (a.k === 'sel') {

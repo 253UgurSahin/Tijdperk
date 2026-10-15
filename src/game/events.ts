@@ -1,5 +1,6 @@
 // Gebeurtenissen in het spel: wanneer ze komen, wat een keuze doet, vervolgen en tijdelijke bonussen.
-// Ook de reizende handelaar. Welke gebeurtenissen er zijn, staat in data/events.js.
+// Ook de reizende handelaar. Welke gebeurtenissen er zijn, staat in data/events.ts.
+import type { Buff, Building, GameEvent, Tile } from '../types';
 import { store } from '../core/store';
 import { sfx } from '../audio/sound';
 import { DAYLEN, H, W } from '../config';
@@ -20,6 +21,7 @@ import {
   inAge,
   oreFor,
 } from '../data/events';
+import type { EventChoice, EventDef, EventRules } from '../data/events';
 import { NI } from '../data/nodes';
 import { GATHER, RES } from '../data/resources';
 import { canMake } from '../data/succession';
@@ -39,9 +41,9 @@ import { note, pulseRes, toast } from '../ui/hud';
 import { dist } from '../util/math';
 import { inb, isUnl, node, nodeLists, walkable } from '../world/world';
 
-export const th = () => G.bs.find(b => b.type === 'townhall');
+export const th = (): Building | undefined => G.bs.find(b => b.type === 'townhall');
 /** De beste soldaat die je kazerne nu kan trainen (voor huurlingen en zegeningen). */
-export function bestMerc() {
+export function bestMerc(): string | undefined {
   return Object.keys(UNITS)
     .filter(k => UNITS[k].src === 'barracks' && canMake(k, G.age, G.people))
     .pop();
@@ -55,24 +57,27 @@ const RANDOM_WAIT = 220;
 const FOLLOW_GAP = 45;
 // Dezelfde gebeurtenis komt niet terug binnen de laatste zoveel gebeurtenissen
 const NO_REPEAT = 6;
-// Om dit uur beginnen de aanvallen 's nachts (zie game/time.js)
+// Om dit uur beginnen de aanvallen 's nachts (zie game/time.ts)
 const RAID_HOUR = 21;
 
-/** De regels van dit spel die bepalen welke keuzes zin hebben (zie choiceAllowed in data/events.js). */
-export const eventRules = () => ({
+/** De regels van dit spel die bepalen welke keuzes zin hebben (zie choiceAllowed in data/events.ts). */
+export const eventRules = (): EventRules => ({
   peaceful: G.peaceful,
   noArmy: hasRule('noArmy'),
   noTrade: hasRule('noTrade'),
 });
 
 /** Wat je nu hebt, om te zien of je een keuze kunt betalen. */
-export const haveNow = () => ({ res: G.res, units: G.us.length });
+export const haveNow = (): { res: Record<string, number>; units: number } => ({
+  res: G.res,
+  units: G.us.length,
+});
 
 /** Hoe lang een dag duurt in seconden speltijd (met de spelregel Snelle dagen korter). */
-export const dayLength = () => DAYLEN / dayPace();
+export const dayLength = (): number => DAYLEN / dayPace();
 
-// Wat er in je wereld moet zijn voor een gebeurtenis (de lijst met uitleg staat in data/events.js)
-const NEED_CHECKS = {
+// Wat er in je wereld moet zijn voor een gebeurtenis (de lijst met uitleg staat in data/events.ts)
+const NEED_CHECKS: Record<string, () => boolean> = {
   barracks: () => built('barracks'),
   forest: () => forestTile() != null,
   crowd: () => G.vs.length >= 8,
@@ -85,7 +90,7 @@ const NEED_CHECKS = {
 };
 
 /** Kan deze gebeurtenis nu komen? Kijkt naar de spelregels en naar je wereld. */
-function canHappen(def) {
+function canHappen(def: EventDef): boolean {
   const rules = eventRules();
   if (!eventAllowed(def, rules)) return false;
   if (!(def.need || []).every(k => NEED_CHECKS[k] && NEED_CHECKS[k]())) return false;
@@ -97,13 +102,13 @@ function canHappen(def) {
 }
 
 /** Valt het einde van de keuzetijd nog vandaag vóór 21 uur, als de aanvallen beginnen? */
-function choiceEndsBeforeRaid() {
+function choiceEndsBeforeRaid(): boolean {
   const choiceHours = (CHOICE_TIME * 24) / dayLength();
   return G.clock >= 6 && G.clock + choiceHours < RAID_HOUR;
 }
 
 // Kies er één, waarbij een gewicht van 2 twee keer zoveel kans geeft als 1
-function weightedPick(list, weightOf) {
+function weightedPick<T>(list: T[], weightOf: (item: T) => number): T | null {
   const total = list.reduce((sum, item) => sum + weightOf(item), 0);
   let roll = Math.random() * total;
   for (const item of list) {
@@ -114,7 +119,7 @@ function weightedPick(list, weightOf) {
 }
 
 /** Elke speltik: bonussen die aflopen, een gebeurtenis die verloopt, en of er een nieuwe komt. */
-export function updateEvents(dt) {
+export function updateEvents(dt: number): void {
   expireBuffs();
   if (G.event) {
     const def = EVENT[G.event.k];
@@ -136,7 +141,7 @@ export function updateEvents(dt) {
 }
 
 /** Kies een willekeurige gebeurtenis die nu kan, en laat hem zien. */
-export function spawnEvent() {
+export function spawnEvent(): void {
   const recent = G.eventsSeen.slice(-NO_REPEAT);
   const traderMul = mul('trader.rate');
   const pool = EVENTS.filter(
@@ -151,8 +156,8 @@ export function spawnEvent() {
 }
 
 /** Laat gebeurtenis def nu zien. `from` = de gebeurtenis waar dit een vervolg op is. */
-export function startEvent(def, from = '') {
-  const ev = { k: def.k, until: G.t + CHOICE_TIME, text: fillText(def.x, textWords()), from };
+export function startEvent(def: EventDef, from = ''): boolean {
+  const ev: GameEvent = { k: def.k, until: G.t + CHOICE_TIME, text: fillText(def.x, textWords()), from };
   // Een bosbrand heeft een plek nodig
   if (def.choices.some(choice => choice.burn)) {
     const i = forestTile();
@@ -171,7 +176,7 @@ export function startEvent(def, from = '') {
 }
 
 // De woorden die in het verhaal worden ingevuld
-function textWords() {
+function textWords(): Record<string, string> {
   const soldier = bestMerc();
   return {
     plaats: placeName(),
@@ -184,7 +189,7 @@ function textWords() {
  * Kies keuze i van de gebeurtenis die openstaat. `timeout`: de tijd is om en de keuze
  * die vanzelf gebeurt wordt uitgevoerd.
  */
-export function resolveEvent(i, timeout = false) {
+export function resolveEvent(i: number, timeout = false): void {
   const ev = G.event;
   if (!ev) return;
   const def = EVENT[ev.k];
@@ -213,14 +218,14 @@ export function resolveEvent(i, timeout = false) {
   closeEvent();
 }
 
-function closeEvent() {
+function closeEvent(): void {
   G.event = null;
   sigs.ev = null;
   store.uiDirty = true;
 }
 
 // Voer een keuze uit: betalen, krijgen, mensen erbij of eraf, bonussen, vervolgen, ...
-function runChoice(def, choice, ev) {
+function runChoice(def: EventDef, choice: EventChoice, ev: GameEvent): void {
   const age = G.age;
   const cost = amountsFor(choice.cost, age);
   if (cost) pay(cost);
@@ -230,8 +235,9 @@ function runChoice(def, choice, ev) {
   }
   for (const [r, n] of Object.entries(amountsFor(choice.lose, age) || {}))
     G.res[r] = Math.max(0, G.res[r] - n);
-  if (choice.villagers > 0) addVillagers(choice.villagers);
-  if (choice.villagers < 0) removeVillagers(-choice.villagers);
+  // Zonder `villagers` (undefined) zijn `> 0` en `< 0` gewoon false: daarna is het er dus zeker
+  if (choice.villagers! > 0) addVillagers(choice.villagers!);
+  if (choice.villagers! < 0) removeVillagers(-choice.villagers!);
   if (choice.units) addSoldiers(choice.units);
   if (choice.sendUnits) sendSoldiersAway(choice.sendUnits);
   if (choice.buff) addBuff(def, choice);
@@ -239,18 +245,19 @@ function runChoice(def, choice, ev) {
   if (choice.raid && !G.peaceful) raidTonight();
   if (choice.foes && !G.peaceful) spawnBand(choice.foes.n, choice.foes.type ?? G.age);
   if (choice.damage) damageBuildings(choice.damage);
-  if (choice.burn && ev.fx != null) burnForest(ev.fx, ev.fy);
+  // fx en fy staan altijd samen (zie startEvent)
+  if (choice.burn && ev.fx != null) burnForest(ev.fx, ev.fy!);
   if (choice.meteor) G.nextMeteor = Math.min(G.nextMeteor ?? Infinity, G.t + 3);
   if (choice.follow) scheduleFollowUp(def, choice.follow);
 }
 
 // "Vannacht een aanval": om 21 uur. Is dat uur al voorbij en kwam er nog geen aanval, dan komt hij meteen.
-function raidTonight() {
+function raidTonight(): void {
   if (G.clock >= 6 && G.clock < RAID_HOUR) G.forceRaid = G.day;
   else if (!raidNight()) spawnRaid();
 }
 
-function addVillagers(n) {
+function addVillagers(n: number): void {
   const home = th();
   if (!home) return;
   for (let k = 0; k < n; k++)
@@ -258,7 +265,7 @@ function addVillagers(n) {
 }
 
 // Dorpelingen die sterven of vertrekken; er blijven er altijd minstens 3 over
-function removeVillagers(n) {
+function removeVillagers(n: number): void {
   for (let k = 0; k < n && G.vs.length > 3; k++) {
     const v = G.vs[(Math.random() * G.vs.length) | 0];
     G.vs = G.vs.filter(x => x !== v);
@@ -267,7 +274,7 @@ function removeVillagers(n) {
   }
 }
 
-function addSoldiers(n) {
+function addSoldiers(n: number): void {
   const home = th(),
     kind = bestMerc();
   if (!home || !kind) return;
@@ -278,7 +285,7 @@ function addSoldiers(n) {
 }
 
 // Soldaten die op reis gaan: de laatst getrainde vertrekken
-function sendSoldiersAway(n) {
+function sendSoldiersAway(n: number): void {
   const leaving = G.us.slice(-n);
   for (const u of leaving) {
     burst(u.x, u.y, '#d8c8a8');
@@ -287,16 +294,19 @@ function sendSoldiersAway(n) {
   G.us = G.us.filter(u => !leaving.includes(u));
 }
 
-/** Een tijdelijke bonus erbij. Komt dezelfde gebeurtenis nog eens, dan vervangt de nieuwe de oude. */
-function addBuff(def, choice) {
-  const buff = {
+/**
+ * Een tijdelijke bonus erbij. Komt dezelfde gebeurtenis nog eens, dan vervangt de nieuwe de oude.
+ * (Alleen voor een keuze met `buff`, zie runChoice.)
+ */
+function addBuff(def: EventDef, choice: EventChoice): void {
+  const buff: Buff = {
     k: def.k,
     n: def.n,
     g: def.g,
     l: choice.l,
     d: choice.d,
-    bonus: { ...choice.buff.bonus },
-    until: G.t + choice.buff.days * dayLength(),
+    bonus: { ...choice.buff!.bonus },
+    until: G.t + choice.buff!.days * dayLength(),
   };
   // Via het bonusregister: geeft de bonus meer levens, dan groeit wat er staat mee
   applyBonusChange(() => {
@@ -307,7 +317,7 @@ function addBuff(def, choice) {
 }
 
 // Tijdelijke bonussen die voorbij zijn, gaan eraf
-function expireBuffs() {
+function expireBuffs(): void {
   const over = G.buffs.filter(b => b.until <= G.t);
   if (!over.length) return;
   applyBonusChange(() => (G.buffs = G.buffs.filter(b => b.until > G.t)));
@@ -316,15 +326,15 @@ function expireBuffs() {
 }
 
 // Een vervolg plannen: over zoveel dagen komt het (of één van een paar, bij toeval)
-function scheduleFollowUp(def, follow) {
+function scheduleFollowUp(def: EventDef, follow: { k: string | string[]; days: number }): void {
   const keys = Array.isArray(follow.k) ? follow.k : [follow.k];
   const k = keys[(Math.random() * keys.length) | 0];
   G.followups.push({ k, day: G.day + follow.days, from: def.k });
 }
 
 // Een groepje vijanden dat nu meteen aanvalt, vanaf de rand van je gebied
-function spawnBand(n, type) {
-  const edge = [];
+function spawnBand(n: number, type: number): void {
+  const edge: Tile[] = [];
   for (let y = 0; y < H; y++)
     for (let x = 0; x < W; x++) {
       if (!walkable(x, y)) continue;
@@ -343,7 +353,7 @@ function spawnBand(n, type) {
   sfx('alarm');
 }
 
-function damageBuildings(n) {
+function damageBuildings(n: number): void {
   const list = G.bs.filter(b => b.done && b.type !== 'townhall');
   for (let k = 0; k < n && list.length; k++) {
     const b = list.splice((Math.random() * list.length) | 0, 1)[0];
@@ -354,11 +364,11 @@ function damageBuildings(n) {
 }
 
 // Een willekeurige boom in je eigen gebied (voor een bosbrand), of null als je geen bos hebt
-function forestTile() {
+function forestTile(): number | null {
   const mine = nodeLists[NI.tree].filter(i => node[i] === NI.tree && isUnl(i % W, (i / W) | 0));
   return mine.length ? mine[(Math.random() * mine.length) | 0] : null;
 }
-function burnForest(x, y) {
+function burnForest(x: number, y: number): void {
   let n = 0;
   for (let yy = y - 4; yy <= y + 4; yy++)
     for (let xx = x - 4; xx <= x + 4; xx++) {
@@ -375,7 +385,7 @@ function burnForest(x, y) {
   note(`Het vuur verwoestte ${n} bomen.`, 'bad');
 }
 
-export function makeOffer() {
+export function makeOffer(): void {
   const gath = GATHER.filter(r => RES[r].age <= G.age),
     want = gath[(Math.random() * gath.length) | 0];
   let give = gath[(Math.random() * gath.length) | 0];

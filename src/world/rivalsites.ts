@@ -8,8 +8,39 @@ import { isPassable, reachableFrom } from './generate';
 export const RIVAL_MIN_DIST = 70;
 // Zo ver liggen twee rivalen minstens van elkaar
 const RIVAL_SPACING = 64;
+
+/** Hoe streng we zoeken: minstens zo ver van het midden, en minstens zo'n deel land (0 tot 1). */
+interface SearchRule {
+  minDist: number;
+  land: number;
+}
+/** Een startplek voor een rivaal: linkerbovenhoek van het stamhuis en de vier gebieden eromheen. */
+export interface RivalSite {
+  x: number;
+  y: number;
+  chunks: number[];
+}
+/** Een mogelijke plek, met afstand en richting vanaf het midden en een beetje toeval (om te kiezen). */
+interface SiteOption extends RivalSite {
+  dist: number;
+  angle: number;
+  jitter: number;
+}
+/** Kun je op tegel (x, y) staan? Geeft 0 of false als dat niet kan. */
+type TileCheck = (x: number, y: number) => number | boolean;
+/** Wat candidates nodig heeft: de kaart, het midden en het toeval. */
+interface SiteSearch {
+  ok: TileCheck;
+  ter: Uint8Array;
+  W: number;
+  CN: number;
+  cx: number;
+  cy: number;
+  R: () => number;
+}
+
 // Eerst streng zoeken (ver weg, veel land); lukt dat niet, dan wat ruimer
-const TRIES = [
+const TRIES: SearchRule[] = [
   { minDist: RIVAL_MIN_DIST, land: 0.45 },
   { minDist: RIVAL_MIN_DIST, land: 0.3 },
   { minDist: 56, land: 0.25 },
@@ -21,21 +52,22 @@ const TRIES = [
  * `chunks` zijn de vier gebieden (2×2) rond dat stamhuis. Ze liggen zo ver mogelijk rondom verspreid.
  * Zelfde wereld en seed = zelfde plekken; een spel met n rivalen neemt de eerste n.
  */
-export function pickRivalSites(ter, W, H, seed) {
+export function pickRivalSites(ter: Uint8Array, W: number, H: number, seed: number): RivalSite[] {
   const CN = W / CS,
     cx = W / 2,
     cy = H / 2;
   const reach = reachableFrom(ter, W, H, cy * W + cx);
   const R = mulberry32((seed >>> 0) + 5150);
   const startAngle = R() * Math.PI * 2;
-  const ok = (x, y) => x >= 0 && y >= 0 && x < W && y < H && reach[y * W + x] && isPassable(ter[y * W + x]);
-  const sites = [];
+  const ok: TileCheck = (x, y) =>
+    x >= 0 && y >= 0 && x < W && y < H && reach[y * W + x] && isPassable(ter[y * W + x]);
+  const sites: RivalSite[] = [];
   for (const rule of TRIES) {
     const options = candidates(rule, { ok, ter, W, CN, cx, cy, R });
     while (sites.length < MAX_RIVALS) {
       // Elke rivaal krijgt een eigen richting (een derde van de cirkel verder), zodat ze rondom wonen
       const want = startAngle + (sites.length * Math.PI * 2) / MAX_RIVALS;
-      let best = null,
+      let best: SiteOption | null = null,
         bestScore = Infinity;
       for (const c of options) {
         const clash = sites.some(
@@ -57,8 +89,8 @@ export function pickRivalSites(ter, W, H, seed) {
 }
 
 // Alle hoekpunten tussen vier gebieden die als thuis voor een rivaal kunnen dienen
-function candidates(rule, { ok, ter, W, CN, cx, cy, R }) {
-  const list = [];
+function candidates(rule: SearchRule, { ok, ter, W, CN, cx, cy, R }: SiteSearch): SiteOption[] {
+  const list: SiteOption[] = [];
   for (let by = 1; by < CN; by++)
     for (let bx = 1; bx < CN; bx++) {
       const jitter = R() * 0.5; // altijd trekken, zodat de volgorde van de toevalsgetallen vast blijft
@@ -76,7 +108,7 @@ function candidates(rule, { ok, ter, W, CN, cx, cy, R }) {
 }
 
 // Een plek voor het stamhuis vlak bij (px, py): 2×2 tegels plus een rand van één tegel, allemaal begaanbaar
-function townhallSpot(ok, px, py) {
+function townhallSpot(ok: TileCheck, px: number, py: number): { x: number; y: number } | null {
   for (let r = 0; r <= 5; r++)
     for (let dy = -r; dy <= r; dy++)
       for (let dx = -r; dx <= r; dx++) {
@@ -96,7 +128,7 @@ function townhallSpot(ok, px, py) {
 }
 
 // Welk deel (0 tot 1) van een vierkant stuk kaart begaanbaar land is
-function landShare(ter, W, x0, y0, size) {
+function landShare(ter: Uint8Array, W: number, x0: number, y0: number, size: number): number {
   let land = 0;
   for (let y = y0; y < y0 + size; y++)
     for (let x = x0; x < x0 + size; x++) if (isPassable(ter[y * W + x])) land++;
@@ -104,7 +136,7 @@ function landShare(ter, W, x0, y0, size) {
 }
 
 // Hoe ver twee richtingen uit elkaar liggen (0 tot π)
-function angleGap(a, b) {
+function angleGap(a: number, b: number): number {
   const d = Math.abs(a - b) % (Math.PI * 2);
   return d > Math.PI ? Math.PI * 2 - d : d;
 }

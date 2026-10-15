@@ -243,7 +243,7 @@ const fpsEl = Object.assign(document.createElement('div'), { id: 'fps', hidden: 
 document.body.appendChild(fpsEl);
 let fpsFrames = 0,
   fpsTime = 0;
-function showFps(rdt) {
+function showFps(rdt: number) {
   fpsFrames++;
   fpsTime += rdt;
   if (fpsTime < 0.5) return;

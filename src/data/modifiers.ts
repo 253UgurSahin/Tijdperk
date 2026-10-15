@@ -1,16 +1,30 @@
 // Spelregels voor uitdagingen en de wereld van de dag: wat er anders is dan in een gewoon spel. Puur.
+import type { Bonus } from '../types';
 
 /*
  * Elke spelregel:
- * - k: vaste sleutel (wordt opgeslagen in G.mods), n: naam, g: pictogram (zie ui/glyphs.js)
+ * - k: vaste sleutel (wordt opgeslagen in G.mods), n: naam, g: pictogram (zie ui/glyphs.ts)
  * - d: wat er anders is, in gewone taal en met dezelfde getallen als in `bonus`
  * - hard: true als het spel er moeilijker van wordt, anders wordt het makkelijker
- * - bonus: sleutels uit src/data/bonus.js; die gelden het hele spel (het bonusregister telt ze mee)
+ * - bonus: sleutels uit src/data/bonus.ts; die gelden het hele spel (het bonusregister telt ze mee)
  * - rule: een vlag die de spelcode zelf afhandelt; zoek op hasRule('...') om te zien waar
- * - not: soorten doelen waar deze regel niet bij past (zie data/scenarios.js), bijv. geen leger
+ * - not: soorten doelen waar deze regel niet bij past (zie data/scenarios.ts), bijv. geen leger
  *   en toch kampen moeten veroveren
  */
-export const MODIFIERS = [
+/** Een spelregel van een uitdaging (zie de uitleg hierboven). */
+export interface ModifierDef {
+  k: string;
+  n: string;
+  g: string;
+  hard: boolean;
+  d: string;
+  rule?: string;
+  bonus?: Bonus;
+  /** Soorten doelen waar deze regel niet bij past. */
+  not?: string[];
+}
+
+export const MODIFIERS: ModifierDef[] = [
   // Moeilijker
   {
     k: 'longWinter',
@@ -126,26 +140,27 @@ export const MODIFIERS = [
 ];
 
 /** Spelregel opzoeken op sleutel: MODIFIER.longWinter */
-export const MODIFIER = Object.fromEntries(MODIFIERS.map(m => [m.k, m]));
+export const MODIFIER: Record<string, ModifierDef> = Object.fromEntries(MODIFIERS.map(m => [m.k, m]));
 
 /** Een nette lijst spelregels: alleen bestaande, elk één keer. Kapot of leeg wordt een lege lijst. */
-export const cleanMods = list =>
+export const cleanMods = (list: unknown): string[] =>
   Array.isArray(list) ? list.filter((k, i) => MODIFIER[k] && list.indexOf(k) === i) : [];
 
 /** De bonussen van de spelregels in een spel (G.mods bewaart alleen de sleutels). */
-export const modifierBonuses = keys =>
+export const modifierBonuses = (keys: unknown): (Bonus | undefined)[] =>
   cleanMods(keys)
     .map(k => MODIFIER[k].bonus)
     .filter(Boolean);
 
 /** Geldt deze vlag (zoals 'noArmy') bij deze spelregels? */
-export const modsHaveRule = (keys, flag) => cleanMods(keys).some(k => MODIFIER[k].rule === flag);
+export const modsHaveRule = (keys: unknown, flag: string): boolean =>
+  cleanMods(keys).some(k => MODIFIER[k].rule === flag);
 
 /** Hoeveel dagen elk seizoen duurt: lente, zomer, herfst, winter. Met Lange winter is het vooral winter. */
-export const seasonDays = longWinter => (longWinter ? [2, 2, 2, 6] : [4, 4, 4, 4]);
+export const seasonDays = (longWinter: boolean): number[] => (longWinter ? [2, 2, 2, 6] : [4, 4, 4, 4]);
 
 /** Welk seizoen het is op een dag (0 = lente, 1 = zomer, 2 = herfst, 3 = winter). Dag 1 is de eerste lentedag. */
-export function seasonIndex(day, longWinter = false) {
+export function seasonIndex(day: number, longWinter = false): number {
   const days = seasonDays(longWinter);
   const year = days.reduce((sum, n) => sum + n, 0);
   let dayOfYear = (((day - 1) % year) + year) % year;

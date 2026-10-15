@@ -2,15 +2,33 @@
 
 /*
  * Elke kaartsoort:
- * - k: vaste sleutel (wordt opgeslagen), n: naam, d: korte uitleg, g: pictogram (zie ui/glyphs.js)
- * - gen: instellingen voor src/world/generate.js
+ * - k: vaste sleutel (wordt opgeslagen), n: naam, d: korte uitleg, g: pictogram (zie ui/glyphs.ts)
+ * - gen: instellingen voor src/world/generate.ts
  *   - levels: welk deel van de kaart lager ligt dan zee, kust, heuvels en bergtoppen (0 tot 1)
  *   - landSize: hoe groot de landmassa's zijn (in tegels; kleiner = meer losse stukken)
  *   - edgeDrop: hoe sterk het land naar de rand van de kaart in zee zakt
  *   - ridges: hoeveel bergkammen er extra bij komen (0 = geen)
  *   - straits: hoe diep de zeestraten tussen eilanden zijn (0 = geen)
  */
-export const MAPS = [
+/** Een kaartsoort waaruit je kiest (zie de uitleg hierboven). */
+export interface MapDef {
+  k: string;
+  n: string;
+  d: string;
+  g: string;
+  gen: MapGen;
+}
+
+/** Instellingen voor de wereldgenerator (src/world/generate.ts), zie de uitleg hierboven. */
+export interface MapGen {
+  levels: { sea: number; shore: number; hill: number; peak: number };
+  landSize: number;
+  edgeDrop: number;
+  ridges: number;
+  straits?: number;
+}
+
+export const MAPS: MapDef[] = [
   {
     k: 'continent',
     n: 'Continent',
@@ -51,10 +69,10 @@ export const MAPS = [
 ];
 
 /** Kaartsoort op sleutel, zoals MAP.islands. */
-export const MAP = Object.fromEntries(MAPS.map(m => [m.k, m]));
+export const MAP: Record<string, MapDef> = Object.fromEntries(MAPS.map(m => [m.k, m]));
 
 /** De kaart van oude opslag en het standaardspel. */
 export const DEFAULT_MAP = 'continent';
 
-/** Een bestaande kaartsleutel, of de standaardkaart als de sleutel niet (meer) bestaat. */
-export const cleanMap = k => (MAP[k] ? k : DEFAULT_MAP);
+/** Een bestaande kaartsleutel, of de standaardkaart als de sleutel niet (meer) bestaat of ontbreekt (''). */
+export const cleanMap = (k = ''): string => (MAP[k] ? k : DEFAULT_MAP);

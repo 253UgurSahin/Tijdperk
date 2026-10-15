@@ -67,7 +67,7 @@ export const BASEW: Record<string, number> = {
  * Marktprijzen in goud voor 100 stuks van grondstof r. `level` is het niveau van de markt,
  * `marketMul` de marktbonus (1 = geen bonus, 1.2 = 20% betere prijzen).
  */
-export function tradePrices(r, level, marketMul) {
+export function tradePrices(r: string, level: number, marketMul: number): { buy: number; sell: number } {
   const base = 1 + RES[r].age * 0.5;
   const buy = Math.round((20 * base * (1 - 0.1 * level)) / marketMul);
   const sell = Math.round(8 * base * (1 + 0.15 * level) * marketMul);

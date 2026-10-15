@@ -1,4 +1,5 @@
 // Paneel "Verbeteren": werktuigen, wapens, gebouwen en uitvindingen, steeds met wat het oplevert.
+import type { Building, Cost } from '../../types';
 import { store } from '../../core/store';
 import { sfx } from '../../audio/sound';
 import { AGES } from '../../data/ages';
@@ -24,7 +25,7 @@ import {
   upgradeTools,
 } from '../../game/upgrades';
 import { blessingListHTML } from '../blessings';
-import { compareHTML, compareText, costHTML, esc } from '../format';
+import { compareHTML, compareText, costHTML, esc, type CompareRow } from '../format';
 import { iconFor } from '../../render/icons';
 import { ico } from '../glyphs';
 import { setHTML, sigs } from '../header';
@@ -35,7 +36,15 @@ import { $ } from '../../util/dom';
 const nextAgeName = () => (AGES[G.age + 1] ? 'de ' + AGES[G.age + 1].n.toLowerCase() : 'een later tijdperk');
 
 /** Eén blok: titel, uitleg, vergelijking nu → straks, kosten en knop. */
-function block(key, title, level, about, rows, cost, maxed) {
+function block(
+  key: string,
+  title: string,
+  level: number,
+  about: string,
+  rows: CompareRow[],
+  cost: Cost,
+  maxed: boolean,
+) {
   const can = !maxed && has(cost);
   return `<div class="ublock ${can ? 'can' : ''}"><div class="ut"><b>${title}</b><span>niveau ${level + 1}</span></div><p>${about}</p>${
     maxed
@@ -47,7 +56,7 @@ function block(key, title, level, about, rows, cost, maxed) {
 // Staat het lijstje met zegeningen open? null = nog niet aangeklikt: dan open bij weinig zegeningen,
 // zodat een lange lijst later in het spel de verbeteringen niet uit beeld duwt.
 const BLESSINGS_OPEN_KEY = 'tijdperken-zegeningen-open';
-let blessingsOpen = null;
+let blessingsOpen: boolean | null = null;
 try {
   const saved = localStorage.getItem(BLESSINGS_OPEN_KEY);
   if (saved) blessingsOpen = saved === 'open';
@@ -119,7 +128,7 @@ export function renderUpgrades() {
     if (!up.length)
       h += `<p class="small">Niets te verbeteren. Elk nieuw tijdperk geeft gebouwen een niveau extra.</p>`;
     else {
-      const byType = {};
+      const byType: Record<string, Building[]> = {};
       for (const b of up) (byType[b.type] = byType[b.type] || []).push(b);
       h += `<div class="ulist">${Object.entries(byType)
         .map(([k, list]) => {
@@ -160,9 +169,10 @@ export function renderUpgrades() {
 }
 $('#upgrades').addEventListener('click', e => {
   // Zegeningen open- of dichtklappen: onthouden voordat de browser het blok omzet
-  const summary = e.target.closest('.blessbox > summary');
+  const summary = (e.target as HTMLElement).closest('.blessbox > summary');
   if (summary) {
-    blessingsOpen = !summary.parentElement.open;
+    // De ouder van deze summary is altijd het uitklapblok (details.blessbox)
+    blessingsOpen = !(summary.parentElement as HTMLDetailsElement).open;
     try {
       localStorage.setItem(BLESSINGS_OPEN_KEY, blessingsOpen ? 'open' : 'dicht');
     } catch {
@@ -171,7 +181,7 @@ $('#upgrades').addEventListener('click', e => {
     sfx('tick');
     return;
   }
-  const t = e.target.closest('button');
+  const t = (e.target as HTMLElement).closest('button');
   if (!t || t.disabled) return;
   sfx('tick');
   if (t.dataset.tech) {

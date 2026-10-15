@@ -1,4 +1,6 @@
 // Tests voor prestaties, score en profiel: kloppen de gegevens, de som en het bijhouden van records?
+import type { GameRecord } from '../src/types';
+import type { AchievedMap, AchievementFacts } from '../src/data/achievements';
 import { describe, expect, it } from 'vitest';
 import {
   addAchievement,
@@ -23,7 +25,7 @@ import { PEOPLE, PEOPLES, isPeopleUnlocked } from '../src/data/peoples';
 import { DIFF_FACTOR, DIFF_NAMES, MEDALS, gameScore, medalFor } from '../src/data/score';
 import { ico } from '../src/ui/glyphs';
 
-const facts = changes => ({ ...emptyFacts(), ...changes });
+const facts = (changes: Partial<AchievementFacts>) => ({ ...emptyFacts(), ...changes });
 
 describe('prestaties: gegevens', () => {
   it('30 tot 50 prestaties, elk met een eigen sleutel, naam, uitleg en groep', () => {
@@ -44,7 +46,8 @@ describe('prestaties: gegevens', () => {
     for (const a of ACHIEVEMENTS) {
       if (a.age != null) expect(AGES[a.age], a.k).toBeTruthy();
       else if (a.people) expect(PEOPLE[a.people], a.k).toBeTruthy();
-      else expect(ico(a.g), a.k).toContain('<svg');
+      // Zonder tijdperk of volk heeft een prestatie een pictogram: dat test deze regel
+      else expect(ico(a.g!), a.k).toContain('<svg');
     }
   });
 
@@ -67,14 +70,15 @@ describe('prestaties: gegevens', () => {
   });
 
   it('elk volk op slot wordt vrijgespeeld door een prestatie die bestaat', () => {
+    // Alleen volken op slot (zie de filter), en hieronder alleen prestaties die iets vrijspelen
     for (const p of PEOPLES.filter(p => p.locked)) {
-      const a = ACHIEVEMENT[p.locked.by];
+      const a = ACHIEVEMENT[p.locked!.by];
       expect(a, p.k).toBeTruthy();
       expect(a.unlocks && a.unlocks.people, p.k).toBe(p.k);
     }
     // En andersom: een prestatie speelt alleen een volk vrij dat op slot zit, met die prestatie
     for (const a of ACHIEVEMENTS.filter(a => a.unlocks)) {
-      const people = PEOPLE[a.unlocks.people];
+      const people = PEOPLE[a.unlocks!.people];
       expect(people && people.locked && people.locked.by, a.k).toBe(a.k);
     }
   });
@@ -100,7 +104,7 @@ describe('prestaties: wanneer haal je ze?', () => {
   });
 
   it('winnen met het laatste volk geeft ook "Alle volken"', () => {
-    const have = {};
+    const have: AchievedMap = {};
     for (const p of PEOPLES.slice(0, -1)) have[`win_${p.k}`] = 1;
     const last = PEOPLES[PEOPLES.length - 1].k;
     const earned = newAchievements(facts({ won: true, people: last, builtWalls: true, day: 80 }), have);
@@ -159,9 +163,10 @@ describe('score', () => {
     expect(s.sum).toBe(8000 + 1200 + 1500 - 900);
     expect(s.total).toBe(9800);
     expect(s.factor).toBe(1);
-    expect(s.medal.k).toBe('zilver');
+    // Medaille en regel bestaan hier zeker (dat testen deze regels ook)
+    expect(s.medal!.k).toBe('zilver');
     expect(s.rows.map(r => r.k)).toEqual(['age', 'wonders', 'camps', 'kills', 'days']);
-    expect(s.rows.find(r => r.k === 'days').pts).toBe(-900);
+    expect(s.rows.find(r => r.k === 'days')!.pts).toBe(-900);
   });
 
   it('wonderen tellen 500 punten', () => {
@@ -191,13 +196,14 @@ describe('score', () => {
     expect(MEDALS.map(m => m.k)).toEqual(['goud', 'zilver', 'brons']);
     expect(medalFor(0)).toBe(null);
     expect(medalFor(MEDALS[2].min - 1)).toBe(null);
-    expect(medalFor(MEDALS[2].min).k).toBe('brons');
-    expect(medalFor(MEDALS[1].min).k).toBe('zilver');
-    expect(medalFor(MEDALS[0].min + 5000).k).toBe('goud');
+    // Vanaf de grens is er zeker een medaille
+    expect(medalFor(MEDALS[2].min)!.k).toBe('brons');
+    expect(medalFor(MEDALS[1].min)!.k).toBe('zilver');
+    expect(medalFor(MEDALS[0].min + 5000)!.k).toBe('goud');
   });
 
   it('een snelle overwinning met kampen is goud, een vroeg verlies hooguit brons', () => {
-    expect(gameScore({ age: 8, camps: 6, kills: 400, days: 40 }).medal.k).toBe('goud');
+    expect(gameScore({ age: 8, camps: 6, kills: 400, days: 40 }).medal!.k).toBe('goud');
     const early = gameScore({ age: 3, camps: 2, kills: 50, days: 20 });
     expect(['brons', undefined]).toContain(early.medal && early.medal.k);
   });
@@ -245,7 +251,16 @@ describe('profiel', () => {
 
   it('houdt beste scores, overwinningen en de laatste spellen bij', () => {
     const p = emptyProfile();
-    const game = { score: 4000, medal: 'brons', won: false, age: 4, day: 30, people: 'hanze', diff: 1 };
+    // Een spel met alleen de gegevens die hier tellen
+    const game = {
+      score: 4000,
+      medal: 'brons',
+      won: false,
+      age: 4,
+      day: 30,
+      people: 'hanze',
+      diff: 1,
+    } as GameRecord;
     expect(addResult(p, game, 1)).toBe(true);
     expect(addResult(p, { ...game, score: 3000, people: 'norse', diff: 2 }, 2)).toBe(false);
     expect(addResult(p, { ...game, score: 12000, won: true }, 3)).toBe(true);
@@ -260,6 +275,7 @@ describe('profiel', () => {
 
   it('een kort spel dat doorgaat tot de sterrenpoort vervangt zijn eigen regel', () => {
     const p = emptyProfile();
+    // Een spel met alleen de gegevens die hier tellen
     const short = {
       score: 5000,
       medal: 'brons',
@@ -269,7 +285,7 @@ describe('profiel', () => {
       day: 30,
       people: 'hanze',
       diff: 1,
-    };
+    } as GameRecord;
     addResult(p, { ...short, score: 2000, won: false }, 1);
     addResult(p, short, 2);
     const full = { ...short, score: 11000, medal: 'goud', wonBy: 'stargate', age: 8, day: 70 };

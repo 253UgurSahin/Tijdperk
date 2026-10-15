@@ -1,4 +1,4 @@
-import type { Building, Camp, Cost, Foe, Target, Unit } from '../types';
+import type { Building, Camp, Cost, Foe, Target, Tile, Unit, Villager } from '../types';
 // Gevechten: soldaten, vijanden, torens en projectielen.
 import { store } from '../core/store';
 import { sfx } from '../audio/sound';
@@ -32,7 +32,19 @@ import {
 import { bmap, foeWalk, freeWalk, isUnl, nearestWall, setBlk, walkable } from '../world/world';
 import { wonderDestroyed } from './wonders';
 
-function tpos(t) {
+/** Een schot: schade, spatschade, laser, kleur, groot projectiel, beginhoogte, van een vijand, geluid. */
+interface FireOpts {
+  dmg: number;
+  splash?: number;
+  laser?: boolean | 1;
+  col?: string;
+  big?: boolean | 1;
+  h0?: number;
+  foe?: boolean | 1;
+  snd?: string;
+}
+
+function tpos(t: Target): { x: number; y: number; rad: number } {
   // Een gebouw: van jou ('b') of van een rivaal ('rb')
   if (t.kind === 'b' || t.kind === 'rb') {
     const s = B[t.type].size;
@@ -41,15 +53,15 @@ function tpos(t) {
   if (t.kind === 'c') return { x: t.x + 1, y: t.y + 1, rad: 1.2 };
   return { x: t.x, y: t.y, rad: 0.25 };
 }
-export const isDead = t =>
+export const isDead = (t: Target | null | undefined): boolean | undefined =>
   !t || t.dead || t.hidden || (t.kind === 'c' && !t.alive) || (t.kind === 'f' && t.retreat);
-function hit(t, dmg) {
+function hit(t: Target, dmg: number) {
   if (isDead(t)) return;
   t.hp -= dmg;
   t.flash = 0.12;
   if (t.kind === 'b' || t.kind === 'c' || t.kind === 'rb') sfx('hit', 0.15);
   else sfx('hit', 0.3);
-  if (t.rival) rivalHurt(t); // een rivaal merkt dat je hem aanvalt
+  if ('rival' in t && t.rival) rivalHurt(t); // een rivaal merkt dat je hem aanvalt
   if (t.hp > 0) return;
   t.dead = true;
   if (t.kind === 'b') destroyBuilding(t);
@@ -92,7 +104,7 @@ function destroyBuilding(b: Building) {
     G.over = true;
     endGame(false, 900);
   } else if (d.wonder) {
-    wonderDestroyed(b); // het wonder is weer vrij (zie game/wonders.js)
+    wonderDestroyed(b); // het wonder is weer vrij (zie game/wonders.ts)
   } else if (d.wall) {
     note(`${d.n} doorbroken.`, 'bad');
   } else {
@@ -144,7 +156,7 @@ function campDestroyed(c: Camp) {
   computeAvail();
   store.uiDirty = true;
 }
-export function fire(from, x, y, t, o) {
+export function fire(_from: Target, x: number, y: number, t: Target, o: FireOpts) {
   // Geluid hoort bij het wapen (musket, kanon, laser, ...); vijanden iets minder vaak
   sfx(o.snd || 'shot', o.foe ? 0.3 : 0.12);
   if (o.laser) {
@@ -218,7 +230,7 @@ export function nearestFoe(x: number, y: number, r: number, air?: boolean | 1): 
   return best;
 }
 // Schade van een eigen eenheid tegen doel t: basis × wapens × onderzoek × rol-bonus
-function udmg(u, t) {
+function udmg(u: Unit, t: Target): number {
   return (
     UNITS[u.k].dmg *
     bonusMul(UNITS[u.k], t) *
@@ -232,7 +244,7 @@ export function uUpdate(u: Unit, dt: number) {
     SP = U.spd * mul('army.speed') * mul('move.all');
   u.anim += dt;
   if (u.flash) u.flash -= dt;
-  if (u.swing > 0) u.swing -= dt;
+  if (u.swing && u.swing > 0) u.swing -= dt;
   const restHeal = u.order === 'guard' && !u.tgt ? 1.5 : 0; // rusten op wacht
   const bonusHeal = 2 * add('heal'); // het leger geneest dubbel zo snel als het volk
   u.hp = Math.min(u.mhp, u.hp + dt * (restHeal + bonusHeal));
@@ -304,6 +316,7 @@ export function uUpdate(u: Unit, dt: number) {
     if (moveToward(u, u.gx, u.gy, dt, SP, U.fly)) {
       const a = u.gx,
         b2 = u.gy;
+      // Bij patrouilleren is het tweede punt (px, py) altijd gezet
       u.gx = u.px!;
       u.gy = u.py!;
       u.px = a;
@@ -354,7 +367,14 @@ function chase(e: Unit | Foe, p: { x: number; y: number }, dt: number, spd: numb
     }
   }
 }
-export function moveToward(e, x, y, dt, spd, fly) {
+export function moveToward(
+  e: Unit | Foe,
+  x: number,
+  y: number,
+  dt: number,
+  spd: number,
+  fly?: boolean | 1,
+): boolean {
   if (dist(e.x, e.y, x, y) < 0.35) {
     e.path = null;
     return true;
@@ -394,8 +414,8 @@ export function moveToward(e, x, y, dt, spd, fly) {
   }
   return false;
 }
-export function foeTarget(f) {
-  let best = null,
+export function foeTarget(f: Foe): Unit | Villager | Building | null {
+  let best: Unit | Villager | Building | null = null,
     bd = f.camp ? 7 : 5.5;
   for (const u of G.us) {
     const d = dist(f.x, f.y, u.x, u.y);
@@ -469,7 +489,7 @@ export function fUpdate(f: Foe, dt: number) {
       return;
     }
   } else if (f.rival) {
-    // Soldaten van een rivaal: thuis op wacht, onderweg of aanvallend (zie game/rivals.js)
+    // Soldaten van een rivaal: thuis op wacht, onderweg of aanvallend (zie game/rivals.ts)
     if (!rivalThink(f, dt)) return;
   } else {
     f.rt -= dt;
@@ -481,7 +501,8 @@ export function fUpdate(f: Foe, dt: number) {
     }
     if (!f.tgt) return;
   }
-  const p = tpos(f.tgt),
+  // Hier is er altijd een doel: zonder doel ging het hierboven al terug (bij een rivaal: zie rivalThink)
+  const p = tpos(f.tgt!),
     d = dist(f.x, f.y, p.x, p.y) - p.rad;
   if (d <= f.r) {
     f.path = null;
@@ -491,7 +512,7 @@ export function fUpdate(f: Foe, dt: number) {
       f.cd = f.rate;
       f.swing = 0.2;
       if (f.proj)
-        fire(f, f.x, f.y, f.tgt, {
+        fire(f, f.x, f.y, f.tgt!, {
           dmg: f.dmg,
           foe: 1,
           col: f.air ? '#ff6a5a' : '#ff9b6b',
@@ -500,24 +521,24 @@ export function fUpdate(f: Foe, dt: number) {
           h0: f.air ? 22 : 12,
           snd: f.uk ? f.snd : FOES[f.type].snd, // een rivaal heeft gewone soldaten, met hun eigen geluid
         });
-      else hit(f.tgt, f.dmg);
+      else hit(f.tgt!, f.dmg);
     }
   } else chase(f, p, dt, f.spd, f.air);
 }
-export function spawnRaid() {
+export function spawnRaid(): void {
   G.raids++;
   const a = G.age,
     n = raidSize(),
     // Elke aanval iets taaier, maar niet eindeloos. Op Meedogenloos hebben aanvallers meer levens.
     scale = Math.min(2.5, 1 + G.raids * 0.05) * difficulty(G.diff).raidHp,
-    edge = [];
+    edge: Tile[] = [];
   for (let y = 0; y < H; y++)
     for (let x = 0; x < W; x++) {
       if (!walkable(x, y)) continue;
       if (!isUnl(x - 1, y) || !isUnl(x + 1, y) || !isUnl(x, y - 1) || !isUnl(x, y + 1)) edge.push([x, y]);
     }
   if (!edge.length) return;
-  G.stats.raidDay = G.day; // voor de prestaties "doorsta ... aanvallen" (zie game/time.js)
+  G.stats.raidDay = G.day; // voor de prestaties "doorsta ... aanvallen" (zie game/time.ts)
   const anchor = edge[(Math.random() * edge.length) | 0],
     near = edge.filter(e => dist(e[0], e[1], anchor[0], anchor[1]) < 7);
   for (let k = 0; k < n; k++) {
@@ -533,12 +554,12 @@ export function spawnRaid() {
 }
 // Hoe groot de volgende aanval is: groeit met elke aanval en elk tijdperk, maar blijft te overzien.
 // (Latere vijanden zijn per stuk al veel sterker, dus het aantal groeit rustig.)
-export function raidSize() {
+export function raidSize(): number {
   const diff = difficulty(G.diff); // Zwaar en Meedogenloos sturen grotere groepen
   const base = 2 + Math.floor((G.raids + 1) * 0.9) + G.age;
   return Math.min(diff.raidMax, Math.round(base * diff.raidSize * mul('raid.size')));
 }
-export function compass(x, y) {
+export function compass(x: number, y: number): string {
   const a = (Math.atan2(y - CY, x - CX) * 180) / Math.PI;
   const dirs = [
     'oosten',
@@ -557,7 +578,8 @@ export function compass(x, y) {
  * Valt deze vijand nu je land aan? Kampbewakers tellen niet. Van een rivaal tellen alleen soldaten
  * die echt aanvallen: niet die thuis op wacht staan, nog onderweg zijn of naar huis lopen.
  */
-export const isRaider = f => !f.retreat && !f.dead && !f.camp && !(f.rival && f.mode !== 'raid');
+export const isRaider = (f: Foe): boolean =>
+  !f.retreat && !f.dead && !f.camp && !(f.rival && f.mode !== 'raid');
 
 /** Is deze soldaat van een rivaal nog onderweg naar je stad? Dan is hij er nog niet, maar komt hij wel. */
-export const isMarching = f => !!f.rival && f.mode === 'march' && !f.retreat && !f.dead;
+export const isMarching = (f: Foe): boolean => !!f.rival && f.mode === 'march' && !f.retreat && !f.dead;

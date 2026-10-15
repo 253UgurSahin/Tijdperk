@@ -1,26 +1,60 @@
 // De eindscore van een spel en de medaille die erbij hoort. Puur, zodat het te testen is.
+import type { ScoreRow } from '../types';
 import { DIFFICULTIES } from './difficulty';
 
 /** Punten per onderdeel. Tijdperken tellen vanaf de Steentijd (0). Dagen kosten punten: hoe sneller, hoe beter. */
 export const POINTS = { age: 1000, wonders: 500, camps: 200, kills: 5, days: -15, rivals: 1500 };
 
-/** De moeilijkheden, zoals op het nieuw-spelscherm (zie data/difficulty.js). */
+/** De moeilijkheden, zoals op het nieuw-spelscherm (zie data/difficulty.ts). */
 export const DIFF_NAMES = DIFFICULTIES.map(d => d.n);
 
 /** De score gaat keer dit getal, per moeilijkheid (0 = Vredig, 1 = Normaal, 2 = Zwaar, 3 = Meedogenloos). */
 export const DIFF_FACTOR = DIFFICULTIES.map(d => d.score);
 
+/** De sleutel van een medaille. */
+export type MedalKey = 'goud' | 'zilver' | 'brons';
+
+/** Een medaille: sleutel, naam, en de score die je er minstens voor nodig hebt. */
+export interface MedalDef {
+  k: MedalKey;
+  n: string;
+  min: number;
+}
+
+/** De eindscore van een spel (zie gameScore): de losse regels, de optelsom, de factor en de medaille. */
+export interface Score {
+  rows: ScoreRow[];
+  raw: number;
+  sum: number;
+  factor: number;
+  total: number;
+  medal: MedalDef | null;
+}
+
+/** Wat gameScore wil weten over een spel. Wat ontbreekt telt als 0 (diff als Normaal). */
+export interface ScoreInput {
+  age?: number;
+  wonders?: number;
+  camps?: number;
+  kills?: number;
+  days?: number;
+  diff?: number;
+  rivals?: number;
+  /** Alleen in een uitdaging: is het doel gehaald, en met welke medaille ('' = geen). */
+  challenge?: { won: boolean; medal: string } | null;
+}
+
 /** Medailles, van hoog naar laag. Onder de laagste grens krijg je geen medaille. */
-export const MEDALS = [
+export const MEDALS: MedalDef[] = [
   { k: 'goud', n: 'Goud', min: 10000 },
   { k: 'zilver', n: 'Zilver', min: 6000 },
   { k: 'brons', n: 'Brons', min: 2500 },
 ];
 
 /** De medaille bij een score, of null als de score te laag is. */
-export const medalFor = score => MEDALS.find(m => score >= m.min) || null;
+export const medalFor = (score: number): MedalDef | null => MEDALS.find(m => score >= m.min) || null;
 
-/** Extra punten in een uitdaging: voor het gehaalde doel, en voor de medaille (zie data/scenarios.js). */
+/** Extra punten in een uitdaging: voor het gehaalde doel, en voor de medaille (zie data/scenarios.ts). */
 export const CHALLENGE_POINTS = { goal: 2000, goud: 1500, zilver: 1000, brons: 500 };
 
 /**
@@ -39,8 +73,8 @@ export function gameScore({
   diff = 1,
   rivals = 0,
   challenge = null,
-} = {}) {
-  const list = [
+}: ScoreInput = {}): Score {
+  const list: Omit<ScoreRow, 'pts'>[] = [
     { k: 'age', n: 'Nieuwe tijdperken', count: age, per: POINTS.age },
     { k: 'wonders', n: 'Wonderen', count: wonders, per: POINTS.wonders },
     { k: 'camps', n: 'Kampen veroverd', count: camps, per: POINTS.camps },

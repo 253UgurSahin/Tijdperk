@@ -36,7 +36,17 @@ const UP = new T3.Vector3(0, 1, 0),
   DIR = new T3.Vector3();
 
 /** Een balk van punt (x0, y0, z0) naar punt (x1, y1, z1), met een vierkante doorsnede van w. */
-function beam(g, x0, y0, z0, x1, y1, z1, w, c) {
+function beam(
+  g: T3.Object3D,
+  x0: number,
+  y0: number,
+  z0: number,
+  x1: number,
+  y1: number,
+  z1: number,
+  w: number,
+  c: string,
+) {
   DIR.set(x1 - x0, y1 - y0, z1 - z0);
   const length = DIR.length();
   const o = mk(GB, M_(c), g, x0, y0, z0, w, length, w);
@@ -45,7 +55,7 @@ function beam(g, x0, y0, z0, x1, y1, z1, w, c) {
 }
 
 /** Een vast "toevalsgetal" tussen 0 en 1 per nummer: zo ziet elke kei er anders uit, maar altijd hetzelfde. */
-const wobble = i => {
+const wobble = (i: number) => {
   const v = Math.sin(i * 127.1 + 311.7) * 43758.5453;
   return v - Math.floor(v);
 };
@@ -59,7 +69,7 @@ const WATER = mat('#3d6d8a', { r: 0.3, m: 0.1 });
 const GOLD = mat('#e2b13c', { m: 0.6, r: 0.35 });
 
 /** Een palmboom: stam en vijf bladeren die naar buiten hangen. */
-function palm(g, x, z, h = 0.55) {
+function palm(g: T3.Object3D, x: number, z: number, h = 0.55) {
   beam(g, x, 0.05, z, x + 0.05, 0.05 + h, z + 0.03, 0.045, '#7a5a3a');
   for (let k = 0; k < 5; k++) {
     const a = (k / 5) * TAU;
@@ -78,13 +88,13 @@ function palm(g, x, z, h = 0.55) {
 }
 
 /** Een ronde boom met een kruin. */
-function tree(g, x, z, s = 1) {
+function tree(g: T3.Object3D, x: number, z: number, s = 1) {
   cy(g, 0.035 * s, 0.3 * s, '#6a4e34', x, 0.04, z, 5);
   sp(g, 0.22 * s, '#5e8a40', x, 0.4 * s, z, 1, 1.1);
 }
 
-/** Een windmolen van nu: witte paal en een rotor die draait (zie sync.js: spin). */
-function windTurbine(g, x, y, z, h) {
+/** Een windmolen van nu: witte paal en een rotor die draait (zie sync.ts: spin). */
+function windTurbine(g: T3.Object3D, x: number, y: number, z: number, h: number) {
   cy(g, 0.04, h, '#f1f1ee', x, y, z, 8, 0.022);
   bx(g, 0.09, 0.08, 0.18, '#e6e6e2', x, y + h - 0.02, z - 0.02);
   const rotor = new T3.Group();
@@ -101,12 +111,13 @@ function windTurbine(g, x, y, z, h) {
 
 // ---- De wonderen ----
 
-export const WONDER_MODELS = {
+/** Per wereldwonder een functie die zijn model bouwt in groep g. */
+export const WONDER_MODELS: Record<string, (g: T3.Group) => void> = {
   dolmen(g) {
     // Hunebed: een lage grasheuvel met een krans van keien, en daarop een kamer van reuzenkeien
     mk(gCyl(0.78, 1, 18), M_('#7b8a4e'), g, 0, 0, 0, 1.38, 0.14, 1.08);
     const GRANITE = ['#8e8a83', '#a09a8e', '#7f7c77', '#97928a', '#8a857b'];
-    const granite = i => GRANITE[Math.floor(wobble(i) * GRANITE.length)];
+    const granite = (i: number) => GRANITE[Math.floor(wobble(i) * GRANITE.length)];
     for (let k = 0; k < 20; k++) {
       const a = (k / 20) * TAU;
       mk(
@@ -195,7 +206,7 @@ export const WONDER_MODELS = {
       RZ = 1.06,
       N = 28;
     // Een punt op de ovaal (f = hoe ver naar binnen), met de draaiing van de rand daar
-    const onRing = (a, f) => {
+    const onRing = (a: number, f: number) => {
       const tx = -Math.sin(a) * RX,
         tz = Math.cos(a) * RZ;
       return {
@@ -271,7 +282,7 @@ export const WONDER_MODELS = {
     // ---- De toren ----
     const tx = -0.68,
       tz = -0.68;
-    const tall = (w, y, h) => {
+    const tall = (w: number, y: number, h: number) => {
       bx(g, w, h, w, STONE, tx, y, tz);
       // Steunberen op de hoeken
       for (const sx of [-1, 1])
@@ -403,9 +414,9 @@ export const WONDER_MODELS = {
     bx(g, 2.95, 0.04, 2.95, '#cbbd96');
     for (const x of [-0.75, 0.75]) bx(g, 0.9, 0.08, 0.22, '#5d8a3e', x, 0.04, 1.3);
     // Hoe breed de toren is op hoogte y: onderaan breed, naar boven steeds smaller (een mooie bocht)
-    const half = y => 0.07 + 0.95 * Math.exp(-y * 1.35);
+    const half = (y: number) => 0.07 + 0.95 * Math.exp(-y * 1.35);
     const LEVELS = [0, 0.32, 0.62, 0.95, 1.3, 1.75, 2.25, 2.8, 3.3];
-    const thick = y => 0.03 + 0.17 * Math.exp(-y * 1.1);
+    const thick = (y: number) => 0.03 + 0.17 * Math.exp(-y * 1.1);
     const CORNERS = [
       [1, 1],
       [1, -1],
@@ -633,7 +644,7 @@ export const WONDER_MODELS = {
       [0.75, 0.75, '#2f6fd6'],
       [-0.85, 0.45, '#e0a823'],
       [0.3, 0.95, paint.team],
-    ])
+    ] as [number, number, string][])
       bx(g, 0.3, 0.14, 0.16, c, x, 0.2, z);
     beam(g, -0.6, 0.2, 0.8, -0.6, 0.85, 0.8, 0.04, '#e0b240');
     beam(g, -0.6, 0.85, 0.8, -0.3, 0.82, 0.55, 0.03, '#e0b240');

@@ -1,4 +1,5 @@
 // Prestaties tijdens het spel: kijkt om de paar tellen wat je bereikt hebt, en rekent aan het eind je score uit.
+import type { GameRecord, GameResult } from '../types';
 import {
   addAchievement,
   addChallengeResult,
@@ -9,10 +10,12 @@ import {
   saveProfile,
 } from '../core/profile';
 import { ACHIEVEMENT, emptyFacts, fullAge, newAchievements } from '../data/achievements';
+import type { AchievementFacts } from '../data/achievements';
 import { BLESSING } from '../data/blessings';
 import { B } from '../data/buildings';
 import { PEOPLE } from '../data/peoples';
 import { gameScore } from '../data/score';
+import type { Score } from '../data/score';
 import { VICTORY } from '../data/victories';
 import { challengeOutcome, currentChallenge } from './scenario';
 import { G } from './state';
@@ -22,13 +25,14 @@ import { showEndScreen } from '../ui/endscreen';
 import { note } from '../ui/hud';
 
 /** Stond de vredige modus in dit spel ooit aan? Dan telt de score als Vredig, ook als hij nu uit staat. */
-const peaceUsed = () => G.peaceful || G.stats.peaceUsed;
+const peaceUsed = (): boolean => G.peaceful || G.stats.peaceUsed;
 
-/** Het tijdperk waarin dit spel begon: 0, of later bij sommige uitdagingen (zie data/scenarios.js). */
-const startAge = () => (currentChallenge() ? currentChallenge().startAge : 0);
+/** Het tijdperk waarin dit spel begon: 0, of later bij sommige uitdagingen (zie data/scenarios.ts). */
+// (Twee keer dezelfde vraag: geeft de eerste een uitdaging, dan de tweede ook.)
+const startAge = (): number => (currentChallenge() ? currentChallenge()!.startAge : 0);
 
-/** Alles wat de prestaties willen weten, verzameld uit de spelstand (zie emptyFacts in data/achievements.js). */
-export function gameFacts() {
+/** Alles wat de prestaties willen weten, verzameld uit de spelstand (zie emptyFacts in data/achievements.ts). */
+export function gameFacts(): AchievementFacts {
   const standing = G.bs.filter(b => b.done).map(b => b.type);
   return {
     ...emptyFacts(),
@@ -64,8 +68,8 @@ export function gameFacts() {
   };
 }
 
-/** Kijk of er nieuwe prestaties zijn. Draait om de paar tellen (zie game/update.js) en aan het eind. */
-export function checkAchievements() {
+/** Kijk of er nieuwe prestaties zijn. Draait om de paar tellen (zie game/update.ts) en aan het eind. */
+export function checkAchievements(): void {
   const profile = getProfile();
   if (!G || !profile) return;
   // Het eerste moment dat er echt gespeeld wordt, telt het spel mee als gespeeld
@@ -79,7 +83,7 @@ export function checkAchievements() {
 }
 
 /** Een prestatie halen: in het profiel zetten, laten zien, en misschien een volk vrijspelen. */
-function unlock(k) {
+function unlock(k: string): void {
   const profile = getProfile();
   const achievement = ACHIEVEMENT[k];
   if (!addAchievement(profile, k)) return;
@@ -92,7 +96,7 @@ function unlock(k) {
 }
 
 /** De score van dit spel zoals hij nu is, en de regel die daarvan in het profiel komt. */
-function scoreNow() {
+function scoreNow(): { score: Score; game: GameRecord } {
   // Stond de vredige modus ooit aan, dan telt de score als Vredig (ook als je hem later weer uitzette)
   const diff = peaceUsed() ? 0 : G.diff;
   const challenge = challengeOutcome(); // in een uitdaging: medaille, tijd en verlies
@@ -106,11 +110,11 @@ function scoreNow() {
     rivals: G.stats.rivals || 0,
     challenge: challenge && { won: G.won, medal: challenge.medal },
   });
-  const game = {
+  const game: GameRecord = {
     score: score.total,
     medal: score.medal ? score.medal.k : '',
     won: G.won,
-    wonBy: G.wonBy, // waarmee je won (zie data/victories.js)
+    wonBy: G.wonBy, // waarmee je won (zie data/victories.ts)
     age: G.age,
     day: G.day,
     people: G.people,
@@ -132,7 +136,7 @@ function scoreNow() {
 }
 
 /** Wat het eindscherm nodig heeft: de profielregel plus de losse regels van de score. */
-const resultOf = (score, game, at, record) => ({
+const resultOf = (score: Score, game: GameRecord, at: number, record: boolean): GameResult => ({
   ...game,
   at, // wanneer het spel in het profiel kwam, om die regel later terug te vinden
   rows: score.rows,
@@ -146,7 +150,7 @@ const resultOf = (score, game, at, record) => ({
  * De eindscore van dit spel. Wordt één keer bewaard (bij winst of verlies, wat het eerst komt);
  * wie na het winnen doorspeelt, houdt de score van het moment van winnen (behalve bij upgradeWin).
  */
-export function finishGame() {
+export function finishGame(): GameResult {
   checkAchievements();
   if (G.result) return G.result;
   const { score, game } = scoreNow();
@@ -160,7 +164,7 @@ export function finishGame() {
 }
 
 /** Het spel is gewonnen of verloren: score bewaren en na een korte pauze het eindscherm tonen. */
-export function endGame(won, delay = 800) {
+export function endGame(won: boolean, delay = 800): void {
   finishGame();
   setTimeout(() => showEndScreen(won), delay);
 }
@@ -170,7 +174,7 @@ export function endGame(won, delay = 800) {
  * Dat telt alsnog als echte winst: de prestaties voor winnen komen vrij, en de score van nu vervangt
  * die van het korte spel in je profiel. Daarna opnieuw het eindscherm.
  */
-export function upgradeWin(wonBy, delay = 800) {
+export function upgradeWin(wonBy: string, delay = 800): void {
   const before = G.result;
   G.wonBy = wonBy;
   if (!before) {

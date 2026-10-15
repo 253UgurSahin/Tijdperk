@@ -1,3 +1,4 @@
+import type { Building, Foe, GameState, NewGameOptions, Rival, Unit } from './types';
 // Alleen tijdens ontwikkelen (npm run dev): handige hulpjes in de browserconsole
 // en voor automatische tests, bijv. window.__tp.G of __tp.place('hut', x, y).
 import { store } from './core/store';
@@ -7,6 +8,69 @@ import { placeBuilding } from './game/entities';
 import { cam } from './render/scene';
 import { centerOn } from './render/camera';
 import * as world from './world/world';
+
+/** De hulpjes op window.__tp (alleen in dev-modus); de velden met ? komen er hieronder bij. */
+interface DevTools {
+  readonly G: GameState;
+  store: typeof store;
+  B: typeof B;
+  cam: typeof cam;
+  world: typeof world;
+  /** Een getal is de seed. */
+  newGame: (o?: number | NewGameOptions) => void;
+  centerOn: typeof centerOn;
+  place: (type: string, x: number, y: number) => Building;
+  GLOWS?: typeof GLOWS;
+  caches?: typeof caches;
+  config?: typeof config;
+  meteor?: () => void;
+  nodes3d?: typeof nodes3d;
+  terrain3d?: typeof terrain3d;
+  sel?: typeof sel;
+  proj?: typeof proj;
+  setAge?: (n: number) => void;
+  rich?: (n?: number) => void;
+  unit?: (k: string, x: number, y: number) => Unit;
+  foe?: (type: number, x: number, y: number) => Foe;
+  bonus?: typeof bonus;
+  tech?: (k: string) => void;
+  ageUp?: () => void;
+  bless?: () => void;
+  saves?: typeof saves;
+  unlockPeoples?: () => void;
+  playAs?: (people: string, diff?: number) => void;
+  profile?: typeof profile;
+  achievements?: typeof achievements;
+  checkAchievements?: () => void;
+  endGame?: (won?: boolean, by?: string) => void;
+  victory?: typeof victory;
+  /** Geeft de nieuwe dag terug. */
+  day?: (n: number) => number;
+  scenarios?: typeof scenarios;
+  challengeState?: typeof challenge;
+  challenge?: (k: string, people?: string) => void;
+  /** Geeft de nieuwe speltijd terug. */
+  time?: (t: number) => number;
+  events?: typeof events;
+  /** Geeft false als de gebeurtenis nu niet kan (bijv. een bosbrand zonder bos). */
+  event?: (k: string) => boolean;
+  /** Geeft terug hoeveel vervolgen er nu klaarstaan. */
+  followNow?: (k: string) => number;
+  rivals?: typeof rivals;
+  run?: (seconds?: number) => void;
+  rivalHome?: (i?: number) => void;
+  rivalAge?: (i?: number) => void;
+  rivalAttack?: (i?: number, n?: number) => void;
+  wonders?: typeof wonders;
+  /** Geeft de rivaal terug, of null als die er niet is. */
+  rivalWonder?: (i?: number) => Rival | null;
+  myWonder?: (k: string, x: number, y: number) => Building;
+}
+declare global {
+  interface Window {
+    __tp?: DevTools;
+  }
+}
 
 window.__tp = {
   get G() {
@@ -29,7 +93,8 @@ import * as config from './config';
 window.__tp.config = config;
 // Laat binnen een tel een meteoriet aankondigen
 window.__tp.meteor = () => {
-  window.__tp.G.nextMeteor = window.__tp.G.t;
+  // __tp bestaat hier zeker: dit hulpje staat er zelf op
+  window.__tp!.G.nextMeteor = window.__tp!.G.t;
 };
 import * as nodes3d from './render/nodes';
 import * as terrain3d from './render/terrain';
@@ -69,7 +134,8 @@ import { PEOPLES } from './data/peoples';
 import * as profile from './core/profile';
 window.__tp.unlockPeoples = () => {
   for (const p of PEOPLES) {
-    if (p.locked) profile.addPeople(store.profile, p.k);
+    // Het profiel is er altijd: core/profile.ts laadt het meteen bij het opstarten
+    if (p.locked) profile.addPeople(store.profile!, p.k);
   }
   profile.saveProfile();
 };

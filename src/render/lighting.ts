@@ -25,17 +25,19 @@ const COLD = new T3.Color('#6f86c8'),
   FOGDUSK = new T3.Color('#d9a07a');
 // Sfeer per tijdperk, heel subtiel: Gouden Eeuw warm, industrie wat heiiger, sterrentijd koeler.
 // [zonkleur, mistkleur, hoe sterk (0..1)]
-const AGE_MOOD = [
-  null,
-  null,
-  null,
-  null,
-  ['#ffe0a8', '#b9b394', 0.35],
-  ['#f2e8d8', '#a9a69c', 0.5],
-  null,
-  ['#eef4ff', '#9fb2bc', 0.3],
-  ['#e2e4ff', '#9ea4c8', 0.4],
-].map(m => m && [new T3.Color(m[0]), new T3.Color(m[1]), m[2]]);
+const AGE_MOOD = (
+  [
+    null,
+    null,
+    null,
+    null,
+    ['#ffe0a8', '#b9b394', 0.35],
+    ['#f2e8d8', '#a9a69c', 0.5],
+    null,
+    ['#eef4ff', '#9fb2bc', 0.3],
+    ['#e2e4ff', '#9ea4c8', 0.4],
+  ] as ([string, string, number] | null)[]
+).map((m): [T3.Color, T3.Color, number] | null => m && [new T3.Color(m[0]), new T3.Color(m[1]), m[2]]);
 const moodSun = new T3.Color('#ffffff'),
   moodFog = new T3.Color('#9fb3a6'),
   wantSun = new T3.Color(),
@@ -53,9 +55,21 @@ function updateMood() {
   moodSun.lerp(wantSun, 0.02);
   moodFog.lerp(wantFog, 0.02);
 }
-const AUT = { oak: '#c9772f', birch: '#d9a83a' },
-  SUMMER = { oak: '#4f8a3c', birch: '#8fbf5a', pine: '#3f6b3f', pine2: '#4a7a45', bush: '#4d7d38' },
-  WINTER = { oak: '#8a8f86', birch: '#b5b9ad', pine: '#4d6a5a', pine2: '#5b7868', bush: '#6b7a62' };
+const AUT: Record<string, string> = { oak: '#c9772f', birch: '#d9a83a' },
+  SUMMER: Record<string, string> = {
+    oak: '#4f8a3c',
+    birch: '#8fbf5a',
+    pine: '#3f6b3f',
+    pine2: '#4a7a45',
+    bush: '#4d7d38',
+  },
+  WINTER: Record<string, string> = {
+    oak: '#8a8f86',
+    birch: '#b5b9ad',
+    pine: '#4d6a5a',
+    pine2: '#5b7868',
+    bush: '#6b7a62',
+  };
 export function applySeason() {
   const sn = season().n;
   // Sneeuw op de grond: langzaam erbij in de winter, langzaam weg in de lente
@@ -93,8 +107,9 @@ export function lighting(dk: number) {
     .copy(moodFog)
     .lerp(FOGDUSK, dusk * 0.45)
     .lerp(FOGN, dk);
-  S3.fog.color.copy(fogNow);
-  S3.background.copy(fogNow);
+  // (mist en achtergrondkleur zijn gezet in scene.ts)
+  S3.fog!.color.copy(fogNow);
+  (S3.background as T3.Color).copy(fogNow);
   WIN.emissiveIntensity = GLASS.emissiveIntensity = dk * 1.3;
   setBloomDarkness(dk);
   const all = lights.filter(L => dist(L.x, L.y, cam.x, cam.y) < camDist() * 1.2);

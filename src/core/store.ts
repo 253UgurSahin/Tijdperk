@@ -1,7 +1,7 @@
 // Gedeelde toestand die door meerdere onderdelen wordt aangepast.
 // (Een geïmporteerde variabele kun je niet overschrijven, daarom staan ze samen in één object.)
 import type { CoachAct } from '../types';
-import type { Profile } from './profile';
+import type { Profile } from '../types';
 /** Alle gedeelde toestand op één plek (zie de uitleg hierboven). */
 export interface Store {
   mapVersion: number;
@@ -43,6 +43,8 @@ export interface Store {
   pixelBudget?: number;
   quality?: string;
   perf?: Record<string, number>;
+  /** Geen deeltjes (rook, vonken): uitgezet in de instellingen of bij lage kwaliteit (zie render/quality.ts). */
+  noParticles?: boolean;
 }
 export const store: Store = {
   mapVersion: 0, // telt op als er iets op de kaart verandert (voor de minikaart)

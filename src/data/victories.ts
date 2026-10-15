@@ -10,7 +10,7 @@ export const WONDER_GOAL = 4;
 const LAST_AGE = AGES.length - 1;
 
 /*
- * Feiten (`f`) die de doelen gebruiken, zoals game/victory.js ze verzamelt:
+ * Feiten (`f`) die de doelen gebruiken, zoals game/victory.ts ze verzamelt:
  * age (tijdperk), day (dag), stargate (sterrenpoort af), stargateBusy (sterrenpoort neergezet),
  * campsLeft (kampen die nog over zijn), wonders (wereldwonderen die nu van jou zijn),
  * rivals (rivalen in dit spel), rivalsBeaten (rivalen verslagen).
@@ -25,7 +25,44 @@ const LAST_AGE = AGES.length - 1;
  * - frac(f): hoe ver je bent, van 0 tot 1 (1 = gewonnen); text(f): hetzelfde in een paar woorden
  * - end: teksten voor het eindscherm; story(f) krijgt ook f.place (naam van je stad) en f.ageName
  */
-export const VICTORIES = [
+/** Feiten over het spel waarmee de doelen rekenen (zie victoryFacts in game/victory.ts). */
+export interface VictoryFacts {
+  age: number;
+  day: number;
+  stargate?: boolean;
+  stargateBusy?: boolean;
+  campsLeft?: number;
+  wonders?: number;
+  rivals?: number;
+  rivalsBeaten?: number;
+  /** Naam van je stad en van je tijdperk: alleen voor het verhaal op het eindscherm. */
+  place?: string;
+  ageName?: string;
+}
+
+/** Feiten voor het verhaal op het eindscherm: daar zijn de naam van je stad en je tijdperk zeker bekend. */
+export interface VictoryStoryFacts extends VictoryFacts {
+  place: string;
+  ageName: string;
+}
+
+/** Een manier om te winnen (zie de uitleg hierboven). */
+export interface VictoryDef {
+  k: string;
+  n: string;
+  d: string;
+  g: string;
+  len: string;
+  on?: boolean;
+  soon?: boolean;
+  needsRivals?: boolean;
+  full?: boolean;
+  frac: (f: VictoryFacts) => number;
+  text: (f: VictoryFacts) => string;
+  end: { eyebrow: string; title: string; story: (f: VictoryStoryFacts) => string };
+}
+
+export const VICTORIES: VictoryDef[] = [
   {
     k: 'stargate',
     n: 'Sterrenpoort',
@@ -82,9 +119,12 @@ export const VICTORIES = [
     g: '⚔',
     len: 'Middellang spel',
     needsRivals: true,
-    frac: f => (f.rivals > 0 ? Math.min(1, (f.rivalsBeaten || 0) / f.rivals) : 0),
+    // Zonder rivals (undefined) is `f.rivals! > 0` gewoon false; daarna is het zeker een getal
+    frac: f => (f.rivals! > 0 ? Math.min(1, (f.rivalsBeaten || 0) / f.rivals!) : 0),
     text: f =>
-      f.rivals > 0 ? `${Math.min(f.rivalsBeaten || 0, f.rivals)} van ${f.rivals} verslagen` : 'geen rivalen',
+      f.rivals! > 0
+        ? `${Math.min(f.rivalsBeaten || 0, f.rivals!)} van ${f.rivals} verslagen`
+        : 'geen rivalen',
     end: {
       eyebrow: 'Alle rivalen verslagen',
       title: 'Het land is van jullie.',
@@ -108,14 +148,14 @@ export const VICTORIES = [
 ];
 
 // Elke nieuwe dag begint na een doorstane nacht: op dag 31 heb je er 30 achter de rug
-const nightsSurvived = f => Math.max(0, f.day - 1);
+const nightsSurvived = (f: VictoryFacts) => Math.max(0, f.day - 1);
 // "1 dag", "12 dagen"
-const days = n => `${n} ${n === 1 ? 'dag' : 'dagen'}`;
+const days = (n: number) => `${n} ${n === 1 ? 'dag' : 'dagen'}`;
 // Wat er nog over is, zodat het niet leest alsof het spel minder tijdperken heeft: "nog 1 tijdperk"
-const ageWord = n => `nog ${n} ${n === 1 ? 'tijdperk' : 'tijdperken'}`;
+const ageWord = (n: number) => `nog ${n} ${n === 1 ? 'tijdperk' : 'tijdperken'}`;
 
 /** Overwinning op sleutel, zoals VICTORY.survive. */
-export const VICTORY = Object.fromEntries(VICTORIES.map(v => [v.k, v]));
+export const VICTORY: Record<string, VictoryDef> = Object.fromEntries(VICTORIES.map(v => [v.k, v]));
 
 /** De overwinningen die je nu al kunt kiezen (zonder die van later). */
 export const SELECTABLE_VICTORIES = VICTORIES.filter(v => !v.soon);
@@ -124,14 +164,15 @@ export const SELECTABLE_VICTORIES = VICTORIES.filter(v => !v.soon);
 export const DEFAULT_VICTORIES = SELECTABLE_VICTORIES.filter(v => v.on).map(v => v.k);
 
 /** Kun je deze overwinning kiezen met zoveel rivalen? (Verovering vraagt minstens één rivaal.) */
-export const victoryAllowed = (v, rivals = 0) => !v.soon && (!v.needsRivals || rivals > 0);
+export const victoryAllowed = (v: VictoryDef, rivals = 0): boolean =>
+  !v.soon && (!v.needsRivals || rivals > 0);
 
 /**
  * Een nette lijst gekozen overwinningen: alleen bestaande en kiesbare, elk één keer, in vaste volgorde.
  * `rivals` is het aantal rivalen in het spel: zonder rivalen valt Verovering weg.
  * Een lege of kapotte lijst wordt de standaard: er is altijd minstens één manier om te winnen.
  */
-export function cleanVictories(list, rivals = 0) {
+export function cleanVictories(list: unknown, rivals = 0): string[] {
   const chosen = Array.isArray(list) ? list : [];
   const keys = SELECTABLE_VICTORIES.filter(v => victoryAllowed(v, rivals) && chosen.includes(v.k)).map(
     v => v.k,
@@ -140,7 +181,7 @@ export function cleanVictories(list, rivals = 0) {
 }
 
 /** De eerste gekozen overwinning die je nu haalt, of null. */
-export function reachedVictory(keys, f) {
+export function reachedVictory(keys: string[], f: VictoryFacts): string | null {
   const v = cleanVictories(keys, f.rivals || 0)
     .map(k => VICTORY[k])
     .find(v => v.frac(f) >= 1);

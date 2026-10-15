@@ -1,4 +1,5 @@
 // Tests voor het bonusregister: optellen, en kloppen alle sleutels in de data en de code?
+import type { Bonus } from '../src/types';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -7,7 +8,7 @@ import { TECH, TK } from '../src/data/tech';
 
 describe('bonussen optellen', () => {
   it('combine telt alle waarden voor één sleutel op', () => {
-    const list = [{ 'army.dmg': 0.15 }, { 'army.dmg': 0.1, farm: 0.2 }, { farm: 0.3 }];
+    const list: Bonus[] = [{ 'army.dmg': 0.15 }, { 'army.dmg': 0.1, farm: 0.2 }, { farm: 0.3 }];
     expect(combine(list, 'army.dmg')).toBeCloseTo(0.25);
     expect(combine(list, 'farm')).toBeCloseTo(0.5);
   });
@@ -23,7 +24,7 @@ describe('bonussen optellen', () => {
   });
 
   it('sumAll telt alles per sleutel op, net als combine', () => {
-    const list = [{ farm: 0.2, light: 1.5 }, null, { farm: 0.25 }];
+    const list: (Bonus | null)[] = [{ farm: 0.2, light: 1.5 }, null, { farm: 0.25 }];
     const sums = sumAll(list);
     expect(sums).toEqual({ farm: combine(list, 'farm'), light: 1.5 });
   });
@@ -94,14 +95,14 @@ describe('bonussleutels', () => {
   });
 
   // Alle bestanden die het register gebruiken, en de sleutels die ze opvragen met mul('...') of add('...')
-  const usedKeys = new Set();
-  const walk = dir => {
+  const usedKeys = new Set<string>();
+  const walk = (dir: string) => {
     for (const name of readdirSync(dir)) {
       const path = join(dir, name);
       if (statSync(path).isDirectory()) walk(path);
-      else if (name.endsWith('.js')) {
+      else if (name.endsWith('.ts')) {
         const code = readFileSync(path, 'utf8');
-        if (!/from '[./]*(game\/)?bonus\.js'/.test(code)) continue;
+        if (!/from '[./]*(game\/)?bonus'/.test(code)) continue;
         for (const m of code.matchAll(/(?<![.\w])(?:mul|add)\('([^']+)'\)/g)) usedKeys.add(m[1]);
       }
     }
@@ -120,7 +121,7 @@ describe('bonussleutels', () => {
 
 describe('onderzoek via het register geeft dezelfde getallen als vroeger', () => {
   // [onderzoek, sleutel, oude vermenigvuldiger of oude vaste waarde]
-  const OLD = [
+  const OLD: [string, string, number][] = [
     ['agri', 'farm', 1.2],
     ['ironplow', 'farm.plow', 1.25],
     ['automation', 'gather.all', 1.25],
@@ -139,7 +140,7 @@ describe('onderzoek via het register geeft dezelfde getallen als vroeger', () =>
     ['charts', 'chunk.cost', 0.75],
     ['starcharts', 'meteor.ore', 1.4],
   ];
-  const FLAT = [
+  const FLAT: [string, string, number][] = [
     ['agri', 'farm.slots', 1],
     ['fire', 'light', 1.5],
     ['ballistics', 'tower.range', 1],

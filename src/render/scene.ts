@@ -54,7 +54,7 @@ export function resize() {
   DPR = Math.min(LOWQ ? 1.5 : 2, window.devicePixelRatio || 1);
   VW = Math.max(1, r.width);
   VH = Math.max(1, r.height);
-  // De 3D-wereld mag op een lagere resolutie draaien (store.resScale, zie quality.js); de HUD blijft scherp
+  // De 3D-wereld mag op een lagere resolutie draaien (store.resScale, zie quality.ts); de HUD blijft scherp
   // Plus een maximum aantal pixels per kwaliteitsstand: op een 5K2K- of 4K-scherm wordt de wereld
   // zo nooit zwaarder dan de videokaart aankan (de HUD blijft altijd scherp)
   const budget = store.pixelBudget || 12e6,
@@ -68,7 +68,7 @@ export function resize() {
   CAM3.updateProjectionMatrix();
 }
 addEventListener('resize', resize);
-// Vraag om een nieuwe grootte die pas vlak vóór het volgende beeldje ingaat (zie quality.js)
+// Vraag om een nieuwe grootte die pas vlak vóór het volgende beeldje ingaat (zie quality.ts)
 let resizeWanted = false;
 export const requestResize = () => (resizeWanted = true);
 export function applyPendingResize() {

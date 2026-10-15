@@ -390,7 +390,7 @@ function doGather(v: Villager, dt: number) {
     HARD[v.res!] *
     (night ? 0.75 : 1) *
     (G.hungry ? 0.5 : 1) *
-    resourceBonus(v.res) *
+    resourceBonus(v.res!) *
     (G.rain && t.k === 'node' ? 0.9 : 1) *
     (t.k === 'farm' ? mul('farm') : 1) *
     (t.k === 'farm' ? mul('farm.plow') : 1) *
@@ -413,7 +413,7 @@ function doGather(v: Villager, dt: number) {
   }
 }
 // Bonussen voor één soort grondstof: voedsel (ook het seizoen telt mee), hout, of steen en erts
-function resourceBonus(res) {
+function resourceBonus(res: string): number {
   if (res === 'food') return seasonFood() * mul('gather.food');
   if (res === 'wood') return mul('gather.wood');
   const rock = res === 'stone' || res === 'iron' || res === 'coal' ? mul('gather.rock') : 1;
@@ -421,12 +421,12 @@ function resourceBonus(res) {
 }
 // Hoeveel voedsel het seizoen geeft. In de winter kan een bonus (zoals bij de Friezen) helpen,
 // maar nooit meer dan in een gewoon seizoen.
-function seasonFood() {
+function seasonFood(): number {
   const sn = season();
   if (sn.n !== 'Winter') return sn.food;
   return Math.min(1, sn.food * mul('winter.food'));
 }
-function deplete(i) {
+function deplete(i: number): void {
   const t = node[i];
   node[i] = 0;
   const w = season().n === 'Winter' ? 1.8 : 1;
@@ -446,7 +446,7 @@ function doBuild(v: Villager, dt: number) {
     goHome(v);
     return;
   }
-  // Aan een wereldwonder werken bouwers samen: meer bouwers helpen, maar steeds minder (zie data/wonders.js)
+  // Aan een wereldwonder werken bouwers samen: meer bouwers helpen, maar steeds minder (zie data/wonders.ts)
   const rate = B[b.type].wonder ? wonderBuildRate(siteCnt.get(b.id) || 1) : 1 + G.age * 0.1;
   b.prog += dt * rate * mul('build.speed');
   const mh = bMaxHp(b);

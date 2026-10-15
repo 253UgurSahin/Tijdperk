@@ -1,4 +1,5 @@
 // Tests voor de gebeurtenissen: kloppen de gegevens, zijn de keuzes eerlijk, en werkt opslaan netjes?
+import type { EventChoice, EventDef, EventRules } from '../src/data/events';
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { AGES } from '../src/data/ages';
@@ -32,17 +33,17 @@ import { RES } from '../src/data/resources';
 import { FOES } from '../src/data/units';
 import { ico } from '../src/ui/glyphs';
 
-const ALL_AGES = AGES.map((a, i) => i);
+const ALL_AGES = AGES.map((_, i) => i);
 const RANDOM = EVENTS.filter(e => !e.chain);
 const CHAINS = EVENTS.filter(e => e.chain);
 // Alle mogelijke combinaties van vredige modus, Geen leger en Gesloten grenzen
-const RULE_SETS = [];
+const RULE_SETS: EventRules[] = [];
 for (const peaceful of [false, true])
   for (const noArmy of [false, true])
     for (const noTrade of [false, true]) RULE_SETS.push({ peaceful, noArmy, noTrade });
 
 // Wat een keuze mag bevatten; een tikfout in de gegevens valt zo meteen op
-const CHOICE_FIELDS = [
+const CHOICE_FIELDS: (keyof EventChoice)[] = [
   'l',
   'd',
   'cost',
@@ -62,10 +63,10 @@ const CHOICE_FIELDS = [
 const EFFECTS = CHOICE_FIELDS.filter(f => f !== 'l' && f !== 'd');
 
 const NOTHING_TEXT = 'Er gebeurt niets.';
-const followKeys = follow => (Array.isArray(follow.k) ? follow.k : [follow.k]);
+const followKeys = (follow: { k: string | string[] }) => (Array.isArray(follow.k) ? follow.k : [follow.k]);
 
 // In welke tijdperken een gebeurtenis kan komen. Een vervolg: in de tijdperken van wat ervoor kwam.
-function agesOf(def, seen = new Set()) {
+function agesOf(def: EventDef, seen = new Set<string>()): number[] {
   if (!def.chain) return ALL_AGES.filter(age => inAge(def, age));
   if (seen.has(def.k)) return [];
   seen.add(def.k);
@@ -125,7 +126,7 @@ describe('gebeurtenissen: de gegevens', () => {
 
   it('elke keuze behalve de laatste doet echt iets; hooguit één keuze doet niets', () => {
     for (const e of EVENTS) {
-      const doesSomething = c => EFFECTS.some(f => c[f] !== undefined);
+      const doesSomething = (c: EventChoice) => EFFECTS.some(f => c[f] !== undefined);
       e.choices.slice(0, -1).forEach(c => expect(doesSomething(c), `${e.k}: ${c.l}`).toBe(true));
       expect(e.choices.filter(c => !doesSomething(c)).length, e.k).toBeLessThanOrEqual(1);
     }
@@ -137,7 +138,7 @@ describe('gebeurtenissen: de gegevens', () => {
       expect(ages.length, `${e.k} komt nooit`).toBeGreaterThan(0);
       for (const age of ages)
         for (const c of e.choices)
-          for (const field of ['cost', 'gain', 'lose']) {
+          for (const field of ['cost', 'gain', 'lose'] as const) {
             const amounts = amountsFor(c[field], age);
             if (!amounts) continue;
             for (const [r, n] of Object.entries(amounts)) {
@@ -230,7 +231,8 @@ describe('gebeurtenissen: vervolgen', () => {
     const traveler = EVENT.traveler.choices.map(c => c.follow && followKeys(c.follow).join());
     expect(new Set(traveler.filter(Boolean)).size).toBe(2);
     // Laat je hem meewerken, dan blijkt hij een dief of juist eerlijk
-    expect(followKeys(EVENT.traveler.choices[1].follow).sort()).toEqual(['travelerHonest', 'travelerThief']);
+    // Meewerken is de tweede keuze; die heeft zeker een vervolg
+    expect(followKeys(EVENT.traveler.choices[1].follow!).sort()).toEqual(['travelerHonest', 'travelerThief']);
   });
 });
 
@@ -363,11 +365,11 @@ describe('gebeurtenissen: opslaan en laden', () => {
 });
 
 describe('gebeurtenissen: het spel voert alles uit', () => {
-  const code = readFileSync(new URL('../src/game/events.js', import.meta.url), 'utf8');
-  it('elk soort effect wordt uitgevoerd in game/events.js', () => {
+  const code = readFileSync(new URL('../src/game/events.ts', import.meta.url), 'utf8');
+  it('elk soort effect wordt uitgevoerd in game/events.ts', () => {
     for (const effect of EFFECTS) expect(code, effect).toContain(`choice.${effect}`);
   });
-  it('elke voorwaarde wordt nagekeken in game/events.js', () => {
+  it('elke voorwaarde wordt nagekeken in game/events.ts', () => {
     for (const need of Object.keys(EVENT_NEEDS))
       expect(code, need).toMatch(new RegExp(`\\b${need}: \\(\\) =>`));
   });

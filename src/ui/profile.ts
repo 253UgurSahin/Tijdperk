@@ -1,8 +1,9 @@
 // Profielscherm: al je prestaties (ook die nog op slot zitten), je beste scores en je laatste spellen.
+import type { GameRecord, Profile } from '../types';
 import { sfx } from '../audio/sound';
 import { getProfile, resetProfile } from '../core/profile';
 import { AGES } from '../data/ages';
-import { ACHIEVEMENTS, ACHIEVEMENT_CATS, AGE_BUILDINGS } from '../data/achievements';
+import { ACHIEVEMENTS, ACHIEVEMENT_CATS, AGE_BUILDINGS, type AchievementDef } from '../data/achievements';
 import { B } from '../data/buildings';
 import { PEOPLE, PEOPLES, isPeopleUnlocked } from '../data/peoples';
 import { DIFF_NAMES, MEDALS, medalFor } from '../data/score';
@@ -20,7 +21,7 @@ export function achievementCount(profile = getProfile()) {
 }
 
 // Datum kort en in het Nederlands, zoals "15 okt. 2026"
-const dateText = at =>
+const dateText = (at: number | undefined) =>
   typeof at === 'number'
     ? new Date(at).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', year: 'numeric' })
     : '';
@@ -28,7 +29,7 @@ const dateText = at =>
 // Bij "Bouwmeester": welke gebouwen nieuw zijn in de Middeleeuwen en later (de Middeleeuwen staan erbij als voorbeeld)
 const MIN_BUILDER_AGE = 3;
 function builderHTML() {
-  const names = age => AGE_BUILDINGS[age].map(k => B[k].n).join(', ');
+  const names = (age: number) => AGE_BUILDINGS[age].map(k => B[k].n).join(', ');
   const allAges = [];
   for (let age = MIN_BUILDER_AGE; age < AGE_BUILDINGS.length; age++) {
     if (AGE_BUILDINGS[age]) allAges.push(`${AGES[age].n}: ${names(age)}`);
@@ -37,7 +38,7 @@ function builderHTML() {
 }
 
 /** Eén prestatie als kaartje. Op slot: grijs. Geheim en op slot: ??? */
-function cardHTML(a, at) {
+function cardHTML(a: AchievementDef, at: number | undefined) {
   const open = !!at;
   const secret = a.hidden && !open;
   const people = a.unlocks && PEOPLE[a.unlocks.people];
@@ -61,7 +62,7 @@ function cardHTML(a, at) {
 }
 
 /** Bovenaan: vier tegels met de belangrijkste getallen. */
-function statsHTML(profile) {
+function statsHTML(profile: Profile) {
   const { got, total } = achievementCount(profile);
   const best = profile.best.score;
   const medal = medalFor(best);
@@ -76,7 +77,7 @@ function statsHTML(profile) {
 }
 
 /** Beste score per volk en per moeilijkheid. */
-function bestHTML(profile) {
+function bestHTML(profile: Profile) {
   const perPeople = PEOPLES.map(people => {
     const score = profile.best.perPeople[people.k];
     const open = isPeopleUnlocked(people.k, profile);
@@ -84,7 +85,8 @@ function bestHTML(profile) {
     let scoreLabel = '–';
     if (score) scoreLabel = scoreText(score);
     else if (!open) scoreLabel = ico('⚿');
-    const tip = open ? '' : 'Op slot · ' + people.locked.text;
+    // Alleen een volk met `locked` kan op slot zitten
+    const tip = open ? '' : 'Op slot · ' + people.locked!.text;
     return `<div class="pbest ${open ? '' : 'locked'}" style="--flag:${people.c}" title="${tip}">
       ${bannerHTML(people, 'sm')}<span><small>${people.n}</small><b>${scoreLabel}</b></span>
     </div>`;
@@ -97,12 +99,15 @@ function bestHTML(profile) {
     <div class="pbests">${perPeople}</div><div class="pbests diffs">${perDiff}</div>`;
 }
 
-/** De naam van een gespeelde uitdaging, zoals "Belegering" of "Wereld van de dag". */
-const challengeName = game =>
-  game.scenario === DAILY ? 'Wereld van de dag' : (SCENARIO[game.scenario] || { n: 'Uitdaging' }).n;
+/**
+ * De naam van een gespeelde uitdaging, zoals "Belegering" of "Wereld van de dag".
+ * Alleen voor een spel met een uitdaging: dan is game.scenario er altijd.
+ */
+const challengeName = (game: GameRecord) =>
+  game.scenario === DAILY ? 'Wereld van de dag' : (SCENARIO[game.scenario!] || { n: 'Uitdaging' }).n;
 
 /** Je laatste spellen als lijstje. */
-function recentHTML(profile) {
+function recentHTML(profile: Profile) {
   if (!profile.recent.length)
     return '<div class="sect">Laatste spellen</div><p class="endnone">Nog geen spel uitgespeeld. Win of verlies een spel om hier je score te zien.</p>';
   const rows = profile.recent
@@ -128,7 +133,7 @@ function recentHTML(profile) {
 }
 
 /** Alle prestaties, per groep, met hoeveel je er van die groep hebt. */
-function listHTML(profile) {
+function listHTML(profile: Profile) {
   const have = profile.achievements;
   return Object.entries(ACHIEVEMENT_CATS)
     .map(([cat, name]) => {
@@ -140,15 +145,21 @@ function listHTML(profile) {
     .join('');
 }
 
+/** Wat "Terug" doet, en wat er gebeurt als het venster dichtgaat (zie showProfile). */
+interface ProfileOptions {
+  back?: (() => void) | null;
+  onClose?: (() => void) | null;
+}
+
 // Hoe het profielscherm geopend werd, zodat het na "Profiel wissen" op dezelfde manier terugkomt
-let profileOptions = {};
+let profileOptions: ProfileOptions = {};
 
 /**
  * Open het profielscherm.
  * `back`: wat er gebeurt bij "Terug" of "Klaar" (bijv. terug naar het pauzemenu); zonder gaat het venster dicht.
  * `onClose`: draait als het venster dichtgaat, ook met Esc of een klik ernaast.
  */
-export function showProfile({ back = null, onClose = null } = {}) {
+export function showProfile({ back = null, onClose = null }: ProfileOptions = {}) {
   profileOptions = { back, onClose };
   const profile = getProfile();
   const medals = MEDALS.map(m => `<span>${medalHTML(m.k)} ${m.n} vanaf ${scoreText(m.min)}</span>`).join('');
@@ -167,7 +178,7 @@ export function showProfile({ back = null, onClose = null } = {}) {
 }
 
 $('#modal').addEventListener('click', e => {
-  const t = e.target.closest('[data-prof]');
+  const t = (e.target as HTMLElement).closest<HTMLElement>('[data-prof]');
   if (!t) return;
   sfx('tick');
   if (t.dataset.prof === 'back') {

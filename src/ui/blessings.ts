@@ -3,7 +3,7 @@ import { store } from '../core/store';
 import { SET } from '../core/settings';
 import { sfx } from '../audio/sound';
 import { AGES } from '../data/ages';
-import { BLESSING, BLESSING_CATS } from '../data/blessings';
+import { BLESSING, BLESSING_CATS, type BlessingDef } from '../data/blessings';
 import { blessingChoices, skipBlessing, takeBlessing, waitingBlessing } from '../game/blessings';
 import { G } from '../game/state';
 import { TOUCH } from './format';
@@ -29,7 +29,7 @@ export function checkBlessing() {
 }
 
 /** Eén kaart: pictogram, soort, naam en wat hij doet. */
-function cardHTML(blessing, nr) {
+function cardHTML(blessing: BlessingDef, nr: number) {
   // Labels staan meteen naast de soort, zodat je een nadeel ziet voordat je de uitleg leest
   let tags = '';
   if (blessing.risk) tags += '<span class="btag risk">Riskant</span>';
@@ -49,7 +49,8 @@ function showBlessingChoice() {
     skipBlessing(); // alles is al gekozen: niets meer te kiezen
     return;
   }
-  const next = waitingBlessing();
+  // Er liggen kaarten klaar, dus er wacht ook een keuze
+  const next = waitingBlessing()!;
   const age = AGES[next.age];
   const eyebrow = next.age === 0 ? 'Een nieuw begin' : `Hoofdstuk ${age.r} · ${age.n}`;
   const howTo = TOUCH ? 'Tik op een kaart.' : 'Klik op een kaart, of druk op 1, 2 of 3.';
@@ -64,7 +65,7 @@ function showBlessingChoice() {
   sfx('select');
 }
 
-function choose(k) {
+function choose(k: string) {
   if (alreadyChosen || performance.now() - openedAt < SAFE_DELAY) return;
   const blessing = takeBlessing(k);
   if (!blessing) return;
@@ -85,17 +86,18 @@ function choose(k) {
 }
 
 $('#modal').addEventListener('click', e => {
-  const card = e.target.closest('[data-bless]');
-  if (card) choose(card.dataset.bless);
+  const card = (e.target as HTMLElement).closest<HTMLElement>('[data-bless]');
+  // Gevonden met [data-bless], dus de sleutel staat erop
+  if (card) choose(card.dataset.bless!);
 });
 
 addEventListener('keydown', e => {
   if (e.repeat || $('#modal').hidden || !$('#sheet .blessgrid')) return;
   const nr = Number(e.key);
-  const cards = document.querySelectorAll('#sheet [data-bless]');
+  const cards = document.querySelectorAll<HTMLElement>('#sheet [data-bless]');
   if (nr >= 1 && nr <= cards.length) {
     e.preventDefault();
-    choose(cards[nr - 1].dataset.bless);
+    choose(cards[nr - 1].dataset.bless!);
   }
 });
 

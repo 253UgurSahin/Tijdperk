@@ -119,7 +119,7 @@ describe('kaartsoorten', () => {
 });
 
 describe('manieren om te winnen', () => {
-  // Feiten zoals game/victory.js ze verzamelt, met wat er voor deze test toe doet
+  // Feiten zoals game/victory.ts ze verzamelt, met wat er voor deze test toe doet
   const facts = (over = {}) => ({
     age: 0,
     day: 1,

@@ -1,6 +1,7 @@
 // Hoe de grond eruitziet: fijne details (gras, korrels, steentjes), rotswanden en sneeuw op de
 // bergen, natte oevers en zachte schaduw rond gebouwen en onder bomen. Dit gebeurt in de
-// videokaart, bovenop de kleur per tegel uit terrain.js.
+// videokaart, bovenop de kleur per tegel uit terrain.ts.
+import type { Building } from '../types';
 import * as T3 from 'three';
 import { H, W } from '../config';
 import { NODES } from '../data/nodes';
@@ -28,15 +29,22 @@ SHADE.minFilter = T3.LinearFilter;
 SHADE.needsUpdate = true;
 
 // Hoe donker het rond een bron wordt (bomen het meest, olie en zand niet)
-const NODE_SHADE = { tree: 0.42, bush: 0.25, rock: 0.3, starmetal: 0.3, oil: 0, sand: 0 };
+const NODE_SHADE: Record<string, number> = {
+  tree: 0.42,
+  bush: 0.25,
+  rock: 0.3,
+  starmetal: 0.3,
+  oil: 0,
+  sand: 0,
+};
 // Werkgeheugen met een rand van één vakje rondom: dan hoeven we bij de buren niet te controleren
 // of we buiten de kaart vallen (dat maakt het een stuk sneller)
 const RW = SW + 2,
   raw = new Float32Array(RW * (SHH + 2));
 let shadeVersion = -1,
   shadeTime = -9;
-// Telt op als er gebouwd, gekapt, een weg gelegd of gebied gekocht is (zie sync.js).
-// Dan moeten de schaduwkaart en het strooisel (scatter.js) opnieuw; bij alleen de camera
+// Telt op als er gebouwd, gekapt, een weg gelegd of gebied gekocht is (zie sync.ts).
+// Dan moeten de schaduwkaart en het strooisel (scatter.ts) opnieuw; bij alleen de camera
 // verschuiven niet.
 export let groundVersion = 0;
 export function groundChanged() {
@@ -44,7 +52,7 @@ export function groundChanged() {
 }
 
 // Zet een tegel (x, y) in de schaduwkaart op minstens v
-function putTile(x, y, v) {
+function putTile(x: number, y: number, v: number) {
   for (let sy = 0; sy < SH; sy++)
     for (let sx = 0; sx < SH; sx++) {
       const k = (y * SH + sy + 1) * RW + x * SH + sx + 1;
@@ -56,7 +64,7 @@ function putTile(x, y, v) {
  * Werk de schaduwkaart bij als er iets gebouwd, gekapt of gesloopt is (hooguit ~3× per seconde).
  * heightOf(b) geeft de hoogte van het 3D-model van gebouw b (lage velden geven weinig schaduw).
  */
-export function updateGroundShade(now, heightOf) {
+export function updateGroundShade(now: number, heightOf: (b: Building) => number | undefined) {
   if (groundVersion === shadeVersion || now - shadeTime < 0.3) return;
   shadeVersion = groundVersion;
   shadeTime = now;
@@ -86,13 +94,13 @@ export function updateGroundShade(now, heightOf) {
   SHADE.needsUpdate = true;
 }
 
-// Hoeveel sneeuw er op de grond ligt (0..1); schuift langzaam mee met het seizoen (lighting.js)
+// Hoeveel sneeuw er op de grond ligt (0..1); schuift langzaam mee met het seizoen (lighting.ts)
 export const SNOW_COVER = { value: 0 };
 
 // Materialen met een eenvoudige en een fijne versie: het water, en de grond (via dressTerrain)
 const FINE = [WMAT];
 /** Fijne details aan (middel/hoog) of uit (laag). */
-export function setFineDetail(on) {
+export function setFineDetail(on: boolean) {
   for (const m of FINE) {
     if (!!m.defines.FINE_DETAIL === on) continue;
     if (on) m.defines.FINE_DETAIL = '';
@@ -102,7 +110,7 @@ export function setFineDetail(on) {
 }
 
 /** Voeg de extra details toe aan het grondmateriaal (MeshStandardMaterial). */
-export function dressTerrain(mat) {
+export function dressTerrain(mat: T3.MeshStandardMaterial) {
   mat.defines = mat.defines || {};
   FINE.push(mat);
   mat.onBeforeCompile = shader => {

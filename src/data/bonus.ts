@@ -1,4 +1,5 @@
 // Alle soorten bonussen op één plek, met uitleg, en het optellen ervan. Puur, zodat het te testen is.
+import type { Bonus } from '../types';
 
 /*
  * Een bonus is een object zoals { 'army.dmg': 0.15 }: dat betekent 15% meer schade.
@@ -14,7 +15,26 @@
  * `d` is een korte zin voor spelers: wat de bonus doet als hij goed voor je uitpakt.
  * Uitleg voor programmeurs staat in de opmerkingen ernaast.
  */
-export const BONUS_KEYS = {
+/** Uitleg bij één soort bonus (zie hierboven): `flat` = een vast getal, `min` = de ondergrens. */
+export interface BonusKeyDef {
+  d: string;
+  flat?: boolean;
+  min?: number;
+}
+
+/** Iets met (misschien) een `bonus`-veld, zoals een volk, een zegening of een wonder. */
+export type BonusThing = object & { bonus?: Bonus };
+
+/**
+ * Wat bonusesIn aanneemt: één ding, een lijst dingen, of een object met dingen.
+ * Een lijst of een object met dingen heeft zelf geen `bonus`.
+ */
+export type BonusThings =
+  | BonusThing
+  | ((BonusThing | null | undefined)[] & { bonus?: undefined })
+  | (Record<string, BonusThing | null | undefined> & { bonus?: undefined });
+
+export const BONUS_KEYS: Record<string, BonusKeyDef> = {
   // Verzamelen
   'gather.all': { d: 'Al het verzamelwerk gaat sneller' },
   'gather.food': { d: 'Voedsel verzamelen gaat sneller' }, // struiken, vis, wild en akkers
@@ -78,15 +98,15 @@ export const BONUS_KEYS = {
  * Tel alle bonussen voor één sleutel op. `bonuses` is een lijst bonus-objecten.
  * Handig voor tests; het spel zelf gebruikt sumAll, dat alles in één keer telt.
  */
-export function combine(bonuses, key) {
+export function combine(bonuses: (Bonus | null | undefined)[], key: string): number {
   let sum = 0;
   for (const bonus of bonuses) if (bonus && bonus[key]) sum += bonus[key];
   return sum;
 }
 
 /** Tel alles in één keer op: geeft { sleutel: totaal } voor elke sleutel die voorkomt. */
-export function sumAll(bonuses) {
-  const sums = {};
+export function sumAll(bonuses: (Bonus | null | undefined)[]): Bonus {
+  const sums: Bonus = {};
   for (const bonus of bonuses) {
     if (!bonus) continue;
     for (const key in bonus) sums[key] = (sums[key] || 0) + bonus[key];
@@ -98,7 +118,7 @@ export function sumAll(bonuses) {
  * Het totaal voor één sleutel, maar nooit onder de ondergrens (`min`) van die sleutel.
  * Zo kost nieuw gebied altijd nog een kwart, en duurt onderzoek altijd nog een kwart van de tijd.
  */
-export function limitTotal(key, total) {
+export function limitTotal(key: string, total: number): number {
   const min = BONUS_KEYS[key] && BONUS_KEYS[key].min;
   return min != null && total < min ? min : total;
 }
@@ -107,7 +127,7 @@ export function limitTotal(key, total) {
  * Haal de bonussen uit iets met een `bonus`-veld: één ding, een lijst, of een object met dingen.
  * Zo kan een onderdeel (volk, zegeningen, wonderen) zijn spullen gewoon in G zetten.
  */
-export function bonusesIn(things) {
+export function bonusesIn(things: BonusThings | null | undefined): Bonus[] {
   if (!things) return [];
   if (things.bonus) return [things.bonus];
   const list = Array.isArray(things) ? things : Object.values(things);

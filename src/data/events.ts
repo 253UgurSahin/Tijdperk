@@ -1,10 +1,11 @@
 // Gebeurtenissen: wat er kan gebeuren, welke keuzes je hebt en wat elke keuze doet. Puur, zodat het te testen is.
+import type { Bonus, Buff, Cost, Followup } from '../types';
 import { BONUS_KEYS } from './bonus';
 import { GATHER, RES } from './resources';
 
 /*
  * Elke gebeurtenis:
- * - k: vaste sleutel (wordt opgeslagen), n: naam, g: pictogram (zie ui/glyphs.js)
+ * - k: vaste sleutel (wordt opgeslagen), n: naam, g: pictogram (zie ui/glyphs.ts)
  * - x: het verhaal. {plaats}, {erts} en {soldaat} vult het spel zelf in.
  * - ages: [van, tot] de tijdperken waarin hij kan komen (zonder ages: altijd)
  * - need: wat er in je wereld moet zijn, zie EVENT_NEEDS hieronder
@@ -17,7 +18,7 @@ import { GATHER, RES } from './resources';
  * - cost: wat je betaalt (moet je hebben) · gain: wat je krijgt · lose: wat je kwijtraakt (tot 0)
  * - villagers: dorpelingen erbij (of eraf: je houdt er altijd minstens 3)
  * - units: soldaten erbij · sendUnits: zoveel van je soldaten vertrekken (moet je hebben)
- * - buff: { bonus, days }: een tijdelijke bonus (sleutels uit data/bonus.js) voor zoveel dagen
+ * - buff: { bonus, days }: een tijdelijke bonus (sleutels uit data/bonus.ts) voor zoveel dagen
  * - raid: vannacht een aanval · foes: { n, type }: nu meteen een groepje vijanden (type uit FOES)
  * - damage: zoveel gebouwen raken beschadigd · burn: het bos vlakbij brandt af
  * - meteor: er komt meteen een meteoriet
@@ -26,24 +27,73 @@ import { GATHER, RES } from './resources';
  * plus 20 voor elk tijdperk verder.
  */
 
+/** Bedragen bij een keuze: een vast rijtje, of een rijtje dat meegroeit met het tijdperk (zie perAge). */
+export type Amounts = Cost | ((age: number) => Cost);
+
+/** Eén keuze bij een gebeurtenis (zie de uitleg hierboven). */
+export interface EventChoice {
+  l: string;
+  d: string;
+  cost?: Amounts;
+  gain?: Amounts;
+  lose?: Amounts;
+  villagers?: number;
+  units?: number;
+  sendUnits?: number;
+  /** Een tijdelijke bonus voor zoveel dagen. */
+  buff?: { bonus: Bonus; days: number };
+  raid?: boolean;
+  /** Nu meteen een groepje vijanden: hoeveel, en welke soort (plek in FOES). */
+  foes?: { n: number; type: number };
+  damage?: number;
+  burn?: boolean;
+  meteor?: boolean;
+  /** Over `days` dagen komt gebeurtenis k; bij een lijst één daarvan, bij toeval. */
+  follow?: { k: string | string[]; days: number };
+}
+
+/** Een gebeurtenis (zie de uitleg hierboven). */
+export interface EventDef {
+  k: string;
+  n: string;
+  g: string;
+  x: string;
+  /** Van welk tot en met welk tijdperk hij kan komen. */
+  ages?: [number, number];
+  need?: string[];
+  trade?: boolean;
+  once?: boolean;
+  chain?: boolean;
+  choices: EventChoice[];
+}
+
+/** Spelregels die bepalen welke keuzes zin hebben: vredige modus, Geen leger en Gesloten grenzen. */
+export interface EventRules {
+  peaceful?: boolean;
+  noArmy?: boolean;
+  noTrade?: boolean;
+}
+
 /** Bedragen die meegroeien: perAge({ food: [60, 20] }) geeft in tijdperk 2 { food: 100 }. */
-export const perAge = table => age => {
-  const out = {};
+export const perAge = (table: Record<string, [number, number]>) => (age: number): Cost => {
+  const out: Cost = {};
   for (const [r, [base, step]] of Object.entries(table)) out[r] = base + step * age;
   return out;
 };
 
 /** De nieuwste grondstof om te delven in dit tijdperk (geen voedsel of hout): steen, tin, ijzer, ... */
-export const oreFor = age => GATHER.filter(r => r !== 'food' && r !== 'wood' && RES[r].age <= age).pop();
+// Steen (tijdperk 0) zit er altijd in, dus pop() geeft altijd iets
+export const oreFor = (age: number): string =>
+  GATHER.filter(r => r !== 'food' && r !== 'wood' && RES[r].age <= age).pop()!;
 
 // Een rijke vondst: hoe zeldzamer het erts, hoe minder je krijgt (afgerond op tientallen)
-const veinGain = age => {
+const veinGain = (age: number): Cost => {
   const ore = oreFor(age);
   return { [ore]: Math.round((150 + 70 * age) / (1 + RES[ore].age * 0.25) / 10) * 10 };
 };
 
-/** Wat een gebeurtenis in je wereld nodig heeft (`need`). Het spel kijkt dit na in game/events.js. */
-export const EVENT_NEEDS = {
+/** Wat een gebeurtenis in je wereld nodig heeft (`need`). Het spel kijkt dit na in game/events.ts. */
+export const EVENT_NEEDS: Record<string, string> = {
   barracks: 'Er staat een kazerne',
   forest: 'Er staat bos in je gebied',
   crowd: 'Je hebt minstens 8 dorpelingen',
@@ -59,7 +109,7 @@ export const TEXT_WORDS = ['plaats', 'erts', 'soldaat'];
 
 const NOTHING = 'Er gebeurt niets.';
 
-export const EVENTS = [
+export const EVENTS: EventDef[] = [
   // ---- Altijd mogelijk (bedragen groeien mee met het tijdperk) ----
   {
     k: 'traveler',
@@ -133,7 +183,7 @@ export const EVENTS = [
       {
         l: 'Betaal genezers',
         // Vanaf de Middeleeuwen betaal je in goud, daarvoor in voedsel
-        cost: age => (age >= 3 ? { gold: 40 + 20 * age } : { food: 140 + 40 * age }),
+        cost: (age): Cost => (age >= 3 ? { gold: 40 + 20 * age } : { food: 140 + 40 * age }),
         d: 'Niemand wordt ziek',
       },
       {
@@ -169,13 +219,14 @@ export const EVENTS = [
     choices: [
       {
         l: 'Huur ze',
-        cost: age => (age >= 3 ? { gold: 60 + 30 * age } : { food: 150 + 30 * age, wood: 60 + 20 * age }),
+        cost: (age): Cost =>
+          age >= 3 ? { gold: 60 + 30 * age } : { food: 150 + 30 * age, wood: 60 + 20 * age },
         units: 3,
         d: '+3 soldaten',
       },
       {
         l: 'Laat ze je leger drillen',
-        cost: age => (age >= 3 ? { gold: 30 + 15 * age } : { food: 80 + 20 * age }),
+        cost: (age): Cost => (age >= 3 ? { gold: 30 + 15 * age } : { food: 80 + 20 * age }),
         buff: { bonus: { 'train.speed': 0.5, 'army.dmg': 0.1 }, days: 3 },
         d: '3 dagen: soldaten trainen 50% sneller en doen 10% meer schade',
       },
@@ -1199,17 +1250,17 @@ export const EVENTS = [
 ];
 
 /** Gebeurtenis opzoeken op sleutel: EVENT.wolves */
-export const EVENT = {};
+export const EVENT: Record<string, EventDef> = {};
 EVENTS.forEach(e => (EVENT[e.k] = e));
 
 /** Hoe lang je hebt om te kiezen, in seconden speltijd. */
 export const CHOICE_TIME = 60;
 
 /** De keuze die vanzelf gebeurt als je niet kiest: altijd de laatste. */
-export const defaultChoice = def => def.choices.length - 1;
+export const defaultChoice = (def: EventDef): number => def.choices.length - 1;
 
 /** Bedragen voor dit tijdperk: een vast rijtje, of een rijtje dat meegroeit (zie perAge). Leeg = null. */
-export function amountsFor(value, age) {
+export function amountsFor(value: Amounts | undefined, age: number): Cost | null {
   if (!value) return null;
   return typeof value === 'function' ? value(age) : value;
 }
@@ -1223,7 +1274,7 @@ const TRADE_KEYS = ['trader.rate'];
  * Waar een keuze van afhangt: raids (er zijn aanvallen), army (je mag een leger hebben),
  * trade (er komen handelaars). Zo verdwijnen keuzes die in jouw spel geen zin hebben.
  */
-export function choiceNeeds(choice) {
+export function choiceNeeds(choice: Partial<EventChoice>): { raids: boolean; army: boolean; trade: boolean } {
   const keys = Object.keys((choice.buff && choice.buff.bonus) || {});
   return {
     raids: !!(choice.raid || choice.foes) || keys.some(key => RAID_KEYS.includes(key)),
@@ -1236,13 +1287,13 @@ export function choiceNeeds(choice) {
  * Mag deze keuze in dit spel? `rules` is { peaceful, noArmy, noTrade }:
  * vredige modus, spelregel Geen leger en spelregel Gesloten grenzen.
  */
-export function choiceAllowed(choice, rules = {}) {
+export function choiceAllowed(choice: Partial<EventChoice>, rules: EventRules = {}): boolean {
   const needs = choiceNeeds(choice);
   return !(needs.raids && rules.peaceful) && !(needs.army && rules.noArmy) && !(needs.trade && rules.noTrade);
 }
 
 /** De keuzes die je te zien krijgt (hun plek in de lijst). */
-export function allowedChoices(def, rules = {}) {
+export function allowedChoices(def: EventDef, rules: EventRules = {}): number[] {
   return def.choices.map((choice, i) => (choiceAllowed(choice, rules) ? i : -1)).filter(i => i >= 0);
 }
 
@@ -1250,14 +1301,14 @@ export function allowedChoices(def, rules = {}) {
  * Kan deze gebeurtenis in dit spel komen? De keuze die vanzelf gebeurt moet kunnen,
  * en er moet echt iets te kiezen zijn (minstens twee keuzes).
  */
-export function eventAllowed(def, rules = {}) {
+export function eventAllowed(def: EventDef, rules: EventRules = {}): boolean {
   if (def.trade && rules.noTrade) return false;
   const options = allowedChoices(def, rules);
   return options.includes(defaultChoice(def)) && options.length >= 2;
 }
 
 /** Komt deze gebeurtenis zomaar voor in dit tijdperk? (Vervolgen niet: die komen na een keuze.) */
-export function inAge(def, age) {
+export function inAge(def: EventDef, age: number): boolean {
   if (def.chain) return false;
   const [from, to] = def.ages || [0, Infinity];
   return age >= from && age <= to;
@@ -1268,13 +1319,13 @@ export function inAge(def, age) {
  * tijdperk komen twee keer zo vaak als algemene. Handel komt vaker als handelaars vaker komen
  * (bij de Hanze twee keer zo vaak): `traderMul` is die vermenigvuldiger uit het bonusregister.
  */
-export function eventWeight(def, traderMul = 1) {
+export function eventWeight(def: EventDef, traderMul = 1): number {
   const own = def.ages ? 2 : 1;
   return own * (def.trade ? traderMul : 1);
 }
 
 // "goud", "goud en voedsel", "hout, steen en goud"
-function listWords(words) {
+function listWords(words: string[]): string {
   if (words.length < 2) return words.join('');
   return words.slice(0, -1).join(', ') + ' en ' + words[words.length - 1];
 }
@@ -1283,7 +1334,11 @@ function listWords(words) {
  * Waarom je deze keuze nu niet kunt maken, of '' als het wel kan.
  * `have` is { res, units }: je voorraad en hoeveel soldaten je hebt.
  */
-export function choiceProblem(choice, age, have) {
+export function choiceProblem(
+  choice: Partial<EventChoice>,
+  age: number,
+  have: { res: Record<string, number>; units: number },
+): string {
   const cost = amountsFor(choice.cost, age) || {};
   const short = Object.keys(cost).filter(r => !(have.res[r] >= cost[r]));
   if (short.length) return 'Te weinig ' + listWords(short.map(r => RES[r].n.toLowerCase()));
@@ -1296,7 +1351,7 @@ export function choiceProblem(choice, age, have) {
 const GOOD_WHEN_LOWER = ['research.time', 'chunk.cost', 'wall.cost', 'raid.size', 'raid.hp'];
 
 /** Is een tijdelijke bonus goed, slecht of allebei? Geeft 'good', 'bad' of 'mixed'. */
-export function buffMood(bonus = {}) {
+export function buffMood(bonus: Bonus = {}): 'good' | 'bad' | 'mixed' {
   let good = 0,
     bad = 0;
   for (const [key, value] of Object.entries(bonus)) {
@@ -1311,10 +1366,11 @@ export function buffMood(bonus = {}) {
  * Heeft een keuze een nadeel: iets kwijt, een aanval, schade of een bonus die (ook) slecht uitpakt?
  * Dan staat er geen "gratis" bij, ook al kost de keuze niets.
  */
-export function hasDownside(choice) {
+export function hasDownside(choice: Partial<EventChoice>): boolean {
   const badBuff = !!choice.buff && buffMood(choice.buff.bonus) !== 'good';
   const harm = choice.lose || choice.sendUnits || choice.damage || choice.raid || choice.foes;
-  return choice.villagers < 0 || badBuff || !!(harm || choice.burn || choice.meteor);
+  // Zonder `villagers` (undefined) is `< 0` gewoon false
+  return choice.villagers! < 0 || badBuff || !!(harm || choice.burn || choice.meteor);
 }
 
 /**
@@ -1322,7 +1378,7 @@ export function hasDownside(choice) {
  * komt het stuk na "3 dagen:", zonder de bijzinnen waar geen getal in staat:
  * "2 dagen: verzamelen 20% trager, maar niemand sterft" wordt "verzamelen 20% trager".
  */
-export function buffEffect(text = '') {
+export function buffEffect(text = ''): string {
   const afterDays = text.match(/\d+ dag(?:en)?:? (.+)$/);
   if (!afterDays) return '';
   const parts = afterDays[1].replace(/\.$/, '').split(/[,.] /);
@@ -1330,38 +1386,48 @@ export function buffEffect(text = '') {
 }
 
 /** Is een keuze vooral goed nieuws ('good'), slecht nieuws ('bad') of allebei ('')? Voor de kleur van de melding. */
-export function choiceMood(choice) {
+export function choiceMood(choice: Partial<EventChoice>): 'good' | 'bad' | '' {
   const mood = choice.buff ? buffMood(choice.buff.bonus) : '';
+  // Zonder `villagers` (undefined) zijn `< 0` en `> 0` gewoon false
   const bad =
-    choice.villagers < 0 ||
+    choice.villagers! < 0 ||
     !!(choice.lose || choice.damage || choice.raid || choice.foes || choice.burn) ||
     mood === 'bad';
-  const good = choice.villagers > 0 || !!(choice.gain || choice.units) || mood === 'good';
+  const good = choice.villagers! > 0 || !!(choice.gain || choice.units) || mood === 'good';
   return good && !bad ? 'good' : bad && !good ? 'bad' : '';
 }
 
 /** Vul {plaats}, {erts} en {soldaat} in. Onbekende woorden blijven staan. */
-export const fillText = (text, words) => text.replace(/\{(\w+)\}/g, (all, key) => words[key] ?? all);
+export const fillText = (text: string, words: Record<string, string>): string =>
+  text.replace(/\{(\w+)\}/g, (all: string, key: string) => words[key] ?? all);
 
 // ---- Opslaan en laden: maak opgeslagen lijsten netjes (oude of kapotte opslag mag het spel niet breken) ----
 
-const isBonus = bonus =>
+/** Een open kaartje zoals het in opslag staat (zie GameEvent in src/types.ts); de tekst wordt nagekeken. */
+export interface SavedEvent {
+  k: string;
+  until: number;
+  text: unknown;
+}
+
+const isBonus = (bonus: unknown): bonus is Bonus =>
   !!bonus &&
   typeof bonus === 'object' &&
   Object.keys(bonus).length > 0 &&
   Object.entries(bonus).every(([key, value]) => BONUS_KEYS[key] && Number.isFinite(value));
 
 /** Tijdelijke bonussen: alleen wat een bekende bonus heeft en een eindtijd. */
-export const cleanBuffs = list =>
+export const cleanBuffs = (list: unknown): Buff[] =>
   (Array.isArray(list) ? list : []).filter(b => b && isBonus(b.bonus) && Number.isFinite(b.until));
 
 /** Vervolgen die nog komen: alleen bestaande gebeurtenissen met een dag. */
-export const cleanFollowups = list =>
+export const cleanFollowups = (list: unknown): Followup[] =>
   (Array.isArray(list) ? list : []).filter(f => f && EVENT[f.k] && Number.isFinite(f.day));
 
 /** Gebeurtenissen die al geweest zijn: alleen bekende sleutels, hooguit de laatste 60. */
-export const cleanEventsSeen = list => (Array.isArray(list) ? list : []).filter(k => EVENT[k]).slice(-60);
+export const cleanEventsSeen = (list: unknown): string[] =>
+  (Array.isArray(list) ? list : []).filter(k => EVENT[k]).slice(-60);
 
-/** De gebeurtenis die openstond: alleen als hij nog bestaat. */
-export const cleanActiveEvent = ev =>
+/** De gebeurtenis die openstond: alleen als hij nog bestaat. Geeft hetzelfde object terug, of null. */
+export const cleanActiveEvent = <T extends SavedEvent>(ev: T | null | undefined): T | null =>
   ev && EVENT[ev.k] && Number.isFinite(ev.until) && typeof ev.text === 'string' ? ev : null;

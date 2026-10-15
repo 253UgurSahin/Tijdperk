@@ -46,8 +46,10 @@ export function mat(
 }
 /** Is dit 3D-object een mesh (een vorm met een materiaal)? */
 export const isMesh = (o: T3.Object3D): o is T3.Mesh => (o as T3.Mesh).isMesh;
+/** Een onderdeel van een model met een gewoon materiaal (gemaakt met mat()). */
+type SolidMesh = T3.Mesh<T3.BufferGeometry, T3.MeshStandardMaterial>;
 // Zachte overgang van 0 naar 1 (zoals smoothstep in een shader)
-const smooth01 = t => (t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t));
+const smooth01 = (t: number) => (t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t));
 const VCMAT = new T3.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 0.88 });
 // Voeg vaste delen met hetzelfde materiaal samen tot één mesh: veel sneller tekenen.
 export function mergeStatic(g: T3.Group): T3.Group {
@@ -68,7 +70,7 @@ export function mergeStatic(g: T3.Group): T3.Group {
   let k = 0;
   for (const [q, c] of gs) {
     const cnt = q.attributes.position.count,
-      p = q.attributes.position.array;
+      p = (q.attributes.position as T3.BufferAttribute).array;
     pos.set(p, k * 3);
     for (let i = 0; i < cnt; i += 3) {
       // Per driehoek: liggende vlakken (vloeren, platen, daken) blijven zoals ze zijn
@@ -123,7 +125,7 @@ const FIREM = new T3.MeshBasicMaterial({ color: '#ff9d3a' }),
 export const TEAM = '#2f6fd6',
   TEAMD = '#204c96',
   FOE = '#b8352c';
-// De kleur van vlaggen en banieren op gebouwen. Voor een rivaal zet render/rivals3d.js hem even op zijn kleur.
+// De kleur van vlaggen en banieren op gebouwen. Voor een rivaal zet render/rivals3d.ts hem even op zijn kleur.
 export const paint = { team: TEAM };
 export const GB = new T3.BoxGeometry(1, 1, 1);
 GB.translate(0, 0.5, 0);
@@ -202,10 +204,20 @@ export function mk(
   g.add(o);
   return o;
 }
-export const bx = (g, w, h, d, c, x = 0, y = 0, z = 0, ry = 0) => mk(GB, M_(c), g, x, y, z, w, h, d, ry);
-export const cy = (g, r, h, c, x = 0, y = 0, z = 0, seg = 10, rt) =>
-  mk(gCyl(rt ?? r, r, seg), M_(c), g, x, y, z, 1, h, 1);
-export function cn(g, r, h, c, x = 0, y = 0, z = 0, seg = 10) {
+export const bx = (g: T3.Object3D, w: number, h: number, d: number, c: Paint, x = 0, y = 0, z = 0, ry = 0) =>
+  mk(GB, M_(c), g, x, y, z, w, h, d, ry);
+export const cy = (
+  g: T3.Object3D,
+  r: number,
+  h: number,
+  c: Paint,
+  x = 0,
+  y = 0,
+  z = 0,
+  seg = 10,
+  rt?: number,
+) => mk(gCyl(rt ?? r, r, seg), M_(c), g, x, y, z, 1, h, 1);
+export function cn(g: T3.Object3D, r: number, h: number, c: Paint, x = 0, y = 0, z = 0, seg = 10) {
   const cone = mk(gCyl(0, r, seg), M_(c), g, x, y, z, 1, h, 1);
   // Grote kegels zijn daken (hutten, tenten): een paar ringen geven lagen riet of huid
   if (typeof c === 'string' && r >= 0.3 && h >= 0.3) {
@@ -218,19 +230,29 @@ export function cn(g, r, h, c, x = 0, y = 0, z = 0, seg = 10) {
   }
   return cone;
 }
-export const sp = (g, r, c, x = 0, y = 0, z = 0, d = 0, sy = 1) =>
+export const sp = (g: T3.Object3D, r: number, c: Paint, x = 0, y = 0, z = 0, d = 0, sy = 1) =>
   mk(gIco(d), M_(c), g, x, y, z, r, r * sy, r);
-export function gr(g, w, h, d, c, x = 0, y = 0, z = 0, ry = 0) {
+export function gr(g: T3.Object3D, w: number, h: number, d: number, c: Paint, x = 0, y = 0, z = 0, ry = 0) {
   const roof = mk(GPRISM, M_(c), g, x, y, z, w, h, d, ry);
   if (typeof c === 'string' && h > 0.15 && w * d > 0.15) roofCourses(g, w, h, d, c, x, y, z, ry);
   return roof;
 }
 // Rijen dakpannen (of lagen riet): dunne latjes evenwijdig aan de nok, op beide dakvlakken.
 // Het dak is zo geen glad vlak meer maar heeft reliëf, bij elk gebouw met een zadeldak.
-const DARKER = {};
-const darker = c => (DARKER[c] ||= '#' + new T3.Color(c).multiplyScalar(0.8).getHexString());
+const DARKER: Record<string, string> = {};
+const darker = (c: string) => (DARKER[c] ||= '#' + new T3.Color(c).multiplyScalar(0.8).getHexString());
 const courseTilt = new T3.Euler(0, 0, 0, 'YXZ');
-function roofCourses(g, w, h, d, c, x, y, z, ry) {
+function roofCourses(
+  g: T3.Object3D,
+  w: number,
+  h: number,
+  d: number,
+  c: string,
+  x: number,
+  y: number,
+  z: number,
+  ry: number,
+) {
   const dark = darker(c),
     tilt = Math.atan2(h, d / 2),
     rows = Math.max(2, Math.round(Math.hypot(h, d / 2) / 0.11)),
@@ -246,10 +268,21 @@ function roofCourses(g, w, h, d, c, x, y, z, ry) {
       o.rotation.copy(courseTilt);
     }
 }
-export const pr = (g, w, h, d, c, x = 0, y = 0, z = 0, ry = 0) => mk(GPYR, M_(c), g, x, y, z, w, h, d, ry);
+export const pr = (g: T3.Object3D, w: number, h: number, d: number, c: Paint, x = 0, y = 0, z = 0, ry = 0) =>
+  mk(GPYR, M_(c), g, x, y, z, w, h, d, ry);
 // Ramen op de twee kanten die naar de camera wijzen, met een licht kozijn en een vensterbank
 const FRAME = '#e3dccb';
-export function wins(g, w, d, y, h, n, cx = 0, cz = 0, wd = 0.12) {
+export function wins(
+  g: T3.Object3D,
+  w: number,
+  d: number,
+  y: number,
+  h: number,
+  n: number,
+  cx = 0,
+  cz = 0,
+  wd = 0.12,
+) {
   for (let i = 0; i < n; i++) {
     const u = -w / 2 + (w * (i + 0.5)) / n;
     bx(g, wd + 0.035, h + 0.035, 0.012, FRAME, cx + u, y - 0.0175, cz + d / 2 + 0.002);
@@ -272,7 +305,7 @@ export function door(
 ) {
   bx(g, dw, dh, 0.03, c, x, 0, d / 2 + 0.01);
 }
-export function flagpole(g, x, y, z, h = 0.7, c = paint.team) {
+export function flagpole(g: T3.Object3D, x: number, y: number, z: number, h = 0.7, c: Paint = paint.team) {
   cy(g, 0.015, h, '#5d5348', x, y, z, 5);
   const f = bx(g, 0.26, 0.15, 0.015, c, x + 0.13, y + h - 0.17, z);
   f.userData.flag = 1;
@@ -290,7 +323,7 @@ export function crenel(g: T3.Object3D, w: number, d: number, y: number, c: Paint
 export function chim(g: T3.Object3D, x: number, y: number, z: number, h = 0.3, c: Paint = '#7b6a5a') {
   bx(g, 0.11, h, 0.11, c, x, y, z);
   bx(g, 0.14, 0.04, 0.14, '#4a403a', x, y + h, z);
-  // Onzichtbaar puntje bovenop: hier komt de rook uit (zie sync.js)
+  // Onzichtbaar puntje bovenop: hier komt de rook uit (zie sync.ts)
   const top = new T3.Object3D();
   top.position.set(x, y + h + 0.06, z);
   top.userData.chim = 1;
@@ -350,7 +383,7 @@ export const PINKM = new T3.MeshStandardMaterial({
   flatShading: true,
 });
 // Torus (ring) met cache, voor poorten, reactoren en koepels
-export function gTorus(r, t, rs = 8, ts = 24) {
+export function gTorus(r: number, t: number, rs = 8, ts = 24) {
   const k = 't' + r + '_' + t + '_' + rs + '_' + ts;
   return GC[k] || (GC[k] = new T3.TorusGeometry(r, t, rs, ts));
 }

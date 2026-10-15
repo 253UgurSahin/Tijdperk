@@ -7,7 +7,7 @@ import { B } from '../data/buildings';
 import { MODIFIER } from '../data/modifiers';
 import { GATHER, RES } from '../data/resources';
 import { MEDALS } from '../data/score';
-import { GOAL_ICON, challengeMedal, clockText } from '../data/scenarios';
+import { GOAL_ICON, challengeMedal, clockText, type ScenarioDef } from '../data/scenarios';
 import { avail } from '../game/caches';
 import { CHAPTERS, built } from '../game/chapters';
 import { popNow } from '../game/entities';
@@ -18,7 +18,7 @@ import { G, sel } from '../game/state';
 import { rivalWonderRaces, rivalWonderSavings } from '../game/wonders';
 import { clearSel } from '../input/selection';
 import { centerOn } from '../render/camera';
-import { challengeStatus } from '../game/scenario';
+import { challengeStatus, type ChallengeStatus } from '../game/scenario';
 import { victoryGoals } from '../game/victory';
 import { measureHud } from '../main';
 import { ageUp } from './age';
@@ -89,7 +89,7 @@ export function renderChronicle() {
   });
   $('#mission').classList.toggle('closed', !store.missionOpen);
 }
-/** Zo win je: een klein vak met één korte regel per gekozen doel (zie data/victories.js) en hoe ver je bent. */
+/** Zo win je: een klein vak met één korte regel per gekozen doel (zie data/victories.ts) en hoe ver je bent. */
 function goalsHTML() {
   const challenge = challengeStatus();
   if (challenge) return challengeHTML(challenge);
@@ -104,7 +104,7 @@ function goalsHTML() {
  * Klik erop om naar de bouwplaats te gaan. Spaart hij ervoor (vanaf de helft), dan staat dat er ook al.
  */
 function racesHTML() {
-  const pct = frac => `${Math.floor(frac * 100)}%`;
+  const pct = (frac: number) => `${Math.floor(frac * 100)}%`;
   const races = rivalWonderRaces().map(({ k, rival, b, frac }) => {
     const who = RIVAL[rival.k];
     return `<button class="wrace" data-race="${b.id}" title="Bekijk de bouwplaats">${ico('★')}<span>${who.n} ${verb(who, 'bouwt', 'bouwen')} ${theWonder(k)}</span><b>${pct(frac)}</b></button>`;
@@ -116,7 +116,7 @@ function racesHTML() {
   return races.join('') + savings.join('');
 }
 // Naar de bouwplaats van een rivaal, en die selecteren
-function showRace(id) {
+function showRace(id: number) {
   const b = rbById.get(id);
   if (!b) return;
   centerOn(b.x + 1.5, b.y + 1.5);
@@ -129,9 +129,10 @@ function showRace(id) {
  * In een uitdaging: de naam, het doel met een balk, en de klok als er een tijdsgrens is.
  * De spelregels staan er klein onder (met uitleg als je de muis erop houdt).
  */
-function challengeHTML({ def, goal, frac, short, left }) {
+function challengeHTML({ def, goal, frac, short, left }: ChallengeStatus) {
   const done = G.won;
-  const lost = G.over && G.scenario.failed === 'time';
+  // In een uitdaging is G.scenario er altijd
+  const lost = G.over && G.scenario!.failed === 'time';
   const timer =
     left != null
       ? `<span class="${clockClass(left)}" title="Speltijd over">${ico('⌛')}${clockText(left)}</span>`
@@ -155,10 +156,10 @@ function challengeHTML({ def, goal, frac, short, left }) {
 }
 
 // De klok kleurt oranje bij 5 minuten en rood bij 1 minuut
-const clockClass = left => `chclock ${left <= 60 ? 'bad' : left <= 300 ? 'warn' : ''}`;
+const clockClass = (left: number) => `chclock ${left <= 60 ? 'bad' : left <= 300 ? 'warn' : ''}`;
 
 /** Bij overleven: hoeveel je kwijt bent, en welke medaille je dan nog kunt halen. */
-function lossLineHTML(def) {
+function lossLineHTML(def: ScenarioDef) {
   if (def.medals.by !== 'lost') return '';
   const lost = G.stats.lost || 0;
   const medal = MEDALS.find(m => m.k === challengeMedal(def.medals, { won: true, lost }));
@@ -188,25 +189,26 @@ function renderGoalButton() {
   if (clock.textContent !== clockText(left)) clock.textContent = clockText(left);
 }
 // Een spelregel aantikken: zeg wat hij doet
-function explainRule(chip) {
-  const m = MODIFIER[chip.dataset.rule];
+function explainRule(chip: HTMLElement) {
+  // chip is gevonden met [data-rule], dus data-rule bestaat
+  const m = MODIFIER[chip.dataset.rule!];
   if (m) toast(`${m.n}: ${m.d}.`);
 }
 $('#mission').addEventListener('keydown', e => {
-  const chip = e.target.closest('[data-rule]');
+  const chip = (e.target as HTMLElement).closest<HTMLElement>('[data-rule]');
   if (chip && (e.key === 'Enter' || e.key === ' ')) {
     e.preventDefault();
     explainRule(chip);
   }
 });
 $('#mission').addEventListener('click', e => {
-  const chip = e.target.closest('[data-rule]');
+  const chip = (e.target as HTMLElement).closest<HTMLElement>('[data-rule]');
   if (chip) {
     sfx('tick');
     explainRule(chip);
     return;
   }
-  const t = e.target.closest('button');
+  const t = (e.target as HTMLElement).closest('button');
   if (!t) return;
   if (t.dataset.race) {
     sfx('tick');

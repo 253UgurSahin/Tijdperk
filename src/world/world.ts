@@ -25,8 +25,8 @@ export let levels!: GeneratedWorld['levels'],
   blk!: Uint8Array,
   road!: Uint8Array;
 
-/** Maak de wereld uit een seed en een kaartsoort (zie data/maps.js). */
-export function genWorld(seed, mapKind) {
+/** Maak de wereld uit een seed en een kaartsoort (zie data/maps.ts). */
+export function genWorld(seed: number, mapKind: string) {
   const w = generateWorld(seed, W, H, mapKind);
   ({ ter, biome, elev, node, amt, levels } = w);
   blk = new Uint8Array(W * H);

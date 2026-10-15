@@ -1,5 +1,5 @@
 // De grond: kleuren per tegel, de vorm van het land en de rand van je gebied.
-// (Fijne details en rotswanden: terrainlook.js · water: water.js)
+// (Fijne details en rotswanden: terrainlook.ts · water: water.ts)
 import * as T3 from 'three';
 import { CN, H, W } from '../config';
 import { G } from '../game/state';
@@ -12,7 +12,7 @@ import { TER, ground, mountainHeight, road, ter } from '../world/world';
 import { ownerAt, rivalColour } from '../game/rivals';
 
 // Kleur van een rivaal als [r, g, b], voor zijn land en de rand eromheen
-const rivalRGB = id => {
+const rivalRGB = (id: number) => {
   const c = rivalColour(id);
   return [1, 3, 5].map(k => parseInt(c.slice(k, k + 2), 16));
 };
@@ -30,10 +30,11 @@ TTEX.minFilter = T3.LinearMipmapLinearFilter;
 TTEX.anisotropy = 4;
 export const TMAT = new T3.MeshStandardMaterial({ map: TTEX, roughness: 0.95, flatShading: false });
 dressTerrain(TMAT);
-let TMESH = null;
-export const RC = [null, [176, 152, 108], [168, 166, 156], [78, 82, 88]];
+let TMESH: T3.Mesh<T3.PlaneGeometry, T3.MeshStandardMaterial> | null = null;
+/** Kleur van elke soort weg als [r, g, b] (0 = geen weg). */
+export const RC: ([number, number, number] | null)[] = [null, [176, 152, 108], [168, 166, 156], [78, 82, 88]];
 /** Kleur van de grond op tegel (x, y), zoals de wereldgenerator die heeft bepaald. */
-export function tileRGB(x, y) {
+export function tileRGB(x: number, y: number) {
   const i = (y * W + x) * 3;
   return [ground[i], ground[i + 1], ground[i + 2]];
 }
@@ -137,7 +138,7 @@ export function paintTile(x: number, y: number) {
     }
   // Rand van het gebied van een rivaal, in zijn kleur
   if (tint) {
-    const put = (px, py) => {
+    const put = (px: number, py: number) => {
       const o = ((Y0 + py) * WW + X0 + px) * 4;
       d[o] = tint[0];
       d[o + 1] = tint[1];
@@ -159,8 +160,9 @@ export function paintTile(x: number, y: number) {
   }
   // Rand van je gebied
   if (mine) {
-    const L = (xx, yy) => xx < 0 || yy < 0 || xx >= W || yy >= H || !G.unl[(yy >> 4) * CN + (xx >> 4)];
-    const put = (px, py) => {
+    const L = (xx: number, yy: number) =>
+      xx < 0 || yy < 0 || xx >= W || yy >= H || !G.unl[(yy >> 4) * CN + (xx >> 4)];
+    const put = (px: number, py: number) => {
       const o = ((Y0 + py) * WW + X0 + px) * 4;
       d[o] = 236;
       d[o + 1] = 214;
@@ -241,12 +243,12 @@ export function flushTerrain() {
 // Hoogte van elk hoekpunt van de grond (W+1 bij H+1), voor dingen die óp de bergen staan
 const heights = new Float32Array((W + 1) * (H + 1));
 /** Hoogte van de grond op punt (x, z), tussen de hoekpunten in geschat. */
-export function groundHeight(x, z) {
+export function groundHeight(x: number, z: number): number {
   const x0 = Math.max(0, Math.min(W - 1, Math.floor(x))),
     z0 = Math.max(0, Math.min(H - 1, Math.floor(z))),
     fx = Math.max(0, Math.min(1, x - x0)),
     fz = Math.max(0, Math.min(1, z - z0)),
-    at = (xx, zz) => heights[zz * (W + 1) + xx],
+    at = (xx: number, zz: number) => heights[zz * (W + 1) + xx],
     top = at(x0, z0) + (at(x0 + 1, z0) - at(x0, z0)) * fx,
     bottom = at(x0, z0 + 1) + (at(x0 + 1, z0 + 1) - at(x0, z0 + 1)) * fx;
   return top + (bottom - top) * fz;

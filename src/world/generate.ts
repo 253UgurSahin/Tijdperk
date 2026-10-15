@@ -8,7 +8,7 @@ import type { Tile } from '../types';
 //   5. eerlijkheid  → elke grondstof ligt op een redelijke afstand van je startplek
 //   6. bereikbaarheid → geen stukken land die je nooit kunt bereiken
 // Zelfde seed en kaartsoort = altijd dezelfde wereld. Dit bestand gebruikt geen spelstand of browser,
-// dus het is te testen. De kaartsoorten (continent, eilanden, bergland) staan in data/maps.js.
+// dus het is te testen. De kaartsoorten (continent, eilanden, bergland) staan in data/maps.ts.
 import { DEFAULT_MAP, MAP, cleanMap } from '../data/maps';
 import { NI, NODES } from '../data/nodes';
 import { clamp, dist } from '../util/math';
@@ -43,11 +43,29 @@ export const MAX_START_DIST: Record<string, number> = {
 export const startLimit = (k: string, W: number): number =>
   k === 'tree' || k === 'bush' || k === 'rock' ? MAX_START_DIST[k] : MAX_START_DIST[k] * (W / 128) * 0.7;
 
+/** Wat de wereldgenerator oplevert. */
+export interface GeneratedWorld {
+  ter: Uint8Array;
+  biome: Uint8Array;
+  node: Uint8Array;
+  amt: Uint16Array;
+  elev: Float32Array;
+  moist: Float32Array;
+  /** Hoogtegrenzen: zeeniveau, diep water, voet en top van de bergen. */
+  levels: { sea: number; deep: number; peak: number; top: number };
+  start: { x: number; y: number };
+}
+
 /**
- * Maak een wereld van W bij H tegels uit een seed. `mapKind` is een sleutel uit data/maps.js.
+ * Maak een wereld van W bij H tegels uit een seed. `mapKind` is een sleutel uit data/maps.ts.
  * Het continent is de standaard: zo blijven oude opslagen precies dezelfde wereld houden.
  */
-export function generateWorld(seed, W, H, mapKind = DEFAULT_MAP) {
+export function generateWorld(
+  seed: number,
+  W: number,
+  H: number,
+  mapKind: string = DEFAULT_MAP,
+): GeneratedWorld {
   // Per kaartsoort: hoeveel zee, heuvels en bergen (als deel van de kaart), en hoe groot het land is
   const { levels: LEVELS, landSize, edgeDrop, ridges, straits } = MAP[cleanMap(mapKind)].gen;
   const N = W * H,
@@ -331,9 +349,20 @@ export function generateWorld(seed, W, H, mapKind = DEFAULT_MAP) {
 }
 
 /** Kamruis: 1 op lange, smalle lijnen (de bergkammen), 0 ver ervandaan. */
-function ridge(x, y, s) {
+function ridge(x: number, y: number, s: number): number {
   const r = 1 - Math.abs(2 * fbm(x, y, s) - 1);
   return r * r * r;
+}
+
+/** Wat ensureReachable nodig heeft: de kaart, de startplek, het toeval en hoe je grondstof neerlegt. */
+interface ReachableInput {
+  ter: Uint8Array;
+  node: Uint8Array;
+  W: number;
+  H: number;
+  start: { x: number; y: number };
+  R: () => number;
+  place: (x: number, y: number, r: number, k: string) => void;
 }
 
 /**
@@ -342,7 +371,7 @@ function ridge(x, y, s) {
  * (Stap 7 lijkt hierop, maar kijkt niet of je er kunt komen. Die blijft zoals hij was,
  * zodat werelden uit oude opslag precies hetzelfde blijven.)
  */
-function ensureReachable({ ter, node, W, H, start, R, place }) {
+function ensureReachable({ ter, node, W, H, start, R, place }: ReachableInput) {
   const reachable = reachableFrom(ter, W, H, start.y * W + start.x);
   for (const k of Object.keys(MAX_START_DIST)) {
     const limit = startLimit(k, W);
@@ -361,7 +390,15 @@ function ensureReachable({ ter, node, W, H, start, R, place }) {
 }
 
 /** Ligt grondstof `t` ergens binnen `limit` tegels van de start, op een tegel waarvoor ook `ok(i)` geldt? */
-function hasNodeNear(node, W, H, start, t, limit, ok) {
+function hasNodeNear(
+  node: Uint8Array,
+  W: number,
+  H: number,
+  start: { x: number; y: number },
+  t: number,
+  limit: number,
+  ok: (i: number) => number | boolean,
+): boolean {
   const r = Math.ceil(limit);
   for (let y = Math.max(0, start.y - r); y < Math.min(H, start.y + r); y++)
     for (let x = Math.max(0, start.x - r); x < Math.min(W, start.x + r); x++) {
@@ -372,7 +409,7 @@ function hasNodeNear(node, W, H, start, t, limit, ok) {
 }
 
 /** Alle tegels die je vanaf `from` te voet kunt bereiken (1 = bereikbaar). */
-export function reachableFrom(ter, W, H, from) {
+export function reachableFrom(ter: Uint8Array, W: number, H: number, from: number): Uint8Array {
   const seen = new Uint8Array(W * H),
     q = [from];
   seen[from] = 1;

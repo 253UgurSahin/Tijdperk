@@ -1,4 +1,4 @@
-import type { Building, Camp, GameState } from '../types';
+import type { Building, Camp, GameOpts, GameState, NewGameOptions } from '../types';
 // De spelstand (G): alles wat er nu in de wereld is. Ook een nieuw spel starten.
 import { CN, CX, CY, TAU, W } from '../config';
 import { FIRST_BLESSING_AT } from '../data/blessings';
@@ -25,22 +25,24 @@ import { mulberry32 } from '../util/random';
 import { codeFromSeed, randomSeed } from '../util/seedcode';
 import { amt, buildLists, genWorld, inb, node, passable } from '../world/world';
 
-export let G = null;
-export const bById = new Map();
-// Wat je geselecteerd hebt. rb: een gebouw van een rivaal · rival: een rivaal zelf
+/** Het lopende spel. Wordt gezet door newGame() en bij laden. */
+export let G!: GameState;
+/** Gebouwen op id. */
+export const bById = new Map<number, Building>();
+// Wat je geselecteerd hebt (allemaal op id). rb: een gebouw van een rivaal · rival: een rivaal zelf
 // (na een klik op een van zijn soldaten, of in het paneel Leger) · rivalUnit: de soldaat waarop je klikte
 export const sel = {
-  vs: new Set(),
-  us: new Set(),
-  b: null,
-  camp: null,
+  vs: new Set<number>(),
+  us: new Set<number>(),
+  b: null as number | null,
+  camp: null as number | null,
   node: -1,
-  rb: null,
-  rival: null,
-  rivalUnit: null,
+  rb: null as number | null,
+  rival: null as number | null,
+  rivalUnit: null as number | null,
 };
-export function baseState(seed) {
-  const g = {
+export function baseState(seed: number): GameState {
+  const g: GameState = {
     seed,
     age: 0,
     res: {},
@@ -75,11 +77,11 @@ export function baseState(seed) {
     diff: 1,
     tech: {},
     research: null,
-    people: DEFAULT_PEOPLE, // je volk (sleutel uit data/peoples.js)
-    blessings: [], // gekozen zegeningen (sleutels uit data/blessings.js)
-    blessingQueue: [], // zegeningen die je nog mag kiezen, zie game/blessings.js
+    people: DEFAULT_PEOPLE, // je volk (sleutel uit data/peoples.ts)
+    blessings: [], // gekozen zegeningen (sleutels uit data/blessings.ts)
+    blessingQueue: [], // zegeningen die je nog mag kiezen, zie game/blessings.ts
     forceRaid: 0,
-    // Gebeurtenissen (zie game/events.js en data/events.js)
+    // Gebeurtenissen (zie game/events.ts en data/events.ts)
     event: null, // het kaartje dat nu openstaat, of null
     lastEvent: 0, // speltijd van de laatste gebeurtenis
     buffs: [], // tijdelijke bonussen uit gebeurtenissen: { k, n, g, l, d, bonus, until }
@@ -89,7 +91,7 @@ export function baseState(seed) {
     trainT: 0,
     peaceful: false,
     won: false,
-    wonBy: '', // waarmee je won (sleutel uit data/victories.js), of leeg
+    wonBy: '', // waarmee je won (sleutel uit data/victories.ts), of leeg
     over: false,
     bought: 0,
     hungry: false,
@@ -113,13 +115,13 @@ export function baseState(seed) {
       peaceUsed: false, // stond de vredige modus ooit aan in dit spel? (dan telt de score half)
     },
     achieved: [], // prestaties die je in dít spel voor het eerst haalde
-    result: null, // de eindscore, zodra het spel gewonnen of verloren is (zie game/achievements.js)
+    result: null, // de eindscore, zodra het spel gewonnen of verloren is (zie game/achievements.ts)
     countedAsPlayed: false, // telt dit spel al mee bij "gespeeld" in je profiel?
     opts: gameOpts(seed), // de keuzes van het nieuw-spelscherm (zie gameOpts hieronder)
-    scenario: null, // de uitdaging van dit spel, of null (zie cleanScenarioState in data/scenarios.js)
-    mods: [], // spelregels van een uitdaging (sleutels uit data/modifiers.js); het bonusregister telt ze mee
-    rivals: [], // rivaliserende beschavingen (zie game/rivals.js)
-    wonders: {}, // wie welk wereldwonder heeft: { pyramid: { by: 'you', day: 12 } } (zie data/wonders.js)
+    scenario: null, // de uitdaging van dit spel, of null (zie cleanScenarioState in data/scenarios.ts)
+    mods: [], // spelregels van een uitdaging (sleutels uit data/modifiers.ts); het bonusregister telt ze mee
+    rivals: [], // rivaliserende beschavingen (zie game/rivals.ts)
+    wonders: {}, // wie welk wereldwonder heeft: { pyramid: { by: 'you', day: 12 } } (zie data/wonders.ts)
     traderDay: 0, // de dag waarop de handelaar van het Oost-Indisch Huis voor het laatst kwam
   };
   RKEYS.forEach(k => (g.res[k] = 0));
@@ -130,10 +132,10 @@ export function baseState(seed) {
  * people: volk · diff: moeilijkheid · map: kaartsoort · seedCode: zaadcode · victories: manieren om te winnen
  * rivals: aantal rivalen (zonder keuze 0: zo hebben oude opslag en uitdagingen geen rivalen)
  */
-export function gameOpts(seed, o = {}) {
+export function gameOpts(seed: number, o: Partial<GameOpts> = {}): GameOpts {
   const rivals = cleanRivalCount(o.rivals);
   return {
-    people: PEOPLE[o.people] ? o.people : DEFAULT_PEOPLE,
+    people: o.people && PEOPLE[o.people] ? o.people : DEFAULT_PEOPLE,
     diff: cleanDiff(o.diff),
     map: cleanMap(o.map),
     seedCode: codeFromSeed(seed),
@@ -146,12 +148,13 @@ export function gameOpts(seed, o = {}) {
  * Begin een nieuwe wereld. `o` zijn de keuzes van het nieuw-spelscherm: { seed, people, diff, map, victories }.
  * Zonder seed komt er een willekeurige wereld.
  * Een uitdaging: { scenario: { k, date }, people }. De uitdaging bepaalt dan zelf de wereld, de regels en het
- * begin (zie data/scenarios.js); `people` geldt alleen als de uitdaging geen vast volk heeft.
+ * begin (zie data/scenarios.ts); `people` geldt alleen als de uitdaging geen vast volk heeft.
  */
-export function newGame(o = {}) {
+export function newGame(o: NewGameOptions = {}): void {
   const challenge = scenarioDef(o.scenario);
   if (challenge) o = { ...o, ...startOptions(challenge, o.people) };
-  const seed = Number.isInteger(o.seed) && o.seed >= 0 ? o.seed : randomSeed();
+  // Number.isInteger geeft alleen true bij een heel getal: dan is o.seed er zeker
+  const seed = Number.isInteger(o.seed) && o.seed! >= 0 ? o.seed! : randomSeed();
   G = baseState(seed);
   G.opts = gameOpts(seed, o);
   // Uitdaging en spelregels meteen zetten: hun bonussen tellen mee voor alles wat hieronder gebouwd wordt
@@ -207,15 +210,15 @@ export function newGame(o = {}) {
   afterLoad();
 }
 // Spelregel Kale grond: elke boom, struik, rots en ertsader heeft de helft minder (een oliebron niet)
-function thinOutNodes() {
+function thinOutNodes(): void {
   for (let i = 0; i < node.length; i++) {
     if (!node[i] || NODES[node[i]].pump) continue;
     amt[i] = Math.max(1, Math.round(amt[i] / 2));
   }
 }
-export const placeName = () => PLACES[G.seed % PLACES.length];
+export const placeName = (): string => PLACES[G.seed % PLACES.length];
 // Vijandelijke kampen: zwakke dichtbij, sterke ver weg. Op een grote kaart twee per niveau.
-function genCamps(seed: number) {
+function genCamps(seed: number): void {
   const R = mulberry32(seed + 77),
     spread = (W / 128) * 0.85,
     perTier = W >= 256 ? 2 : 1,
@@ -255,7 +258,7 @@ function genCamps(seed: number) {
         break;
       }
 }
-function spawnCampGuards(c: Camp) {
+function spawnCampGuards(c: Camp): void {
   const n = 3 + c.tier * 2;
   for (let k = 0; k < n; k++) {
     const a = (k / n) * TAU;
@@ -269,7 +272,7 @@ function spawnCampGuards(c: Camp) {
     );
   }
 }
-export function setGame(v: GameState) {
+export function setGame(v: GameState): GameState {
   G = v;
   return v;
 }

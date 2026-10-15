@@ -1,4 +1,5 @@
 // Tests voor de zegeningen: kloppen de gegevens, en zijn de kaarten eerlijk en voorspelbaar?
+import type { BlessingDef, BlessingRules } from '../src/data/blessings';
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { AGES } from '../src/data/ages';
@@ -13,10 +14,10 @@ import {
 } from '../src/data/blessings';
 
 const SEEDS = [1, 42, 777, 123456, 987654321, 31337, 2024, 55];
-const keysOf = cards => cards.map(b => b.k);
+const keysOf = (cards: BlessingDef[]) => cards.map(b => b.k);
 
 // Speel een heel spel na: bij het begin en bij elk nieuw tijdperk de kaart op plek `pick`
-function playThrough(seed, pick = 0, opts) {
+function playThrough(seed: number, pick = 0, opts?: BlessingRules) {
   const taken = [],
     offers = [];
   for (let age = 0; age < AGES.length; age++) {
@@ -70,7 +71,7 @@ describe('zegeningen: de gegevens', () => {
     const goodWhenLower = new Set(['research.time', 'chunk.cost', 'wall.cost', 'raid.size', 'raid.hp']);
     // Meer meteorieten is tweesnijdend: meer erts, maar ze slaan ook gebouwen kapot
     const doubleEdged = new Set(['meteor.rate']);
-    const isDownside = (key, value) =>
+    const isDownside = (key: string, value: number) =>
       doubleEdged.has(key) || (goodWhenLower.has(key) ? value > 0 : value < 0);
     for (const b of BLESSINGS) {
       const downsides = Object.entries(b.bonus || {}).filter(([k, v]) => isDownside(k, v));
@@ -78,8 +79,8 @@ describe('zegeningen: de gegevens', () => {
     }
   });
 
-  it('eenmalige zegeningen worden echt uitgevoerd in game/blessings.js', () => {
-    const code = readFileSync(new URL('../src/game/blessings.js', import.meta.url), 'utf8');
+  it('eenmalige zegeningen worden echt uitgevoerd in game/blessings.ts', () => {
+    const code = readFileSync(new URL('../src/game/blessings.ts', import.meta.url), 'utf8');
     for (const b of BLESSINGS) if (b.oneoff) expect(code, b.k).toContain(`${b.oneoff}()`);
   });
 

@@ -38,7 +38,7 @@ const FIRST_DAY = 3; // eerste meteoriet niet vóór deze dag
 const METEOR_ORES = ['rock', 'copper', 'tin', 'iron', 'gold', 'coal', 'lithium', 'starmetal'];
 
 /** Elke speltik: plan de volgende meteoriet, tel af en laat hem inslaan. */
-export function updateMeteors(dt) {
+export function updateMeteors(dt: number): void {
   if (G.nextMeteor == null) {
     // Met de spelregel Meteorietenregen valt de eerste al op dag 1
     const firstDay = hasRule('meteorShower') ? 1 : FIRST_DAY;
@@ -223,7 +223,7 @@ function compassFromHome(x: number, y: number): string {
 }
 
 // Hoogte en positie van de vallende vuurbal, voor de weergave (null als er niets valt)
-export function meteorPosition() {
+export function meteorPosition(): { x: number; y: number; h: number; k: number } | null {
   const m = G.meteor;
   if (!m || m.t > FALL) return null;
   const k = 1 - m.t / FALL; // 0 = net zichtbaar, 1 = inslag

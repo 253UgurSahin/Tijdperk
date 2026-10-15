@@ -1,4 +1,5 @@
 // Gedeelde types: hoe spelgegevens, de spelstand en eenheden eruitzien.
+// Typen van losse speldata (zegeningen, gebeurtenissen, volken, ...) staan bij hun lijst in src/data/.
 
 /** Hoeveelheid per grondstof, bijv. `{ wood: 30, stone: 10 }`. */
 export type Cost = Record<string, number>;
@@ -76,6 +77,18 @@ export interface BuildingDef {
   wall?: 1;
   gate?: 1;
   road?: 1;
+  /** Geluid bij het werk (zie audio/sound.ts). */
+  snd?: string;
+  // Alleen bij wereldwonderen (zie data/wonders.ts):
+  wonder?: boolean;
+  /** Lidwoord ('de' of 'het'), en of de naam meervoud is. */
+  article?: string;
+  plural?: boolean;
+  /** Eigen bouwtijd in seconden. */
+  bt?: number;
+  bonus?: Bonus;
+  /** Korte uitleg van de bonus. */
+  perk?: string;
 }
 export interface RoadDef {
   n: string;
@@ -98,6 +111,13 @@ export interface UnitDef {
   big?: 1;
   fly?: 1;
   ride?: 1;
+  /** Extra schade tegen een soort doel: ruiters, pantser, vliegers, schutters of kampen (zie bonusMul). */
+  bonus?: { vs: 'ride' | 'big' | 'air' | 'proj' | 'camp'; mul: number; d: string };
+  /** Hoort bij één volk (zie data/peoples.ts). */
+  people?: string;
+  /** Korte extra uitleg bij de knop om hem te trainen. */
+  note?: string;
+  snd?: string;
 }
 export interface FoeDef {
   n: string;
@@ -109,6 +129,8 @@ export interface FoeDef {
   proj?: 1;
   big?: 1;
   air?: 1;
+  ride?: 1;
+  snd?: string;
 }
 export interface TechDef {
   k: string;
@@ -118,6 +140,8 @@ export interface TechDef {
   d: string;
   cost: Cost;
   t: number;
+  /** Wat het onderzoek oplevert (sleutels uit data/bonus.ts). */
+  bonus: Bonus;
 }
 
 // ---------- gebouwen, dorpelingen, soldaten, vijanden ----------
@@ -235,12 +259,28 @@ export interface Foe extends Hittable {
   alpha: number;
   /** Het kamp dat deze vijand bewaakt; 0 bij een aanval. */
   camp: number;
+  /** Wachtpost: waar hij naar terugloopt als het rustig is. */
   hx: number;
   hy: number;
   retreat?: boolean;
   aggro?: boolean;
   swing?: number;
+  // Alleen bij soldaten van een rivaal (zie spawnRivalUnit in game/rivals.ts):
+  /** Nummer van de rivaal. */
+  rival?: number;
+  /** Soort soldaat (sleutel uit UNITS). */
+  uk?: string;
+  /** Thuis op wacht, onderweg naar jou, aan het aanvallen of op weg naar huis. */
+  mode?: RivalMode;
+  ride?: boolean;
+  splash?: number;
+  snd?: string;
+  /** Speltijd waarop de mars of aanval voorbij is. */
+  until?: number;
+  /** Gezamenlijk looptempo van de groep op weg naar jou. */
+  pace?: number;
 }
+export type RivalMode = 'home' | 'march' | 'raid' | 'return';
 
 export interface Camp extends Hittable {
   kind: 'c';
@@ -249,7 +289,60 @@ export interface Camp extends Hittable {
   alive: boolean;
 }
 
-export type Target = Building | Villager | Unit | Foe | Camp;
+/** Een gebouw van een rivaal (zie addBuilding in game/rivals.ts). Jouw gebouwen zijn `Building`. */
+export interface RivalBuilding extends Hittable {
+  kind: 'rb';
+  /** Nummer van de rivaal. */
+  rival: number;
+  type: string;
+  mhp: number;
+  done: boolean;
+  /** Bouwvoortgang en bouwtijd in seconden. */
+  prog: number;
+  bt: number;
+  /** Herlaadtijd van een toren. */
+  cd: number;
+  aim?: number;
+}
+
+/** Een rivaliserende beschaving (zie newRival in game/rivals.ts). */
+export interface Rival {
+  /** Klein nummer: soldaten en gebouwen verwijzen hiernaar. */
+  id: number;
+  /** Naam en kleur (sleutel uit data/rivals.ts). */
+  k: string;
+  /** Karakter: bouwer, krijger of handelaar. */
+  p: string;
+  age: number;
+  /** Spaarpot voor gebouwen en tijdperken, en die voor soldaten. */
+  bank: number;
+  war: number;
+  /** Seconden tot de volgende soldaat klaar is, en hoeveel er al getraind zijn. */
+  trainT: number;
+  trained: number;
+  /** Linkerbovenhoek van hun stamhuis. */
+  x: number;
+  y: number;
+  /** De gebieden (nummers) die van hen zijn. */
+  chunks: number[];
+  bs: RivalBuilding[];
+  attacks: number;
+  /** Dag van de volgende aanval. */
+  nextAttack: number;
+  grewDay: number;
+  giftDay: number;
+  /** Speltijd van jouw laatste aanval op hen, en van de laatste treffer op hun stad. */
+  angry: number;
+  alarm: number;
+  buildWait: number;
+  /** Spaarpot voor een wereldwonder, en hoe lang ze niet proberen er een neer te zetten. */
+  wonderPot: number;
+  wonderWait: number;
+  dead: boolean;
+  deadDay: number;
+}
+
+export type Target = Building | Villager | Unit | Foe | Camp | RivalBuilding;
 export type Mobile = Villager | Unit | Foe;
 
 export interface Projectile {
@@ -304,17 +397,160 @@ export interface Offer {
   price: number;
   until: number;
 }
+/** Het kaartje van een gebeurtenis dat nu openstaat (zie startEvent in game/events.ts). */
 export interface GameEvent {
-  id: string;
+  /** Sleutel uit data/events.ts. */
+  k: string;
+  /** Speltijd waarop de laatste keuze vanzelf gebeurt. */
   until: number;
-  text?: string;
-  ca?: Cost | null;
-  r?: string;
+  text: string;
+  /** De gebeurtenis waar dit een vervolg op is, of leeg. */
+  from: string;
+  /** Tegel van de bosbrand. */
   fx?: number;
   fy?: number;
 }
 
-/** Tellers voor de doelen; per getrainde soort eenheid komt er een teller bij. */
+/** Een bonus: per sleutel uit data/bonus.ts hoeveel erbij, bijv. `{ 'army.dmg': 0.15 }` is 15% meer schade. */
+export type Bonus = Record<string, number>;
+
+/** Een tijdelijke bonus uit een gebeurtenis (zie addBuff in game/events.ts). */
+export interface Buff {
+  k: string;
+  n: string;
+  /** Pictogram. */
+  g: string;
+  /** De gekozen knop (ontbreekt bij oude opslag). */
+  l?: string;
+  d: string;
+  bonus: Bonus;
+  /** Speltijd waarop de bonus voorbij is. */
+  until: number;
+}
+
+/** Een vervolg op een gebeurtenis dat nog komt: gebeurtenis k op dag `day`, na gebeurtenis `from`. */
+export interface Followup {
+  k: string;
+  day: number;
+  from: string;
+}
+
+/** Een zegening die je nog mag kiezen: bij welk tijdperk, en vanaf welke speltijd. */
+export interface BlessingSlot {
+  age: number;
+  at: number;
+}
+
+/** Wie een wereldwonder heeft ('you' of de sleutel van een rivaal), en sinds welke dag. */
+export interface WonderOwner {
+  by: string;
+  day: number;
+}
+
+/** De keuzes van het nieuw-spelscherm (zie gameOpts in game/state.ts). */
+export interface GameOpts {
+  people: string;
+  diff: number;
+  map: string;
+  seedCode: string;
+  /** Manieren om te winnen (sleutels uit data/victories.ts). */
+  victories: string[];
+  rivals: number;
+}
+
+/**
+ * Wat je aan newGame meegeeft (zie game/state.ts): de keuzes van het nieuw-spelscherm, of een uitdaging.
+ * Wat ontbreekt, wordt de standaard; zonder seed komt er een willekeurige wereld.
+ */
+export interface NewGameOptions {
+  seed?: number;
+  people?: string;
+  diff?: number;
+  map?: string;
+  victories?: string[];
+  rivals?: number;
+  /** Spelregels (sleutels uit data/modifiers.ts); komen van de uitdaging. */
+  mods?: string[];
+  /** De uitdaging: sleutel, en bij de wereld van de dag de datum. */
+  scenario?: { k: string; date: string };
+}
+
+/** De uitdaging van dit spel (zie cleanScenarioState in data/scenarios.ts). */
+export interface ScenarioState {
+  k: string;
+  /** Datum van de wereld van de dag, zoals "2026-10-15"; anders leeg. */
+  date: string;
+  /** Speltijd waarop het doel gehaald werd, of null. */
+  doneAt: number | null;
+  /** 'time' als de tijd op was, anders leeg. */
+  failed: '' | 'time';
+  warned: number;
+}
+
+/** Eén regel van de eindscore (zie gameScore in data/score.ts). */
+export interface ScoreRow {
+  k: string;
+  n: string;
+  count: number;
+  per: number;
+  pts: number;
+}
+
+/** Eén afgelopen spel, zoals het in het profiel staat (zie scoreNow in game/achievements.ts). */
+export interface GameRecord {
+  score: number;
+  medal: string;
+  won: boolean;
+  /** Waarmee je won; ontbreekt in profielen van vóór de keuze hoe je wint. */
+  wonBy?: string;
+  age: number;
+  day: number;
+  people: string;
+  diff: number;
+  /** Speelde je met de vredige modus aan? Ontbreekt in oudere profielen. */
+  peaceful?: boolean;
+  // Alleen bij een uitdaging:
+  scenario?: string;
+  date?: string;
+  /** Tijd of verlies waarmee de medaille gehaald is (lager is beter). */
+  value?: number;
+  time?: number;
+  losses?: number;
+  /** Wanneer het spel in het profiel kwam (tijd in ms). */
+  at?: number;
+}
+
+/** De eindscore van een spel: de profielregel plus de losse regels van de score. */
+export interface GameResult extends GameRecord {
+  at: number;
+  rows: ScoreRow[];
+  raw: number;
+  sum: number;
+  factor: number;
+  /** Was het een nieuw record? */
+  record: boolean;
+}
+
+/** Het spelersprofiel (zie core/profile.ts). Blijft bewaard, ook na een nieuw spel. */
+export interface Profile {
+  /** Prestatie → wanneer gehaald (tijd in ms). */
+  achievements: Record<string, number>;
+  games: number;
+  wins: number;
+  best: { score: number; perPeople: Record<string, number>; perDiff: Record<string, number> };
+  unlockedPeoples: string[];
+  /** Je laatste spellen, nieuwste eerst. */
+  recent: GameRecord[];
+  /** Per uitdaging: beste medaille, beste tijd of minste verlies, en hoe vaak gewonnen. */
+  scenarios: Record<string, { medal: string; best: number | null; wins: number }>;
+  /** Per datum: je beste spel in de wereld van de dag. */
+  daily: Record<string, { score: number; medal: string; won: boolean }>;
+}
+
+/**
+ * Tellers voor doelen, prestaties en de score. Per getrainde soort eenheid komt er een teller bij
+ * (sleutel uit UNITS); daarom mag er elke sleutel in staan.
+ */
 export interface Stats {
   gathered: number;
   killed: number;
@@ -322,7 +558,24 @@ export interface Stats {
   camps: number;
   trained: number;
   knight: number;
-  [unit: string]: number;
+  /** Muren en poorten gebouwd. */
+  walls: number;
+  /** Aanvallen doorstaan, en de dag waarop de laatste aanval echt begon. */
+  survived: number;
+  raidDay: number;
+  meteors: number;
+  /** Rivalen verslagen. */
+  rivals: number;
+  wondersBuilt: number;
+  /** Wonderen afgemaakt terwijl een rivaal hetzelfde wonder bouwde. */
+  wonderRaces: number;
+  /** Wonderen veroverd door een rivaal te verslaan. */
+  wondersTaken: number;
+  /** Dorpelingen en gebouwen (geen muren) die je kwijtraakte. */
+  lost: number;
+  /** Stond de vredige modus ooit aan in dit spel? Dan telt de score half. */
+  peaceUsed: boolean;
+  [unit: string]: number | boolean;
 }
 
 export interface GameState {
@@ -362,18 +615,49 @@ export interface GameState {
   diff: number;
   tech: Record<string, number>;
   research: { k: string; t: number } | null;
-  buff: { work?: number };
+  /** Je volk (sleutel uit data/peoples.ts). */
+  people: string;
+  /** Gekozen zegeningen (sleutels uit data/blessings.ts) en die je nog mag kiezen. */
+  blessings: string[];
+  blessingQueue: BlessingSlot[];
   forceRaid: number;
+  /** Gebeurtenissen: het kaartje dat nu openstaat, en de speltijd van de laatste. */
   event: GameEvent | null;
   lastEvent: number;
+  /** Tijdelijke bonussen uit gebeurtenissen. */
+  buffs: Buff[];
+  /** Vervolgen die nog komen. */
+  followups: Followup[];
+  /** Gebeurtenissen die al geweest zijn (de laatste 60). */
+  eventsSeen: string[];
+  /** Alleen in oude opslag (het oogstfeest); bij laden wordt het een tijdelijke bonus. */
+  buff?: { work?: number };
   training: boolean;
   trainT: number;
   peaceful: boolean;
   won: boolean;
+  /** Waarmee je won (sleutel uit data/victories.ts, of 'scenario'), of leeg. */
+  wonBy: string;
   over: boolean;
   bought: number;
   hungry: boolean;
   stats: Stats;
+  /** Prestaties die je in dít spel voor het eerst haalde. */
+  achieved: string[];
+  /** De eindscore, zodra het spel gewonnen of verloren is. */
+  result: GameResult | null;
+  /** Telt dit spel al mee bij "gespeeld" in je profiel? */
+  countedAsPlayed: boolean;
+  opts: GameOpts;
+  /** De uitdaging van dit spel, of null. */
+  scenario: ScenarioState | null;
+  /** Spelregels van een uitdaging (sleutels uit data/modifiers.ts). */
+  mods: string[];
+  rivals: Rival[];
+  /** Wie welk wereldwonder heeft. */
+  wonders: Record<string, WonderOwner>;
+  /** De dag waarop de handelaar van het Oost-Indisch Huis voor het laatst kwam. */
+  traderDay: number;
   /** Aangekondigde of vallende meteoriet, en wanneer de volgende komt. */
   meteor?: Meteor | null;
   nextMeteor?: number;
@@ -386,6 +670,8 @@ export interface CoachAct {
   b?: string;
   k?: 'age' | 'alarm' | 'expand' | 'sel';
   id?: number;
+  /** Bij uitbreiden: de grondstof die je zoekt. */
+  r?: string;
 }
 
 export interface Meteor {

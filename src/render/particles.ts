@@ -8,7 +8,7 @@ import { S3 } from './scene';
 const MAX = 700;
 
 // Een basismateriaal met per deeltje een eigen doorzichtigheid (instAlpha).
-function fadeMaterial(additive) {
+function fadeMaterial(additive: boolean) {
   const m = new T3.MeshBasicMaterial({
     color: '#ffffff',
     transparent: true,
@@ -29,7 +29,24 @@ function fadeMaterial(additive) {
   return m;
 }
 
-function makeLayer(additive, detail) {
+/**
+ * Eén laag deeltjes: de getekende stapel (mesh), de doorzichtigheid per deeltje (alpha), de plek voor het
+ * volgende deeltje (next) en per deeltje plek, snelheid, kleur, levensduur, grootte en zwaartekracht.
+ */
+interface Layer {
+  mesh: T3.InstancedMesh;
+  alpha: T3.InstancedBufferAttribute;
+  next: number;
+  pos: Float32Array;
+  vel: Float32Array;
+  col: Float32Array;
+  life: Float32Array;
+  max: Float32Array;
+  size: Float32Array;
+  a0: Float32Array;
+  grav: Float32Array;
+}
+function makeLayer(additive: boolean, detail: number): Layer {
   const mesh = new T3.InstancedMesh(gIco(detail), fadeMaterial(additive), MAX);
   mesh.instanceMatrix.setUsage(T3.DynamicDrawUsage);
   mesh.instanceColor = new T3.InstancedBufferAttribute(new Float32Array(MAX * 3), 3);
@@ -67,7 +84,21 @@ export const LAYER = { soft: SOFT, glow: GLOW };
  * Eén deeltje loslaten. Kleur als getal (0xffaa33), grootte groeit van s0 naar s1,
  * doorzichtigheid zakt van a naar 0. grav < 0 laat het vallen, > 0 laat het opstijgen.
  */
-export function emit(L, x, y, z, vx, vy, vz, life, s0, s1, color, a = 1, grav = 0) {
+export function emit(
+  L: Layer,
+  x: number,
+  y: number,
+  z: number,
+  vx: number,
+  vy: number,
+  vz: number,
+  life: number,
+  s0: number,
+  s1: number,
+  color: number,
+  a = 1,
+  grav = 0,
+) {
   if (store.noParticles) return; // effecten uitgezet (instellingen of lage kwaliteit)
   const i = L.next;
   L.next = (i + 1) % MAX;
@@ -89,7 +120,21 @@ export function emit(L, x, y, z, vx, vy, vz, life, s0, s1, color, a = 1, grav = 
 }
 
 /** Een wolkje van n deeltjes in alle richtingen (stof bij een inslag, vonken bij een treffer). */
-export function puff(L, n, x, y, z, speed, up, life, s0, s1, color, a = 1, grav = 0) {
+export function puff(
+  L: Layer,
+  n: number,
+  x: number,
+  y: number,
+  z: number,
+  speed: number,
+  up: number,
+  life: number,
+  s0: number,
+  s1: number,
+  color: number,
+  a = 1,
+  grav = 0,
+) {
   for (let k = 0; k < n; k++) {
     const ang = Math.random() * 6.283,
       sp = speed * (0.4 + Math.random() * 0.6);
@@ -111,10 +156,11 @@ export function puff(L, n, x, y, z, speed, up, life, s0, s1, color, a = 1, grav 
   }
 }
 
-function stepLayer(L, dt) {
-  const m = L.mesh.instanceMatrix.array,
-    c = L.mesh.instanceColor.array,
-    al = L.alpha.array;
+function stepLayer(L: Layer, dt: number) {
+  // Alle drie zijn Float32Array-rijen (instanceColor is gezet in makeLayer)
+  const m = L.mesh.instanceMatrix.array as Float32Array,
+    c = L.mesh.instanceColor!.array as Float32Array,
+    al = L.alpha.array as Float32Array;
   let n = 0;
   for (let i = 0; i < MAX; i++) {
     if (L.life[i] <= 0) continue;
@@ -159,14 +205,14 @@ function stepLayer(L, dt) {
   L.mesh.visible = n > 0;
   if (n) {
     L.mesh.instanceMatrix.needsUpdate = true;
-    L.mesh.instanceColor.needsUpdate = true;
+    L.mesh.instanceColor!.needsUpdate = true;
     L.alpha.needsUpdate = true;
   }
 }
 
 let lastT = 0;
 /** Elk beeldje: alle deeltjes een stapje verder. */
-export function stepParticles(now) {
+export function stepParticles(now: number) {
   const dt = lastT ? Math.min(0.1, now - lastT) : 0;
   lastT = now;
   stepLayer(SOFT, dt);

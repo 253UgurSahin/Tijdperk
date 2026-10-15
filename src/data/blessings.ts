@@ -1,18 +1,41 @@
 // Zegeningen: bij het begin en bij elk nieuw tijdperk kies je er één uit drie. Puur, zodat het te testen is.
+import type { Bonus } from '../types';
 import { mulberry32 } from '../util/random';
 
 /*
  * Elke zegening:
- * - k: vaste sleutel (wordt opgeslagen), n: naam, g: pictogram (zie ui/glyphs.js)
+ * - k: vaste sleutel (wordt opgeslagen), n: naam, g: pictogram (zie ui/glyphs.ts)
  * - cat: soort kaart: 'eco' (economie), 'army' (leger), 'def' (verdediging), 'grow' (uitbreiden)
  * - d: wat hij doet, in gewone taal en met dezelfde getallen als in `bonus`
- * - bonus: sleutels uit src/data/bonus.js; geldt de rest van het spel
+ * - bonus: sleutels uit src/data/bonus.ts; geldt de rest van het spel
  * - minAge: pas te kiezen vanaf dit tijdperk (bijv. als de gebouwen er pas dan zijn)
  * - risk: true als er ook een nadeel aan zit
  * - raids: true als hij alleen iets doet als er aanvallen zijn (niet in de vredige modus)
- * - oneoff: iets dat één keer meteen gebeurt; dat doet src/game/blessings.js
+ * - oneoff: iets dat één keer meteen gebeurt; dat doet src/game/blessings.ts
  */
-export const BLESSINGS = [
+/** Een zegening waaruit je kunt kiezen (zie de uitleg hierboven). */
+export interface BlessingDef {
+  k: string;
+  n: string;
+  g: string;
+  /** 'eco', 'army', 'def' of 'grow'. */
+  cat: string;
+  d: string;
+  bonus: Bonus;
+  minAge?: number;
+  risk?: boolean;
+  raids?: boolean;
+  /** Naam van iets dat één keer meteen gebeurt (zie game/blessings.ts). */
+  oneoff?: string;
+}
+
+/** Spelregels die bepalen welke kaarten zin hebben: vredige modus en de spelregel Geen leger. */
+export interface BlessingRules {
+  peaceful?: boolean;
+  noArmy?: boolean;
+}
+
+export const BLESSINGS: BlessingDef[] = [
   // Economie
   {
     k: 'harvest',
@@ -338,11 +361,11 @@ export const BLESSINGS = [
 ];
 
 /** Zegening opzoeken op sleutel: BLESSING.harvest */
-export const BLESSING = {};
+export const BLESSING: Record<string, BlessingDef> = {};
 BLESSINGS.forEach(b => (BLESSING[b.k] = b));
 
 /** Namen van de soorten, voor op de kaart. */
-export const BLESSING_CATS = {
+export const BLESSING_CATS: Record<string, string> = {
   eco: 'Economie',
   army: 'Leger',
   def: 'Verdediging',
@@ -356,14 +379,14 @@ export const OFFER_SIZE = 3;
 export const FIRST_BLESSING_AT = 60;
 
 /** De bonussen van de zegeningen die je hebt (G.blessings bewaart alleen de sleutels). */
-export const blessingBonuses = keys =>
+export const blessingBonuses = (keys: string[] | null | undefined): Bonus[] =>
   (keys || [])
     .map(k => BLESSING[k])
     .filter(b => b && b.bonus)
     .map(b => b.bonus);
 
 // Schud een lijst met een vaste reeks toevalsgetallen (Fisher-Yates)
-function shuffled(list, random) {
+function shuffled<T>(list: T[], random: () => number): T[] {
   const out = list.slice();
   for (let i = out.length - 1; i > 0; i--) {
     const j = Math.floor(random() * (i + 1));
@@ -378,7 +401,12 @@ function shuffled(list, random) {
  * Regels: hooguit één kaart met een prijs, en niet drie van dezelfde soort (dus ook nooit alleen
  * economie).
  */
-export function blessingOffer(seed, age, taken = [], { peaceful = false, noArmy = false } = {}) {
+export function blessingOffer(
+  seed: number,
+  age: number,
+  taken: string[] = [],
+  { peaceful = false, noArmy = false }: BlessingRules = {},
+): BlessingDef[] {
   // De volgorde hangt alleen af van seed en tijdperk; wat je al koos, valt er daarna pas uit.
   // Zonder leger (spelregel van een uitdaging) hebben legerkaarten geen zin.
   const random = mulberry32((seed | 0) + (age + 1) * 7919);
@@ -390,7 +418,7 @@ export function blessingOffer(seed, age, taken = [], { peaceful = false, noArmy 
       !(noArmy && b.cat === 'army'),
   );
 
-  const picks = [];
+  const picks: BlessingDef[] = [];
   for (const b of pool) {
     if (picks.length === OFFER_SIZE) break;
     if (b.risk && picks.some(p => p.risk)) continue;

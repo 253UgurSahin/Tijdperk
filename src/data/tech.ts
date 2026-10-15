@@ -1,6 +1,7 @@
 // Onderzoek dat je volk sterker maakt.
-// `bonus` zegt wat het oplevert; de sleutels staan uitgelegd in src/data/bonus.js.
-export const TECH = [
+// `bonus` zegt wat het oplevert; de sleutels staan uitgelegd in src/data/bonus.ts.
+import type { TechDef } from '../types';
+export const TECH: TechDef[] = [
   {
     k: 'agri',
     age: 0,
@@ -129,7 +130,7 @@ export const TECH = [
     d: 'Leger 20% sneller, aanvallen eerder gemeld',
     cost: { steel: 150, silicon: 40 },
     t: 60,
-    bonus: { 'army.speed': 0.2 }, // het eerder melden van aanvallen staat in game/time.js
+    bonus: { 'army.speed': 0.2 }, // het eerder melden van aanvallen staat in game/time.ts
   },
   {
     k: 'electric',

@@ -1,4 +1,5 @@
 // Eén speltik: werkt alles in de wereld een klein stapje bij.
+import type { Foe } from '../types';
 import { store } from '../core/store';
 import { sfx } from '../audio/sound';
 import { NODES } from '../data/nodes';
@@ -66,7 +67,7 @@ export function update(dt: number) {
   // Genezen (bijv. door Kruidenkunde): je volk krijgt elke seconde levens terug
   const heal = add('heal');
   if (heal) for (const v of G.vs) if (!v.hidden) v.hp = Math.min(v.mhp, v.hp + dt * heal);
-  // Gebeurtenissen met keuzes, hun vervolgen en tijdelijke bonussen (zie game/events.js)
+  // Gebeurtenissen met keuzes, hun vervolgen en tijdelijke bonussen (zie game/events.ts)
   updateEvents(dt);
   store.histT -= dt;
   if (store.histT <= 0) {
@@ -115,7 +116,7 @@ export function update(dt: number) {
       G.spawnQ = G.spawnQ.filter(s => s.at > G.t);
     }
   }
-  updateRivals(dt); // rivaliserende beschavingen: bouwen, trainen, aanvallen (zie game/rivals.js)
+  updateRivals(dt); // rivaliserende beschavingen: bouwen, trainen, aanvallen (zie game/rivals.ts)
   updateMeteors(dt);
   updateProj(dt);
   for (const e of G.fx) {
@@ -139,7 +140,7 @@ export function update(dt: number) {
     if (h && h.done && !G.over) {
       const mx = bMaxHp(h);
       // Herstellen zolang er geen aanvallers zijn (kampbewakers en rivalen thuis tellen alleen als ze dichtbij zijn)
-      const threat = f => !f.retreat && (isRaider(f) || dist(f.x, f.y, h.x + 1, h.y + 1) < 12);
+      const threat = (f: Foe) => !f.retreat && (isRaider(f) || dist(f.x, f.y, h.x + 1, h.y + 1) < 12);
       if (h.hp < mx && !G.foes.some(threat)) h.hp = Math.min(mx, h.hp + (mx * dt) / 240);
     }
   }

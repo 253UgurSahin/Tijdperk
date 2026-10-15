@@ -24,15 +24,15 @@ import { TER, bmap, inb, isUnl, node, nodeVis, road, ter } from '../world/world'
 import { SUCCESSOR, canMake } from '../data/succession';
 
 /** Wat een gebouw nu kost. Muren en poorten worden goedkoper door bonussen (zoals 'wall.cost'). */
-export function buildCost(type) {
+export function buildCost(type: string): Cost {
   const d = B[type];
   const factor = d.wall ? mul('wall.cost') : 1;
   if (factor === 1) return d.cost;
-  const cost = {};
+  const cost: Cost = {};
   for (const k in d.cost) cost[k] = Math.round(d.cost[k] * factor);
   return cost;
 }
-export function chunkCost() {
+export function chunkCost(): Cost {
   const m = 1 + G.bought * 0.55,
     c: Cost = { food: Math.round(80 * m), wood: Math.round(80 * m), stone: Math.round(40 * m) };
   if (G.age >= 3) c.gold = Math.round(12 * m);
@@ -85,7 +85,7 @@ export function lackText(c: Cost): string {
     .map(k => `${fmt(Math.ceil(c[k] - G.res[k]))} ${RES[k].n.toLowerCase()}`);
   return m.length > 1 ? m.slice(0, -1).join(', ') + ' en ' + m[m.length - 1] : m[0] || '';
 }
-export function ghostPos() {
+export function ghostPos(): Tile {
   const s = B[store.placing!].size;
   return [Math.floor(mouse.tx - s / 2 + 0.5), Math.floor(mouse.ty - s / 2 + 0.5)];
 }
@@ -93,7 +93,7 @@ export function canPlace(type: string, x: number, y: number, skipCost?: boolean)
   const d = B[type];
   if (G.age < d.age) return 'Nog niet ontdekt';
   if (!ruleAllowsBuilding(type)) return 'Geen leger in deze uitdaging';
-  // Een wereldwonder bestaat maar één keer per wereld (zie game/wonders.js)
+  // Een wereldwonder bestaat maar één keer per wereld (zie game/wonders.ts)
   if (d.wonder && wonderBlocked(type)) return wonderBlocked(type);
   if (!canMake(type, G.age)) return 'Verouderd: bouw een ' + B[SUCCESSOR[type]].n.toLowerCase();
   if (d.road) {
@@ -150,7 +150,7 @@ export function placeLine(a: Tile, b: Tile) {
       why = why || err;
       continue;
     }
-    pay(buildCost(store.placing));
+    pay(buildCost(store.placing!));
     n++;
     if (d.road) {
       road[y * W + x] = roadTier();
@@ -186,8 +186,8 @@ export function tryPlace(keep?: boolean) {
     toast(err + '.', 'bad');
     return;
   }
-  pay(buildCost(store.placing));
-  const b = placeBuilding(store.placing, x, y, false);
+  pay(buildCost(store.placing!));
+  const b = placeBuilding(store.placing!, x, y, false);
   sfx('place');
   for (const v of selVills()) {
     resetV(v);

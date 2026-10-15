@@ -11,14 +11,21 @@ const gS = new Float32Array(W * H),
   stp = new Uint32Array(W * H),
   cls = new Uint32Array(W * H);
 let stamp = 0;
-// Alleen water en bergen houden je tegen (muren niet): voor lange routes van rivalen, zie game/rivals.js
-const landWalk = (x, y) => x >= 0 && y >= 0 && x < W && y < H && passable(y * W + x);
+// Alleen water en bergen houden je tegen (muren niet): voor lange routes van rivalen, zie game/rivals.ts
+const landWalk = (x: number, y: number): boolean => x >= 0 && y >= 0 && x < W && y < H && passable(y * W + x);
 /**
  * Zoek een route van (sx, sy) naar (tx, ty). `free`: false = alleen in je eigen gebied, true = overal,
  * 2 = als een vijand (poorten zijn dicht), 3 = over alle begaanbare grond, ook door muren heen.
  * `maxSteps`: zoveel tegels mag het zoeken hoogstens bekijken (lange routes mogen meer).
  */
-export function findPath(sx, sy, tx, ty, free, maxSteps = 40000) {
+export function findPath(
+  sx: number,
+  sy: number,
+  tx: number,
+  ty: number,
+  free: boolean | 2 | 3,
+  maxSteps = 40000,
+): Path | null {
   sx = clamp(sx, 0, W - 1);
   sy = clamp(sy, 0, H - 1);
   tx = clamp(tx, 0, W - 1);

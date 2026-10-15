@@ -2,7 +2,7 @@
 // Unicode-tekens zoals ⚔ of ⌂ zien er per lettertype anders uit; hier tekenen we ze zelf.
 
 // Elk pictogram is getekend op een raster van 24 bij 24, met ronde lijnen in de tekstkleur.
-const PATHS = {
+const PATHS: Record<string, string> = {
   // omhoog: een niveau hoger
   '▲': '<path d="M6 13l6-6 6 6M6 19l6-6 6 6"/>',
   // hamer en werktuigen
@@ -140,7 +140,7 @@ const PATHS = {
 };
 
 // Geeft een SVG-pictogram terug voor een bekend teken, of het teken zelf als we het niet kennen.
-export function ico(ch, cls = '') {
+export function ico(ch: string, cls = ''): string {
   const p = PATHS[ch];
   if (!p) return `<span class="gl ${cls}">${ch}</span>`;
   return `<svg class="ico ${cls}" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;

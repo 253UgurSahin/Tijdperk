@@ -74,7 +74,7 @@ export function updateHover() {
     rb = !b && rbAt(X, Y); // gebouw van een rivaal
   const enemy = f || c || rb;
   cv.style.cursor = sel.us.size && enemy ? CUR.atk : u || v || b || c || rb ? CUR.hand : CUR.def;
-  // Wat onder de muis staat krijgt een omlijning (zie render.js)
+  // Wat onder de muis staat krijgt een omlijning (zie render.ts)
   const hit = f || u || v || c || b || rb;
   store.hover = hit ? { kind: hit.kind, id: hit.id } : null;
   if (f && f.rival) h = rivalUnitTip(f);

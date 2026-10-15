@@ -1,9 +1,10 @@
 // Beeldkwaliteit. Vast (laag / middel / hoog) of automatisch: automatisch begint hoog en zet
 // zelf de resolutie en zware effecten lager als het spel hapert, en weer hoger als er ruimte is.
 // Zo blijft het op elk apparaat vloeiend.
+import type * as T3 from 'three';
 import { store } from '../core/store';
 import { SET, saveSet } from '../core/settings';
-import { configurePost } from './post';
+import { configurePost, type PostSettings } from './post';
 import { requestResize, resize, sun } from './scene';
 import { setScatterDensity } from './scatter';
 import { setFineDetail } from './terrainlook';
@@ -16,6 +17,11 @@ interface QualityLevel extends PostSettings {
   pixels: number;
   shadows: boolean;
   shadowMap: number;
+  /** false: geen deeltjes (rook, stof, vonken). */
+  particles?: boolean;
+  /** Hoeveel grassprieten en steentjes (0-1), en of grond, water, bomen en bergen fijn getekend worden. */
+  scatter: number;
+  fine: boolean;
 }
 export const LEVELS: Record<string, QualityLevel> = {
   low: {
@@ -68,7 +74,7 @@ let level: string = 'high',
   fast: number = 0;
 
 /** Eigen keuze uit de instellingen: schaduwen, gloed, omlijning en resolutie los aan of uit. */
-function customLevel() {
+function customLevel(): QualityLevel {
   const g = SET.gfx || {};
   return {
     name: 'Aangepast',
@@ -89,7 +95,7 @@ function customLevel() {
 
 // later = true: de nieuwe resolutie pas vlak vóór het volgende beeldje instellen. Een canvas
 // van grootte veranderen maakt het leeg; midden in een beeldje gaf dat een kort zwart beeld.
-function apply(name, later) {
+function apply(name: string, later?: boolean) {
   level = name;
   const L = name === 'custom' ? customLevel() : LEVELS[name];
   store.resScale = L.scale;
@@ -149,18 +155,18 @@ export function tickQuality(rdt: number) {
   // store.resScale is gezet door apply() (via initQuality bij het opstarten)
   if (slow >= 2) {
     slow = 0;
-    if (store.resScale > L.scale - 0.2 + 0.01) {
-      store.resScale = Math.max(0.5, store.resScale - 0.1);
+    if (store.resScale! > L.scale - 0.2 + 0.01) {
+      store.resScale = Math.max(0.5, store.resScale! - 0.1);
       requestResize();
     } else if (ORDER.indexOf(level) > 0) apply(ORDER[ORDER.indexOf(level) - 1], true);
-    else if (store.resScale > 0.5) {
-      store.resScale = Math.max(0.5, store.resScale - 0.1);
+    else if (store.resScale! > 0.5) {
+      store.resScale = Math.max(0.5, store.resScale! - 0.1);
       requestResize();
     }
   } else if (fast >= 5) {
     fast = 0;
-    if (store.resScale < L.scale - 0.01) {
-      store.resScale = Math.min(L.scale, store.resScale + 0.1);
+    if (store.resScale! < L.scale - 0.01) {
+      store.resScale = Math.min(L.scale, store.resScale! + 0.1);
       requestResize();
     } else if (ORDER.indexOf(level) < ORDER.length - 1) apply(ORDER[ORDER.indexOf(level) + 1], true);
   }

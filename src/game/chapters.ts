@@ -1,8 +1,14 @@
 // De doelen per tijdperk ("hoofdstukken").
+import type { Chapter } from '../types';
 import { G } from './state';
 
 export const built = (k: string): boolean => G.bs.some(b => b.type === k && b.done);
-export const CHAPTERS = [
+/** Hoe vaak je soldaat k trainde (G.stats telt per soort; nog nooit getraind = 0). */
+const trainedOf = (k: string): number => {
+  const count = G.stats[k];
+  return typeof count === 'number' ? count : 0;
+};
+export const CHAPTERS: Chapter[] = [
   {
     t: 'Een vuur in de wildernis',
     s: 'Elke beschaving begint met een paar goede keuzes.',
@@ -32,7 +38,7 @@ export const CHAPTERS = [
       ['Bouw een stenen huis', () => built('stonehouse')],
       ['Bouw een heuvelfort', () => built('hillfort')],
       // De Noormannen trainen een berserker in plaats van een zwaardvechter
-      ['Train een zwaardvechter', () => G.stats.swordsman > 0 || G.stats.berserker > 0],
+      ['Train een zwaardvechter', () => trainedOf('swordsman') > 0 || trainedOf('berserker') > 0],
     ],
   },
   {
@@ -52,7 +58,7 @@ export const CHAPTERS = [
       ['Bouw een windmolen', () => built('windmill')],
       ['Bouw een kruitmolen', () => built('powdermill')],
       ['Bouw een grachtenpand', () => built('canalhouse')],
-      ['Train een musketier', () => G.stats.musketeer > 0],
+      ['Train een musketier', () => trainedOf('musketeer') > 0],
     ],
   },
   {

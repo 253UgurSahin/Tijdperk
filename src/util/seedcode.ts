@@ -14,7 +14,7 @@ export const SEED_MAX = 32 ** CODE_LEN;
 const MAX_LEN = 6;
 
 /** De code bij een seed, zoals "TP-7K2Q". Altijd minstens vier tekens (aangevuld met nullen). */
-export function codeFromSeed(seed) {
+export function codeFromSeed(seed: number): string {
   let n = Math.max(0, Math.floor(seed) || 0);
   let text = '';
   do {
@@ -28,7 +28,7 @@ export function codeFromSeed(seed) {
  * De seed bij een getypte code, of null als het geen geldige code is.
  * Vergeeft kleine foutjes: kleine letters, spaties, zonder "TP-", O/I/L in plaats van 0/1 en U voor V.
  */
-export function seedFromCode(text) {
+export function seedFromCode(text: string | null | undefined): number | null {
   let s = String(text || '')
     .toUpperCase()
     .trim();
@@ -57,10 +57,10 @@ export function seedFromCode(text) {
 }
 
 /** Een getypte code netjes geschreven ("tp 7k2q" wordt "TP-7K2Q"), of null als hij niet klopt. */
-export function cleanCode(text) {
+export function cleanCode(text: string | null | undefined): string | null {
   const seed = seedFromCode(text);
   return seed === null ? null : codeFromSeed(seed);
 }
 
 /** Een willekeurige seed voor een nieuwe wereld (nooit 0, en altijd met een code van vier tekens). */
-export const randomSeed = (rand = Math.random) => 1 + Math.floor(rand() * (SEED_MAX - 1));
+export const randomSeed = (rand = Math.random): number => 1 + Math.floor(rand() * (SEED_MAX - 1));

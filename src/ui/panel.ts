@@ -7,9 +7,9 @@ import { renderChart } from './panes/log';
 import { $ } from '../util/dom';
 
 // Zijpaneel (Dorp / Leger / Verbeteren / Logboek)
-let ptab = null;
-const PT = { pop: 'Dorp', def: 'Leger', upg: 'Verbeteren', log: 'Logboek' };
-function setPane(k) {
+let ptab: string | null = null;
+const PT: Record<string, string> = { pop: 'Dorp', def: 'Leger', upg: 'Verbeteren', log: 'Logboek' };
+function setPane(k: string | null) {
   ptab = k;
   if (k) document.body.classList.remove('showmap', 'showgoal');
   $('#panel').hidden = !k;

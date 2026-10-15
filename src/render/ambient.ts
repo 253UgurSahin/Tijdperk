@@ -20,7 +20,7 @@ const BIRDG = (() => {
 const BIRDM = new T3.MeshBasicMaterial({ color: '#3c3a40', side: T3.DoubleSide });
 const FLOCKS = 2,
   PER = 5,
-  birds = [];
+  birds: T3.Mesh[] = [];
 for (let i = 0; i < FLOCKS * PER; i++) {
   const m = new T3.Mesh(BIRDG, BIRDM);
   m.castShadow = true; // hun schaduw glijdt over de grond
@@ -29,7 +29,7 @@ for (let i = 0; i < FLOCKS * PER; i++) {
   birds.push(m);
 }
 
-function drawBirds(show) {
+function drawBirds(show: boolean) {
   for (let i = 0; i < birds.length; i++) {
     const b = birds[i];
     b.visible = show;
@@ -59,8 +59,8 @@ let flyAcc = 0,
   leafAcc = 0,
   lastT = 0;
 const SPOT = [0, 0];
-// Zoek een willekeurige tegel dicht bij de camera die aan de voorwaarde voldoet
-function spotNear(R, ok) {
+// Zoek een willekeurige tegel dicht bij de camera die aan de voorwaarde voldoet (ok geeft dan iets waars)
+function spotNear(R: number, ok: (i: number) => unknown) {
   for (let k = 0; k < 6; k++) {
     const x = cam.x + (Math.random() - 0.5) * R * 2,
       y = cam.y + (Math.random() - 0.5) * R * 2;
@@ -74,11 +74,11 @@ function spotNear(R, ok) {
   }
   return null;
 }
-const isGreen = i => biome[i] === BIOME.GRASS || biome[i] === BIOME.FOREST;
-const isTree = i => biome[i] === BIOME.FOREST && node[i];
+const isGreen = (i: number) => biome[i] === BIOME.GRASS || biome[i] === BIOME.FOREST;
+const isTree = (i: number) => biome[i] === BIOME.FOREST && node[i];
 
 /** Elk beeldje: vogels bijwerken en af en toe een vuurvliegje of blaadje loslaten. */
-export function drawAmbient(dk) {
+export function drawAmbient(dk: number) {
   const dt = lastT ? Math.min(0.1, store.TM - lastT) : 0;
   lastT = store.TM;
   const sn = season().n,

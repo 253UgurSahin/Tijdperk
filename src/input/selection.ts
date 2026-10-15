@@ -1,4 +1,4 @@
-import type { Building, Camp, Mobile, Unit, Villager } from '../types';
+import type { Building, Camp, Foe, Mobile, RivalBuilding, Unit, Villager } from '../types';
 // Selecteren en opdrachten geven (lopen, aanvallen, verzamelen).
 import { store } from '../core/store';
 import { sfx } from '../audio/sound';
@@ -68,7 +68,7 @@ export function bAtScreen(X: number, Y: number): Building | null {
   return bById.get(bmap[iy * W + ix]) || null;
 }
 /** Het gebouw van een rivaal op deze plek van het scherm, of null. */
-export function rbAt(X, Y) {
+export function rbAt(X: number, Y: number) {
   const id = pickGroup(X, Y, RG3, 'rbid');
   if (id != null && rbById.get(id)) return rbById.get(id);
   const [tx, ty] = s2t(X, Y),
@@ -97,8 +97,9 @@ function command(X: number, Y: number, tx: number, ty: number) {
       c = !f && campAt(X, Y),
       rb = !f && !c && rbAt(X, Y);
     if (f || c || rb) {
-      const target = f || c || rb;
-      // Een gebouw van een rivaal: ze blijven daarna in hun stad (zie game/rivals.js)
+      // Een van de drie is er zeker (zie de regel hierboven)
+      const target = (f || c || rb) as Foe | Camp | RivalBuilding;
+      // Een gebouw van een rivaal: ze blijven daarna in hun stad (zie game/rivals.ts)
       if (rb) orderRivalAttack(us, rb);
       else
         for (const u of us) {

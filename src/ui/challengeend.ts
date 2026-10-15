@@ -1,27 +1,39 @@
 // Het eindscherm van een uitdaging: gehaald of niet, de medaille op tijd of verlies, en opnieuw proberen.
+import type { GameResult } from '../types';
 import { MEDALS } from '../data/score';
-import { DAILY, MEDAL_ORDER, ageName, clockText, goalInSentence, medalRuleText } from '../data/scenarios';
+import {
+  DAILY,
+  MEDAL_ORDER,
+  ageName,
+  clockText,
+  goalInSentence,
+  medalRuleText,
+  type ScenarioDef,
+} from '../data/scenarios';
 import { getProfile } from '../core/profile';
 import { challengeStatus } from '../game/scenario';
 import { G, placeName } from '../game/state';
 import { medalHTML, scoreText } from './achievements';
 import { ico } from './glyphs';
 
+// De uitslag van een uitdaging heeft altijd een speltijd (time) en een verlies (losses), zie scoreNow in
+// game/achievements.ts. Daarom staat er hieronder result.time! en result.losses!.
+
 // "niets", "1 dorpeling of gebouw", "3 dorpelingen en gebouwen"
-function lossText(n) {
+function lossText(n: number) {
   if (n === 0) return 'niets';
   return `${n} ${n === 1 ? 'dorpeling of gebouw' : 'dorpelingen en gebouwen'}`;
 }
 
 /** Kop en verhaal: gehaald, de tijd is om, of het stamhuis is gevallen. */
-function headAndStory(won, def, result) {
+function headAndStory(won: boolean, def: ScenarioDef, result: GameResult) {
   const place = placeName();
   const goal = goalInSentence(def.goal);
   if (won) {
     const how =
       def.goal.type === 'survive'
-        ? `${place} hield ${def.goal.value} nachten stand en verloor ${lossText(result.losses)}.`
-        : `${place} haalde het doel (${goal}) in ${clockText(result.time)} speltijd.`;
+        ? `${place} hield ${def.goal.value} nachten stand en verloor ${lossText(result.losses!)}.`
+        : `${place} haalde het doel (${goal}) in ${clockText(result.time!)} speltijd.`;
     return {
       head: `<div class="eyebrow">Uitdaging gehaald · ${def.n}</div><h1>${result.medal === 'goud' ? 'Gelukt, met goud!' : 'Gelukt!'}</h1>`,
       story: how,
@@ -33,7 +45,8 @@ function headAndStory(won, def, result) {
   const reached = progress ? ` Je kwam tot ${progress}.` : '';
   const again =
     def.k === DAILY ? 'Probeer het nog eens: vandaag blijft het dezelfde wereld.' : 'Probeer het nog eens.';
-  if (G.scenario.failed === 'time')
+  // In een uitdaging is G.scenario er altijd
+  if (G.scenario!.failed === 'time')
     return {
       head: `<div class="eyebrow">${def.n}</div><h1>De tijd is om.</h1>`,
       story: `Het doel was: ${goal}.${reached} ${again}`,
@@ -45,23 +58,24 @@ function headAndStory(won, def, result) {
 }
 
 /** Wat je nog beter kunt doen voor de volgende medaille, zoals "Nog 1:30 sneller voor zilver". */
-function nextMedalLine(def, result) {
-  const better = MEDAL_ORDER.slice(0, Math.max(0, MEDAL_ORDER.indexOf(result.medal)));
+function nextMedalLine(def: ScenarioDef, result: GameResult) {
+  const better = MEDAL_ORDER.slice(0, Math.max(0, (MEDAL_ORDER as string[]).indexOf(result.medal)));
   const goals = result.medal ? better : MEDAL_ORDER;
   const next = goals[goals.length - 1]; // de dichtstbijzijnde betere medaille
   if (!next || !G.won) return '';
-  const name = MEDALS.find(m => m.k === next).n.toLowerCase();
+  // next komt uit MEDAL_ORDER, dus die medaille bestaat
+  const name = MEDALS.find(m => m.k === next)!.n.toLowerCase();
   if (def.medals.by === 'lost') return `Met minder verlies: ${name} (${medalRuleText(def.medals, next)})`;
-  return `Nog ${clockText(result.time - def.medals[next])} sneller voor ${name}`;
+  return `Nog ${clockText(result.time! - def.medals[next])} sneller voor ${name}`;
 }
 
 /** Medaille groot, met de tijd (of het verlies) eronder en een regel over je record of de volgende medaille. */
-function medalHeadHTML(def, result) {
+function medalHeadHTML(def: ScenarioDef, result: GameResult) {
   const medal = MEDALS.find(m => m.k === result.medal);
   const icon = medal
     ? medalHTML(medal.k, 'lg')
     : '<span class="medal none lg" aria-label="Geen medaille"><span>–</span></span>';
-  const value = def.medals.by === 'lost' ? `${result.losses} verloren` : clockText(result.time);
+  const value = def.medals.by === 'lost' ? `${result.losses} verloren` : clockText(result.time!);
   const label = def.medals.by === 'lost' ? 'Verloren' : 'Speltijd';
   let line = '';
   if (result.record && G.won) line = `<span class="rec">${ico('★')}Nieuw record!</span>`;
@@ -73,7 +87,7 @@ function medalHeadHTML(def, result) {
 }
 
 /** De drie medailles met wat ervoor nodig is; de jouwe licht op. */
-function medalKeyHTML(def, result) {
+function medalKeyHTML(def: ScenarioDef, result: GameResult) {
   return `<div class="chmedals end">${MEDALS.map(
     m =>
       `<span class="chm ${result.medal === m.k ? 'got' : ''}">${medalHTML(m.k)}<b>${m.n}</b><small>${medalRuleText(def.medals, m.k)}</small></span>`,
@@ -81,9 +95,10 @@ function medalKeyHTML(def, result) {
 }
 
 /** Bij de wereld van de dag: je beste score van vandaag, als die hoger is dan deze (de score zelf staat al in de tabel). */
-function dailyLine(def, result) {
+function dailyLine(def: ScenarioDef, result: GameResult) {
   if (def.k !== DAILY) return '';
-  const best = getProfile().daily[def.date];
+  // De wereld van de dag heeft altijd een datum (zie dailyWorld)
+  const best = getProfile().daily[def.date!];
   if (!best || best.score <= result.score) return '';
   return `<p class="chrec">${ico('★')}Beste vandaag: ${scoreText(best.score)}</p>`;
 }
@@ -92,7 +107,7 @@ function dailyLine(def, result) {
  * De onderdelen van het eindscherm voor een uitdaging: head, story, medal (medaille en sleutel),
  * extra (regel onder de score) en buttons.
  */
-export function challengeEndParts(won, result, def) {
+export function challengeEndParts(won: boolean, result: GameResult, def: ScenarioDef) {
   const { head, story } = headAndStory(won, def, result);
   // Gewonnen: verder bouwen kan. Verloren: meteen opnieuw.
   const buttons = won

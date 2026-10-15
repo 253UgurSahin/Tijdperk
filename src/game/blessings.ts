@@ -1,5 +1,7 @@
 // Zegeningen in het spel: wanneer je mag kiezen, welke kaarten er liggen en wat een keuze doet.
+import type { BlessingSlot } from '../types';
 import { blessingOffer } from '../data/blessings';
+import type { BlessingDef } from '../data/blessings';
 import { applyBonusChange } from './bonus';
 import { spawnUnit, spawnVillager } from './entities';
 import { hasRule } from './mods';
@@ -7,31 +9,31 @@ import { bestMerc, th } from './events';
 import { G } from './state';
 
 /*
- * G.blessings: de sleutels van de zegeningen die je koos (de bonussen telt game/bonus.js).
+ * G.blessings: de sleutels van de zegeningen die je koos (de bonussen telt game/bonus.ts).
  * G.blessingQueue: keuzes die nog komen, als { age, at }. Vanaf speltijd `at` liggen de kaarten
- * van tijdperk `age` klaar. De interface (ui/blessings.js) laat ze zien als het scherm vrij is.
+ * van tijdperk `age` klaar. De interface (ui/blessings.ts) laat ze zien als het scherm vrij is.
  */
 
 /** Een nieuw tijdperk: er komt een keuze bij. */
-export function earnBlessing() {
+export function earnBlessing(): void {
   G.blessingQueue.push({ age: G.age, at: G.t });
 }
 
 /** De keuze die nu klaarligt, of null als er (nog) niets te kiezen is. */
-export function waitingBlessing() {
+export function waitingBlessing(): BlessingSlot | null {
   const next = G && G.blessingQueue && G.blessingQueue[0];
   return next && G.t >= next.at ? next : null;
 }
 
 /** De kaarten voor de keuze die nu klaarligt. */
-export function blessingChoices() {
+export function blessingChoices(): BlessingDef[] {
   const next = waitingBlessing();
   if (!next) return [];
   return blessingOffer(G.seed, next.age, G.blessings, { peaceful: G.peaceful, noArmy: hasRule('noArmy') });
 }
 
 /** Kies zegening k uit de kaarten die nu klaarliggen. Geeft de zegening terug, of null. */
-export function takeBlessing(k) {
+export function takeBlessing(k: string): BlessingDef | null {
   const blessing = blessingChoices().find(card => card.k === k);
   if (!blessing) return null;
   G.blessingQueue.shift();
@@ -42,12 +44,12 @@ export function takeBlessing(k) {
 }
 
 /** Geen kaarten meer over? Dan vervalt deze keuze. */
-export function skipBlessing() {
+export function skipBlessing(): void {
   G.blessingQueue.shift();
 }
 
-// Wat eenmalige zegeningen meteen doen (de namen staan bij `oneoff` in data/blessings.js)
-export const ONE_OFFS = {
+// Wat eenmalige zegeningen meteen doen (de namen staan bij `oneoff` in data/blessings.ts)
+export const ONE_OFFS: Record<string, () => void> = {
   villagers3() {
     const home = th();
     if (!home) return;

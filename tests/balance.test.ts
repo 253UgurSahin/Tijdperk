@@ -1,4 +1,5 @@
 // Balanstests: kan elk tijdperk gehaald worden, en werken de rol-bonussen van eenheden?
+import type { Cost } from '../src/types';
 import { describe, expect, it } from 'vitest';
 import { AGES, AGE_MAT, AGE_UP } from '../src/data/ages';
 import { B } from '../src/data/buildings';
@@ -9,8 +10,8 @@ import { TECH } from '../src/data/tech';
 import { FOES, UNITS, bonusMul } from '../src/data/units';
 
 /** Welke grondstoffen kun je in tijdperk `age` krijgen? Verzamelen, oppompen of in een fabriek maken. */
-function obtainable(age) {
-  const have = new Set();
+function obtainable(age: number) {
+  const have = new Set<string>();
   for (const n of NODES) if (n && n.age <= age && !n.pump) have.add(n.res);
   for (const [k, d] of Object.entries(B))
     if (d.pump && canMake(k, age) && NODES.some(n => n && n.pump && n.age <= age)) have.add(d.pump.res);
@@ -31,12 +32,13 @@ function obtainable(age) {
   return have;
 }
 
-const missing = (cost, age) => Object.keys(cost).filter(r => !obtainable(age).has(r));
+const missing = (cost: Cost, age: number) => Object.keys(cost).filter(r => !obtainable(age).has(r));
 
 describe('elk tijdperk is haalbaar', () => {
   it('de stap naar elk tijdperk kost alleen wat je al kunt krijgen', () => {
     for (let a = 1; a < AGES.length; a++) {
-      const up = AGE_UP[a];
+      // Alleen AGE_UP[0] is leeg: de Steentijd heb je al bij het begin
+      const up = AGE_UP[a]!;
       expect(missing(up.cost, a - 1), `naar ${AGES[a].n}`).toEqual([]);
       for (const k of up.need) {
         expect(canMake(k, a - 1), `${k} bouwbaar vóór ${AGES[a].n}`).toBe(true);
@@ -52,7 +54,8 @@ describe('elk tijdperk is haalbaar', () => {
   });
 
   it('verbeteringsmateriaal bestaat op het moment dat je het nodig hebt', () => {
-    for (let a = 1; a < AGE_MAT.length; a++) expect(missing(AGE_MAT[a], a), `AGE_MAT[${a}]`).toEqual([]);
+    // Alleen AGE_MAT[0] is leeg
+    for (let a = 1; a < AGE_MAT.length; a++) expect(missing(AGE_MAT[a]!, a), `AGE_MAT[${a}]`).toEqual([]);
   });
 
   it('sterrenmetaal ligt op de kaart (en valt uit meteorieten)', () => {
@@ -68,7 +71,8 @@ describe('elk tijdperk is haalbaar', () => {
   });
 
   it('elk volgend tijdperk vraagt meer inwoners', () => {
-    for (let a = 2; a < AGES.length; a++) expect(AGE_UP[a].pop, AGES[a].n).toBeGreaterThan(AGE_UP[a - 1].pop);
+    for (let a = 2; a < AGES.length; a++)
+      expect(AGE_UP[a]!.pop, AGES[a].n).toBeGreaterThan(AGE_UP[a - 1]!.pop);
   });
 });
 

@@ -16,6 +16,7 @@ import { cleanWonders } from '../data/wonders';
 import { computeAvail, computeCaches } from './caches';
 import { spawnFoe, spawnUnit, spawnVillager } from './entities';
 import { loadRivals, saveRivals } from './rivals';
+import type { SavedRival } from './rivals';
 import { G, bById, baseState, gameOpts, setGame } from './state';
 import { refreshWonders } from './wonders';
 import { setZoom } from '../input/input';
@@ -34,6 +35,7 @@ export const SKEY = 'tijdperken-save-v4';
 const OLD_AGE = [0, 1, 3, 5, 6, 7];
 function b64(u8: Uint8Array): string {
   let s = '';
+  // apply werkt ook met een Uint8Array (een rij getallen), maar de types kennen alleen gewone lijsten
   for (let i = 0; i < u8.length; i += 0x8000)
     s += String.fromCharCode.apply(null, u8.subarray(i, i + 0x8000) as unknown as number[]);
   return btoa(s);
@@ -44,7 +46,7 @@ function ub64(b: string): Uint8Array {
   for (let i = 0; i < s.length; i++) u[i] = s.charCodeAt(i);
   return u;
 }
-export function serialize() {
+export function serialize(): string {
   const g: Record<string, unknown> = {};
   for (const k of [
     'age',
@@ -92,7 +94,7 @@ export function serialize() {
     'mods',
     'wonders',
     'traderDay',
-  ])
+  ] as const)
     g[k] = G[k];
   return JSON.stringify({
     v: 4,
@@ -131,7 +133,7 @@ export function serialize() {
     guards: G.foes
       .filter(f => f.camp)
       .map(f => ({ type: f.type, x: f.x, y: f.y, hp: f.hp, mhp: f.mhp, camp: f.camp })),
-    rivals: saveRivals(), // rivalen met hun gebouwen en soldaten (zie game/rivals.js)
+    rivals: saveRivals(), // rivalen met hun gebouwen en soldaten (zie game/rivals.ts)
     cam: { x: cam.x, y: cam.y, z: cam.z },
     cv: 2,
   });
@@ -153,6 +155,8 @@ interface SaveData {
   us: { k: string; x: number; y: number; hp: number; st?: Stance; id?: number }[];
   camps: { id: number; x: number; y: number; tier: number; hp: number; mhp: number; alive: boolean }[];
   guards: { type: number; x: number; y: number; hp: number; mhp: number; camp: number }[];
+  /** Rivalen met hun gebouwen en soldaten (ontbreekt in opslag van vóór de rivalen). */
+  rivals?: SavedRival[];
   cam?: { x: number; y: number; z?: number };
   cv?: number;
 }
@@ -171,9 +175,10 @@ export function deserialize(str: string): boolean {
   G.scenario = cleanScenarioState(s.g.scenario);
   G.mods = cleanMods(s.g.mods);
   // Al gewonnen in opslag van vóór de keuze: dat was altijd met de sterrenpoort. Een uitdaging wint met haar doel.
-  const knownVictory = !!VICTORY[s.g.wonBy];
+  const knownVictory = !!s.g.wonBy && !!VICTORY[s.g.wonBy];
   const wonChallenge = s.g.wonBy === 'scenario' && !!G.scenario;
-  const wonBy = knownVictory || wonChallenge ? s.g.wonBy : 'stargate';
+  // In beide gevallen staat er een sleutel in s.g.wonBy
+  const wonBy = knownVictory || wonChallenge ? s.g.wonBy! : 'stargate';
   G.wonBy = G.won ? wonBy : '';
   // Opslag van vóór de negen tijdperken: zet oude tijdperk- en vijandnummers om
   const fromOld = s.ages !== 9;
@@ -189,14 +194,15 @@ export function deserialize(str: string): boolean {
   // Gebeurtenissen: tijdelijke bonussen, vervolgen en het open kaartje. Ook vóór de soldaten (levens).
   G.buffs = cleanBuffs(s.g.buffs);
   // Opslag van vóór de tijdelijke bonussen: een lopend oogstfeest wordt er gewoon één
-  if (s.g.buff && s.g.buff.work > G.t)
+  // (buff.work is dan de speltijd waarop het feest ophoudt)
+  if (s.g.buff && s.g.buff.work! > G.t)
     G.buffs.push({
       k: 'feast',
       n: 'Oogstfeest',
       g: '⚘',
       d: 'Al het verzamelwerk 25% sneller',
       bonus: { 'gather.all': 0.25 },
-      until: s.g.buff.work,
+      until: s.g.buff.work!,
     });
   delete G.buff;
   G.followups = cleanFollowups(s.g.followups);
@@ -205,7 +211,8 @@ export function deserialize(str: string): boolean {
   // Wereldwonderen (ook vóór de soldaten: het Colosseum geeft levens). Opslag van daarvóór: geen wonderen,
   // en de handelaar van het Oost-Indisch Huis is nog niet geweest. Na de gebouwen kijken we het nog na.
   G.wonders = cleanWonders(s.g.wonders);
-  G.traderDay = Number.isInteger(s.g.traderDay) ? s.g.traderDay : 0;
+  // Number.isInteger geeft alleen true bij een heel getal: dan is traderDay er zeker
+  G.traderDay = Number.isInteger(s.g.traderDay) ? s.g.traderDay! : 0;
   // Volk: opslag van vóór de volken (of met een volk dat niet meer bestaat) speelt als Friezen
   if (!PEOPLE[G.people]) G.people = DEFAULT_PEOPLE;
   if (!Array.isArray(G.blessingQueue)) G.blessingQueue = [];
@@ -300,7 +307,7 @@ export function deserialize(str: string): boolean {
   afterLoad();
   return true;
 }
-export function save(manual?: boolean) {
+export function save(manual?: boolean): void {
   try {
     localStorage.setItem(SKEY, serialize());
     $('#saved').lastChild!.textContent = `Opgeslagen op dag ${G.day}`;
@@ -310,7 +317,7 @@ export function save(manual?: boolean) {
     if (manual) toast('Opslaan lukt niet in deze browser.', 'bad');
   }
 }
-export function load() {
+export function load(): boolean {
   try {
     const s = localStorage.getItem(SKEY);
     if (!s) return false;
@@ -319,12 +326,12 @@ export function load() {
     return false;
   }
 }
-export function wipe() {
+export function wipe(): void {
   try {
     localStorage.removeItem(SKEY);
   } catch (e) {}
 }
-export function afterLoad() {
+export function afterLoad(): void {
   computeCaches();
   computeAvail();
   onAgeChange();

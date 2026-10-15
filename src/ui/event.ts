@@ -1,4 +1,5 @@
 // Kaartjes voor gebeurtenissen (met keuzes), de tijdelijke bonussen daarvan en handelsaanbiedingen.
+import type { Buff, Followup, GameEvent } from '../types';
 import { store } from '../core/store';
 import { sfx } from '../audio/sound';
 import {
@@ -11,6 +12,7 @@ import {
   choiceProblem,
   defaultChoice,
   hasDownside,
+  type EventDef,
 } from '../data/events';
 import { RES } from '../data/resources';
 import { has, pay } from '../game/economy';
@@ -50,7 +52,7 @@ function renderEventCard() {
 }
 
 // Bovenaan het kaartje: pictogram, "Gebeurtenis" of "Vervolg op: ...", de naam en het verhaal
-function cardHeader(def, ev) {
+function cardHeader(def: EventDef, ev: GameEvent) {
   const from = EVENT[ev.from];
   const kicker = from ? `Vervolg op: ${from.n}` : 'Gebeurtenis';
   return [
@@ -66,7 +68,7 @@ function cardHeader(def, ev) {
 }
 
 // Eén keuze: naam en kosten bovenaan, daaronder wat je krijgt of kwijtraakt en wat er gebeurt.
-function choiceHTML(def, i, problem, isDefault, left) {
+function choiceHTML(def: EventDef, i: number, problem: string, isDefault: boolean, left: number) {
   const choice = def.choices[i];
   const cost = amountsFor(choice.cost, G.age);
   const gain = amountsFor(choice.gain, G.age) || {};
@@ -92,18 +94,19 @@ function choiceHTML(def, i, problem, isDefault, left) {
 }
 
 // Een fiche met wat je krijgt (groen, 'up') of kwijtraakt (rood, 'down')
-function changeChip(r, amount, direction) {
+function changeChip(r: string, amount: string, direction: string) {
   return `<span class="dlt ${direction}" title="${RES[r].n}">${gem(r)}${amount}</span>`;
 }
 
 $('#event').addEventListener('click', e => {
   const t = (e.target as HTMLElement).closest('button');
   if (!t || t.disabled) return;
-  resolveEvent(+t.dataset.ev);
+  // Elke knop op het kaartje is een keuze met data-ev
+  resolveEvent(+t.dataset.ev!);
 });
 
 // Hoe lang een tijdelijke bonus nog duurt, in dagen of (op de laatste dag) in uren
-function timeLeft(until) {
+function timeLeft(until: number) {
   const days = (until - G.t) / dayLength();
   if (days >= 1.5) return `nog ${Math.round(days)} dagen`;
   if (days >= 1) return 'nog 1 dag';
@@ -111,7 +114,7 @@ function timeLeft(until) {
 }
 
 // Wanneer een vervolg komt: vandaag, morgen of op dag zoveel
-function whenComing(day) {
+function whenComing(day: number) {
   if (day <= G.day) return 'vandaag';
   return day === G.day + 1 ? 'morgen' : `dag ${day}`;
 }
@@ -137,7 +140,7 @@ function renderBuffs() {
 }
 
 // Een lopende bonus: wat je koos, wat het doet en hoe lang nog. Tik erop voor de hele uitleg.
-function buffPill(b, n, left) {
+function buffPill(b: Buff, n: number, left: string) {
   const effect = buffEffect(b.d) || b.d;
   return [
     `<button type="button" class="buff ${buffMood(b.bonus)}" data-buff="${n}">`,
@@ -150,7 +153,7 @@ function buffPill(b, n, left) {
 }
 
 // Een vervolg dat nog komt: alleen de naam van de eerdere gebeurtenis, zodat de verrassing blijft
-function followPill(f, n) {
+function followPill(f: Followup, n: number) {
   const from = EVENT[f.from];
   return [
     `<button type="button" class="buff soon" data-follow="${n}">`,
@@ -163,10 +166,11 @@ function followPill(f, n) {
 
 // Tikken op een plaatje laat de hele uitleg zien (ook op een telefoon, waar zweven niet kan)
 $('#buffs').addEventListener('click', e => {
-  const pill = e.target.closest('button');
+  const pill = (e.target as HTMLElement).closest('button');
   if (!pill) return;
-  const b = G.buffs[pill.dataset.buff],
-    f = G.followups[pill.dataset.follow];
+  // Het nummer in de lijst (als tekst op de knop); zonder nummer vind je niets
+  const b = G.buffs[Number(pill.dataset.buff)],
+    f = G.followups[Number(pill.dataset.follow)];
   if (b) toast(`${b.n}, je koos: ${b.l || b.n}. ${b.d} (${timeLeft(b.until)})`);
   else if (f) {
     const from = EVENT[f.from];

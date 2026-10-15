@@ -51,7 +51,7 @@ const NODE_RGB = NODES.map(n =>
 let drawnVersion = -1,
   drawnAge = -1;
 // Kleur (r, g, b) van een rivaal op nummer, voor zijn land en gebouwen
-function rivalRGB(id) {
+function rivalRGB(id: number): [number, number, number] {
   const r = rivalById(id);
   return r ? hex(RIVAL[r.k].c) : [200, 200, 200];
 }
@@ -67,15 +67,17 @@ function paintMiniBase() {
       b = ground[i * 3 + 2];
     const nc = n && NODES[n].age <= G.age && NODE_RGB[n];
     if (nc) [r, g, b] = nc;
-    if (road[i] && !bmap[i]) [r, g, b] = RC[road[i]];
+    // (hier ligt echt een weg: soort 1, 2 of 3, en die hebben allemaal een kleur)
+    if (road[i] && !bmap[i]) [r, g, b] = RC[road[i]]!;
     // Gebouwen: blauw van jou, of in de kleur van een rivaal (licht, zodat ze opvallen)
     const rb = bmap[i] && rbById.get(bmap[i]);
-    if (rb) [r, g, b] = rivalRGBs[rb.rival].map(c => Math.min(255, c * 1.25 + 30));
+    // (rivalen hebben de nummers 1, 2 en 3; alleen plek 0 is leeg)
+    if (rb) [r, g, b] = rivalRGBs[rb.rival]!.map(c => Math.min(255, c * 1.25 + 30));
     else if (bmap[i]) [r, g, b] = [74, 136, 232];
     const owner = ownerAt(x, y);
     if (owner && !rb) {
       // Land van een rivaal: donker, met een flinke tint van zijn kleur
-      const c = rivalRGBs[owner];
+      const c = rivalRGBs[owner]!;
       r = r * 0.4 + c[0] * 0.3;
       g = g * 0.4 + c[1] * 0.3;
       b = b * 0.4 + c[2] * 0.3;
@@ -125,7 +127,8 @@ export function renderMini() {
     if (!f.rival || f.retreat) continue;
     mctx.fillStyle = '#1d1712';
     mctx.fillRect(f.x - 1.4, f.y - 1.4, 3.3, 3.3);
-    mctx.fillStyle = RIVAL[rivalById(f.rival)?.k]?.c || '#ffffff';
+    // (bestaat de rivaal niet meer, dan is de sleutel leeg: RIVAL geeft dan niets en het wordt wit)
+    mctx.fillStyle = RIVAL[rivalById(f.rival)?.k as string]?.c || '#ffffff';
     mctx.fillRect(f.x - 1, f.y - 1, 2.5, 2.5);
   }
   mctx.fillStyle = '#9fd0ff';

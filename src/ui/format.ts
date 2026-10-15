@@ -41,14 +41,14 @@ export const hy = (s: string): string =>
   );
 export const TOUCH = matchMedia('(pointer:coarse)').matches;
 // Kort getal voor op een kleine tegel: 1200 wordt "1,2k", 15000 wordt "15k"
-export const fmtShort = n => {
+export const fmtShort = (n: number): string => {
   n = Math.floor(n);
   if (n < 1000) return String(n);
   if (n < 10000) return (n / 1000).toFixed(1).replace(/\.0$/, '').replace('.', ',') + 'k';
   return Math.round(n / 1000) + 'k';
 };
 // Kosten als rijtje fiches. Met "tight" worden de getallen kort, zodat ze op een tegel passen.
-export function costHTML(c, tight = false) {
+export function costHTML(c: Cost, tight = false): string {
   return (
     `<span class="cost${tight ? ' tight' : ''}">` +
     Object.keys(c)
@@ -61,11 +61,14 @@ export function costHTML(c, tight = false) {
     '</span>'
   );
 }
-export const esc = s =>
-  String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+export const esc = (s: string | number): string =>
+  String(s).replace(
+    /[&<>"]/g,
+    c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' } as Record<string, string>)[c],
+  );
 
 // De tijdlijn: één kraal per tijdperk. Voorbij = gevuld, nu = groot, nog te komen = open.
-export function ageTimeline(cur, big = false) {
+export function ageTimeline(cur: number, big = false): string {
   const beads = AGES.map((a, i) => {
     const state = i < cur ? 'done' : i === cur ? 'now' : 'next';
     return `<li class="${state}" style="--c:${a.acc}" title="${a.n} · ${a.y}"><span>${big ? a.r : ''}</span></li>`;
@@ -73,11 +76,14 @@ export function ageTimeline(cur, big = false) {
   return `<ol class="tl${big ? ' big' : ''}" aria-label="Tijdlijn van de tijdperken">${beads.join('')}</ol>`;
 }
 
+/** Eén regel van een vergelijking: [naam, nu, straks]. */
+export type CompareRow = (string | number)[];
+
 /*
  * Vergelijking "nu → straks" voor een verbetering, als tabelletje.
- * rows = [[naam, nu, straks], ...] (zie upgradeRows in game/upgrades.js).
+ * rows = [[naam, nu, straks], ...] (zie upgradeRows in game/upgrades.ts).
  */
-export function compareHTML(rows) {
+export function compareHTML(rows: CompareRow[]): string {
   return (
     '<table class="cmp"><tbody>' +
     rows
@@ -90,4 +96,5 @@ export function compareHTML(rows) {
   );
 }
 /** Dezelfde vergelijking als korte tekst, voor in een tooltip. */
-export const compareText = rows => rows.map(([n, a, b]) => `${n}: ${a} → ${b}`).join(' · ');
+export const compareText = (rows: CompareRow[]): string =>
+  rows.map(([n, a, b]) => `${n}: ${a} → ${b}`).join(' · ');

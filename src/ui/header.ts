@@ -21,7 +21,7 @@ import { buildResBar, rate, updateResPop } from './resources';
 import { $, isCompact } from '../util/dom';
 
 // Speel het tik-animatietje opnieuw af (eerst weghalen, dan terugzetten)
-function tick(el, cls) {
+function tick(el: HTMLElement, cls: string) {
   el.classList.remove('tick-up', 'tick-down');
   void el.offsetWidth;
   el.classList.add(cls);
@@ -48,17 +48,19 @@ export function updateHeader() {
   }
   // Wat je nu wilt bouwen: grondstoffen waar je te weinig van hebt, kleuren rood
   const need = store.placing ? buildCost(store.placing) : null;
-  for (const el of document.querySelectorAll('#resbar .res,#resPop .res')) {
-    const k = el.dataset.k,
-      num = el.querySelector('b'),
+  for (const el of document.querySelectorAll<HTMLElement>('#resbar .res,#resPop .res')) {
+    // Elk vakje heeft een sleutel (data-k) en een getal (<b>), zie resItem in ui/resources.ts
+    const k = el.dataset.k!,
+      num = el.querySelector('b')!,
       txt = fmt(G.res[k]);
     if (num.textContent !== txt) {
       // Een klein tikje als het getal verandert: groen omhoog, rood omlaag
-      const up = G.res[k] > (+el.dataset.v || 0);
+      // data-v ontbreekt de eerste keer: dan geeft + NaN, en || 0 maakt er 0 van
+      const up = G.res[k] > (+el.dataset.v! || 0);
       if (num.textContent) tick(num, up ? 'tick-up' : 'tick-down');
       num.textContent = txt;
     }
-    el.dataset.v = Math.floor(G.res[k]);
+    el.dataset.v = String(Math.floor(G.res[k]));
     el.classList.toggle('short', !!(need && need[k] > G.res[k]));
     const r = rate[k],
       em = el.querySelector('em')!;

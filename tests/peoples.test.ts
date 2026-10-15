@@ -1,4 +1,5 @@
 // Tests voor de volken: kloppen de gegevens, de eigen soldaat, het slot en de teksten?
+import type { PeopleDef } from '../src/data/peoples';
 import { describe, expect, it } from 'vitest';
 import { AGES } from '../src/data/ages';
 import { BONUS_KEYS } from '../src/data/bonus';
@@ -14,6 +15,11 @@ import {
 import { RES } from '../src/data/resources';
 import { canMake, fitsPeople, retiredAt, retiredIn } from '../src/data/succession';
 import { UNITS } from '../src/data/units';
+
+/** Een volk met een eigen soldaat: dan staat `unique` er zeker. */
+type PeopleWithUnique = PeopleDef & Required<Pick<PeopleDef, 'unique'>>;
+/** Een volk op slot: dan staat `locked` er zeker. */
+type LockedPeople = PeopleDef & Required<Pick<PeopleDef, 'locked'>>;
 
 describe('volken: gegevens', () => {
   it('zes volken met elk een eigen sleutel, naam, vlag, motto en 2 tot 3 voordelen', () => {
@@ -82,7 +88,8 @@ describe('volken: gegevens', () => {
 
 describe('volken: eigen soldaat', () => {
   it('de eigen soldaat bestaat, hoort bij het volk en vervangt een soldaat van dezelfde soort', () => {
-    const withUnique = PEOPLES.filter(p => p.unique);
+    // De filter houdt alleen volken met een eigen soldaat over
+    const withUnique = PEOPLES.filter(p => p.unique) as PeopleWithUnique[];
     expect(withUnique.length).toBeGreaterThan(0);
     for (const p of withUnique) {
       const own = UNITS[p.unique.unit],
@@ -101,7 +108,8 @@ describe('volken: eigen soldaat', () => {
     for (const [k, u] of Object.entries(UNITS)) {
       if (!u.people) continue;
       expect(PEOPLE[u.people], k).toBeTruthy();
-      expect(PEOPLE[u.people].unique.unit, k).toBe(k);
+      // Dit volk heeft zeker een eigen soldaat (dat test deze regel)
+      expect(PEOPLE[u.people].unique!.unit, k).toBe(k);
     }
   });
 
@@ -109,7 +117,7 @@ describe('volken: eigen soldaat', () => {
   it('de uitleg bij de Berserker klopt met zijn getallen', () => {
     const own = UNITS.berserker,
       old = UNITS.swordsman;
-    const shown = n => String(n).replace('.', ',');
+    const shown = (n: number) => String(n).replace('.', ',');
     expect(own.note).toContain(`elke ${shown(own.rate)} s`);
     expect(own.note).toContain(`elke ${shown(old.rate)} s`);
     expect(own.note).toContain(`${own.hp} tegen ${old.hp}`);
@@ -151,7 +159,8 @@ describe('volken: eigen soldaat', () => {
 
 describe('volken: op slot', () => {
   const free = PEOPLES.filter(p => !p.locked);
-  const locked = PEOPLES.filter(p => p.locked);
+  // De filter houdt alleen volken op slot over
+  const locked = PEOPLES.filter(p => p.locked) as LockedPeople[];
 
   it('de eerste drie zijn vrij, de laatste drie zitten op slot', () => {
     expect(free.map(p => p.k)).toEqual(PEOPLES.slice(0, 3).map(p => p.k));

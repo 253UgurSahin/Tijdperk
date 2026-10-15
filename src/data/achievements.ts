@@ -8,14 +8,37 @@ import { TECH } from './tech';
  * - k: vaste sleutel (wordt in het profiel bewaard; volken op slot noemen deze sleutel)
  * - n: naam, d: wat je ervoor moet doen
  * - cat: groep op het profielscherm (zie ACHIEVEMENT_CATS)
- * - g: pictogram (zie ui/glyphs.js); `age` of `people` laat in plaats daarvan een kraal of vaandel zien
+ * - g: pictogram (zie ui/glyphs.ts); `age` of `people` laat in plaats daarvan een kraal of vaandel zien
  * - hidden: geheim: op het profielscherm staat ??? tot je hem haalt
- * - unlocks: { people: k }: speelt een volk vrij (zie `locked` in data/peoples.js)
+ * - unlocks: { people: k }: speelt een volk vrij (zie `locked` in data/peoples.ts)
  * - when(f, have): gehaald? `f` zijn de feiten over het spel nu (zie emptyFacts hieronder),
  *   `have` zijn de prestaties die je al hebt (sleutel → wanneer)
  */
 
-/** Feiten over een spel, zoals game/achievements.js ze verzamelt. Dit zijn de waarden bij een leeg spel. */
+/** Een prestatie die je kunt halen (zie de uitleg hierboven). */
+export interface AchievementDef {
+  k: string;
+  n: string;
+  cat: string;
+  d: string;
+  g?: string;
+  /** Laat de kraal van dit tijdperk zien in plaats van een pictogram. */
+  age?: number;
+  /** Laat het vaandel van dit volk zien in plaats van een pictogram. */
+  people?: string;
+  hidden?: boolean;
+  unlocks?: { people: string };
+  /** Gehaald? `have` geeft newAchievements altijd mee; alleen "Alle volken" kijkt ernaar. */
+  when: (f: AchievementFacts, have?: AchievedMap) => boolean;
+}
+
+/** Feiten over een spel (zie emptyFacts): daarmee kijkt elke prestatie of hij gehaald is. */
+export type AchievementFacts = ReturnType<typeof emptyFacts>;
+
+/** Prestaties die je al hebt: sleutel → wanneer gehaald (of true als hij net gehaald is). */
+export type AchievedMap = Record<string, number | boolean>;
+
+/** Feiten over een spel, zoals game/achievements.ts ze verzamelt. Dit zijn de waarden bij een leeg spel. */
 export const emptyFacts = () => ({
   age: 0, // tijdperk (0 = Steentijd)
   day: 1,
@@ -46,7 +69,7 @@ export const emptyFacts = () => ({
 });
 
 /** Prestatie: win een spel met dit volk. */
-const winWith = (k, n, people, d) => ({
+const winWith = (k: string, n: string, people: string, d: string): AchievementDef => ({
   k,
   n,
   cat: 'folk',
@@ -55,7 +78,7 @@ const winWith = (k, n, people, d) => ({
   when: f => f.won && f.people === people,
 });
 
-export const ACHIEVEMENTS = [
+export const ACHIEVEMENTS: AchievementDef[] = [
   // Tijdperken: elk nieuw tijdperk is een prestatie
   { k: 'age1', n: 'Brons en vuur', cat: 'age', age: 1, d: 'Bereik de Bronstijd', when: f => f.age >= 1 },
   { k: 'age2', n: 'Het zwarte metaal', cat: 'age', age: 2, d: 'Bereik de IJzertijd', when: f => f.age >= 2 },
@@ -143,7 +166,7 @@ export const ACHIEVEMENTS = [
     cat: 'folk',
     g: '♛',
     d: 'Win met elk van de zes volken',
-    when: (f, have) => PEOPLES.every(p => have[`win_${p.k}`]),
+    when: (_f, have) => PEOPLES.every(p => have![`win_${p.k}`]),
   },
 
   // Strijd: kampen, aanvallen en vijanden
@@ -382,11 +405,11 @@ export const ACHIEVEMENTS = [
 ];
 
 /** Prestatie opzoeken op sleutel: ACHIEVEMENT.age3 */
-export const ACHIEVEMENT = {};
+export const ACHIEVEMENT: Record<string, AchievementDef> = {};
 ACHIEVEMENTS.forEach(a => (ACHIEVEMENT[a.k] = a));
 
 /** De groepen op het profielscherm, in deze volgorde. */
-export const ACHIEVEMENT_CATS = {
+export const ACHIEVEMENT_CATS: Record<string, string> = {
   age: 'Tijdperken',
   win: 'Winnen',
   folk: 'Volken',
@@ -399,9 +422,9 @@ export const ACHIEVEMENT_CATS = {
  * Welke prestaties haal je nu nieuw? Geeft de sleutels in de volgorde van de lijst.
  * Een prestatie die hier net gehaald is, telt meteen mee voor de volgende (zoals "Alle volken").
  */
-export function newAchievements(facts, have = {}) {
+export function newAchievements(facts: AchievementFacts, have: AchievedMap = {}): string[] {
   const got = { ...have };
-  const earned = [];
+  const earned: string[] = [];
   for (const a of ACHIEVEMENTS) {
     if (got[a.k] || !a.when(facts, got)) continue;
     got[a.k] = true;
@@ -414,7 +437,7 @@ export function newAchievements(facts, have = {}) {
  * Gebouwen die je zelf kunt neerzetten, per tijdperk (zonder het stamhuis en paden).
  * Wereldwonderen tellen niet mee: een rivaal kan je er een afpakken.
  */
-export const AGE_BUILDINGS = [];
+export const AGE_BUILDINGS: string[][] = [];
 for (const [k, d] of Object.entries(B)) {
   if (d.nobuild || d.road || d.wonder) continue;
   (AGE_BUILDINGS[d.age] = AGE_BUILDINGS[d.age] || []).push(k);
@@ -424,7 +447,7 @@ for (const [k, d] of Object.entries(B)) {
  * Het hoogste tijdperk waarvan alle gebouwen tegelijk staan, of -1 als dat er geen is.
  * `types` is een lijst (of Set) met de soorten gebouwen die nu klaar staan.
  */
-export function fullAge(types) {
+export function fullAge(types: Iterable<string>): number {
   const have = new Set(types);
   for (let age = AGE_BUILDINGS.length - 1; age >= 0; age--) {
     const list = AGE_BUILDINGS[age] || [];

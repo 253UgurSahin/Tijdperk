@@ -1,4 +1,5 @@
 // Tests voor de wereldwonderen: één per tijdperk, kloppende kosten en bonussen, en de teksten over de race.
+import type { AchievementFacts } from '../src/data/achievements';
 import { describe, expect, it } from 'vitest';
 import { ACHIEVEMENT, AGE_BUILDINGS, emptyFacts, newAchievements } from '../src/data/achievements';
 import { AGES } from '../src/data/ages';
@@ -44,9 +45,10 @@ describe('wonderen: gegevens', () => {
       expect(d.bt, k).toBeGreaterThanOrEqual(120);
       expect(d.bt, k).toBeLessThanOrEqual(180);
       expect(['de', 'het'], k).toContain(d.article);
-      expect(d.desc.length, k).toBeGreaterThan(20);
+      // Elk wonder heeft een beschrijving (dat test deze regel)
+      expect(d.desc!.length, k).toBeGreaterThan(20);
       // Geen gebouw dat je kunt verbeteren of dat iets traint, verdedigt of maakt
-      for (const key of ['pop', 'def', 'conv', 'gen', 'train', 'light', 'win', 'nobuild'])
+      for (const key of ['pop', 'def', 'conv', 'gen', 'train', 'light', 'win', 'nobuild'] as const)
         expect(d[key], `${k}.${key}`).toBeFalsy();
     }
   });
@@ -69,9 +71,10 @@ describe('wonderen: gegevens', () => {
 
   it('elke bonus gebruikt bestaande sleutels, en de tekst noemt dezelfde getallen', () => {
     for (const k of WONDERS) {
+      // Elk wonder heeft een bonus (dat test deze regel ook)
       const { bonus, perk } = B[k];
-      expect(Object.keys(bonus).length, k).toBeGreaterThan(0);
-      for (const [key, value] of Object.entries(bonus)) {
+      expect(Object.keys(bonus!).length, k).toBeGreaterThan(0);
+      for (const [key, value] of Object.entries(bonus!)) {
         expect(BONUS_KEYS[key], `${k}: ${key}`).toBeTruthy();
         expect(Number.isFinite(value) && value !== 0, `${k}: ${key}`).toBe(true);
         if (BONUS_KEYS[key].flat) continue; // aan/uit-bonussen hebben geen getal in de tekst
@@ -82,15 +85,16 @@ describe('wonderen: gegevens', () => {
   });
 
   it('de wonderen uit de opdracht geven wat ze beloven', () => {
-    expect(B.dolmen.bonus['gather.food']).toBe(0.15);
-    expect(B.pyramid.bonus['hall.hp']).toBe(0.5);
-    expect(B.colosseum.bonus['army.hp']).toBe(0.1);
-    expect(B.cathedral.bonus['research.time']).toBe(-0.25);
-    expect(B.eastindia.bonus['trader.daily']).toBe(1);
-    expect(B.eiffel.bonus.power).toBe(0.2);
-    expect(B.deltaworks.bonus['storm.safe']).toBe(1);
-    expect(B.deltaworks.bonus.farm).toBe(0.25);
-    expect(B.spacestation.bonus['meteor.rate']).toBeGreaterThan(0);
+    // Elk wonder heeft een bonus (zie data/buildings.ts)
+    expect(B.dolmen.bonus!['gather.food']).toBe(0.15);
+    expect(B.pyramid.bonus!['hall.hp']).toBe(0.5);
+    expect(B.colosseum.bonus!['army.hp']).toBe(0.1);
+    expect(B.cathedral.bonus!['research.time']).toBe(-0.25);
+    expect(B.eastindia.bonus!['trader.daily']).toBe(1);
+    expect(B.eiffel.bonus!.power).toBe(0.2);
+    expect(B.deltaworks.bonus!['storm.safe']).toBe(1);
+    expect(B.deltaworks.bonus!.farm).toBe(0.25);
+    expect(B.spacestation.bonus!['meteor.rate']).toBeGreaterThan(0);
   });
 
   it('namen met lidwoord, ook met een hoofdletter', () => {
@@ -158,7 +162,7 @@ describe('wonderen: wie heeft wat', () => {
     expect(wonderBuildTime('dolmen', 1)).toBe(208);
     expect(wonderBuildTime('dolmen', 8)).toBe(73);
     // Wat elke bouwer per seconde doet, keer het aantal bouwers, is de snelheid van de hele ploeg
-    const speed = n => n * wonderBuildRate(n);
+    const speed = (n: number) => n * wonderBuildRate(n);
     expect(speed(WONDER_CREW)).toBeCloseTo(1);
     expect(speed(8)).toBeGreaterThan(speed(3));
     expect(speed(8) - speed(7)).toBeLessThan(speed(2) - speed(1));
@@ -228,7 +232,7 @@ describe('wonderen: de race in woorden', () => {
 
 describe('wonderen: prestaties, score en de prestatie Bouwmeester', () => {
   it('vier prestaties voor wonderen', () => {
-    const f = changes => ({ ...emptyFacts(), ...changes });
+    const f = (changes: Partial<AchievementFacts>) => ({ ...emptyFacts(), ...changes });
     expect(newAchievements(f({ wondersBuilt: 1, wonders: 1 }))).toContain('wonder1');
     expect(newAchievements(f({ wonders: 4 }))).toContain('wonders4');
     expect(newAchievements(f({ wonders: 3 }))).not.toContain('wonders4');
@@ -239,7 +243,8 @@ describe('wonderen: prestaties, score en de prestatie Bouwmeester', () => {
   });
 
   it('elk wonder is 500 punten waard', () => {
-    expect(gameScore({ wonders: 3 }).rows.find(r => r.k === 'wonders').pts).toBe(1500);
+    // De regel voor wonderen staat er zeker (zie gameScore)
+    expect(gameScore({ wonders: 3 }).rows.find(r => r.k === 'wonders')!.pts).toBe(1500);
   });
 
   it('wonderen tellen niet mee voor "alle gebouwen van een tijdperk" (een rivaal kan ze afpakken)', () => {

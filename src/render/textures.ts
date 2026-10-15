@@ -7,14 +7,15 @@ import { hash2 } from '../util/random';
 const SIZE = 256;
 
 // Ruis die naadloos herhaalt: het rooster loopt rond na 'period' cellen
-function tileNoise(x, y, period, seed) {
+function tileNoise(x: number, y: number, period: number, seed: number) {
   const xi = Math.floor(x),
     yi = Math.floor(y),
     xf = x - xi,
     yf = y - yi,
     u = xf * xf * (3 - 2 * xf),
     v = yf * yf * (3 - 2 * yf);
-  const at = (i, j) => hash2(((i % period) + period) % period, ((j % period) + period) % period, seed);
+  const at = (i: number, j: number) =>
+    hash2(((i % period) + period) % period, ((j % period) + period) % period, seed);
   const a = at(xi, yi),
     b = at(xi + 1, yi),
     c = at(xi, yi + 1),
@@ -22,7 +23,7 @@ function tileNoise(x, y, period, seed) {
   return a + (b - a) * u + (c - a) * v + (a - b - c + d) * u * v;
 }
 // Een paar lagen ruis op elkaar (grof + fijn), ook naadloos
-function tileFbm(px, py, period, seed, octaves = 3) {
+function tileFbm(px: number, py: number, period: number, seed: number, octaves = 3) {
   let total = 0,
     amp = 0.5,
     sum = 0;
@@ -36,13 +37,13 @@ function tileFbm(px, py, period, seed, octaves = 3) {
 }
 
 // Puntje zetten met omloop aan de randen, zodat de textuur naadloos blijft
-const wrap = v => ((v % SIZE) + SIZE) % SIZE;
-function blend(ch, x, y, value, k) {
+const wrap = (v: number) => ((v % SIZE) + SIZE) % SIZE;
+function blend(ch: Float32Array, x: number, y: number, value: number, k: number) {
   const i = wrap(Math.round(y)) * SIZE + wrap(Math.round(x));
   ch[i] += (value - ch[i]) * k;
 }
 
-function grassChannel(rand) {
+function grassChannel(rand: () => number) {
   const ch = new Float32Array(SIZE * SIZE);
   for (let y = 0; y < SIZE; y++)
     for (let x = 0; x < SIZE; x++) ch[y * SIZE + x] = 0.38 + tileFbm(x, y, 8, 11) * 0.24;
@@ -59,7 +60,7 @@ function grassChannel(rand) {
   return ch;
 }
 
-function soilChannel(rand) {
+function soilChannel(rand: () => number) {
   const ch = new Float32Array(SIZE * SIZE);
   for (let y = 0; y < SIZE; y++)
     for (let x = 0; x < SIZE; x++)

@@ -1,26 +1,28 @@
 // Prestaties in beeld: het kaartje dat even verschijnt als je er een haalt, en de pictogrammen en medailles.
 import { sfx } from '../audio/sound';
+import type { AchievementDef } from '../data/achievements';
 import { AGES } from '../data/ages';
-import { PEOPLE } from '../data/peoples';
+import { PEOPLE, type PeopleDef } from '../data/peoples';
 import { MEDALS } from '../data/score';
 import { ico } from './glyphs';
 import { bannerHTML } from './peoples';
 import { $ } from '../util/dom';
 
 /** Pictogram van een prestatie: een kraal voor een tijdperk, een vaandel voor een volk, anders een teken. */
-export function achievementIcon(a, open = true) {
+export function achievementIcon(a: AchievementDef, open = true): string {
   if (!open && a.hidden) return `<span class="achic">${ico('?')}</span>`;
   if (a.age != null)
     return `<span class="achic bead" style="--c:${AGES[a.age].acc}"><span>${AGES[a.age].r}</span></span>`;
   if (a.people) return `<span class="achic flag">${bannerHTML(PEOPLE[a.people], 'sm')}</span>`;
-  return `<span class="achic">${ico(a.g)}</span>`;
+  // Zonder tijdperk of volk heeft een prestatie altijd een pictogram (zie tests/achievements.test.ts)
+  return `<span class="achic">${ico(a.g!)}</span>`;
 }
 
 /** Een score voluit, met punten voor duizendtallen: 10730 wordt "10.730". */
-export const scoreText = n => Math.round(n).toLocaleString('nl-NL');
+export const scoreText = (n: number): string => Math.round(n).toLocaleString('nl-NL');
 
 /** Een medaille (brons, zilver of goud) als rond plaatje met een lintje. `size`: '' of 'lg'. */
-export function medalHTML(k, size = '') {
+export function medalHTML(k: string, size = ''): string {
   const medal = MEDALS.find(m => m.k === k);
   if (!medal) return '';
   return `<span class="medal ${medal.k} ${size}" title="${medal.n}" aria-label="Medaille: ${medal.n}"><span>${ico('★')}</span></span>`;
@@ -29,7 +31,7 @@ export function medalHTML(k, size = '') {
 // ---- het kaartje bovenin het scherm ----
 
 // Kaartjes die nog moeten verschijnen; ze komen één voor één
-const queue = [];
+const queue: { a: AchievementDef; people?: PeopleDef }[] = [];
 let showing = false;
 
 const box = document.createElement('div');
@@ -39,7 +41,7 @@ box.setAttribute('aria-live', 'polite');
 $('#notes').prepend(box);
 
 /** Laat een behaalde prestatie zien. `people` is het volk dat je ermee vrijspeelt (of niets). */
-export function showAchievement(a, people) {
+export function showAchievement(a: AchievementDef, people?: PeopleDef) {
   queue.push({ a, people });
   if (!showing) showNext();
 }

@@ -1,4 +1,6 @@
 // Tests voor uitdagingen: spelregels, de wereld van de dag, medailles en wat er in het profiel komt.
+import type { GameRecord } from '../src/types';
+import type { ScenarioMedals, ScenarioPlan } from '../src/data/scenarios';
 import { describe, expect, it } from 'vitest';
 import { addChallengeResult, emptyProfile, normalizeProfile } from '../src/core/profile';
 import { AGES } from '../src/data/ages';
@@ -39,6 +41,9 @@ import {
   textSeed,
 } from '../src/data/scenarios';
 import { SEED_MAX } from '../src/util/seedcode';
+
+/** Een uitdaging of een plan voor de wereld van de dag; alleen een uitdaging heeft een sleutel (k). */
+type AnyPlan = ScenarioPlan & { k?: string };
 
 // Elke dag van een jaar als "2026-01-01", "2026-01-02", ...
 const yearOfDates = () => {
@@ -81,7 +86,8 @@ describe('spelregels', () => {
     expect(modsHaveRule(null, 'noArmy')).toBe(false);
     // Gesloten grenzen is een echte regel: geen handelaars, ook niet bij een volk dat ze vaker laat komen
     expect(modsHaveRule(['noTrade'], 'noTrade')).toBe(true);
-    expect(MODIFIER.noTrade.bonus['trader.rate']).toBeUndefined();
+    // Gesloten grenzen heeft wel bonussen, alleen deze niet
+    expect(MODIFIER.noTrade.bonus!['trader.rate']).toBeUndefined();
   });
 
   it('seizoenen: gewoon 4 dagen elk, met Lange winter 6 dagen winter', () => {
@@ -149,7 +155,7 @@ describe('uitdagingen', () => {
   });
 
   it('medaillegrenzen lopen netjes op: goud strenger dan zilver, zilver strenger dan brons', () => {
-    for (const s of [...SCENARIOS, ...DAILY_PLANS]) {
+    for (const s of [...SCENARIOS, ...DAILY_PLANS] as AnyPlan[]) {
       const m = s.medals;
       const name = s.k || goalText(s.goal);
       expect(['time', 'lost'], name).toContain(m.by);
@@ -163,14 +169,14 @@ describe('uitdagingen', () => {
   });
 
   it('de medaille hoort bij de tijd of het verlies', () => {
-    const time = { by: 'time', goud: 600, zilver: 900, brons: 1200 };
+    const time: ScenarioMedals = { by: 'time', goud: 600, zilver: 900, brons: 1200 };
     expect(challengeMedal(time, { won: true, time: 500 })).toBe('goud');
     expect(challengeMedal(time, { won: true, time: 600 })).toBe('goud');
     expect(challengeMedal(time, { won: true, time: 601 })).toBe('zilver');
     expect(challengeMedal(time, { won: true, time: 1200 })).toBe('brons');
     expect(challengeMedal(time, { won: true, time: 1300 })).toBe('');
     expect(challengeMedal(time, { won: false, time: 100 })).toBe('');
-    const lost = { by: 'lost', goud: 0, zilver: 3, brons: 8 };
+    const lost: ScenarioMedals = { by: 'lost', goud: 0, zilver: 3, brons: 8 };
     expect(challengeMedal(lost, { won: true, time: 99999, lost: 0 })).toBe('goud');
     expect(challengeMedal(lost, { won: true, lost: 3 })).toBe('zilver');
     expect(challengeMedal(lost, { won: true, lost: 8 })).toBe('brons');
@@ -259,7 +265,8 @@ describe('wereld van de dag', () => {
       expect(d.seed).toBeGreaterThan(0);
       expect(d.seed).toBeLessThan(SEED_MAX);
       expect(MAP[d.map], date).toBeTruthy();
-      expect(PEOPLE[d.people] && !PEOPLE[d.people].locked, date).toBe(true);
+      // De wereld van de dag kiest altijd een volk (zie dailyWorld)
+      expect(PEOPLE[d.people!] && !PEOPLE[d.people!].locked, date).toBe(true);
       expect(d.startAge).toBe(0);
       expect(d.modifiers).toHaveLength(2);
       const [hard, help] = d.modifiers.map(k => MODIFIER[k]);
@@ -269,7 +276,7 @@ describe('wereld van de dag', () => {
       const shared = Object.keys(help.bonus || {}).filter(key => key in (hard.bonus || {}));
       expect(shared, `${date}: ${hard.k} + ${help.k}`).toEqual([]);
       // Het volk heft de moeilijke regel ook niet op (zoals de Hanze bij Gesloten grenzen)
-      const folk = Object.keys(PEOPLE[d.people].bonus || {}).filter(key => key in (hard.bonus || {}));
+      const folk = Object.keys(PEOPLE[d.people!].bonus || {}).filter(key => key in (hard.bonus || {}));
       expect(folk, `${date}: ${hard.k} + ${d.people}`).toEqual([]);
       const minutes = challengeMinutes(d);
       expect(minutes, date).toBeGreaterThanOrEqual(20);
@@ -290,11 +297,12 @@ describe('score in een uitdaging', () => {
     expect(plain.rows.map(r => r.k)).not.toContain('goal');
     const gold = gameScore({ ...base, challenge: { won: true, medal: 'goud' } });
     expect(gold.total).toBe(plain.total + CHALLENGE_POINTS.goal + CHALLENGE_POINTS.goud);
-    expect(gold.rows.find(r => r.k === 'medal').n).toBe('Medaille goud');
+    // De regels voor medaille en doel staan er zeker (dat testen deze regels ook)
+    expect(gold.rows.find(r => r.k === 'medal')!.n).toBe('Medaille goud');
     // Niet gehaald: een regel met 0 voor het doel, en geen medaille
     const failed = gameScore({ ...base, challenge: { won: false, medal: '' } });
     expect(failed.total).toBe(plain.total);
-    expect(failed.rows.find(r => r.k === 'goal').pts).toBe(0);
+    expect(failed.rows.find(r => r.k === 'goal')!.pts).toBe(0);
     expect(failed.rows.some(r => r.k === 'medal')).toBe(false);
     // Een betere medaille geeft meer punten
     expect(CHALLENGE_POINTS.goud).toBeGreaterThan(CHALLENGE_POINTS.zilver);
@@ -303,7 +311,8 @@ describe('score in een uitdaging', () => {
 });
 
 describe('profiel', () => {
-  const won = { score: 4000, won: true, age: 2, day: 9, people: 'friezen', diff: 1 };
+  // Een gewonnen spel met alleen de gegevens die hier tellen
+  const won = { score: 4000, won: true, age: 2, day: 9, people: 'friezen', diff: 1 } as GameRecord;
 
   it('een uitdaging bewaart de beste medaille en tijd, niet de beste score per volk', () => {
     const p = emptyProfile();
@@ -326,7 +335,13 @@ describe('profiel', () => {
 
   it('de wereld van de dag bewaart de beste score per dag, en alleen de laatste dagen', () => {
     const p = emptyProfile();
-    const day = (date, score, medal = 'brons') => ({ ...won, score, medal, scenario: DAILY, date });
+    const day = (date: string, score: number, medal = 'brons') => ({
+      ...won,
+      score,
+      medal,
+      scenario: DAILY,
+      date,
+    });
     expect(addChallengeResult(p, day('2026-10-15', 3000), 1)).toBe(true);
     expect(addChallengeResult(p, day('2026-10-15', 2000, 'goud'), 2)).toBe(false);
     expect(p.daily['2026-10-15']).toEqual({ score: 3000, medal: 'goud', won: true });

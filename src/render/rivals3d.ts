@@ -1,11 +1,12 @@
 // Rivalen in 3D: hun gebouwen, met vlag, banieren en daken in hun eigen kleur.
+import type { GameState, Rival, RivalBuilding } from '../types';
 import * as T3 from 'three';
 import { store } from '../core/store';
 import { B } from '../data/buildings';
 import { RIVAL } from '../data/rivals';
 import { G } from '../game/state';
 import { quadG } from './decals';
-import { flagpole, mat, paint } from './kit';
+import { flagpole, isMesh, mat, paint } from './kit';
 import { makeBuilding } from './models';
 import { LAYER, puff } from './particles';
 import { S3 } from './scene';
@@ -14,9 +15,21 @@ import { groundChanged } from './terrainlook';
 
 export const RG3 = new T3.Group();
 S3.add(RG3);
+/** Wat er per gebouw van een rivaal bewaard wordt: houder (g), model (m), hoogte (h) en grootte (s). */
+interface RivalBuildingRec {
+  g: T3.Group;
+  m: T3.Group;
+  /** Verandert de sleutel (soort, tijdperk, klaar), dan wordt het model opnieuw gemaakt. */
+  key: string;
+  h: number;
+  s: number;
+  flags: T3.Object3D[];
+  fires: T3.Object3D[];
+  spins: T3.Object3D[];
+}
 /** Per gebouw van een rivaal: de 3D-groep en wat er beweegt (vlaggen, vuur, wieken). */
-export const rbRec = new Map();
-let lastG = null;
+export const rbRec = new Map<number, RivalBuildingRec>();
+let lastG: GameState | null = null;
 
 /** Houd de gebouwen van alle rivalen gelijk met de spelstand. */
 export function syncRivalBuildings() {
@@ -26,7 +39,7 @@ export function syncRivalBuildings() {
     rbRec.clear();
     lastG = G;
   }
-  const seen = new Set();
+  const seen = new Set<number>();
   for (const rival of G.rivals || []) {
     if (rival.dead) continue;
     for (const b of rival.bs) {
@@ -53,7 +66,7 @@ export function syncRivalBuildings() {
     }
 }
 
-function buildModel(b, rival, key) {
+function buildModel(b: RivalBuilding, rival: Rival, key: string): RivalBuildingRec {
   const d = B[b.type],
     s = d.size,
     colour = RIVAL[rival.k].c;
@@ -80,9 +93,9 @@ function buildModel(b, rival, key) {
     g.add(floor);
   }
   g.position.set(b.x + s / 2, 0, b.y + s / 2);
-  const flags = [],
-    fires = [],
-    spins = [];
+  const flags: T3.Object3D[] = [],
+    fires: T3.Object3D[] = [],
+    spins: T3.Object3D[] = [];
   g.traverse(o => {
     o.userData.rbid = b.id;
     if (o.userData.flag) flags.push(o);
@@ -94,12 +107,12 @@ function buildModel(b, rival, key) {
 }
 
 // Daken en bovenkanten krijgen een tint van hun kleur; onderaan blijven de muren zoals ze zijn
-function tintTop(group, colour, h) {
+function tintTop(group: T3.Object3D, colour: string, h: number) {
   const c = new T3.Color(colour);
   group.traverse(o => {
-    const col = o.isMesh && o.geometry.attributes.color;
+    const col = isMesh(o) && (o.geometry.attributes.color as T3.BufferAttribute);
     if (!col) return;
-    const pos = o.geometry.attributes.position;
+    const pos = o.geometry.attributes.position as T3.BufferAttribute;
     for (let i = 0; i < pos.count; i++) {
       const t = Math.min(1, Math.max(0, (pos.getY(i) - h * 0.4) / (h * 0.5)));
       const k = t * t * (3 - 2 * t) * 0.5; // zacht oplopend, hoogstens de helft
@@ -114,7 +127,7 @@ function tintTop(group, colour, h) {
   });
 }
 
-function animate(r, b) {
+function animate(r: RivalBuildingRec, b: RivalBuilding) {
   if (!b.done) {
     // In aanbouw: het gebouw rijst langzaam op binnen de steigers
     const p = Math.min(1, b.prog / b.bt);
@@ -122,8 +135,11 @@ function animate(r, b) {
   }
   for (const f of r.flags) f.rotation.y = Math.sin(store.TM * 2 + b.id) * 0.25;
   for (const f of r.fires) f.scale.set(1, 0.85 + Math.sin(store.TM * 13 + b.id) * 0.1, 1);
-  if (b.done) for (const o of r.spins) o.rotation[o.userData.axis || 'y'] = store.TM * o.userData.spin + b.id;
-  // Geraakt: stof en vonken op de gevel (flash zet game/military.js bij elke treffer; hier weer op 0)
+  // (userData.axis is 'x', 'y' of 'z')
+  if (b.done)
+    for (const o of r.spins)
+      o.rotation[(o.userData.axis || 'y') as 'x' | 'y' | 'z'] = store.TM * o.userData.spin + b.id;
+  // Geraakt: stof en vonken op de gevel (flash zet game/military.ts bij elke treffer; hier weer op 0)
   if (b.flash) {
     b.flash = 0;
     const p = r.g.position,

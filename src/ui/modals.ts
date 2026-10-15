@@ -1,4 +1,5 @@
-// Schermen: titelscherm, pauze, instellingen en hulp. (Winst en verlies: zie ui/endscreen.js.)
+// Schermen: titelscherm, pauze, instellingen en hulp. (Winst en verlies: zie ui/endscreen.ts.)
+import type { NewGameOptions } from '../types';
 import { store } from '../core/store';
 import { setSound, setVolume, sfx, sndOn } from '../audio/sound';
 import { SET, applyLayoutSettings, resetSet, saveSet } from '../core/settings';
@@ -26,13 +27,19 @@ import { LEVELS, setQuality } from '../render/quality';
 
 let prevSpeed = 1;
 // Wat er moet gebeuren als het open venster dichtgaat (op welke manier dan ook), of null
-let onModalClose = null;
+let onModalClose: (() => void) | null = null;
+/** Opties voor een venster (zie openModal hieronder). */
+interface ModalOpts {
+  locked?: boolean;
+  cls?: string;
+  onClose?: (() => void) | null;
+}
 /**
  * Open een venster en zet het spel stil. Met `locked` gaat het niet dicht met Esc of een klik
  * ernaast: je moet echt iets kiezen (zoals een zegening). `cls` geeft het blad een extra class.
  * `onClose` draait als dit venster dichtgaat, ook met Esc of een klik ernaast.
  */
-export function openModal(html, { locked = false, cls = '', onClose = null } = {}) {
+export function openModal(html: string, { locked = false, cls = '', onClose = null }: ModalOpts = {}) {
   $('#sheet').innerHTML = html;
   $('#sheet').className = cls ? `sheet ${cls}` : 'sheet';
   store.modalLocked = locked;
@@ -54,24 +61,25 @@ export function closeModal() {
   if (afterClose) afterClose();
 }
 $('#modal').addEventListener('click', e => {
-  if (e.target.id === 'modal' && !G.over && !store.modalLocked) {
+  if ((e.target as HTMLElement).id === 'modal' && !G.over && !store.modalLocked) {
     closeModal();
     return;
   }
   // Knoppen in de instellingen
-  const sb = e.target.closest('[data-tab],[data-set],[data-seg]');
+  const sb = (e.target as HTMLElement).closest<HTMLElement>('[data-tab],[data-set],[data-seg]');
   if (sb) {
     if (sb.dataset.tab) setTab = sb.dataset.tab;
     else if (sb.dataset.set) changeSetting(sb.dataset.set);
     else {
-      const raw = sb.dataset.v;
-      changeSetting(sb.dataset.seg, isNaN(+raw) ? raw : +raw);
+      // Geen tab en geen schakelaar: dan is het een keuzeknop, en die heeft altijd data-seg en data-v
+      const raw = sb.dataset.v!;
+      changeSetting(sb.dataset.seg!, isNaN(+raw) ? raw : +raw);
     }
     sfx('tick');
     showSettings();
     return;
   }
-  const t = e.target.closest('[data-m]');
+  const t = (e.target as HTMLElement).closest<HTMLElement>('[data-m]');
   if (!t) return;
   const m = t.dataset.m;
   if (m === 'close') closeModal();
@@ -125,10 +133,12 @@ $('#modal').addEventListener('click', e => {
 });
 $('#modal').addEventListener('input', e => {
   // Schuifjes: waarde direct toepassen en het getal ernaast bijwerken
-  const k = e.target.dataset.range;
+  const input = e.target as HTMLInputElement;
+  const k = input.dataset.range;
   if (!k) return;
-  const pct = +e.target.value;
-  e.target.nextElementSibling.textContent = pct + '%';
+  const pct = +input.value;
+  // Na elk schuifje staat een <output> met het getal (zie showSettings)
+  input.nextElementSibling!.textContent = pct + '%';
   if (k === 'vol') {
     setVolume(pct / 100);
     sfx('tick', 0.1);
@@ -142,11 +152,12 @@ $('#modal').addEventListener('input', e => {
   }
 });
 $('#modal').addEventListener('change', e => {
-  if (e.target.id === 'peace') setPeaceful(e.target.checked);
+  const input = e.target as HTMLInputElement;
+  if (input.id === 'peace') setPeaceful(input.checked);
 });
 
 /** Vredige modus aan of uit. Eén keer aan is genoeg om de score van dit spel half te laten tellen. */
-function setPeaceful(on) {
+function setPeaceful(on: boolean) {
   G.peaceful = on;
   if (on) G.stats.peaceUsed = true;
   toast(
@@ -207,6 +218,8 @@ export function openPause() {
 // Instellingen: vier tabbladen. Elke knop zegt met data-* wat hij verandert, zodat één
 // klik-afhandeling (hieronder) alles kan doen.
 let setTab = 'game';
+/** Alle instellingen als lijst met sleutels: zo kan één knop elke instelling lezen en omzetten. */
+type SettingsList = Record<string, unknown>;
 const SET_TABS = [
   ['game', 'Spel'],
   ['view', 'Beeld'],
@@ -214,14 +227,21 @@ const SET_TABS = [
   ['control', 'Besturing'],
 ];
 function showSettings() {
-  const row = (l, d, ctrl) => `<div class="setrow"><div><b>${l}</b><small>${d}</small></div>${ctrl}</div>`;
-  const tog = (k, l, d, on = SET[k]) =>
+  const row = (l: string, d: string, ctrl: string) =>
+    `<div class="setrow"><div><b>${l}</b><small>${d}</small></div>${ctrl}</div>`;
+  const tog = (k: string, l: string, d: string, on = (SET as SettingsList)[k]) =>
     row(
       l,
       d,
       `<button class="tog ${on ? 'on' : ''}" data-set="${k}" role="switch" aria-checked="${!!on}" aria-label="${l}"></button>`,
     );
-  const seg = (k, l, d, opts, cur = SET[k]) =>
+  const seg = (
+    k: string,
+    l: string,
+    d: string,
+    opts: [string | number, string][],
+    cur = (SET as SettingsList)[k],
+  ) =>
     row(
       l,
       d,
@@ -232,7 +252,16 @@ function showSettings() {
         )
         .join('')}</div>`,
     );
-  const slider = (k, l, d, min, max, step, val, show) =>
+  const slider = (
+    k: string,
+    l: string,
+    d: string,
+    min: number,
+    max: number,
+    step: number,
+    val: number,
+    show: string,
+  ) =>
     row(
       l,
       d,
@@ -243,9 +272,10 @@ function showSettings() {
   const peaceToggle = inGame && !G.scenario;
   const gfx = SET.gfx;
   const custom = SET.quality === 'custom';
+  // Nog geen (of een onbekende) stand: dan tonen we Hoog
   const nowLevel =
-    store.quality === 'custom' ? 'aangepast' : (LEVELS[store.quality] || LEVELS.high).name.toLowerCase();
-  const tabs = {
+    store.quality === 'custom' ? 'aangepast' : (LEVELS[store.quality!] || LEVELS.high).name.toLowerCase();
+  const tabs: Record<string, string> = {
     game:
       tog('coach', 'Tutorial', 'Stap-voor-stap hulp: "volgende stap" en oplichtende knoppen') +
       tog('tips', 'Uitleg bij de muis', 'Tooltips als je over iets heen beweegt') +
@@ -345,30 +375,39 @@ function showSettings() {
 }
 
 /** Een instelling omzetten of kiezen, en meteen laten werken. */
-function changeSetting(k, v) {
+function changeSetting(k: string, v?: string | number) {
   if (k === 'sound') return setSound(!sndOn);
   if (k === 'V2') return setView(!store.V2, true);
   if (k === 'peaceful') return setPeaceful(!G.peaceful);
-  if (k === 'quality') return setQuality(v);
+  // Bij Beeldkwaliteit is v altijd een woord, zoals 'auto' of 'high'
+  if (k === 'quality') return setQuality(v as string);
   if (k.startsWith('gfx.')) {
     const g = k.slice(4);
-    SET.gfx[g] = v === undefined ? !SET.gfx[g] : v;
+    const gfx: SettingsList = SET.gfx;
+    gfx[g] = v === undefined ? !gfx[g] : v;
     saveSet();
     return setQuality('custom');
   }
-  SET[k] = v === undefined ? !SET[k] : v;
+  const all: SettingsList = SET;
+  all[k] = v === undefined ? !all[k] : v;
   saveSet();
   applyLayoutSettings();
   if (k === 'hp') store.uiDirty = true;
   if (k === 'coach' || k === 'uiScale' || k === 'hudWide') setTimeout(measureHud, 30);
 }
 
+/** Wat het titelscherm meteen opent (zie showTitle hieronder). */
+interface TitleOpts {
+  setup?: boolean;
+  challenges?: boolean;
+  focus?: string | null;
+}
 /**
  * Het titelscherm: verder spelen, een nieuwe wereld, uitdagingen, prestaties, uitleg en instellingen.
- * Met `setup` opent meteen het nieuw-spelscherm (zie ui/newgame.js), met `challenges` de lijst met
- * uitdagingen (zie ui/challenges.js); `focus` is dan de uitdaging die open staat.
+ * Met `setup` opent meteen het nieuw-spelscherm (zie ui/newgame.ts), met `challenges` de lijst met
+ * uitdagingen (zie ui/challenges.ts); `focus` is dan de uitdaging die open staat.
  */
-export function showTitle({ setup = false, challenges = false, focus = null } = {}) {
+export function showTitle({ setup = false, challenges = false, focus = null }: TitleOpts = {}) {
   const has_ = (() => {
     try {
       return !!localStorage.getItem(SKEY);
@@ -390,7 +429,8 @@ export function showTitle({ setup = false, challenges = false, focus = null } = 
   };
   const drawHome = () => {
     // Bij een uitdaging staat haar naam erbij, anders de naam van je stad
-    const where = currentChallenge() ? currentChallenge().n : placeName();
+    // (de tweede keer is er zeker een uitdaging: net gecontroleerd)
+    const where = currentChallenge() ? currentChallenge()!.n : placeName();
     const continueButton = has_
       ? `<button class="mbtn primary" data-t="cont"><span>Verder spelen</span><small>${where} · dag&nbsp;${G.day} · ${AGES[G.age].n}</small></button>`
       : '';
@@ -419,7 +459,7 @@ export function showTitle({ setup = false, challenges = false, focus = null } = 
     el.oninput = el.onchange = el.onkeydown = null;
   };
   // Een nieuwe wereld of uitdaging beginnen: oude opslag weg, nieuwe wereld, titelscherm dicht
-  const startGame = opts => {
+  const startGame = (opts: NewGameOptions) => {
     // Voor de zekerheid: nooit beginnen met een volk dat (weer) op slot zit
     if (opts.people && !isPeopleUnlocked(opts.people, playerProfile())) opts.people = DEFAULT_PEOPLE;
     wipe();
@@ -427,10 +467,10 @@ export function showTitle({ setup = false, challenges = false, focus = null } = 
     leaveTitle();
   };
   const openSetup = () => showNewGame(el, draft, { onBack: drawHome, onStart: startGame });
-  const openChallenges = (focusOn = null) =>
+  const openChallenges = (focusOn: string | null = null) =>
     showChallenges(el, { focus: focusOn, hasSave: has_, onBack: drawHome, onStart: startGame });
-  const onHomeClick = e => {
-    const t = e.target.closest('button');
+  const onHomeClick = (e: MouseEvent) => {
+    const t = (e.target as HTMLElement).closest('button');
     if (!t) return;
     sfx('tick');
     if (t.dataset.t === 'help') showHelp();

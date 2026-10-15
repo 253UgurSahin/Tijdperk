@@ -27,7 +27,10 @@ export const DEFAULTS = {
   autosave: true,
 };
 
-export let SET = structuredClone(DEFAULTS);
+/** Alle instellingen, met hun soort (zie DEFAULTS). */
+export type Settings = typeof DEFAULTS;
+
+export let SET: Settings = structuredClone(DEFAULTS);
 try {
   const saved = JSON.parse(localStorage.getItem('tijdperken-set') || '{}');
   Object.assign(SET, saved, { gfx: { ...DEFAULTS.gfx, ...(saved.gfx || {}) } });
@@ -43,7 +46,8 @@ export function saveSet() {
 
 /** Alles terug naar de standaardwaarden. */
 export function resetSet() {
-  for (const k of Object.keys(SET)) delete SET[k];
+  // Alles weghalen, ook oude sleutels uit de opslag die niet (meer) in DEFAULTS staan
+  for (const k of Object.keys(SET)) delete (SET as Record<string, unknown>)[k];
   Object.assign(SET, structuredClone(DEFAULTS));
   saveSet();
   applyLayoutSettings();
@@ -55,7 +59,7 @@ export function applyLayoutSettings() {
   body.toggle('hudwide', !!SET.hudWide);
   body.toggle('nocoach', !SET.coach);
   body.toggle('calm', !SET.motion);
-  document.documentElement.style.setProperty('--ui-scale', SET.uiScale);
+  document.documentElement.style.setProperty('--ui-scale', String(SET.uiScale));
   const fps = document.getElementById('fps');
   if (fps) fps.hidden = !SET.fps;
 }

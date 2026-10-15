@@ -1,15 +1,23 @@
-// Winnen: kijkt of je een van de gekozen doelen hebt gehaald (zie data/victories.js) en toont dan het eindscherm.
+// Winnen: kijkt of je een van de gekozen doelen hebt gehaald (zie data/victories.ts) en toont dan het eindscherm.
 import { store } from '../core/store';
 import { AGES } from '../data/ages';
 import { VICTORY, reachedVictory } from '../data/victories';
+import type { VictoryDef, VictoryStoryFacts } from '../data/victories';
 import { endGame, upgradeWin } from './achievements';
 import { built } from './chapters';
 import { checkChallenge } from './scenario';
 import { G, placeName } from './state';
 import { myWonderCount } from './wonders';
 
+/** Een gekozen overwinning, met hoe ver je bent (zie victoryGoals). */
+export interface VictoryGoal {
+  v: VictoryDef;
+  frac: number;
+  text: string;
+}
+
 /** Alles wat de doelen willen weten, uit de spelstand van nu. */
-export function victoryFacts() {
+export function victoryFacts(): VictoryStoryFacts {
   return {
     age: G.age,
     day: G.day,
@@ -25,7 +33,7 @@ export function victoryFacts() {
 }
 
 /** De gekozen overwinningen van dit spel, met hoe ver je bent. Voor de doelenkaart. */
-export const victoryGoals = () => {
+export const victoryGoals = (): VictoryGoal[] => {
   const f = victoryFacts();
   return G.opts.victories.map(k => ({ v: VICTORY[k], frac: VICTORY[k].frac(f), text: VICTORY[k].text(f) }));
 };
@@ -33,7 +41,7 @@ export const victoryGoals = () => {
 /** Heb je net gewonnen? Dan het spel als gewonnen markeren en het eindscherm tonen. */
 export function checkVictory() {
   if (!G || G.over) return;
-  // Een uitdaging heeft haar eigen doel (en soms een tijdsgrens), zie game/scenario.js
+  // Een uitdaging heeft haar eigen doel (en soms een tijdsgrens), zie game/scenario.ts
   if (G.scenario) {
     checkChallenge();
     return;

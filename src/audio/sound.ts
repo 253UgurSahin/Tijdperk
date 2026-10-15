@@ -10,7 +10,7 @@ function out() {
   MG.gain.value = SET.vol;
   return MG;
 }
-export let AC = null,
+export let AC: AudioContext | null = null,
   sndOn = SET.sound !== false;
 // Welke geluiden bij "meldingen" horen en welke bij "klikjes" (zie de instellingen)
 const ALERTS = new Set(['alarm', 'raidend', 'meteor', 'bad']);
@@ -66,7 +66,7 @@ function noise(dur: number, vol: number, hp = 800, delay = 0) {
   g.connect(out());
   src.start(a.currentTime + delay);
 }
-export function sfx(k, minGap = 0.05) {
+export function sfx(k: string, minGap = 0.05) {
   if (!sndOn || (!SET.alerts && ALERTS.has(k)) || (!SET.uiSounds && UI_SOUNDS.has(k))) return;
   if (!AC && !ac()) return;
   const now = performance.now() / 1000;
@@ -185,7 +185,7 @@ export function setSound(on: boolean) {
   if (on) sfx('tick');
 }
 /** Volume direct aanpassen (schuifje in de instellingen). */
-export function setVolume(v) {
+export function setVolume(v: number) {
   SET.vol = v;
   saveSet();
   if (MG) MG.gain.value = v;

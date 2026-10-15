@@ -4,7 +4,7 @@ import { H, TAU, W } from '../config';
 import { NODES } from '../data/nodes';
 import { RES } from '../data/resources';
 import { G } from '../game/state';
-import { C, GB, M_, gCyl, gDod, gIco, gOct, mat } from './kit';
+import { C, GB, M_, gCyl, gDod, gIco, gOct, mat, type Paint } from './kit';
 import { CAM3, S3, cam } from './scene';
 import { hash2 } from '../util/random';
 import { TER, bmap, ground, node, ter } from '../world/world';
@@ -35,9 +35,9 @@ function bakePart(
 }
 // Een vorm met kleine willekeurige deuken, zodat niet elke boomkruin of steen een perfecte bol is.
 // Punten op dezelfde plek schuiven precies even ver, dus er ontstaan geen gaten.
-function lumpy(geo, seed, amount = 0.3) {
+function lumpy(geo: T3.BufferGeometry, seed: number, amount = 0.3) {
   const g = geo.clone(),
-    p = g.attributes.position;
+    p = g.attributes.position as T3.BufferAttribute;
   for (let i = 0; i < p.count; i++) {
     const x = p.getX(i),
       y = p.getY(i),
@@ -52,7 +52,7 @@ function lumpy(geo, seed, amount = 0.3) {
 // en hoe hoger een stukje blad, hoe meer het beweegt. Onderin is het bladerdek donkerder
 // (daar komt minder licht), bovenin lichter: dat geeft de kruinen diepte.
 export const WIND = { value: 0 };
-function foliage(color, low = 0.25, high = 1.1) {
+function foliage(color: string, low = 0.25, high = 1.1): T3.MeshStandardMaterial {
   const m = new T3.MeshStandardMaterial({ color, flatShading: true, roughness: 0.88 });
   m.onBeforeCompile = shader => {
     shader.uniforms.uWind = WIND;
@@ -94,7 +94,7 @@ const STARGLOW = mat('#b49cff', { e: '#8a5cff', ei: 0.9 });
 // Kruinen en stenen met deuken (een paar varianten, steeds hergebruikt)
 const BLOB = [lumpy(gIco(0), 1, 0.28), lumpy(gIco(0), 2, 0.28), lumpy(gIco(0), 3, 0.32)];
 const STONE = [lumpy(gDod(), 4, 0.35), lumpy(gDod(), 5, 0.4), lumpy(gIco(0), 6, 0.35)];
-const NVAR = {
+const NVAR: Record<string, NodePart[]> = {
   pine: [
     bakePart(gCyl(0.06, 0.07, 6), C.woodd, 0, 0, 0, 1, 0.4, 1),
     bakePart(gCyl(0, 0.42, 7), FOL.pine, 0, 0.28, 0, 1, 0.62, 1),
@@ -190,7 +190,7 @@ const CRAGS = CRAG_SHAPES.map(geo => {
   return m;
 });
 const SNOWC = new T3.Color('#e6ecf2');
-function placeCrags(x0, x1, y0, y1) {
+function placeCrags(x0: number, x1: number, y0: number, y1: number) {
   const n = [0, 0, 0],
     reach = Math.min(drawn.r, camDist() * 2),
     // Ver uitgezoomd zie je losse rotsen nauwelijks: dan minder
@@ -235,16 +235,16 @@ function placeCrags(x0, x1, y0, y1) {
     if (m.instanceColor) m.instanceColor.needsUpdate = true;
   });
 }
-let NI3 = {};
+let NI3: Record<string, T3.InstancedMesh[]> = {};
 // Op "laag" alleen de eenvoudige boomvormen en minder rotsblokken: dat scheelt veel driehoekjes
 let richTrees = true;
 /** Rijke bomen en bergen aan (middel/hoog) of uit (laag); bouwt de bronnen opnieuw op. */
-export function setNodeDetail(rich) {
+export function setNodeDetail(rich: boolean) {
   if (rich === richTrees) return;
   richTrees = rich;
   drawn.r = 0; // bij de volgende controle alles opnieuw neerzetten
 }
-const nodeVar = i => {
+const nodeVar = (i: number) => {
   const k = NODES[node[i]].k;
   if (k !== 'tree') return k;
   const x = i % W,

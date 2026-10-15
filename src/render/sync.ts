@@ -1,5 +1,5 @@
 // Houdt de 3D-wereld gelijk met de spelstand (nieuwe gebouwen, mensen die lopen).
-import type { GameState, Mobile } from '../types';
+import type { Building, BuildingDef, Foe, GameState, Mobile } from '../types';
 import * as T3 from 'three';
 import { store } from '../core/store';
 import { CN, CS, H, TAU, W } from '../config';
@@ -7,11 +7,11 @@ import { B } from '../data/buildings';
 import { RES } from '../data/resources';
 import { G, sel } from '../game/state';
 import { RINGG, quadG } from './decals';
-import { bx, mat, mergeStatic } from './kit';
+import { bx, isMesh, mat, mergeStatic } from './kit';
 import { makeBuilding, makeCamp, wallMask } from './models';
 import { nodesNeedUpdate, rebuildNodes } from './nodes';
 import { FOEK, makeUnit, makeVillager } from './people';
-import { animEntity, clearDying, initAnim, startDeath } from './animate';
+import { animEntity, clearDying, initAnim, startDeath, type Animated } from './animate';
 import { LAYER, clearParticles, emit, puff } from './particles';
 import { markOrder } from './effects';
 import { camDist } from './camera';
@@ -21,18 +21,96 @@ import { dirtyGround, node, road } from '../world/world';
 import { groundChanged } from './terrainlook';
 import { landSig, rivalColour } from '../game/rivals';
 
+/** Wat er per gebouw in de 3D-wereld bewaard wordt: houder (g), model (m), hoogte en bewegende delen. */
+interface BuildingRec {
+  g: T3.Group;
+  m: T3.Group;
+  /** Verandert de sleutel (soort, tijdperk, klaar, muurvorm), dan wordt het model opnieuw gemaakt. */
+  key: string;
+  h: number;
+  fires: T3.Object3D[];
+  flags: T3.Object3D[];
+  pumps: T3.Object3D[];
+  lamps: T3.Object3D[];
+  spins: T3.Object3D[];
+  /** Plekken in de wereld waar rook uit een schoorsteen komt: [x, y, z]. */
+  chims: [number, number, number][];
+  /** Was het gebouw af toen dit model gemaakt werd? */
+  done: boolean;
+  /** Vorige waarde van b.flash, om een nieuwe treffer te zien. */
+  flPrev: number;
+  /** Tijd tot het volgende rookpluimpje, en de bouwvoortgang bij het vorige beeldje. */
+  smokeT?: number;
+  prevProg?: number;
+}
+/**
+ * Een figuur zoals de 3D-weergave hem leest. Alleen soldaten van een rivaal hebben `rival` en `uk`,
+ * alleen vijanden kunnen vluchten (`retreat`); bij een dorpeling of jouw soldaat zijn die leeg.
+ */
+type Figure = Mobile & Partial<Pick<Foe, 'rival' | 'uk' | 'retreat'>>;
+/** Wat er per figuur (dorpeling, soldaat, vijand) in de 3D-wereld bewaard wordt (zie ook animate.ts). */
+export interface EntityRec {
+  g: T3.Group;
+  body: T3.Group;
+  key: string;
+  /** Vorige getekende plek, kijkrichting en hoe hard hij beweegt. */
+  px: number;
+  py: number;
+  ang: number;
+  mv: number;
+  /** Selectiecirkel: wanneer hij verscheen en hoe groot hij is. */
+  selT: number;
+  ringSize: number;
+  ring: T3.Mesh<T3.RingGeometry, T3.MeshBasicMaterial>;
+  /** De gekleurde schijf onder het figuur. */
+  base: T3.Mesh;
+  /** 1 als het figuur dit beeldje nog bestaat. */
+  seen: number;
+  /** Het figuur in de spelstand. */
+  e: Figure;
+  /** De laatste bestemming van een soldaat (voor de markering bij een nieuw looporder). */
+  gx?: number;
+  gy?: number;
+  // Voor de animatie (gezet door initAnim in animate.ts):
+  /** 'v', 'u' of 'f', en de soort figuur (bijv. 'archer'). */
+  kind: string;
+  k: string;
+  /** Soort aanval en wanneer de laatste begon. */
+  atk: string;
+  atkT: number;
+  /** Vorige waarde van swing en flash, en wanneer hij voor het laatst geraakt werd. */
+  swPrev: number;
+  flPrev: number;
+  hitT: number;
+  /** Gewone hoogte en grootte van het figuur. */
+  baseY: number;
+  baseS: number;
+  /** De werparm van een blijde, anders null. */
+  arm: T3.Object3D | null;
+  // Bij het sneuvelen (gezet door startDeath en stepDying in animate.ts):
+  dieT?: number;
+  machine?: boolean;
+  fallDir?: number;
+  landed?: number;
+}
+/** Wat er per vijandelijk kamp in de 3D-wereld bewaard wordt. */
+interface CampRec {
+  g: T3.Group;
+  fires: T3.Object3D[];
+}
+
 export const BG3 = new T3.Group(),
   EG3 = new T3.Group(),
   CG3 = new T3.Group();
 S3.add(BG3, EG3, CG3);
-export const bRec = new Map(),
-  eRec = new Map(),
-  cRec = new Map();
-let lastG = null,
-  terrSnap = null,
+export const bRec = new Map<number, BuildingRec>(),
+  eRec = new Map<number, EntityRec>(),
+  cRec = new Map<number, CampRec>();
+let lastG: GameState | null = null,
+  terrSnap: Uint8Array | null = null,
   unlSig = '';
 // Steigers rond een bouwplaats: palen, liggers op een paar hoogtes en een schoor
-export function scaffold(g, s, h) {
+export function scaffold(g: T3.Object3D, s: number, h: number) {
   const m = mat('#8a6a40'),
     plank = mat('#9a7c52'),
     e = s * 0.5;
@@ -57,7 +135,7 @@ export function scaffold(g, s, h) {
 let lastBT = 0;
 const tmpV = new T3.Vector3();
 // Rook uit schoorstenen: dunne pluimpjes bij huizen, dikkere grijze rook bij werkplaatsen die draaien
-function chimneySmoke(r, b, d, dt) {
+function chimneySmoke(r: BuildingRec, b: Building, d: BuildingDef, dt: number) {
   if (!r.chims.length || !b.done) return;
   const busy = (d.conv || d.gen) && b.act > 0;
   const rate = busy ? 2.6 : 1.6;
@@ -82,7 +160,7 @@ function chimneySmoke(r, b, d, dt) {
     );
 }
 // Bouwplaats: stofwolkjes zolang er gewerkt wordt; bij oplevering een stofring en wat glinstering
-function buildDust(r, b, s, dt) {
+function buildDust(r: BuildingRec, b: Building, s: number, dt: number) {
   if (b.prog > (r.prevProg ?? b.prog) && Math.random() < dt * 5) {
     const side = Math.random() * 4,
       u = Math.random() - 0.5;
@@ -92,7 +170,7 @@ function buildDust(r, b, s, dt) {
   }
   r.prevProg = b.prog;
 }
-function finishedBurst(g, s) {
+function finishedBurst(g: T3.Group, s: number) {
   const p = g.position;
   for (let k = 0; k < 18; k++) {
     const a = (k / 18) * Math.PI * 2;
@@ -114,7 +192,7 @@ function finishedBurst(g, s) {
   puff(LAYER.glow, 10, p.x, 0.6, p.z, 0.8, 1.5, 0.9, 0.04, 0.01, 0xffe6a0, 0.9, -1.5);
 }
 // Treffer op een gebouw: stof en een paar vonken ergens op de gevel
-function buildingHit(r, s) {
+function buildingHit(r: BuildingRec, s: number) {
   const p = r.g.position,
     x = p.x + (Math.random() - 0.5) * s * 0.8,
     z = p.z + (Math.random() - 0.5) * s * 0.8,
@@ -123,7 +201,7 @@ function buildingHit(r, s) {
   puff(LAYER.glow, 3, x, y, z, 1.4, 1.4, 0.3, 0.035, 0.01, 0xffc070, 1, -4);
 }
 export function syncBuildings() {
-  const seen = new Set(),
+  const seen = new Set<number>(),
     dt = lastBT ? Math.min(0.1, store.TM - lastBT) : 0;
   lastBT = store.TM;
   for (const b of G.bs) {
@@ -160,12 +238,12 @@ export function syncBuildings() {
         o.userData.bid = b.id;
       });
       BG3.add(g);
-      const fires = [],
-        flags = [],
-        pumps = [],
-        lamps = [],
-        spins = [],
-        chims = [];
+      const fires: T3.Object3D[] = [],
+        flags: T3.Object3D[] = [],
+        pumps: T3.Object3D[] = [],
+        lamps: T3.Object3D[] = [],
+        spins: T3.Object3D[] = [],
+        chims: [number, number, number][] = [];
       g.updateMatrixWorld(true);
       g.traverse(o => {
         if (o.userData.chim) {
@@ -204,8 +282,10 @@ export function syncBuildings() {
     for (const f of r.flags) f.rotation.y = Math.sin(store.TM * 2 + b.id) * 0.25;
     for (const p of r.pumps) if (b.on && b.done) p.rotation.z = Math.sin(store.TM * 2.2 + b.id) * 0.25;
     // Draaiende delen (molenwieken, waterrad, ringen) draaien alleen als het gebouw af is en aan staat
+    // (userData.axis is 'x', 'y' of 'z')
     if (b.done && b.on !== false)
-      for (const o of r.spins) o.rotation[o.userData.axis || 'y'] = store.TM * o.userData.spin + b.id;
+      for (const o of r.spins)
+        o.rotation[(o.userData.axis || 'y') as 'x' | 'y' | 'z'] = store.TM * o.userData.spin + b.id;
   }
   for (const [id, r] of bRec)
     if (!seen.has(id)) {
@@ -215,7 +295,7 @@ export function syncBuildings() {
       groundChanged();
     }
 }
-function entKey(e) {
+function entKey(e: Figure): string {
   if (e.rival) return 'r' + e.rival + e.uk; // soldaat van een rivaal
   return e.kind === 'v' ? 'v' + e.job : e.kind === 'u' ? 'u' + e.k : 'f' + e.type;
 }
@@ -247,8 +327,8 @@ const BIG_RING = new Set([
   'mech',
 ]);
 // Gereedschap dat een dorpeling vasthoudt, voor de juiste werkbeweging
-const TOOL = { food: 'hoe', sand: 'hoe', build: 'hammer' };
-function syncEnt(e, make) {
+const TOOL: Record<string, string> = { food: 'hoe', sand: 'hoe', build: 'hammer' };
+function syncEnt(e: Figure, make: () => T3.Group): EntityRec {
   let r = eRec.get(e.id);
   const key = entKey(e);
   if (!r || r.key !== key) {
@@ -344,8 +424,16 @@ export function syncEntities() {
     if (v.hidden) continue;
     const r = syncEnt(v, () => makeVillager(v.job));
     const work = (v.state === 'gather' || v.state === 'build') && r.mv < 0.3;
-    animEntity(r, v, r.mv > 0.3, work, TOOL[v.job] || (v.state === 'build' ? 'hammer' : 'pick'));
-    const c = r.body.userData.carry;
+    // Een dorpeling heeft geen wapen: swing en cd ontbreken, dus hij valt nooit aan.
+    // (Daarom de omweg via Mobile: het type Villager kent die velden niet.)
+    animEntity(
+      r,
+      v as Mobile as Animated,
+      r.mv > 0.3,
+      work,
+      TOOL[v.job] || (v.state === 'build' ? 'hammer' : 'pick'),
+    );
+    const c = r.body.userData.carry as T3.Mesh | undefined;
     if (c) {
       c.visible = v.carry.amt > 0;
       // Wie iets draagt, weet ook wat (carry.res)
@@ -374,10 +462,11 @@ export function syncEntities() {
   }
   for (const f of G.foes) {
     // Een rivaal heeft gewone soldaten in zijn eigen kleur; andere vijanden hun eigen rode figuren
+    // (een soldaat van een rivaal heeft altijd een soort, uk: zie spawnRivalUnit in game/rivals.ts)
     const make = () =>
-      f.rival ? makeUnit(f.uk, false, rivalColour(f.rival)) : makeUnit(FOEK[f.type] || 'plunder', true);
+      f.rival ? makeUnit(f.uk!, false, rivalColour(f.rival)) : makeUnit(FOEK[f.type] || 'plunder', true);
     const r = syncEnt(f, make);
-    const fl = r.body.userData.fly;
+    const fl = r.body.userData.fly as T3.Group | undefined;
     if (fl) {
       fl.position.y = 0.9 + Math.sin(store.TM * 3 + f.id) * 0.06;
       fl.traverse(o => {
@@ -479,7 +568,7 @@ export function checkWorld() {
   let changed = G.age !== store.nodeAge;
   if (!changed)
     for (let i = 0; i < W * H; i++)
-      if (node[i] !== store.nodeSnap[i]) {
+      if (node[i] !== store.nodeSnap![i]) {
         changed = true;
         break;
       }

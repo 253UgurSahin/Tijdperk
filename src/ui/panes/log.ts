@@ -10,15 +10,15 @@ import { setHTML } from '../header';
 import { $ } from '../../util/dom';
 
 /** Welke grondstoffen in de grafiek staan: voedsel, hout, steen en wat nieuw is in dit tijdperk (max. 5). */
-export const chartKeys = age =>
+export const chartKeys = (age: number): string[] =>
   ['food', 'wood', 'stone', ...RKEYS.filter(k => RES[k].age === age && !RES[k].cr)].slice(0, 5);
 
 /**
  * Teken de voorraadgrafiek op een canvas: één lijn per grondstof.
  * `hist` is G.hist: elke 10 seconden de hele voorraad (in de volgorde van RKEYS).
  */
-export function drawChart(c, hist, keys) {
-  const x = c.getContext('2d'),
+export function drawChart(c: HTMLCanvasElement, hist: number[][], keys: string[]) {
+  const x = c.getContext('2d')!,
     Wc = c.width,
     Hc = c.height;
   x.clearRect(0, 0, Wc, Hc);
@@ -51,12 +51,12 @@ export function drawChart(c, hist, keys) {
 }
 
 export function renderChart() {
-  const c = $('#chart');
-  if (!c || !G.hist.length || !document.querySelector('.pane[data-pane="log"]').classList.contains('on'))
+  const c = $<HTMLCanvasElement>('#chart');
+  if (!c || !G.hist.length || !document.querySelector('.pane[data-pane="log"]')!.classList.contains('on'))
     return;
   drawChart(c, G.hist, chartKeys(G.age));
 }
-function logItem(l) {
+function logItem(l: LogEntry): string {
   const j = l.x != null;
   return `<div class="e ${l.k}${j ? ' jump' : ''}" ${j ? `data-jx="${l.x}" data-jy="${l.y}" title="Klik om ernaartoe te gaan"` : ''}><span>DAG ${l.d}</span>${esc(l.t)}${j ? ' <i class="go">➜</i>' : ''}</div>`;
 }

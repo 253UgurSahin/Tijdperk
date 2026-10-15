@@ -23,7 +23,7 @@ import { insHandler, selCmds, selCtx } from './inspector';
 import { $ } from '../util/dom';
 import { clamp } from '../util/math';
 import { canMake } from '../data/succession';
-import { wonderBlockedNote, wonderStatus } from '../game/wonders';
+import { wonderBlockedNote, wonderStatus, type WonderInfo } from '../game/wonders';
 import { RIVAL } from '../data/rivals';
 import { WONDER_CREW, rivalWonderTime, winBackText, wonderBuildTime } from '../data/wonders';
 import { ico } from './glyphs';
@@ -36,7 +36,8 @@ export const costText = (c: Cost): string =>
 // Bouwmenu
 export function bShort(k: string): string {
   const d = B[k];
-  if (d.wonder) return d.perk;
+  // Elk wonder heeft een korte uitleg van zijn bonus (perk), zie data/buildings.ts
+  if (d.wonder) return d.perk!;
   if (d.road) return 'Sneller lopen · sleep om aan te leggen';
   if (d.wall) return d.gate ? 'Eigen volk door, vijand niet' : `Muur · ${d.hp} leven · sleep een lijn`;
   if (d.pop) return `+${d.pop} inwoners`;
@@ -90,7 +91,7 @@ function bDesc(k: string): string {
   const d = B[k];
   return (d.desc ? d.desc + ' ' : '') + bShort(k) + (d.power ? ` · verbruikt ${d.power} stroom` : '');
 }
-const CATKEY = { home: 'Z', eco: 'X', light: 'C', mil: 'B', wonder: 'N' };
+const CATKEY: Record<string, string> = { home: 'Z', eco: 'X', light: 'C', mil: 'B', wonder: 'N' };
 function renderCats() {
   const hc = store.coachTile && B[store.coachTile].cat;
   setHTML($('#cats'), 'cats', 'b' + store.tab + hc, () =>
@@ -116,11 +117,11 @@ $('#cats').addEventListener('click', e => {
 });
 function renderBuilds() {
   // Wat in dit tabblad staat; zonder leger (spelregel) geen kazernes en andere trainingsgebouwen
-  const inTab = k => !B[k].nobuild && B[k].cat === store.tab && ruleAllowsBuilding(k);
+  const inTab = (k: string) => !B[k].nobuild && B[k].cat === store.tab && ruleAllowsBuilding(k);
   const avail = BKEYS.filter(k => inTab(k) && canMake(k, G.age)),
     next = BKEYS.filter(k => inTab(k) && B[k].age === G.age + 1);
-  // Wereldwonderen: hoe het ervoor staat (vrij, van jou, weg, of iemand bouwt eraan), zie game/wonders.js
-  const wonder = {};
+  // Wereldwonderen: hoe het ervoor staat (vrij, van jou, weg, of iemand bouwt eraan), zie game/wonders.ts
+  const wonder: Record<string, WonderInfo> = {};
   for (const k of avail) if (B[k].wonder) wonder[k] = wonderStatus(k);
   const sig =
     'b' +
@@ -165,7 +166,8 @@ export function renderCmd() {
   const before = sigs.grid;
   if (selCmds != null) {
     setHTML($('#cats'), 'cats', 'c' + selCtx, () => `<span class="ctx">${esc(selCtx)}</span>`);
-    setHTML($('#cmdgrid'), 'grid', 'c' + selCmds, () => selCmds);
+    // selCmds is hierboven al gecontroleerd: niet leeg
+    setHTML($('#cmdgrid'), 'grid', 'c' + selCmds, () => selCmds!);
   } else {
     renderCats();
     renderBuilds();
@@ -181,7 +183,8 @@ function buildTileClick(c: HTMLElement) {
     );
     return;
   }
-  const k = c.dataset.b;
+  // Een tegel zonder data-locked heeft altijd data-b (zie renderBuilds)
+  const k = c.dataset.b!;
   // Een wereldwonder dat al van iemand is (of waar je al aan bouwt): zeg waarom het niet kan
   const blocked = B[k].wonder && wonderBlockedNote(k);
   if (blocked) {
@@ -208,13 +211,13 @@ $('#cmdgrid').addEventListener('click', e => {
   insHandler(e);
 });
 // Tooltip boven een tegel: de tip komt net boven de tegel, binnen het scherm
-function showTileTip(tile, html) {
+function showTileTip(tile: HTMLElement, html: string) {
   if (!SET.tips) return;
   const tip = $('#hovertip'),
     r = tile.getBoundingClientRect(),
     w = worldEl.getBoundingClientRect();
   tip.className = '';
-  tip.dataset.tile = 1; // zo laat hover.js deze tip staan als de muis niet boven de wereld is
+  tip.dataset.tile = '1'; // zo laat hover.ts deze tip staan als de muis niet boven de wereld is
   tip.innerHTML = html;
   tip.hidden = false;
   tip.style.left =
@@ -224,18 +227,19 @@ function showTileTip(tile, html) {
 $('#cmdgrid').addEventListener('pointerover', e => {
   if (mouse.touch) return;
   // Opdrachttegels (trainen, verbeteren, ...): naam, uitleg en de volledige kosten
-  const cmd = e.target.closest('.cb');
+  const cmd = (e.target as HTMLElement).closest<HTMLElement>('.cb');
   if (cmd) {
-    const name = cmd.getAttribute('aria-label'),
+    // Elke opdrachttegel heeft een aria-label (zie CB in ui/inspector.ts)
+    const name = cmd.getAttribute('aria-label')!,
       cost = cmd.querySelector('.cost');
     const why = cmd.dataset.tip && cmd.dataset.tip !== name ? `<span>${esc(cmd.dataset.tip)}</span>` : '';
     const full = cost ? cost.outerHTML.replace(' tight', '') : '';
     showTileTip(cmd, `<b>${esc(name)}</b>${why}${full}`);
     return;
   }
-  const c = e.target.closest('.gb');
+  const c = (e.target as HTMLElement).closest<HTMLElement>('.gb');
   if (!c) return;
-  const k = c.dataset.b || c.dataset.locked,
+  const k = c.dataset.b || c.dataset.locked!,
     d = B[k],
     idx = [...document.querySelectorAll('#cmdgrid .gb[data-b]')].indexOf(c);
   const when = `<span>Beschikbaar in de ${AGES[d.age].n.toLowerCase()}.</span>`;
@@ -252,20 +256,22 @@ $('#cmdgrid').addEventListener('pointerover', e => {
   );
 });
 $('#cmdgrid').addEventListener('pointerout', e => {
-  if (!e.relatedTarget || !e.relatedTarget.closest || !e.relatedTarget.closest('.gb,.cb')) hideTip();
+  const to = e.relatedTarget as HTMLElement | null;
+  if (!to || !to.closest || !to.closest('.gb,.cb')) hideTip();
 });
 // Tooltip bij een wereldwonder: wat het is, de bonus, de bouwtijd, hoe het ervoor staat en de kosten
-function wonderTip(k, costPart, key) {
+function wonderTip(k: string, costPart: string, key: string) {
   const d = B[k],
     w = wonderStatus(k);
   const status = `<span class="wtip ${w.tone}">${ico('★')}${esc(w.text)}</span>`;
   // Van een rivaal: zeg erbij dat je het nog terug kunt krijgen
   const winBack = w.owner && w.owner !== 'you' ? `<span>${esc(winBackText(k, w.owner))}</span>` : '';
   // Bouwtijd in seconden, met je bouwbonussen erbij
-  const secs = builders => Math.round(wonderBuildTime(k, builders) / mul('build.speed'));
+  const secs = (builders: number) => Math.round(wonderBuildTime(k, builders) / mul('build.speed'));
   const time = `<span class="wtime">Bouwtijd: ${secs(WONDER_CREW)} s met ${WONDER_CREW} bouwers, ${secs(8)} s met 8. Een rivaal doet er ${rivalWonderTime(k)} s over.</span>`;
   const rest = w.owner ? '' : time + costPart + key;
-  return `<b>${d.n}</b><span>${esc(d.desc)}</span><span class="wperk">Bonus: ${esc(d.perk)}.</span>${status}${winBack}${rest}`;
+  // Elk wonder heeft een beschrijving en een bonus (zie data/buildings.ts)
+  return `<b>${d.n}</b><span>${esc(d.desc!)}</span><span class="wperk">Bonus: ${esc(d.perk!)}.</span>${status}${winBack}${rest}`;
 }
 function hideTip() {
   delete $('#hovertip').dataset.tile;

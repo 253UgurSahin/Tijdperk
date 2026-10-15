@@ -1,4 +1,5 @@
 // Tussenresultaten die elke halve seconde opnieuw worden berekend (licht, stroom, wie wat verzamelt).
+import type { Building } from '../types';
 import { W } from '../config';
 import { B } from '../data/buildings';
 import { NI, NODES, RES_NODES } from '../data/nodes';
@@ -15,14 +16,17 @@ export let lights: { x: number; y: number; r: number; warm: boolean }[] = [],
   powerRatio = 1,
   powerSup = 0,
   powerDem = 0,
-  avail = {},
-  wr = {},
-  siteCnt = new Map(),
-  farmCnt = new Map(),
-  demand = {};
-/** Hoeveel stroom centrale b levert als hij draait. */
-export const genPower = b => B[b.type].gen.power * bRate(b) * mul('power');
-export function computeCaches() {
+  /** Wat er te verzamelen valt (1 of true), en hoeveel dorpelingen per grondstof werken. */
+  avail: Record<string, number | boolean> = {},
+  wr: Record<string, number> = {},
+  /** Hoeveel dorpelingen op weg zijn naar elke bouwplaats en akker (op id). */
+  siteCnt = new Map<number, number>(),
+  farmCnt = new Map<number, number>(),
+  /** Grondstoffen die gebouwen of soldaten nodig hebben (1 = nodig). */
+  demand: Record<string, number> = {};
+/** Hoeveel stroom centrale b levert als hij draait. Alleen voor gebouwen met `gen` (een centrale). */
+export const genPower = (b: Building): number => B[b.type].gen!.power * bRate(b) * mul('power');
+export function computeCaches(): void {
   powerSup = 0;
   powerDem = 0;
   for (const b of G.bs) {
@@ -73,7 +77,7 @@ export function computeCaches() {
   }
   if (G.us.length || G.bs.some(b => b.q.length)) demand.food = 1;
 }
-export function computeAvail() {
+export function computeAvail(): void {
   avail = {};
   for (const r of GATHER) {
     if (RES[r].age > G.age) continue;

@@ -2,21 +2,34 @@
 import { store } from '../core/store';
 import { SET } from '../core/settings';
 import { sfx } from '../audio/sound';
-import { PEOPLE, PEOPLES, isPeopleUnlocked, startLine } from '../data/peoples';
+import {
+  PEOPLE,
+  PEOPLES,
+  isPeopleUnlocked,
+  startLine,
+  type PeopleDef,
+  type UnlockInfo,
+} from '../data/peoples';
 import { G } from '../game/state';
 import { ico } from './glyphs';
 import { closeModal, openModal } from './modals';
 import { $ } from '../util/dom';
 
 /** Het spelersprofiel met prestaties. Zolang er nog geen prestaties zijn, is het leeg. */
-export const playerProfile = () => store.profile || {};
+export const playerProfile = (): UnlockInfo => store.profile || {};
+
+/** Wat een vaandel nodig heeft: een kleur (c) en een teken (g). Van een volk of van een rivaal. */
+interface FlagInfo {
+  c: string;
+  g: string;
+}
 
 /** Vaandel in de kleur van het volk, met zijn teken erop. `size`: 'sm' (klein) of 'lg' (groot). */
-export const bannerHTML = (people, size = '') =>
+export const bannerHTML = (people: FlagInfo, size = ''): string =>
   `<span class="banner ${size}" style="--flag:${people.c}" aria-hidden="true">${ico(people.g)}</span>`;
 
 // Wat een volk goed kan, als losse regels (met het startvoordeel als laatste, als dat gevraagd is)
-function linesHTML(people, withStart = true) {
+function linesHTML(people: PeopleDef, withStart = true) {
   const start = withStart ? startLine(people.k) : '';
   return (
     people.d.map(line => `<span class="fl">${line}</span>`).join('') +
@@ -25,11 +38,12 @@ function linesHTML(people, withStart = true) {
 }
 
 /** Eén kaart in de kiezer: vaandel, naam, motto, voordelen, en of hij op slot zit. */
-function cardHTML(people, chosen, profile) {
+function cardHTML(people: PeopleDef, chosen: boolean, profile: UnlockInfo) {
   const open = isPeopleUnlocked(people.k, profile);
   const cls = ['folk', chosen && 'on', !open && 'locked'].filter(Boolean).join(' ');
+  // Alleen een volk met `locked` kan op slot zitten
   const state = !open
-    ? `<span class="fstate lock">${ico('⚿')}Op slot · ${people.locked.text}</span>`
+    ? `<span class="fstate lock">${ico('⚿')}Op slot · ${people.locked!.text}</span>`
     : chosen
       ? `<span class="fstate pick">${ico('✓')}Gekozen</span>`
       : '';
@@ -42,8 +56,8 @@ function cardHTML(people, chosen, profile) {
 }
 
 // Wat er gebeurt als je in de kiezer een volk kiest (dat zegt het titelscherm)
-let onPick = null;
-let current = null;
+let onPick: ((k: string) => void) | null = null;
+let current: string | null = null;
 let closeTimer = 0;
 
 const gridHTML = () => {
@@ -52,7 +66,7 @@ const gridHTML = () => {
 };
 
 /** Open de kiezer met alle volken. `pick(k)` wordt aangeroepen met het gekozen volk. */
-export function showPeoplePicker(chosen, pick) {
+export function showPeoplePicker(chosen: string, pick: (k: string) => void) {
   clearTimeout(closeTimer);
   current = chosen;
   onPick = pick;
@@ -67,8 +81,9 @@ export function showPeoplePicker(chosen, pick) {
   );
 }
 
-function choose(card) {
-  const k = card.dataset.folk;
+function choose(card: HTMLElement) {
+  // De kaart is gevonden met [data-folk], dus die sleutel staat erop
+  const k = card.dataset.folk!;
   if (!isPeopleUnlocked(k, playerProfile())) {
     // Op slot: de kaart schudt even "nee"
     sfx('bad');
@@ -94,12 +109,12 @@ function choose(card) {
 }
 
 $('#modal').addEventListener('click', e => {
-  const card = e.target.closest('[data-folk]');
+  const card = (e.target as HTMLElement).closest<HTMLElement>('[data-folk]');
   if (card && onPick) choose(card);
 });
 
 /** Knop op het titelscherm: welk volk je nu hebt gekozen, klik om te wisselen. */
-export function peoplePickHTML(k) {
+export function peoplePickHTML(k: string) {
   const people = PEOPLE[k];
   return `<button class="folkpick" data-t="people" style="--flag:${people.c}" aria-label="Volk: ${people.n}. Kies een ander volk">
     ${bannerHTML(people, 'sm')}

@@ -71,9 +71,9 @@ export function completeBuilding(b: Building, silent?: boolean) {
     sfx('done');
     if (d.snd === 'creak') sfx('creak'); // de wieken van een nieuwe molen gaan draaien
   }
-  // Een wereldwonder: nu van jou, met zijn bonus (zie game/wonders.js)
+  // Een wereldwonder: nu van jou, met zijn bonus (zie game/wonders.ts)
   if (d.wonder) playerWonderDone(b, silent);
-  // De sterrenpoort: winnen, als dat een van de gekozen doelen is (zie game/victory.js)
+  // De sterrenpoort: winnen, als dat een van de gekozen doelen is (zie game/victory.ts)
   if (d.win) checkVictory();
   store.uiDirty = true;
 }
@@ -160,6 +160,6 @@ export function spawnFoe(type: number, x: number, y: number, scale: number, camp
   G.foes.push(f);
   return f;
 }
-export const popCap = () => G.bs.reduce((a, b) => a + (b.done ? bPop(b) : 0), 0) + add('pop');
-export const popNow = () => G.vs.length + G.us.length;
-export const trainCost = () => 50 + G.age * 10;
+export const popCap = (): number => G.bs.reduce((a, b) => a + (b.done ? bPop(b) : 0), 0) + add('pop');
+export const popNow = (): number => G.vs.length + G.us.length;
+export const trainCost = (): number => 50 + G.age * 10;

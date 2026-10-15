@@ -1,4 +1,5 @@
 // Het nieuw-spelscherm: kies je volk, moeilijkheid, kaart, zaadcode, rivalen en hoe je wint. Daarna begint de wereld.
+import type { NewGameOptions } from '../types';
 import { sfx } from '../audio/sound';
 import { H, W } from '../config';
 import { DIFFICULTIES, cleanDiff } from '../data/difficulty';
@@ -14,24 +15,36 @@ import {
   cleanRivalCount,
   rivalLineup,
 } from '../data/rivals';
-import { pickRivalSites } from '../world/rivalsites';
+import { pickRivalSites, type RivalSite } from '../world/rivalsites';
 import { G } from '../game/state';
 import { esc } from './format';
 import { ico } from './glyphs';
 import { bannerHTML, peoplePickHTML, playerProfile, showPeoplePicker } from './peoples';
 import { cleanCode, codeFromSeed, randomSeed, seedFromCode } from '../util/seedcode';
-import { BIOME, generateWorld } from '../world/generate';
+import { BIOME, generateWorld, type GeneratedWorld } from '../world/generate';
+
+/** De keuzes op het nieuw-spelscherm: volk, moeilijkheid, kaart, doelen, rivalen en zaadcode. */
+export interface NewGameDraft {
+  people: string;
+  diff: number;
+  map: string;
+  victories: string[];
+  rivals: number;
+  code: string;
+}
+/** Wat we van de vorige keer onthielden. Kan uit oude opslag komen: newGameDraft kijkt alles na. */
+type RememberedChoices = Partial<Omit<NewGameDraft, 'code'>>;
 
 // Je laatste keuzes (zonder zaadcode) blijven bewaard in de browser, voor de volgende nieuwe wereld
 const KEY = 'tijdperken-nieuwe-wereld';
-function rememberedChoices() {
+function rememberedChoices(): RememberedChoices {
   try {
     return JSON.parse(localStorage.getItem(KEY) || 'null') || {};
   } catch (e) {
     return {};
   }
 }
-function rememberChoices(draft) {
+function rememberChoices(draft: NewGameDraft) {
   const { people, diff, map, victories, rivals } = draft;
   try {
     localStorage.setItem(KEY, JSON.stringify({ people, diff, map, victories, rivals }));
@@ -42,15 +55,16 @@ function rememberChoices(draft) {
  * De keuzes waarmee het scherm opent: wat je de vorige keer koos, met een nieuwe zaadcode.
  * Met `keepCode` houden we de code van de wereld die nu achter het titelscherm ligt.
  */
-export function newGameDraft(keepCode = false) {
+export function newGameDraft(keepCode = false): NewGameDraft {
   // Een uitdaging heeft haar eigen instellingen (zoals Zwaar of een vast volk): die nemen we niet over
   const plainGame = !!G && !G.scenario;
   const remembered = rememberedChoices();
   const last = { ...(plainGame ? G.opts : {}), ...remembered };
   // Rivalen: wat je de vorige keer koos, anders één (de wereld achter het titelscherm telt niet mee)
   const rivals = Number.isInteger(remembered.rivals) ? cleanRivalCount(remembered.rivals) : DEFAULT_RIVALS;
+  // Ontbreekt het volk (of bestaat het niet meer), dan is PEOPLE[...] leeg en wordt het DEFAULT_PEOPLE
   const people =
-    PEOPLE[last.people] && isPeopleUnlocked(last.people, playerProfile()) ? last.people : DEFAULT_PEOPLE;
+    PEOPLE[last.people!] && isPeopleUnlocked(last.people!, playerProfile()) ? last.people! : DEFAULT_PEOPLE;
   return {
     people,
     // Wat ontbreekt of niet meer bestaat, wordt de standaard (Normaal, continent, de sterrenpoort)
@@ -65,9 +79,10 @@ export function newGameDraft(keepCode = false) {
 // ---- Onderdelen van het scherm ----
 
 /** Kopje boven een onderdeel, met eventueel een korte toelichting rechts. */
-const label = (text, note = '') => `<div class="ngl">${text}${note ? `<span>${note}</span>` : ''}</div>`;
+const label = (text: string, note = '') =>
+  `<div class="ngl">${text}${note ? `<span>${note}</span>` : ''}</div>`;
 
-function diffHTML(draft) {
+function diffHTML(draft: NewGameDraft) {
   const buttons = DIFFICULTIES.map(
     (d, i) =>
       `<button class="${i === draft.diff ? 'on' : ''}" data-diff="${i}" aria-pressed="${i === draft.diff}">
@@ -77,7 +92,7 @@ function diffHTML(draft) {
   return `<section class="ng-diff">${label('Moeilijkheid')}<div class="diff four">${buttons}</div></section>`;
 }
 
-function mapHTML(draft) {
+function mapHTML(draft: NewGameDraft) {
   const tiles = MAPS.map(
     m =>
       `<button class="ngtile ${m.k === draft.map ? 'on' : ''}" data-map="${m.k}" aria-pressed="${m.k === draft.map}">${ico(m.g)}<b>${m.n}</b></button>`,
@@ -87,13 +102,13 @@ function mapHTML(draft) {
 }
 
 /** Tekst onder de zaadcode: wat hij doet, of wat er mis is. */
-const seedHint = ok =>
+const seedHint = (ok: boolean) =>
   ok
     ? 'Zelfde code en kaart = dezelfde wereld. Deel hem met een vriend.'
     : 'Na TP- komen 4 tot 6 letters of cijfers, zoals TP-7K2Q.';
 
 /** De zaadcode met een kaartje van de wereld die eruit groeit. */
-function atlasHTML(draft) {
+function atlasHTML(draft: NewGameDraft) {
   const seed = seedFromCode(draft.code);
   const ok = seed !== null;
   const place = ok ? PLACES[seed % PLACES.length] : '';
@@ -114,7 +129,7 @@ function atlasHTML(draft) {
   </section>`;
 }
 
-function victoriesHTML(draft) {
+function victoriesHTML(draft: NewGameDraft) {
   const rows = SELECTABLE_VICTORIES.map(v => {
     const on = draft.victories.includes(v.k);
     // Verovering kan alleen met minstens één rivaal
@@ -132,8 +147,8 @@ function victoriesHTML(draft) {
 }
 
 /** Korte opmerkingen onder "Winnen", alleen als een keuze iets betekent wat je niet meteen ziet. */
-function winNotes(draft) {
-  const notes = [];
+function winNotes(draft: NewGameDraft) {
+  const notes: string[] = [];
   const stargate = draft.victories.includes('stargate');
   const short = draft.victories.some(k => !VICTORY[k].full);
   if (!stargate) notes.push('Zonder de sterrenpoort tellen prestaties voor winnen niet mee.');
@@ -148,7 +163,7 @@ function winNotes(draft) {
 }
 
 /** Hoeveel rivalen, met wie ze zijn (vast bij de zaadcode) en een korte uitleg. */
-function rivalsHTML(draft) {
+function rivalsHTML(draft: NewGameDraft) {
   const seed = seedFromCode(draft.code);
   // Een knop per aantal: Geen, 1, 2, 3
   const buttons = Array.from({ length: MAX_RIVALS + 1 }, (_, n) => n)
@@ -179,7 +194,7 @@ function rivalsHTML(draft) {
     <p class="nghint">${hint}</p></section>`;
 }
 
-function setupHTML(draft) {
+function setupHTML(draft: NewGameDraft) {
   const ok = seedFromCode(draft.code) !== null;
   // Met komma's: op een telefoon loopt dit door op een tweede regel, zonder los puntje aan het eind
   const foes = draft.rivals ? `, ${draft.rivals} ${draft.rivals === 1 ? 'rivaal' : 'rivalen'}` : '';
@@ -209,7 +224,7 @@ function setupHTML(draft) {
 // ---- Kaartje van de wereld ----
 
 // Kleuren per landschap, zoals de grond in het spel (iets feller, want het kaartje is klein)
-const COLORS = {
+const COLORS: Record<number, number[]> = {
   [BIOME.BEACH]: [196, 176, 124],
   [BIOME.GRASS]: [104, 136, 64],
   [BIOME.FOREST]: [60, 92, 46],
@@ -219,19 +234,19 @@ const COLORS = {
   [BIOME.SALT]: [222, 222, 212],
 };
 // Een paar kaartjes onthouden, zodat heen en weer klikken tussen kaartsoorten meteen werkt.
-// Per kaartje ook waar de rivalen wonen (dezelfde plekken als in het spel, zie world/rivalsites.js).
-const previews = new Map(),
-  rivalSpots = new Map();
+// Per kaartje ook waar de rivalen wonen (dezelfde plekken als in het spel, zie world/rivalsites.ts).
+const previews = new Map<string, ImageData>(),
+  rivalSpots = new Map<string, RivalSite[]>();
 let previewTimer = 0;
 
 /** Maak een plaatje van een wereld: kleur per landschap, met wat schaduw zodat je de bergen ziet. */
-function worldImage(world) {
+function worldImage(world: GeneratedWorld) {
   const img = new ImageData(W, H);
   const { biome, elev, levels } = world;
   for (let y = 0; y < H; y++)
     for (let x = 0; x < W; x++) {
       const i = y * W + x;
-      let c;
+      let c: number[];
       if (biome[i] === BIOME.WATER) {
         const deep = Math.min(1, Math.max(0, (levels.sea - elev[i]) / (levels.sea - levels.deep)));
         c = [70 - deep * 26, 112 - deep * 34, 128 - deep * 24];
@@ -247,15 +262,16 @@ function worldImage(world) {
 }
 
 /** Teken het kaartje bij de huidige zaadcode en kaartsoort. Een nieuwe wereld maken duurt even. */
-function paintPreview(el, draft) {
-  const canvas = el.querySelector('.ngmap canvas');
+function paintPreview(el: HTMLElement, draft: NewGameDraft) {
+  const canvas = el.querySelector<HTMLCanvasElement>('.ngmap canvas');
   const seed = seedFromCode(draft.code);
   if (!canvas || seed === null) return;
   const key = `${seed}:${draft.map}`;
   const img = previews.get(key);
-  canvas.parentElement.classList.toggle('busy', !img);
+  // Het canvas staat altijd in het vak .ngmap (zie atlasHTML)
+  canvas.parentElement!.classList.toggle('busy', !img);
   if (img) {
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext('2d')!;
     ctx.putImageData(img, 0, 0);
     // Je startplek: een ring in het midden
     ctx.lineWidth = 5;
@@ -289,7 +305,8 @@ function paintPreview(el, draft) {
       rivalSpots.set(nowKey, pickRivalSites(world.ter, W, H, now));
     }
     if (previews.size > 12) {
-      const oldest = previews.keys().next().value;
+      // Er staan er meer dan 12 in, dus er is zeker een oudste
+      const oldest = previews.keys().next().value!;
       previews.delete(oldest);
       rivalSpots.delete(oldest);
     }
@@ -299,32 +316,40 @@ function paintPreview(el, draft) {
 
 // ---- Het scherm zelf ----
 
+/** Wat het nieuw-spelscherm meekrijgt: terug naar het menu, en beginnen met deze keuzes. */
+interface NewGameScreenOpts {
+  onBack: () => void;
+  onStart: (opts: NewGameOptions) => void;
+}
+
 /**
  * Laat het nieuw-spelscherm zien in het titelscherm `el`. `draft` zijn de keuzes (zie newGameDraft).
  * `onBack()`: terug naar het hoofdmenu. `onStart(opts)`: begin de wereld met deze keuzes.
  */
-export function showNewGame(el, draft, { onBack, onStart }) {
+export function showNewGame(el: HTMLElement, draft: NewGameDraft, { onBack, onStart }: NewGameScreenOpts) {
   const draw = () => {
     el.innerHTML = setupHTML(draft);
     paintPreview(el, draft);
   };
   // Na het typen: Begin aan of uit, en de tekst eronder bijwerken (zonder alles opnieuw te tekenen)
+  // (draw heeft het scherm al getekend, dus al deze onderdelen bestaan)
   const codeTyped = () => {
     const ok = seedFromCode(draft.code) !== null;
-    const input = el.querySelector('#ngSeed');
+    const input = el.querySelector('#ngSeed')!;
     input.classList.toggle('bad', !ok);
     input.setAttribute('aria-invalid', String(!ok));
-    el.querySelector('.ngstart').disabled = !ok;
-    const hint = el.querySelector('#ngSeedHint');
+    el.querySelector<HTMLButtonElement>('.ngstart')!.disabled = !ok;
+    const hint = el.querySelector('#ngSeedHint')!;
     hint.classList.toggle('warn', !ok);
     hint.textContent = seedHint(ok);
     if (ok) {
-      const seed = seedFromCode(draft.code);
-      el.querySelector('.ngplace').innerHTML = `${ico('⚑')}${PLACES[seed % PLACES.length]}`;
+      // ok: de code klopt, dus er is een seed
+      const seed = seedFromCode(draft.code)!;
+      el.querySelector('.ngplace')!.innerHTML = `${ico('⚑')}${PLACES[seed % PLACES.length]}`;
     }
-    el.querySelector('.ngmap').classList.toggle('empty', !ok);
+    el.querySelector('.ngmap')!.classList.toggle('empty', !ok);
     // Andere code = andere rivalen
-    el.querySelector('.ng-riv').outerHTML = rivalsHTML(draft);
+    el.querySelector('.ng-riv')!.outerHTML = rivalsHTML(draft);
     paintPreview(el, draft);
   };
   const start = () => {
@@ -336,7 +361,7 @@ export function showNewGame(el, draft, { onBack, onStart }) {
   };
   draw();
   el.onclick = e => {
-    const t = e.target.closest('button');
+    const t = (e.target as HTMLElement).closest('button');
     if (!t) return;
     const ng = t.dataset.ng;
     if (ng === 'start') {
@@ -368,24 +393,27 @@ export function showNewGame(el, draft, { onBack, onStart }) {
     } else if (t.dataset.vic) toggleVictory(el, draft, t, draw);
   };
   el.oninput = e => {
-    if (e.target.id !== 'ngSeed') return;
-    draft.code = e.target.value;
+    const input = e.target as HTMLInputElement;
+    if (input.id !== 'ngSeed') return;
+    draft.code = input.value;
     codeTyped();
   };
   // Klaar met typen: de code netjes schrijven ("tp 7k2q" wordt "TP-7K2Q")
   el.onchange = e => {
-    if (e.target.id !== 'ngSeed') return;
+    const input = e.target as HTMLInputElement;
+    if (input.id !== 'ngSeed') return;
     const clean = cleanCode(draft.code);
-    if (clean) e.target.value = draft.code = clean;
+    if (clean) input.value = draft.code = clean;
   };
   el.onkeydown = e => {
-    if (e.target.id === 'ngSeed' && e.key === 'Enter') start();
+    if ((e.target as HTMLElement).id === 'ngSeed' && e.key === 'Enter') start();
   };
 }
 
 /** Een manier om te winnen aan of uit. De laatste mag niet uit: er moet altijd een doel zijn. */
-function toggleVictory(el, draft, tile, draw) {
-  const k = tile.dataset.vic;
+function toggleVictory(el: HTMLElement, draft: NewGameDraft, tile: HTMLElement, draw: () => void) {
+  // Alleen aangeroepen voor een knop met data-vic
+  const k = tile.dataset.vic!;
   if (!draft.victories.includes(k)) {
     draft.victories = cleanVictories([...draft.victories, k], draft.rivals);
     draw();
@@ -401,7 +429,7 @@ function toggleVictory(el, draft, tile, draw) {
   tile.classList.remove('nope');
   void tile.offsetWidth; // zo begint de animatie opnieuw
   tile.classList.add('nope');
-  const hint = el.querySelector('#ngWinHint');
+  const hint = el.querySelector('#ngWinHint')!;
   hint.textContent = 'Kies minstens één manier om te winnen.';
   hint.classList.add('warn');
 }

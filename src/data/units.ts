@@ -1,7 +1,8 @@
 // Je eigen soldaten en de vijanden. `bonus`: extra schade tegen een soort doel (zie bonusMul).
-// `people`: deze soldaat hoort bij één volk (zie data/peoples.js); andere volken kunnen hem niet trainen.
+// `people`: deze soldaat hoort bij één volk (zie data/peoples.ts); andere volken kunnen hem niet trainen.
 // `note`: korte extra uitleg voor de speler, bij de knop om hem te trainen.
-export const UNITS = {
+import type { FoeDef, UnitDef } from '../types';
+export const UNITS: Record<string, UnitDef> = {
   spear: {
     n: 'Speerdrager',
     bonus: { vs: 'ride', mul: 2, d: 'dubbele schade tegen ruiters' },
@@ -66,7 +67,7 @@ export const UNITS = {
     cost: { food: 55, iron: 15 },
     t: 8,
   },
-  // Alleen voor de Noormannen (zie data/peoples.js): vervangt daar de zwaardvechter.
+  // Alleen voor de Noormannen (zie data/peoples.ts): vervangt daar de zwaardvechter.
   // Slaat vaker toe en loopt iets sneller, maar heeft minder levens.
   berserker: {
     n: 'Berserker',
@@ -341,7 +342,7 @@ export const UNITS = {
   },
 };
 // Vijanden per tijdperk (index = tijdperk). ride = ruiters, proj = schieten, big = pantser, air = vliegt.
-export const FOES = [
+export const FOES: FoeDef[] = [
   { n: 'Wolven', hp: 30, dmg: 4, spd: 2.3, r: 0.9, rate: 1 },
   { n: 'Plunderaars', hp: 65, dmg: 7, spd: 1.7, r: 0.9, rate: 1.1 },
   { n: 'Barbaren', hp: 100, dmg: 9, spd: 1.8, r: 0.9, rate: 1.1 },
@@ -353,9 +354,21 @@ export const FOES = [
   { n: 'Ruimtepiraten', snd: 'laser', hp: 320, dmg: 15, spd: 2.2, r: 5, rate: 1, proj: 1 },
 ];
 
+/**
+ * Wat bonusMul van een doel wil weten: de soort (`kind`), en of het een ruiter (ride), gepantserd (big),
+ * een vlieger (air) of een schutter (proj) is.
+ */
+export interface BonusTarget {
+  kind: string;
+  ride?: boolean | 1;
+  big?: boolean | 1;
+  air?: boolean | 1;
+  proj?: boolean | 1;
+}
+
 /** Extra schade van eenheid `unit` tegen doel `target` (1 = geen bonus).
  *  Zo hebben eenheden een duidelijke rol: pieken tegen ruiters, geschut tegen kampen, enz. */
-export function bonusMul(unit, target) {
+export function bonusMul(unit: UnitDef, target: BonusTarget | null | undefined): number {
   const b = unit.bonus;
   if (!b || !target) return 1;
   // Een kamp is geen vijand maar een gebouw: daar kijken we naar het soort doel.

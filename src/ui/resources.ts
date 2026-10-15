@@ -32,7 +32,7 @@ $('#resbar').addEventListener('pointerover', e => {
   tip.className = '';
   tip.innerHTML = `<b>${RES[k].n}</b><span>${fmt(G.res[k])} op voorraad · ${rt >= 0 ? '+' : '−'}${Math.abs(Math.round(rt))} per minuut</span>${GATHER.includes(k) ? `<span>${wr[k] || 0} dorpelingen verzamelen</span>` : ''}${makers.length ? `<span>Gemaakt in: ${makers.join(', ')}</span>` : ''}${users.length ? `<span>Verbruikt door: ${users.join(', ')}</span>` : ''}`;
   tip.hidden = false;
-  tip.dataset.res = 1;
+  tip.dataset.res = '1';
   // De strook staat bovenaan: uitleg er netjes onder (in de lijst +N ernaast)
   const inPop = !!r.closest('#resPop');
   tip.style.left = clamp((inPop ? rr.right + 8 : rr.left) - w.left, 8, VW - 280) + 'px';
@@ -47,7 +47,7 @@ $('#resbar').addEventListener('pointerout', e => {
   }
 });
 // Grondstoffenstrook (bovenaan): eerst wat je nu nodig hebt, de rest via de knop +N
-export const rate = {};
+export const rate: Record<string, number> = {};
 function relevantRes() {
   const out: string[] = [],
     add = (k: string) => {
@@ -65,9 +65,9 @@ function relevantRes() {
   RKEYS.filter(k => RES[k].age === G.age).forEach(add);
   return out;
 }
-const resItem = k =>
+const resItem = (k: string): string =>
   `<div class="res" data-k="${k}">${gem(k)}<div><b>${fmt(G.res[k])}</b><small>${RES[k].n}</small><em></em></div><span class="wk zero" title="${GATHER.includes(k) ? 'Dorpelingen op deze grondstof' : 'Gebouwen die dit maken'}">${ico(GATHER.includes(k) ? '☺' : '⚙')}<span>0</span></span></div>`;
-export function buildResBar(force) {
+export function buildResBar(force?: boolean) {
   const all = relevantRes(),
     lim = isNarrow() ? 3 : isCompact() ? 4 : 14, // computer: strook bovenaan, zoveel als past
     max = Math.min(store.resMax, lim),

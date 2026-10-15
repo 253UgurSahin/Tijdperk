@@ -25,6 +25,16 @@ interface PersonOpts {
   skin?: number;
   tool?: string;
   shield?: string;
+  /** Veer op de hoed, stalen borstplaat en bontkraag (kleuren). */
+  plume?: string;
+  armor?: string;
+  fur?: string;
+  /** 1 = rond schild in plaats van een recht schild; 1 = pijlkoker op de rug. */
+  round?: number;
+  quiver?: number;
+  /** Gloeiend materiaal van het vizier en van het wapen (soldaten uit de toekomst). */
+  visor?: T3.Material;
+  glow?: T3.Material;
 }
 /** De armen en benen van een poppetje, om ze te laten bewegen (zie sync.ts). */
 export interface Limbs {
@@ -74,7 +84,8 @@ function person(g: T3.Group, o: PersonOpts) {
   } else if (o.hat === 'visor') {
     // Toekomsthelm met een gloeiend vizier
     sp(g, 0.09, o.hatc || '#2a2c34', 0, 0.48, 0, 0, 1.05);
-    mk(GB, o.visor, g, 0, 0.45, 0.075, 0.13, 0.045, 0.04);
+    // (wie een vizierhelm draagt, heeft in de lijst hieronder altijd ook een vizier)
+    mk(GB, o.visor!, g, 0, 0.45, 0.075, 0.13, 0.045, 0.04);
   }
   if (o.crest) bx(g, 0.03, 0.08, 0.12, o.crest, 0, 0.57, 0); // pluim op de helm, in legerkleur
   if (o.fur) bx(g, 0.22, 0.07, 0.14, o.fur, 0, 0.36, 0); // bontkraag over de schouders
@@ -174,7 +185,7 @@ export function makeVillager(job: string): T3.Group {
   return g;
 }
 // Een paard (lijf, vier benen, hoofd), gebruikt door ridders, kurassiers en de strijdwagen
-function horse(g, c, cd, z = 0) {
+function horse(g: T3.Object3D, c: string, cd: string, z = 0) {
   bx(g, 0.16, 0.2, 0.46, c, 0, 0.24, z);
   for (const [x, dz] of [
     [-0.06, -0.16],
@@ -188,14 +199,14 @@ function horse(g, c, cd, z = 0) {
   bx(g, 0.03, 0.14, 0.04, cd, 0, 0.2, z - 0.24); // staart
 }
 // Wiel dat dwars op de rijrichting staat
-function wheel(g, r, x, y, z, c = C.woodd) {
+function wheel(g: T3.Object3D, r: number, x: number, y: number, z: number, c = C.woodd) {
   const w = cy(g, r, 0.04, c, x, y, z, 10);
   w.rotation.z = Math.PI / 2;
   w.position.x = x + (x > 0 ? 0.04 : 0);
   return w;
 }
 // Sommige voertuigen zijn in de lengte langs x gebouwd; draai ze zodat de neus naar voren (z) wijst
-function faceForward(g) {
+function faceForward(g: T3.Group): T3.Group {
   const h = new T3.Group();
   h.add(...g.children);
   h.rotation.y = -Math.PI / 2;
@@ -204,9 +215,9 @@ function faceForward(g) {
 }
 /**
  * Een soldaat of vijand. `foe`: rood (vijand) in plaats van blauw (jouw leger).
- * `colour`: een eigen kleur, voor de soldaten van een rivaal (zie game/rivals.js).
+ * `colour`: een eigen kleur, voor de soldaten van een rivaal (zie game/rivals.ts).
  */
-export function makeUnit(k, foe, colour) {
+export function makeUnit(k: string, foe: boolean, colour?: string): T3.Group {
   const g = new T3.Group(),
     T = colour || (foe ? FOE : TEAM),
     TD = colour ? darker(colour) : foe ? '#7a2a24' : TEAMD;
@@ -354,7 +365,7 @@ export function makeUnit(k, foe, colour) {
     ax.rotation.z = Math.PI / 2;
     const arm = bx(g, 0.04, 0.7, 0.04, '#7a5a36', 0, 0.6, 0.12);
     arm.rotation.x = -0.75; // werparm schuin omhoog naar achteren
-    arm.name = 'arm'; // beweegt bij het werpen (zie animate.js)
+    arm.name = 'arm'; // beweegt bij het werpen (zie animate.ts)
     bx(g, 0.02, 0.12, 0.02, '#5a4a3a', 0, 0.98, -0.4); // slinger aan het eind
     bx(g, 0.16, 0.14, 0.14, '#6e6a64', 0, 0.45, 0.18); // tegengewicht
     const p = new T3.Group();
@@ -414,7 +425,7 @@ export function makeUnit(k, foe, colour) {
     for (const [l, x] of [
       [lL, -0.16],
       [lR, 0.16],
-    ]) {
+    ] as [T3.Group, number][]) {
       l.position.set(x, 0.62, 0);
       bx(l, 0.1, 0.32, 0.12, metal, 0, -0.32, 0);
       bx(l, 0.08, 0.32, 0.1, dark, 0, -0.6, 0.02);
@@ -430,7 +441,7 @@ export function makeUnit(k, foe, colour) {
     for (const [a, x] of [
       [aL, -0.27],
       [aR, 0.27],
-    ]) {
+    ] as [T3.Group, number][]) {
       a.position.set(x, 0.86, 0);
       bx(a, 0.12, 0.12, 0.14, metal, 0, -0.1, 0);
       bx(a, 0.08, 0.08, 0.36, dark, 0, -0.16, 0.12);
@@ -485,12 +496,12 @@ export function makeUnit(k, foe, colour) {
   return g;
 }
 // Een donkerdere tint van een kleur (#rrggbb), voor helmen en petten in de kleur van een rivaal
-function darker(hex) {
+function darker(hex: string): string {
   const n = parseInt(hex.slice(1), 16);
-  const part = shift => Math.round(((n >> shift) & 255) * 0.62);
+  const part = (shift: number) => Math.round(((n >> shift) & 255) * 0.62);
   return '#' + ((part(16) << 16) | (part(8) << 8) | part(0)).toString(16).padStart(6, '0');
 }
-// Model per vijandsoort, in dezelfde volgorde als FOES in data/units.js
+// Model per vijandsoort, in dezelfde volgorde als FOES in data/units.ts
 export const FOEK = [
   'wolf',
   'plunder',

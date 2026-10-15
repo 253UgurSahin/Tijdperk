@@ -6,14 +6,15 @@ import { NI } from '../src/data/nodes';
 
 const W = 256,
   H = 256;
-const worlds = [11, 4242, 987654].map(seed => [seed, generateWorld(seed, W, H)]);
+const worlds: [number, GeneratedWorld][] = [11, 4242, 987654].map(seed => [seed, generateWorld(seed, W, H)]);
 // Elke kaartsoort met twee seeds (het continent is hierboven al getest)
 const mapWorlds = MAPS.filter(m => m.k !== 'continent').flatMap(m =>
-  [5, 4242].map(seed => [`${m.n} ${seed}`, generateWorld(seed, W, H, m.k)]),
+  [5, 4242].map((seed): [string, GeneratedWorld] => [`${m.n} ${seed}`, generateWorld(seed, W, H, m.k)]),
 );
 
 // Hoeveel van de kaart (als deel van 1) dit landschap heeft
-const share = (w, ...biomes) => w.biome.filter(b => biomes.includes(b)).length / (W * H);
+const share = (w: GeneratedWorld, ...biomes: number[]) =>
+  w.biome.filter(b => biomes.includes(b)).length / (W * H);
 
 // Alle tegels die je vanaf de start lopend kunt bereiken
 function reachable(w: GeneratedWorld) {
@@ -76,8 +77,9 @@ describe('wereldgenerator', () => {
   it('eilanden hebben meer zee, bergland meer heuvels en bergen', () => {
     for (const seed of [5, 4242]) {
       const continent = generateWorld(seed, W, H, 'continent');
-      const islands = mapWorlds.find(([name]) => name === `Eilanden ${seed}`)[1];
-      const highlands = mapWorlds.find(([name]) => name === `Bergland ${seed}`)[1];
+      // Beide kaarten staan zeker in mapWorlds (zie bovenaan)
+      const islands = mapWorlds.find(([name]) => name === `Eilanden ${seed}`)![1];
+      const highlands = mapWorlds.find(([name]) => name === `Bergland ${seed}`)![1];
       expect(share(islands, BIOME.WATER)).toBeGreaterThan(share(continent, BIOME.WATER) + 0.1);
       expect(share(highlands, BIOME.HILLS, BIOME.MOUNTAIN)).toBeGreaterThan(
         share(continent, BIOME.HILLS, BIOME.MOUNTAIN) + 0.1,

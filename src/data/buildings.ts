@@ -562,10 +562,10 @@ export const B: Record<string, BuildingDef> = {
   },
 
   /*
-   * Wereldwonderen: één per tijdperk, en elk maar één keer per wereld (zie data/wonders.js).
+   * Wereldwonderen: één per tijdperk, en elk maar één keer per wereld (zie data/wonders.ts).
    * Bouwt een rivaal het eerst, dan is het bezet tot je het verwoest of hem verslaat.
    * Ze kosten ongeveer drie keer de stap naar het volgende tijdperk, duren lang om te bouwen
-   * (bt: seconden met 3 bouwers, zie data/wonders.js) en geven een vaste bonus.
+   * (bt: seconden met 3 bouwers, zie data/wonders.ts) en geven een vaste bonus.
    * - article: het lidwoord ("het Hunebed") · perk: de bonus in gewone woorden, met dezelfde getallen
    */
   dolmen: {
@@ -712,4 +712,10 @@ export const ROADS: RoadDef[] = [
   { n: 'Klinkerweg', cost: { stone: 4 } },
   { n: 'Asfaltweg', cost: { stone: 3, steel: 1 } },
 ];
-export const CATS = { home: 'Wonen', eco: 'Economie', light: 'Licht', mil: 'Leger', wonder: 'Wonderen' };
+export const CATS: Record<string, string> = {
+  home: 'Wonen',
+  eco: 'Economie',
+  light: 'Licht',
+  mil: 'Leger',
+  wonder: 'Wonderen',
+};
