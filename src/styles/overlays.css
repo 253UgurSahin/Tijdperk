@@ -232,20 +232,7 @@
   width: 22px;
   height: 22px;
 }
-#event .ch {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 6px;
-}
-#event .ch button {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 3px;
-  padding: 8px 10px;
-  font-weight: 600;
-  text-align: left;
-}
+/* De keuzes van een gebeurtenis staan in events.css */
 #event .bar {
   height: 3px;
 }

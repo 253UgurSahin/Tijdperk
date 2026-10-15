@@ -1,41 +1,179 @@
-// Kaartjes voor gebeurtenissen en handelsaanbiedingen.
+// Kaartjes voor gebeurtenissen (met keuzes), de tijdelijke bonussen daarvan en handelsaanbiedingen.
 import { store } from '../core/store.js';
 import { sfx } from '../audio/sound.js';
+import {
+  CHOICE_TIME,
+  EVENT,
+  allowedChoices,
+  amountsFor,
+  buffEffect,
+  buffMood,
+  choiceProblem,
+  defaultChoice,
+  hasDownside,
+} from '../data/events.js';
 import { RES } from '../data/resources.js';
 import { has, pay } from '../game/economy.js';
-import { EVENTS, resolveEvent } from '../game/events.js';
+import { dayLength, eventRules, haveNow, resolveEvent } from '../game/events.js';
 import { G } from '../game/state.js';
-import { costHTML, esc, gem } from './format.js';
+import { costHTML, esc, fmt, gem } from './format.js';
 import { setHTML, sigs } from './header.js';
 import { note, pulseRes, toast } from './hud.js';
 import { $ } from '../util/dom.js';
 import { ico } from './glyphs.js';
 
-// Gebeurteniskaartje
+/** Het gebeurteniskaartje en het rijtje tijdelijke bonussen eronder. */
 export function renderEvent() {
+  renderEventCard();
+  renderBuffs();
+}
+
+function renderEventCard() {
   const ev = G.event,
     el = $('#event');
-  if (!ev) {
+  const def = ev && EVENT[ev.k];
+  if (!def) {
     el.hidden = true;
     sigs.ev = null;
     return;
   }
-  const d = EVENTS.find(e => e.id === ev.id);
   el.hidden = false;
-  const sig = 'e' + ev.id + ev.until + (ev.ca ? has(ev.ca) : 1) + Math.floor((ev.until - G.t) / 3);
-  setHTML(
-    el,
-    'ev',
-    sig,
-    () =>
-      `<div class="eh"><div class="ic">${ico(d.g)}</div><div><b>${d.t}</b><p>${esc(ev.text)}</p></div></div><div class="ch"><button class="primary" data-ev="a" ${ev.ca && !has(ev.ca) ? 'disabled' : ''}>${d.a.l}${ev.ca ? costHTML(ev.ca) : ''}</button><button data-ev="b">${d.b.l}<span class="cost">standaard na ${Math.ceil(ev.until - G.t)}s</span></button></div><div class="bar acc"><i style="width:${((ev.until - G.t) / 45) * 100}%"></i></div>`,
-  );
+  const options = allowedChoices(def, eventRules());
+  const problems = options.map(i => choiceProblem(def.choices[i], G.age, haveNow()));
+  const left = Math.max(0, Math.ceil(ev.until - G.t));
+  const sig = [ev.k, ev.until, G.age, options, problems, Math.floor(left / 3)].join('|');
+  setHTML(el, 'ev', sig, () => {
+    const choices = options.map((i, n) => choiceHTML(def, i, problems[n], i === defaultChoice(def), left));
+    const timeBar = `<div class="bar acc"><i style="width:${(left / CHOICE_TIME) * 100}%"></i></div>`;
+    return [cardHeader(def, ev), `<div class="ch">${choices.join('')}</div>`, timeBar].join('');
+  });
 }
+
+// Bovenaan het kaartje: pictogram, "Gebeurtenis" of "Vervolg op: ...", de naam en het verhaal
+function cardHeader(def, ev) {
+  const from = EVENT[ev.from];
+  const kicker = from ? `Vervolg op: ${from.n}` : 'Gebeurtenis';
+  return [
+    '<div class="eh">',
+    `<div class="ic">${ico(def.g)}</div>`,
+    '<div>',
+    `<span class="ek">${esc(kicker)}</span>`,
+    `<b>${esc(def.n)}</b>`,
+    `<p>${esc(ev.text)}</p>`,
+    '</div>',
+    '</div>',
+  ].join('');
+}
+
+// Eén keuze: naam en kosten bovenaan, daaronder wat je krijgt of kwijtraakt en wat er gebeurt.
+function choiceHTML(def, i, problem, isDefault, left) {
+  const choice = def.choices[i];
+  const cost = amountsFor(choice.cost, G.age);
+  const gain = amountsFor(choice.gain, G.age) || {};
+  const lose = amountsFor(choice.lose, G.age) || {};
+  const changes = [
+    ...Object.entries(gain).map(([r, n]) => changeChip(r, `+${fmt(n)}`, 'up')),
+    ...Object.entries(lose).map(([r, n]) => changeChip(r, `−${fmt(n)}`, 'down')),
+  ].join('');
+  // "gratis" alleen als de keuze niets kost en ook geen nadeel heeft
+  let price = '';
+  if (cost) price = costHTML(cost);
+  else if (!hasDownside(choice)) price = '<span class="free">gratis</span>';
+  const why = problem ? `<span class="why">${esc(problem)}</span>` : '';
+  const auto = isDefault ? `<span class="auto">Gebeurt vanzelf over ${left} s</span>` : '';
+  return [
+    `<button class="evc${isDefault ? ' def' : ''}" data-ev="${i}" ${problem ? 'disabled' : ''}>`,
+    `<span class="el"><b>${esc(choice.l)}</b>${price}</span>`,
+    `<span class="ed">${changes}${esc(choice.d)}</span>`,
+    why,
+    auto,
+    '</button>',
+  ].join('');
+}
+
+// Een fiche met wat je krijgt (groen, 'up') of kwijtraakt (rood, 'down')
+function changeChip(r, amount, direction) {
+  return `<span class="dlt ${direction}" title="${RES[r].n}">${gem(r)}${amount}</span>`;
+}
+
 $('#event').addEventListener('click', e => {
   const t = e.target.closest('button');
   if (!t || t.disabled) return;
-  resolveEvent(t.dataset.ev);
+  resolveEvent(+t.dataset.ev);
 });
+
+// Hoe lang een tijdelijke bonus nog duurt, in dagen of (op de laatste dag) in uren
+function timeLeft(until) {
+  const days = (until - G.t) / dayLength();
+  if (days >= 1.5) return `nog ${Math.round(days)} dagen`;
+  if (days >= 1) return 'nog 1 dag';
+  return `nog ${Math.max(1, Math.ceil(days * 24))} uur`;
+}
+
+// Wanneer een vervolg komt: vandaag, morgen of op dag zoveel
+function whenComing(day) {
+  if (day <= G.day) return 'vandaag';
+  return day === G.day + 1 ? 'morgen' : `dag ${day}`;
+}
+
+/** Tijdelijke bonussen (en vervolgen die nog komen) als kleine plaatjes onder de kaartjes. */
+function renderBuffs() {
+  const el = $('#buffs');
+  const buffs = G.buffs || [],
+    coming = G.followups || [];
+  if (!buffs.length && !coming.length) {
+    el.hidden = true;
+    sigs.buffs = null;
+    return;
+  }
+  el.hidden = false;
+  const times = buffs.map(b => timeLeft(b.until));
+  const sig = [buffs.map((b, n) => b.k + times[n]), coming.map(f => f.k + f.day), G.day].join('|');
+  setHTML(el, 'buffs', sig, () => {
+    const active = buffs.map((b, n) => buffPill(b, n, times[n]));
+    const soon = coming.map((f, n) => followPill(f, n));
+    return active.concat(soon).join('');
+  });
+}
+
+// Een lopende bonus: wat je koos, wat het doet en hoe lang nog. Tik erop voor de hele uitleg.
+function buffPill(b, n, left) {
+  const effect = buffEffect(b.d) || b.d;
+  return [
+    `<button type="button" class="buff ${buffMood(b.bonus)}" data-buff="${n}">`,
+    ico(b.g),
+    `<b>${esc(b.l || b.n)}</b>`,
+    `<span>${esc(effect)}</span>`,
+    `<i>${left}</i>`,
+    '</button>',
+  ].join('');
+}
+
+// Een vervolg dat nog komt: alleen de naam van de eerdere gebeurtenis, zodat de verrassing blijft
+function followPill(f, n) {
+  const from = EVENT[f.from];
+  return [
+    `<button type="button" class="buff soon" data-follow="${n}">`,
+    ico('⌛'),
+    `<b>Vervolg: ${esc(from ? from.n : 'een gebeurtenis')}</b>`,
+    `<i>${whenComing(f.day)}</i>`,
+    '</button>',
+  ].join('');
+}
+
+// Tikken op een plaatje laat de hele uitleg zien (ook op een telefoon, waar zweven niet kan)
+$('#buffs').addEventListener('click', e => {
+  const pill = e.target.closest('button');
+  if (!pill) return;
+  const b = G.buffs[pill.dataset.buff],
+    f = G.followups[pill.dataset.follow];
+  if (b) toast(`${b.n}, je koos: ${b.l || b.n}. ${b.d} (${timeLeft(b.until)})`);
+  else if (f) {
+    const from = EVENT[f.from];
+    toast(`Er komt nog een vervolg op ${from ? from.n : 'een gebeurtenis'} (${whenComing(f.day)}).`);
+  }
+});
+
 export function renderOffer() {
   const o = G.offer,
     el = $('#offer');
@@ -45,14 +183,18 @@ export function renderOffer() {
     return;
   }
   el.hidden = false;
-  const sig = 'o' + o.until + has({ [o.give]: o.price }) + Math.floor((o.until - G.t) / 5);
-  setHTML(
-    el,
-    'offer',
-    sig,
-    () =>
-      `<div class="ic">${ico('⚖')}</div><div class="t"><b>Reizende handelaar</b>${gem(o.want)} ${o.amt} ${RES[o.want].n} voor ${gem(o.give)} ${o.price} ${RES[o.give].n}<div class="bar acc"><i style="width:${((o.until - G.t) / 70) * 100}%"></i></div></div><button class="primary" data-o="ok" ${has({ [o.give]: o.price }) ? '' : 'disabled'}>Ruil</button><button class="quiet" data-o="no" aria-label="Afslaan">${ico('✕')}</button>`,
-  );
+  const canPay = has({ [o.give]: o.price });
+  const sig = 'o' + o.until + canPay + Math.floor((o.until - G.t) / 5);
+  setHTML(el, 'offer', sig, () => {
+    const deal = `${gem(o.want)} ${o.amt} ${RES[o.want].n} voor ${gem(o.give)} ${o.price} ${RES[o.give].n}`;
+    const timeBar = `<div class="bar acc"><i style="width:${((o.until - G.t) / 70) * 100}%"></i></div>`;
+    return [
+      `<div class="ic">${ico('⚖')}</div>`,
+      `<div class="t"><b>Reizende handelaar</b>${deal}${timeBar}</div>`,
+      `<button class="primary" data-o="ok" ${canPay ? '' : 'disabled'}>Ruil</button>`,
+      `<button class="quiet" data-o="no" aria-label="Afslaan">${ico('✕')}</button>`,
+    ].join('');
+  });
 }
 $('#offer').addEventListener('click', e => {
   const t = e.target.closest('button');

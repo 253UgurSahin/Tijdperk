@@ -5,6 +5,7 @@ import { ACHIEVEMENT } from '../data/achievements.js';
 import { BLESSING } from '../data/blessings.js';
 import { B } from '../data/buildings.js';
 import { cleanDiff } from '../data/difficulty.js';
+import { cleanActiveEvent, cleanBuffs, cleanEventsSeen, cleanFollowups } from '../data/events.js';
 import { cleanMods } from '../data/modifiers.js';
 import { DEFAULT_PEOPLE, PEOPLE } from '../data/peoples.js';
 import { RKEYS } from '../data/resources.js';
@@ -68,9 +69,12 @@ export function serialize() {
     'diff',
     'tech',
     'research',
-    'buff',
     'forceRaid',
     'lastEvent',
+    'event',
+    'buffs',
+    'followups',
+    'eventsSeen',
     'nextMeteor',
     'blessings',
     'blessingQueue',
@@ -155,6 +159,22 @@ export function deserialize(str) {
     G.blessingQueue = [{ age: G.age, at: 0 }];
   }
   G.blessings = G.blessings.filter(k => BLESSING[k]); // zegeningen die niet meer bestaan vallen weg
+  // Gebeurtenissen: tijdelijke bonussen, vervolgen en het open kaartje. Ook vóór de soldaten (levens).
+  G.buffs = cleanBuffs(s.g.buffs);
+  // Opslag van vóór de tijdelijke bonussen: een lopend oogstfeest wordt er gewoon één
+  if (s.g.buff && s.g.buff.work > G.t)
+    G.buffs.push({
+      k: 'feast',
+      n: 'Oogstfeest',
+      g: '⚘',
+      d: 'Al het verzamelwerk 25% sneller',
+      bonus: { 'gather.all': 0.25 },
+      until: s.g.buff.work,
+    });
+  delete G.buff;
+  G.followups = cleanFollowups(s.g.followups);
+  G.eventsSeen = cleanEventsSeen(s.g.eventsSeen);
+  G.event = cleanActiveEvent(s.g.event);
   // Volk: opslag van vóór de volken (of met een volk dat niet meer bestaat) speelt als Friezen
   if (!PEOPLE[G.people]) G.people = DEFAULT_PEOPLE;
   if (!Array.isArray(G.blessingQueue)) G.blessingQueue = [];
@@ -173,11 +193,9 @@ export function deserialize(str) {
   G.toolLvl = s.g.toolLvl || 0;
   G.armsLvl = s.g.armsLvl || 0;
   G.tech = G.tech || {};
-  G.buff = G.buff || {};
   G.diff = cleanDiff(G.diff);
   // Opslag van vóór deze teller: stond de vredige modus aan (of speel je Vredig), dan telt dat als gebruikt
   if (G.peaceful || G.diff === 0) G.stats.peaceUsed = true;
-  G.event = null;
   if (s.road) road.set(ub64(s.road));
   node.set(ub64(s.node));
   amt.set(new Uint16Array(ub64(s.amt).buffer));

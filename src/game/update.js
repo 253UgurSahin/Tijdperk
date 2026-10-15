@@ -7,7 +7,7 @@ import { TK } from '../data/tech.js';
 import { bUpdate } from './buildings.js';
 import { computeAvail, computeCaches } from './caches.js';
 import { spawnFoe } from './entities.js';
-import { makeOffer, resolveEvent, spawnEvent, th } from './events.js';
+import { makeOffer, th, updateEvents } from './events.js';
 import { fUpdate, uUpdate, updateProj } from './military.js';
 import { G } from './state.js';
 import { advanceClock, isNight } from './time.js';
@@ -59,9 +59,8 @@ export function update(dt) {
   // Genezen (bijv. door Kruidenkunde): je volk krijgt elke seconde levens terug
   const heal = add('heal');
   if (heal) for (const v of G.vs) if (!v.hidden) v.hp = Math.min(v.mhp, v.hp + dt * heal);
-  if (!G.event && G.day >= 2 && !isNight() && G.t - G.lastEvent > 150 && Math.random() < dt / 220)
-    spawnEvent();
-  if (G.event && G.t > G.event.until) resolveEvent('b', true);
+  // Gebeurtenissen met keuzes, hun vervolgen en tijdelijke bonussen (zie game/events.js)
+  updateEvents(dt);
   store.histT -= dt;
   if (store.histT <= 0) {
     store.histT = 10;

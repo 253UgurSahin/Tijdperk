@@ -13,4 +13,5 @@
 @import './achievements.css';
 @import './newgame.css';
 @import './challenges.css';
+@import './events.css';
 @import './settings.css'; /* als laatste: de grootte-instelling moet boven de rest winnen */

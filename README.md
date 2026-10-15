@@ -12,6 +12,10 @@ Een real-time strategiespel in de browser: leid je stam van de **steentijd** naa
 - Zegeningen: na de eerste minuut en bij elk nieuw tijdperk kies je één van drie kaarten met een voordeel voor de
   rest van het spel (sommige met een nadeel erbij). Dezelfde wereld geeft dezelfde kaarten; je zegeningen staan
   bovenaan het paneel Verbeteren
+- Gebeurtenissen: ruim 40, de meeste horen bij een tijdperk (wolven, een ingestorte mijn, de pest, tulpenmanie,
+  een staking, hackers, een signaal uit de ruimte, ...). Elke keuze heeft een voor- en een nadeel. Sommige geven
+  een tijdelijke bonus (onder de kaartjes zie je wat hij doet en hoe lang nog; tik erop voor uitleg) of krijgen
+  dagen later een vervolg dat afhangt van wat je koos. Kies je niet op tijd, dan gebeurt de laatste keuze vanzelf
 - Nieuwe wereld: kies je volk, moeilijkheid (Vredig, Normaal, Zwaar of Meedogenloos), kaart (Continent,
   Eilanden of Bergland) en hoe je wint: de sterrenpoort bouwen, 30 nachten overleven of een kort spel tot de
   Gouden Eeuw. Elke wereld heeft een zaadcode zoals `TP-7K2Q`: dezelfde code met dezelfde kaart geeft dezelfde
@@ -79,11 +83,11 @@ tests/                Vitest-tests voor data, wereldgeneratie en hulpfuncties
   dat soort in beeld. Rechts slepen, WASD of de schermrand verschuift de kaart. In de instellingen kun je slepen
   weer op "kaart verschuiven" zetten.
 - **Instellingen** (Menu → Instellingen), in vier tabbladen:
-  - *Spel:* tutorial aan/uit, uitleg bij de muis, levensbalken, automatisch opslaan, vredige modus
-  - *Beeld:* kwaliteit (ook "Eigen": resolutie, schaduwen, gloed en omlijning los), bovenaanzicht,
+  - _Spel:_ tutorial aan/uit, uitleg bij de muis, levensbalken, automatisch opslaan, vredige modus
+  - _Beeld:_ kwaliteit (ook "Eigen": resolutie, schaduwen, gloed en omlijning los), bovenaanzicht,
     schermschudden, animaties, grootte van de interface (S–XL), teller met beeldjes per seconde
-  - *Geluid:* aan/uit, volume, meldingen, klikgeluiden, stil op de achtergrond
-  - *Besturing:* slepen = selecteren, randscrollen, camerasnelheid, zoomen omkeren
+  - _Geluid:_ aan/uit, volume, meldingen, klikgeluiden, stil op de achtergrond
+  - _Besturing:_ slepen = selecteren, randscrollen, camerasnelheid, zoomen omkeren
 - **Beeldkwaliteit:** Automatisch (standaard), Laag, Middel of Hoog. Automatisch verlaagt zelf de resolutie en
   zware effecten als het spel hapert, zodat het vloeiend blijft.
 - **Grote schermen:** op ultrabrede schermen (21:9 en breder, ook 5K2K) blijft de HUD in een centraal gebied

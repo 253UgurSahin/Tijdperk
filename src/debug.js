@@ -98,3 +98,12 @@ window.__tp.challengeState = challenge;
 window.__tp.challenge = (k, people) =>
   newGame({ scenario: { k, date: k === 'daily' ? scenarios.dateKey() : '' }, people });
 window.__tp.time = t => (G.t = t);
+// Gebeurtenissen: laat er meteen één zien (__tp.event('tulips')), of zet een vervolg klaar voor vandaag
+import { EVENT } from './data/events.js';
+import * as events from './game/events.js';
+window.__tp.events = events;
+window.__tp.event = k => {
+  G.event = null;
+  return events.startEvent(EVENT[k]);
+};
+window.__tp.followNow = k => G.followups.push({ k, day: G.day, from: 'traveler' });

@@ -392,8 +392,7 @@ function doGather(v, dt) {
     (G.rain && t.k === 'node' ? 0.9 : 1) *
     (t.k === 'farm' ? mul('farm') : 1) *
     (t.k === 'farm' ? mul('farm.plow') : 1) *
-    mul('gather.all') *
-    (G.buff && G.buff.work > G.t ? 1.25 : 1);
+    mul('gather.all'); // ook tijdelijke bonussen uit gebeurtenissen, zoals een oogstfeest
   while (v.timer >= 1) {
     v.timer -= 1;
     chips(v.x + v.dir * 0.3, v.y, RES[v.res].c);

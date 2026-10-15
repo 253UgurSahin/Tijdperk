@@ -64,10 +64,13 @@ export function baseState(seed) {
     people: DEFAULT_PEOPLE, // je volk (sleutel uit data/peoples.js)
     blessings: [], // gekozen zegeningen (sleutels uit data/blessings.js)
     blessingQueue: [], // zegeningen die je nog mag kiezen, zie game/blessings.js
-    buff: {},
     forceRaid: 0,
-    event: null,
-    lastEvent: 0,
+    // Gebeurtenissen (zie game/events.js en data/events.js)
+    event: null, // het kaartje dat nu openstaat, of null
+    lastEvent: 0, // speltijd van de laatste gebeurtenis
+    buffs: [], // tijdelijke bonussen uit gebeurtenissen: { k, n, g, l, d, bonus, until }
+    followups: [], // vervolgen die nog komen: { k, day, from }
+    eventsSeen: [], // sleutels van de gebeurtenissen die al geweest zijn (de laatste 60)
     training: false,
     trainT: 0,
     peaceful: false,
