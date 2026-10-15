@@ -29,7 +29,7 @@ export function nearScreen<T extends Clickable>(
 export function pickGroup(X: number, Y: number, grp: T3.Object3D, key: string): number | null {
   const hits = rayAt(X, Y).intersectObjects(grp.children, true);
   for (const h of hits) {
-    let o = h.object;
+    const o = h.object;
     if (o.userData[key] != null) return o.userData[key];
   }
   return null;

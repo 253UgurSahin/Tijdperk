@@ -18,7 +18,10 @@ try {
 function ac() {
   if (!AC) {
     try {
-      AC = new (window.AudioContext || (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext!)();
+      AC = new (
+        window.AudioContext ||
+        (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext!
+      )();
     } catch (e) {
       return null;
     }
@@ -63,7 +66,7 @@ function noise(dur: number, vol: number, hp = 800, delay = 0) {
   g.connect(out());
   src.start(a.currentTime + delay);
 }
-export function sfx(k: string, minGap = .05) {
+export function sfx(k: string, minGap = 0.05) {
   if (!sndOn || (!AC && !ac())) return;
   const now = performance.now() / 1000;
   if (sfxT[k] && now - sfxT[k] < minGap) return;

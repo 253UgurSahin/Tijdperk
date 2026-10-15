@@ -29,9 +29,21 @@ export function closeModal() {
   setSpeed($('#title').hidden ? prevSpeed : 0);
 }
 // Accentkleur per tijdperk, gelijk aan body[data-age] in styles/base.css
-const AGE_COLORS = ['#d9a441', '#d08b3c', '#b9a48f', '#d6705f', '#e9b949', '#8fb2c9', '#a6c25c', '#46d3d6', '#b49cff'];
+const AGE_COLORS = [
+  '#d9a441',
+  '#d08b3c',
+  '#b9a48f',
+  '#d6705f',
+  '#e9b949',
+  '#8fb2c9',
+  '#a6c25c',
+  '#46d3d6',
+  '#b49cff',
+];
 $('#modal').addEventListener('click', e => {
-  const t = (e.target as HTMLElement).closest<HTMLElement>('[data-m],[data-view],[data-snd],[data-q],[data-set]');
+  const t = (e.target as HTMLElement).closest<HTMLElement>(
+    '[data-m],[data-view],[data-snd],[data-q],[data-set]',
+  );
   if ((e.target as HTMLElement).id === 'modal' && !G.over) {
     closeModal();
     return;

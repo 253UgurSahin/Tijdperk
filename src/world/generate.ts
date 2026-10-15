@@ -363,7 +363,14 @@ function distanceTo(is: (i: number) => boolean, W: number, H: number, max: numbe
  * en maakt een doorgang: water wordt een doorwaadbare plek, berg wordt een bergpas.
  * Hele kleine eilandjes (minder dan 25 tegels) laten we liggen.
  */
-export function connectRegions(ter: Uint8Array, biome: Uint8Array, node: Uint8Array, W: number, H: number, startIdx: number) {
+export function connectRegions(
+  ter: Uint8Array,
+  biome: Uint8Array,
+  node: Uint8Array,
+  W: number,
+  H: number,
+  startIdx: number,
+) {
   const N = W * H,
     main = new Uint8Array(N);
   const nbs = (i: number) => {

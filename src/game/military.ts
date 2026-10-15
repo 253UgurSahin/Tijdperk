@@ -328,7 +328,14 @@ function chase(e: Unit | Foe, p: { x: number; y: number }, dt: number, spd: numb
     }
   }
 }
-function moveToward(e: Unit | Foe, x: number, y: number, dt: number, spd: number, fly?: boolean | 1): boolean {
+function moveToward(
+  e: Unit | Foe,
+  x: number,
+  y: number,
+  dt: number,
+  spd: number,
+  fly?: boolean | 1,
+): boolean {
   if (dist(e.x, e.y, x, y) < 0.35) {
     e.path = null;
     return true;

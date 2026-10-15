@@ -7,12 +7,47 @@ export type Tile = [number, number];
 export type Path = Tile[];
 
 // ---------- vaste spelgegevens ----------
-export interface ResDef { n: string; c: string; age: number; cr?: 1 }
-export interface AgeDef { n: string; y: string; r: string; title: string; sub: string; lvl: string; acc: string }
-export interface AgeUpDef { cost: Cost; pop: number; need: string[] }
-export interface Chapter { t: string; s: string; o: [string, () => boolean][] }
-export interface NodeDef { k: string; res: string; amt: [number, number]; age: number; n: string; pump?: 1 }
-export interface DefenseDef { r: number; dmg: number; rate: number; air?: 1; splash?: number; laser?: 1 }
+export interface ResDef {
+  n: string;
+  c: string;
+  age: number;
+  cr?: 1;
+}
+export interface AgeDef {
+  n: string;
+  y: string;
+  r: string;
+  title: string;
+  sub: string;
+  lvl: string;
+  acc: string;
+}
+export interface AgeUpDef {
+  cost: Cost;
+  pop: number;
+  need: string[];
+}
+export interface Chapter {
+  t: string;
+  s: string;
+  o: [string, () => boolean][];
+}
+export interface NodeDef {
+  k: string;
+  res: string;
+  amt: [number, number];
+  age: number;
+  n: string;
+  pump?: 1;
+}
+export interface DefenseDef {
+  r: number;
+  dmg: number;
+  rate: number;
+  air?: 1;
+  splash?: number;
+  laser?: 1;
+}
 export interface BuildingDef {
   n: string;
   cat: string;
@@ -42,13 +77,48 @@ export interface BuildingDef {
   gate?: 1;
   road?: 1;
 }
-export interface RoadDef { n: string; cost: Cost }
-export interface UnitDef {
-  n: string; src: string; age: number; hp: number; dmg: number; r: number; rate: number; spd: number; cost: Cost; t: number;
-  proj?: 1; splash?: number; air?: 1; big?: 1; fly?: 1; ride?: 1;
+export interface RoadDef {
+  n: string;
+  cost: Cost;
 }
-export interface FoeDef { n: string; hp: number; dmg: number; spd: number; r: number; rate: number; proj?: 1; big?: 1; air?: 1 }
-export interface TechDef { k: string; age: number; n: string; g: string; d: string; cost: Cost; t: number }
+export interface UnitDef {
+  n: string;
+  src: string;
+  age: number;
+  hp: number;
+  dmg: number;
+  r: number;
+  rate: number;
+  spd: number;
+  cost: Cost;
+  t: number;
+  proj?: 1;
+  splash?: number;
+  air?: 1;
+  big?: 1;
+  fly?: 1;
+  ride?: 1;
+}
+export interface FoeDef {
+  n: string;
+  hp: number;
+  dmg: number;
+  spd: number;
+  r: number;
+  rate: number;
+  proj?: 1;
+  big?: 1;
+  air?: 1;
+}
+export interface TechDef {
+  k: string;
+  age: number;
+  n: string;
+  g: string;
+  d: string;
+  cost: Cost;
+  t: number;
+}
 
 // ---------- gebouwen, dorpelingen, soldaten, vijanden ----------
 interface Hittable {
@@ -205,12 +275,44 @@ export type Fx =
   | { type: 'boom'; x: number; y: number; life: number; r: number; max?: number }
   | { type: 'smoke'; x: number; y: number; z: number; vz: number; life: number; max: number; col?: string }
   | { type: 'float'; x: number; y: number; z: number; txt: string; col: string; life: number; max: number }
-  | { type: 'chip'; x: number; y: number; z: number; vx: number; vy: number; vz: number; life: number; max: number; col: string }
+  | {
+      type: 'chip';
+      x: number;
+      y: number;
+      z: number;
+      vx: number;
+      vy: number;
+      vz: number;
+      life: number;
+      max: number;
+      col: string;
+    }
   | { type: 'ring'; x: number; y: number; life: number; max: number; col: string };
 
-export interface LogEntry { d: number; t: string; k: string; x?: number; y?: number; id: number }
-export interface Offer { want: string; amt: number; give: string; price: number; until: number }
-export interface GameEvent { id: string; until: number; text?: string; ca?: Cost | null; r?: string; fx?: number; fy?: number }
+export interface LogEntry {
+  d: number;
+  t: string;
+  k: string;
+  x?: number;
+  y?: number;
+  id: number;
+}
+export interface Offer {
+  want: string;
+  amt: number;
+  give: string;
+  price: number;
+  until: number;
+}
+export interface GameEvent {
+  id: string;
+  until: number;
+  text?: string;
+  ca?: Cost | null;
+  r?: string;
+  fx?: number;
+  fy?: number;
+}
 
 /** Tellers voor de doelen; per getrainde soort eenheid komt er een teller bij. */
 export interface Stats {
@@ -286,4 +388,9 @@ export interface CoachAct {
   id?: number;
 }
 
-export interface Meteor { x: number; y: number; t: number; falling: boolean }
+export interface Meteor {
+  x: number;
+  y: number;
+  t: number;
+  falling: boolean;
+}

@@ -22,7 +22,8 @@ export const UPG_OK = (k: string): boolean => {
 export const lvlOf = (b: Building | null | undefined): number => (b && b.lvl) || 0;
 export const maxLvl = (b: Building): number => (UPG_OK(b.type) ? Math.max(0, G.age - B[b.type].age) : 0);
 export const canUpg = (b: Building): boolean => b.done && lvlOf(b) < maxLvl(b);
-export const bMaxHp = (b: Building): number => B[b.type].hp * (1 + 0.35 * lvlOf(b)) * (hasT('masonry') ? 1.25 : 1);
+export const bMaxHp = (b: Building): number =>
+  B[b.type].hp * (1 + 0.35 * lvlOf(b)) * (hasT('masonry') ? 1.25 : 1);
 export const bPop = (b: Building): number => {
   const p = B[b.type].pop;
   return p ? Math.round(p * (1 + 0.4 * lvlOf(b))) : 0;

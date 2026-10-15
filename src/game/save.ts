@@ -118,7 +118,9 @@ interface SaveData {
   road?: string;
   node: string;
   amt: string;
-  bs: (Pick<Building, 'id' | 'type' | 'x' | 'y' | 'hp' | 'done' | 'prog' | 'bt' | 'on' | 'q' | 'rally'> & { lvl: number })[];
+  bs: (Pick<Building, 'id' | 'type' | 'x' | 'y' | 'hp' | 'done' | 'prog' | 'bt' | 'on' | 'q' | 'rally'> & {
+    lvl: number;
+  })[];
   vs: { x: number; y: number; name: string; job: string; hp: number }[];
   us: { k: string; x: number; y: number; hp: number; st?: Stance; id?: number }[];
   camps: { id: number; x: number; y: number; tier: number; hp: number; mhp: number; alive: boolean }[];

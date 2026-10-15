@@ -63,4 +63,5 @@ export const retiredAt = (k: string): number => (SUCCESSOR[k] ? def(SUCCESSOR[k]
 export const canMake = (k: string, age: number): boolean => def(k).age <= age && age < retiredAt(k);
 
 /** Alles wat verouderd raakt bij de stap naar dit tijdperk. */
-export const retiredIn = (age: number): string[] => Object.keys(SUCCESSOR).filter(k => retiredAt(k) === age && def(k).age < age);
+export const retiredIn = (age: number): string[] =>
+  Object.keys(SUCCESSOR).filter(k => retiredAt(k) === age && def(k).age < age);

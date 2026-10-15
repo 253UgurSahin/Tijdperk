@@ -48,7 +48,7 @@ export function drawPlacement() {
   const d = B[store.placing];
   if (drag && drag.mode === 'line') {
     hideGhosts();
-    let budget = { ...G.res };
+    const budget = { ...G.res };
     for (const [x, y] of lineTiles(drag.t0, drag.t1)) {
       const err = canPlace(store.placing, x, y, true);
       let ok = !err;

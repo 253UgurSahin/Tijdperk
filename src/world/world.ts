@@ -80,7 +80,8 @@ export function paintGround(x: number, y: number, seed: number) {
 }
 
 /** Hoe hoog een bergtegel is, van 0 (voet) tot 1 (hoogste top). */
-export const mountainHeight = (i: number): number => clamp((elev[i] - levels.peak) / (levels.top - levels.peak), 0, 1);
+export const mountainHeight = (i: number): number =>
+  clamp((elev[i] - levels.peak) / (levels.top - levels.peak), 0, 1);
 
 // Tegels waarvan de grondkleur veranderd is (bijv. een krater); de weergave tekent ze opnieuw
 export const dirtyGround = new Set<number>();
@@ -94,8 +95,10 @@ export function buildLists() {
 export const passable = (i: number): boolean => isPassable(ter[i]);
 export const inb = (x: number, y: number): boolean => x >= 0 && y >= 0 && x < W && y < H;
 export const isUnl = (x: number, y: number): boolean => inb(x, y) && G.unl[(y >> 4) * CN + (x >> 4)] === 1;
-export const walkable = (x: number, y: number): boolean => isUnl(x, y) && passable(y * W + x) && blk[y * W + x] !== 1;
-export const freeWalk = (x: number, y: number): boolean => inb(x, y) && passable(y * W + x) && blk[y * W + x] !== 1;
+export const walkable = (x: number, y: number): boolean =>
+  isUnl(x, y) && passable(y * W + x) && blk[y * W + x] !== 1;
+export const freeWalk = (x: number, y: number): boolean =>
+  inb(x, y) && passable(y * W + x) && blk[y * W + x] !== 1;
 export const foeWalk = (x: number, y: number): boolean => inb(x, y) && passable(y * W + x) && !blk[y * W + x];
 export function setBlk(b: Building, on: boolean) {
   const d = B[b.type];

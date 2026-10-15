@@ -1,7 +1,7 @@
 // Spelersinstellingen (geluid, randscrollen, ...) die in de browser worden bewaard.
 // quality: 'auto' | 'low' | 'mid' | 'high' · dragSelect: linkermuis slepen = selectiekader
 // hudWide: op een ultrabreed scherm de HUD over de volle breedte in plaats van in het midden
-export let SET = {
+export const SET = {
   vol: 0.8,
   edge: true,
   hp: false,

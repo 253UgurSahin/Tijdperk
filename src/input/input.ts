@@ -80,7 +80,13 @@ cv.addEventListener('pointerdown', e => {
   mouse.touch = e.pointerType === 'touch';
   if (ptrs.size === 2) {
     const [p, q] = [...ptrs.values()];
-    drag = { mode: 'pinch', d0: dist(p.x, p.y, q.x, q.y), z0: cam.z, mx: (p.x + q.x) / 2, my: (p.y + q.y) / 2 };
+    drag = {
+      mode: 'pinch',
+      d0: dist(p.x, p.y, q.x, q.y),
+      z0: cam.z,
+      mx: (p.x + q.x) / 2,
+      my: (p.y + q.y) / 2,
+    };
     return;
   }
   drag = {
@@ -173,7 +179,18 @@ cv.addEventListener('pointerup', e => {
     // Nog één vinger op het scherm: daarmee verder schuiven (telt nooit als tik)
     const rest = [...ptrs.values()][0];
     drag = rest
-      ? { mode: 'pan', btn: 0, sx: rest.x, sy: rest.y, lx: rest.x, ly: rest.y, shift: false, ctrl: false, moved: 99, t0: 0 }
+      ? {
+          mode: 'pan',
+          btn: 0,
+          sx: rest.x,
+          sy: rest.y,
+          lx: rest.x,
+          ly: rest.y,
+          shift: false,
+          ctrl: false,
+          moved: 99,
+          t0: 0,
+        }
       : null;
     return;
   }
