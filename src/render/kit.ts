@@ -44,6 +44,8 @@ export function mat(
   if (!o.b && !o.t && !o.e && !o.m && o.r == null) m.userData.vc = 1;
   return (MC[k] = m);
 }
+/** Is dit 3D-object een mesh (een vorm met een materiaal)? */
+export const isMesh = (o: T3.Object3D): o is T3.Mesh => (o as T3.Mesh).isMesh;
 // Zachte overgang van 0 naar 1 (zoals smoothstep in een shader)
 const smooth01 = t => (t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t));
 const VCMAT = new T3.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 0.88 });

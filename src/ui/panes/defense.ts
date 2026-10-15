@@ -47,7 +47,7 @@ function raidCardText(raidNow, marching, hrs, secs) {
 
 export function renderDefense() {
   const th = G.bs.find(b => b.type === 'townhall'),
-    hp = th ? th.hp / B.townhall.hp : 0,
+    hp = th ? th.hp / bMaxHp(th) : 0,
     raidNow = G.foes.filter(isRaider).length,
     marching = G.foes.filter(isMarching), // soldaten van rivalen die nog onderweg zijn: nog niet in je land
     hrs = hoursUntilRaid(),

@@ -53,18 +53,6 @@ export function closeModal() {
   onModalClose = null;
   if (afterClose) afterClose();
 }
-// Accentkleur per tijdperk, gelijk aan body[data-age] in styles/base.css
-const AGE_COLORS = [
-  '#d9a441',
-  '#d08b3c',
-  '#b9a48f',
-  '#d6705f',
-  '#e9b949',
-  '#8fb2c9',
-  '#a6c25c',
-  '#46d3d6',
-  '#b49cff',
-];
 $('#modal').addEventListener('click', e => {
   if (e.target.id === 'modal' && !G.over && !store.modalLocked) {
     closeModal();
