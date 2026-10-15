@@ -1,4 +1,5 @@
 // Tooltip als je met de muis over iets in de wereld beweegt.
+import type { Unit } from '../types';
 import { store } from '../core/store';
 import { W } from '../config';
 import { B } from '../data/buildings';
@@ -24,7 +25,7 @@ import { clamp } from '../util/math';
 import { amt, inb, isUnl, node, nodeVis } from '../world/world';
 
 // Tooltip voor je eigen soldaat: naam met rangstreepjes, daaronder rang, leven en of hij vecht
-function ownUnitTip(u) {
+function ownUnitTip(u: Unit): string {
   const name = UNITS[u.k].n + chevronsHTML(unitRank(u));
   const health = `${Math.ceil(u.hp)}/${Math.round(u.mhp)} leven`;
   const doing = u.tgt ? 'in gevecht' : 'paraat';

@@ -1,5 +1,5 @@
 // 2D-laag over de wereld: levensbalken en labels.
-import type { Foe } from '../types';
+import type { Foe, Unit } from '../types';
 import { store } from '../core/store';
 import { CN, CS, TAU } from '../config';
 import { SET } from '../core/settings';
@@ -54,7 +54,7 @@ function bossLabel(f: Foe) {
   otext(sx, sy - 7, bossName(boss), '#ffe7a0', 13);
 }
 // Gouden streepjes (rang 1 tot 3) net boven de plek van de levensbalk
-function rankChevrons(u, rank) {
+function rankChevrons(u: Unit, rank: number) {
   const [sx, sy, sz] = proj(u.rx ?? u.x, UNITS[u.k].fly ? 1.3 : 0.8, u.ry ?? u.y);
   if (sz > 1 || sx < -20 || sy < -20 || sx > VW + 20 || sy > VH + 20) return;
   const c = octx;

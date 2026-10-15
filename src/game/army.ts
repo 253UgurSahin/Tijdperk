@@ -1,4 +1,5 @@
 // Legerbesturing in het spel: groepen, veteranen (rangen na overwinningen) en lopen in formatie.
+import type { Unit, Villager } from '../types';
 import { store } from '../core/store';
 import { sfx } from '../audio/sound';
 import { markTip, tipSeen } from '../core/tips';
@@ -21,13 +22,13 @@ import { freeWalk } from '../world/world';
 /* ---------- Groepen ---------- */
 
 /** Wie er nog leeft in groep g: { us: soldaten, vs: dorpelingen }. */
-export function groupMembers(g) {
+export function groupMembers(g: string): { us: Unit[]; vs: Villager[] } {
   const ids = new Set(G.groups[g] || []);
   return { us: G.us.filter(u => ids.has(u.id)), vs: G.vs.filter(v => !v.hidden && ids.has(v.id)) };
 }
 
 /** Haal groepen weg waarvan niemand meer leeft (dorpelingen die binnen schuilen leven nog). */
-export function pruneGroups() {
+export function pruneGroups(): void {
   for (const g of Object.keys(G.groups)) {
     const ids = new Set(G.groups[g]);
     if (!G.us.some(u => ids.has(u.id)) && !G.vs.some(v => ids.has(v.id))) delete G.groups[g];
@@ -35,7 +36,7 @@ export function pruneGroups() {
 }
 
 /** Maak van deze soldaten en dorpelingen groep g (een lege lijst haalt de groep weg). */
-export function setGroup(g, ids) {
+export function setGroup(g: string, ids: number[]): void {
   if (ids.length) G.groups[g] = [...ids];
   else delete G.groups[g];
 }
@@ -43,16 +44,16 @@ export function setGroup(g, ids) {
 /* ---------- Veteranen ---------- */
 
 /** De rang van een soldaat: 0 (rekruut) tot 3 (held). */
-export const unitRank = u => rankFromKills(u.kills || 0);
+export const unitRank = (u: Unit): number => rankFromKills(u.kills || 0);
 
 /** Hoeveel sterker een soldaat is door zijn rang (schade en levens). */
-export const veteranMul = u => rankMul(unitRank(u));
+export const veteranMul = (u: Unit): number => rankMul(unitRank(u));
 
 /**
  * Een soldaat versloeg een vijand. Na 3, 8 en 15 overwinningen stijgt hij een rang:
  * dan krijgt hij 10% meer levens (en via veteranMul ook meer schade).
  */
-export function creditKill(u) {
+export function creditKill(u: Unit | null | undefined): void {
   if (!u || u.kind !== 'u' || u.dead) return;
   const before = unitRank(u);
   u.kills = (u.kills || 0) + 1;
@@ -76,8 +77,9 @@ export function creditKill(u) {
 }
 
 /** Na het laden: het aantal overwinningen terugzetten, met de extra levens van zijn rang. */
-export function restoreKills(u, kills) {
-  u.kills = Number.isInteger(kills) && kills > 0 ? kills : 0;
+export function restoreKills(u: Unit, kills: number | undefined): void {
+  // Number.isInteger geeft alleen true bij een heel getal: dan is kills er zeker
+  u.kills = Number.isInteger(kills) && kills! > 0 ? kills! : 0;
   u.mhp *= veteranMul(u);
 }
 
@@ -89,7 +91,13 @@ export function restoreKills(u, kills) {
  * Staan ze bij elkaar, dan komen ze samen aan in het tempo van de traagste (u.pace, zie uUpdate in
  * game/military.ts). Met `keepPace: false` (zoals bij Naar huis) loopt iedereen op volle snelheid.
  */
-export function formationMove(units, tx, ty, order, { keepPace = true } = {}) {
+export function formationMove(
+  units: Unit[],
+  tx: number,
+  ty: number,
+  order: 'move' | 'amove' | 'patrol',
+  { keepPace = true }: { keepPace?: boolean } = {},
+): void {
   const many = units.length > 1;
   const goals = many
     ? formationGoals(
@@ -126,11 +134,11 @@ export function formationMove(units, tx, ty, order, { keepPace = true } = {}) {
 }
 
 // Een begaanbare plek op of vlak bij (x, y), of null als er binnen twee tegels niets is
-function landNear(x, y) {
+function landNear(x: number, y: number): { x: number; y: number } | null {
   const ix = Math.floor(x),
     iy = Math.floor(y);
   if (freeWalk(ix, iy)) return { x, y };
-  let best = null,
+  let best: { x: number; y: number } | null = null,
     bestDist = Infinity;
   for (let dy = -2; dy <= 2; dy++)
     for (let dx = -2; dx <= 2; dx++) {

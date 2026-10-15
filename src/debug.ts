@@ -79,6 +79,10 @@ interface DevTools {
   rivalOffer?: (i?: number, kind?: OfferKind) => boolean;
   diplo?: (i?: number) => void;
   allyHelp?: (i?: number) => void;
+  army?: typeof army;
+  armyUI?: typeof armyUI;
+  /** Geeft soldaat u meteen n overwinningen (standaard 3) en geeft hem terug. */
+  kills?: (u: Unit, n?: number) => Unit;
 }
 declare global {
   interface Window {

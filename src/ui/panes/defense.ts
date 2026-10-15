@@ -144,7 +144,7 @@ $('#defense').addEventListener('click', e => {
     }
   } else if (t.dataset.act === 'rally') {
     // In formatie naar het plein voor het stamhuis, maar wel op volle snelheid: thuis is het vaak dringend
-    const th = G.bs.find(x => x.type === 'townhall')!;
+    const th = G.bs.find(x => x.type === 'townhall');
     if (th) formationMove(G.us, th.x + 1, th.y + 4, 'move', { keepPace: false });
     toast('Het leger keert terug naar het stamhuis.');
   }

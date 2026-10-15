@@ -236,6 +236,10 @@ export interface Unit extends Hittable {
   pt: number;
   stance?: Stance;
   swing?: number;
+  /** Verslagen vijanden: na 3, 8 en 15 wordt hij veteraan, elite en held (zie game/army.ts). */
+  kills?: number;
+  /** Looptempo in formatie, zodat de groep samen aankomt; 0 = op volle snelheid (zie formationMove). */
+  pace?: number;
 }
 
 export interface Foe extends Hittable {
@@ -409,6 +413,8 @@ export interface Projectile {
   /** Geschoten door een helper van een bondgenoot, en van welke rivaal die is (anders 0). */
   ally: boolean;
   allyOf: number;
+  /** Jouw soldaat die schoot (anders null): verslaat het schot een vijand, dan telt dat voor hem. */
+  by?: Unit | null;
   big: boolean;
   h0: number;
   done?: boolean;

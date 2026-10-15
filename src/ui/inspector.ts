@@ -1,4 +1,4 @@
-import type { Building, Stance, Villager } from '../types';
+import type { Building, Stance, Unit, Villager } from '../types';
 // Selectiepaneel: info en knoppen voor wat je hebt aangeklikt.
 import { store } from '../core/store';
 import { sfx } from '../audio/sound';
@@ -83,7 +83,7 @@ export const CB = (data: string, glyph: string, label: string, o: CmdOpts = {}):
 export let selCmds: string | null = null,
   selCtx = '';
 // Kop van het paneel bij soldaten: één met zijn rangstreepjes, "3 × Speerdrager" of (gemengd) "Leger"
-function armyTitle(us, oneKind) {
+function armyTitle(us: Unit[], oneKind: boolean): string {
   const name = UNITS[us[0].k].n;
   if (us.length === 1) return name + chevronsHTML(unitRank(us[0]));
   if (oneKind) return `${us.length} × ${name}`;
@@ -563,7 +563,7 @@ export function insHandler(e: MouseEvent) {
     computeCaches();
   } else if (t.dataset.u === 'home') {
     // In formatie naar het plein voor het stamhuis, maar ieder op volle snelheid (vaak is het dringend)
-    const th = G.bs.find(x => x.type === 'townhall')!;
+    const th = G.bs.find(x => x.type === 'townhall');
     if (th) formationMove(selUnits(), th.x + 1, th.y + 4, 'move', { keepPace: false });
   } else if (t.dataset.u === 'stop')
     selUnits().forEach(u => {

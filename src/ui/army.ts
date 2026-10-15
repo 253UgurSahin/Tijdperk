@@ -1,4 +1,5 @@
 // Legerbesturing in beeld: de groepenbalk boven de onderbalk, rangstreepjes en een tip voor nieuwe spelers.
+import type { Unit } from '../types';
 import { store } from '../core/store';
 import { markTip, tipSeen } from '../core/tips';
 import { sfx } from '../audio/sound';
@@ -24,7 +25,7 @@ import { $ } from '../util/dom';
 /* ---------- Groepen kiezen en maken (ook voor de sneltoetsen F1 tot F5, zie input/input.ts) ---------- */
 
 // Is precies deze groep nu geselecteerd?
-function isSelected(g) {
+function isSelected(g: string): boolean {
   const { us, vs } = groupMembers(g);
   const all = us.length + vs.length;
   return (
@@ -36,7 +37,7 @@ function isSelected(g) {
 }
 
 /** Ga met de camera naar het midden van groep g. */
-export function centerOnGroup(g) {
+export function centerOnGroup(g: string): void {
   const { us, vs } = groupMembers(g),
     all = [...us, ...vs];
   if (!all.length) return;
@@ -50,7 +51,7 @@ export function centerOnGroup(g) {
  * Kies groep g. Is hij al gekozen, dan gaat de camera erheen (dus twee keer klikken = ernaartoe).
  * Met `add` (Shift) komt de groep bij wat je al had.
  */
-export function selectGroup(g, add = false) {
+export function selectGroup(g: string, add = false): void {
   const { us, vs } = groupMembers(g);
   if (!us.length && !vs.length) {
     toast(
@@ -76,7 +77,7 @@ export function selectGroup(g, add = false) {
  * Maak van wat je nu geselecteerd hebt groep g (een oude groep g wordt vervangen).
  * Zonder selectie gebeurt er niets: zo gooi je een groep nooit per ongeluk weg.
  */
-export function assignGroup(g) {
+export function assignGroup(g: string): void {
   const ids = [...sel.us, ...sel.vs];
   const replaced = !!(G.groups[g] && G.groups[g].length);
   if (!ids.length) {
@@ -116,11 +117,26 @@ const tiles = GROUP_KEYS.map(g => {
 });
 $('#sidebtns').after(bar);
 
+/** Wat de groepenbalk over één groep laat zien (zie groupInfo). */
+interface GroupInfo {
+  g: string;
+  /** Hoeveel er van elk soort zijn: 'u' + soort soldaat, of 'v' voor dorpelingen. */
+  kinds: Record<string, number>;
+  count: number;
+  /** Het soort dat het meest voorkomt (voor het plaatje), of leeg. */
+  main: string;
+  /** Hoe gezond de groep is, in procent (in stapjes van 5). */
+  health: number;
+  /** Is precies deze groep gekozen, en vecht er iemand? */
+  on: boolean;
+  fight: boolean;
+}
+
 // Wat er in groep g zit: hoeveel, welk soort het meest (voor het plaatje), hoe gezond, en of ze vechten
-function groupInfo(g) {
+function groupInfo(g: string): GroupInfo {
   const { us, vs } = groupMembers(g),
     all = [...us, ...vs];
-  const kinds = {};
+  const kinds: Record<string, number> = {};
   for (const u of us) kinds['u' + u.k] = (kinds['u' + u.k] || 0) + 1;
   if (vs.length) kinds.v = vs.length;
   const main = Object.keys(kinds).sort((a, b) => kinds[b] - kinds[a])[0] || '';
@@ -138,13 +154,13 @@ function groupInfo(g) {
 }
 
 // "4 × speerdrager, 2 × slingeraar"
-function groupWords(info) {
+function groupWords(info: GroupInfo): string {
   return Object.entries(info.kinds)
     .map(([k, n]) => `${n} × ${k === 'v' ? 'dorpeling' : UNITS[k.slice(1)].n.toLowerCase()}`)
     .join(', ');
 }
 
-function fillTile(b, info, picked) {
+function fillTile(b: HTMLButtonElement, info: GroupInfo, picked: boolean): void {
   const g = info.g;
   if (!info.count) {
     // Lege plek: alleen zichtbaar als je iets geselecteerd hebt, om er een groep van te maken
@@ -180,7 +196,7 @@ function fillTile(b, info, picked) {
 }
 
 /** De groepenbalk bijwerken (elke paar tellen, zie main.ts). */
-export function renderGroups() {
+export function renderGroups(): void {
   pruneGroups(); // is iedereen van een groep gesneuveld, dan is de groep ook weg
   const picked = sel.us.size + sel.vs.size > 0,
     infos = GROUP_KEYS.map(groupInfo);
@@ -196,33 +212,34 @@ export function renderGroups() {
 let holdTimer = 0,
   held = false,
   lastPointer = 'mouse';
+// Elke groepsknop (.grp) heeft het nummer van zijn groep in data-g (zie tiles hierboven)
 bar.addEventListener('pointerdown', e => {
   lastPointer = e.pointerType;
-  const t = e.target.closest('.grp');
+  const t = (e.target as HTMLElement).closest<HTMLElement>('.grp');
   held = false;
   clearTimeout(holdTimer);
   if (!t || e.pointerType === 'mouse' || t.classList.contains('add')) return;
   holdTimer = setTimeout(() => {
     held = true;
-    assignGroup(t.dataset.g);
+    assignGroup(t.dataset.g!);
   }, 550);
 });
 for (const type of ['pointerup', 'pointercancel', 'pointerleave'])
   bar.addEventListener(type, () => clearTimeout(holdTimer));
 bar.addEventListener('contextmenu', e => {
   e.preventDefault();
-  const t = e.target.closest('.grp');
-  if (t && lastPointer === 'mouse' && !t.classList.contains('add')) assignGroup(t.dataset.g);
+  const t = (e.target as HTMLElement).closest<HTMLElement>('.grp');
+  if (t && lastPointer === 'mouse' && !t.classList.contains('add')) assignGroup(t.dataset.g!);
 });
 bar.addEventListener('click', e => {
-  const t = e.target.closest('.grp');
+  const t = (e.target as HTMLElement).closest<HTMLElement>('.grp');
   if (!t) return;
   // Na lang vasthouden komt er nog een klik achteraan: die negeren we
   if (held) {
     held = false;
     return;
   }
-  const g = t.dataset.g;
+  const g = t.dataset.g!;
   if (t.classList.contains('add') || e.ctrlKey || e.metaKey) assignGroup(g);
   else selectGroup(g, e.shiftKey);
 });
@@ -237,7 +254,7 @@ tip.setAttribute('role', 'note');
 bar.after(tip);
 let tipOpen = false;
 
-function renderTip(want) {
+function renderTip(want: boolean): void {
   if (want && !tipOpen && !tipSeen('groups')) {
     tipOpen = true;
     markTip('groups'); // één keer is genoeg; de uitleg staat ook onder Uitleg in het menu
@@ -252,18 +269,18 @@ function renderTip(want) {
   if (!want) tipOpen = false;
   tip.hidden = !tipOpen;
 }
-function closeTip() {
+function closeTip(): void {
   tipOpen = false;
   tip.hidden = true;
 }
 tip.addEventListener('click', e => {
-  if (e.target.closest('[data-tip-close]')) closeTip();
+  if ((e.target as HTMLElement).closest('[data-tip-close]')) closeTip();
 });
 
 /* ---------- Rangen en formatie in het selectiepaneel en de tooltip ---------- */
 
 /** Gouden streepjes voor een rang (1 tot 3), als klein plaatje. Rang 0: niets. */
-export function chevronsHTML(rank) {
+export function chevronsHTML(rank: number): string {
   if (!rank) return '';
   let lines = '';
   for (let i = 0; i < rank; i++) lines += `<path d="M3 ${17 - i * 5}l6-4 6 4"/>`;
@@ -271,7 +288,7 @@ export function chevronsHTML(rank) {
 }
 
 /** Eén regel over de rang van een soldaat: hoe ver hij is en wat het oplevert. */
-export function rankLineHTML(u) {
+export function rankLineHTML(u: Unit): string {
   const rank = unitRank(u),
     kills = u.kills || 0,
     next = killsToNextRank(kills);
@@ -282,7 +299,7 @@ export function rankLineHTML(u) {
 }
 
 /** Korte tekst voor de tooltip, zoals "Veteraan · 4 overwinningen", of leeg voor een rekruut zonder. */
-export function rankTip(u) {
+export function rankTip(u: Unit): string {
   const rank = unitRank(u),
     kills = u.kills || 0;
   if (!rank && !kills) return '';
@@ -290,11 +307,11 @@ export function rankTip(u) {
 }
 
 // Snelheid zoals de speler hem leest: 1,1 in plaats van 1.1
-const speedText = spd => String(spd).replace('.', ',');
+const speedText = (spd: number): string => String(spd).replace('.', ',');
 
 // Lopen ze niet allemaal even snel? Zeg dan hoe snel de groep gaat en wie dat bepaalt, in cijfers.
 // Staan ze ver uit elkaar, dan loopt ieder op eigen tempo (zie formationMove in game/army.ts).
-function paceText(us) {
+function paceText(us: Unit[]): string {
   const speeds = us.map(u => UNITS[u.k].spd);
   const slow = Math.min(...speeds),
     fast = Math.max(...speeds);
@@ -305,7 +322,7 @@ function paceText(us) {
 }
 
 /** Bij twee of meer soldaten: hoe ze in formatie lopen, en hoeveel veteranen erbij zijn. */
-export function formationLineHTML(us) {
+export function formationLineHTML(us: Unit[]): string {
   if (us.length < 2) return '';
   const count = { front: 0, ranged: 0, siege: 0 };
   for (const u of us) count[unitRole(UNITS[u.k])]++;

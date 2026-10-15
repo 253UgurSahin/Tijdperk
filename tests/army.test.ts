@@ -17,6 +17,7 @@ import {
   rowWidth,
   unitRole,
 } from '../src/data/army';
+import type { FormationUnit, Role } from '../src/data/army';
 import { UNITS } from '../src/data/units';
 
 describe('veteranen: rang uit overwinningen', () => {
@@ -138,7 +139,7 @@ describe('formatie: rollen', () => {
 });
 
 describe('formatie: plekken', () => {
-  const roles = ['siege', 'ranged', 'front', 'front', 'ranged', 'front', 'ranged', 'siege'];
+  const roles: Role[] = ['siege', 'ranged', 'front', 'front', 'ranged', 'front', 'ranged', 'siege'];
   it('rijen zijn niet te breed en niet te diep', () => {
     expect(rowWidth(1)).toBe(1);
     expect(rowWidth(2)).toBe(2);
@@ -172,7 +173,7 @@ describe('formatie: plekken', () => {
     const units = roles.map((role, i) => ({ x: (i % 3) * 0.7, y: Math.floor(i / 3) * 0.7, role }));
     const goals = formationGoals(units, 20, 0.7);
     expect(goals.length).toBe(units.length);
-    const xs = role => goals.filter((g, i) => units[i].role === role).map(g => g.x);
+    const xs = (role: Role) => goals.filter((_g, i) => units[i].role === role).map(g => g.x);
     expect(Math.min(...xs('front'))).toBeGreaterThan(Math.max(...xs('ranged')));
     expect(Math.min(...xs('ranged'))).toBeGreaterThan(Math.max(...xs('siege')));
     // Het midden van de formatie ligt (ongeveer) op het doel
@@ -182,7 +183,7 @@ describe('formatie: plekken', () => {
     expect(Math.abs(cy - 0.7)).toBeLessThan(0.5);
   });
   it('lopen naar beneden: de voorkant draait mee', () => {
-    const units = [
+    const units: FormationUnit[] = [
       { x: 10, y: 10, role: 'siege' },
       { x: 10.5, y: 10, role: 'front' },
       { x: 11, y: 10, role: 'ranged' },
@@ -192,7 +193,7 @@ describe('formatie: plekken', () => {
     expect(ranged.y).toBeGreaterThan(siege.y);
   });
   it('wie links loopt, krijgt in zijn rij ook een plek links', () => {
-    const units = [
+    const units: FormationUnit[] = [
       { x: 0, y: 5, role: 'front' },
       { x: 0, y: 0, role: 'front' },
     ];

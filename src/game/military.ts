@@ -64,7 +64,7 @@ function tpos(t: Target): { x: number; y: number; rad: number } {
 export const isDead = (t: Target | null | undefined): boolean | undefined =>
   !t || t.dead || t.hidden || (t.kind === 'c' && !t.alive) || (t.kind === 'f' && t.retreat);
 // `by`: de soldaat van jou die raakte (of niets). Versla je zo een vijand, dan telt die overwinning voor hem.
-function hit(t, dmg, by) {
+function hit(t: Target, dmg: number, by?: Unit | null) {
   if (isDead(t)) return;
   const hpBefore = t.hp;
   t.hp -= dmg;
@@ -177,7 +177,7 @@ function campDestroyed(c: Camp) {
   computeAvail();
   store.uiDirty = true;
 }
-export function fire(_from: Target, x: number, y: number, t: Target, o: FireOpts) {
+export function fire(from: Target, x: number, y: number, t: Target, o: FireOpts) {
   // Geluid hoort bij het wapen (musket, kanon, laser, ...); vijanden iets minder vaak
   sfx(o.snd || 'shot', o.foe ? 0.3 : 0.12);
   const by = from && from.kind === 'u' ? from : null; // een eigen soldaat: hij krijgt de overwinning

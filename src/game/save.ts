@@ -166,8 +166,9 @@ interface SaveData {
   bs: (Pick<Building, 'id' | 'type' | 'x' | 'y' | 'hp' | 'done' | 'prog' | 'bt' | 'on' | 'q' | 'rally'> & {
     lvl: number;
   })[];
-  vs: { x: number; y: number; name: string; job: string; hp: number }[];
-  us: { k: string; x: number; y: number; hp: number; st?: Stance; id?: number }[];
+  /** Opslag van vóór de groepen heeft geen id bij dorpelingen, en van vóór de veteranen geen kills. */
+  vs: { x: number; y: number; name: string; job: string; hp: number; id?: number }[];
+  us: { k: string; x: number; y: number; hp: number; st?: Stance; id?: number; kills?: number }[];
   camps: { id: number; x: number; y: number; tier: number; hp: number; mhp: number; alive: boolean }[];
   guards: { type: number; x: number; y: number; hp: number; mhp: number; camp: number }[];
   /** Rivalen met hun gebouwen en soldaten (ontbreekt in opslag van vóór de rivalen). */
