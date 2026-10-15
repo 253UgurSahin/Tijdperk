@@ -15,6 +15,8 @@ import { RKEYS } from '../data/resources';
 import { cleanScenarioState } from '../data/scenarios';
 import { VICTORY } from '../data/victories';
 import { cleanWonders } from '../data/wonders';
+import { cleanGroups } from '../data/army';
+import { restoreKills } from './army';
 import { computeAvail, computeCaches } from './caches';
 import { spawnFoe, spawnUnit, spawnVillager } from './entities';
 import { loadRivals, saveRivals } from './rivals';
@@ -123,8 +125,17 @@ export function serialize(): string {
       q: b.q,
       rally: b.rally,
     })),
-    vs: G.vs.map(v => ({ x: v.x, y: v.y, name: v.name, job: v.job, hp: v.hp })),
-    us: G.us.map(u => ({ k: u.k, x: u.x, y: u.y, hp: u.hp, st: u.stance || 'guard', id: u.id })),
+    // Het nummer (id) bewaren we, zodat groepen na het laden nog kloppen; kills = overwinningen (veteranen)
+    vs: G.vs.map(v => ({ x: v.x, y: v.y, name: v.name, job: v.job, hp: v.hp, id: v.id })),
+    us: G.us.map(u => ({
+      k: u.k,
+      x: u.x,
+      y: u.y,
+      hp: u.hp,
+      st: u.stance || 'guard',
+      id: u.id,
+      kills: u.kills || 0,
+    })),
     camps: G.camps.map(c => ({
       id: c.id,
       x: c.x,
@@ -187,7 +198,7 @@ export function deserialize(str: string): boolean {
   // Opslag van vóór de negen tijdperken: zet oude tijdperk- en vijandnummers om
   const fromOld = s.ages !== 9;
   if (fromOld) G.age = OLD_AGE[G.age] ?? G.age;
-  G.groups = G.groups || {};
+  G.groups = cleanGroups(s.g.groups); // groep 1 tot 5; opslag zonder groepen begint zonder
   // Zegeningen: opslag van vóór de zegeningen mag er meteen één kiezen.
   // Dit moet vóór het terugzetten van soldaten, want die krijgen hun levens mede door zegeningen.
   if (!Array.isArray(s.g.blessings)) {
@@ -271,10 +282,12 @@ export function deserialize(str: string): boolean {
     v.name = o.name;
     v.job = o.job;
     v.hp = o.hp;
+    if (o.id) v.id = o.id; // opslag van daarvóór: een nieuw nummer (de groep raakt die dorpeling dan kwijt)
   }
   for (const o of s.us) {
     const u = spawnUnit(o.k, o.x, o.y);
-    u.hp = o.hp;
+    restoreKills(u, o.kills); // opslag van vóór de veteranen: 0 overwinningen
+    u.hp = Math.min(o.hp, u.mhp);
     u.stance = o.st || 'guard';
     if (o.id) u.id = o.id;
   }

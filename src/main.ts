@@ -95,6 +95,7 @@ import { renderCmd } from './ui/buildmenu';
 import { updateHeader, updateWorldTop } from './ui/header';
 import { updateHover } from './ui/hover';
 import { renderInspector } from './ui/inspector';
+import { renderGroups } from './ui/army';
 import { showTitle } from './ui/modals';
 import { renderChronicle } from './ui/objectives';
 import { renderDefense } from './ui/panes/defense';
@@ -209,6 +210,7 @@ function frame(now: number) {
     renderTopBars(); // balken bovenaan: de sterrenpoort die oplaadt en een kampioen
     renderLog();
     renderInspector();
+    renderGroups(); // groepenbalk boven de onderbalk (zie ui/army.ts)
     renderCmd();
     checkBlessing(); // ligt er een zegening klaar om te kiezen?
   }

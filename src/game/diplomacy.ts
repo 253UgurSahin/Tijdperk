@@ -57,6 +57,7 @@ import { hasRule } from './mods';
 import { recallArmy, resText, rivalArmy, rivalById, spawnRivalUnit } from './rivals';
 import { G } from './state';
 import { armsMul } from './upgrades';
+import { veteranMul } from './army';
 import { sigs } from '../ui/header';
 import { note, toast } from '../ui/hud';
 import { dist } from '../util/math';
@@ -105,7 +106,12 @@ export function rivalPower(r: Rival): number {
 }
 /** Hoe sterk jij bent, op dezelfde manier geteld. */
 export function yourPower(): number {
-  const army = G.us.map(u => ({ hp: u.mhp, dmg: UNITS[u.k].dmg * armsMul(), rate: UNITS[u.k].rate }));
+  // Veteranen tellen zwaarder: hun levens zitten al in mhp, hun schade via veteranMul (zie game/army.ts)
+  const army = G.us.map(u => ({
+    hp: u.mhp,
+    dmg: UNITS[u.k].dmg * armsMul() * veteranMul(u),
+    rate: UNITS[u.k].rate,
+  }));
   const towers = G.bs.filter(b => b.done && B[b.type].def).map(b => towerStats(b.type, B[b.type].hp));
   return armyPower(army) + armyPower(towers);
 }

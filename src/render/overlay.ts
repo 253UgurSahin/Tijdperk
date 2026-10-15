@@ -8,6 +8,7 @@ import { bossForAge, bossName } from '../data/bosses';
 import { RES } from '../data/resources';
 import { UNITS } from '../data/units';
 import { has } from '../game/economy';
+import { unitRank } from '../game/army';
 import { canBuyChunk, chunkCost } from '../game/placement';
 import { rbById } from '../game/rivals';
 import { G, sel } from '../game/state';
@@ -51,6 +52,27 @@ function bossLabel(f: Foe) {
   c.fillRect(sx - w / 2 - 2, sy - 2, w + 4, 8);
   obar(sx, sy, w, f.hp / f.mhp, '#e3584a');
   otext(sx, sy - 7, bossName(boss), '#ffe7a0', 13);
+}
+// Gouden streepjes (rang 1 tot 3) net boven de plek van de levensbalk
+function rankChevrons(u, rank) {
+  const [sx, sy, sz] = proj(u.rx ?? u.x, UNITS[u.k].fly ? 1.3 : 0.8, u.ry ?? u.y);
+  if (sz > 1 || sx < -20 || sy < -20 || sx > VW + 20 || sy > VH + 20) return;
+  const c = octx;
+  c.lineCap = 'round';
+  c.lineJoin = 'round';
+  for (let i = 0; i < rank; i++) {
+    const y = sy - 4 - i * 4;
+    c.beginPath();
+    c.moveTo(sx - 5, y);
+    c.lineTo(sx, y - 3.5);
+    c.lineTo(sx + 5, y);
+    c.strokeStyle = 'rgba(10,14,20,.75)';
+    c.lineWidth = 4;
+    c.stroke();
+    c.strokeStyle = '#f2c94c';
+    c.lineWidth = 2;
+    c.stroke();
+  }
 }
 export function drawOverlay() {
   const c = octx;
@@ -112,6 +134,13 @@ export function drawOverlay() {
     const [sx, sy, sz] = proj(e.rx ?? e.x, fly ? 1.3 : 0.8, e.ry ?? e.y);
     if (sz > 1) continue;
     obar(sx, sy, 22, e.hp / e.mhp, e.kind === 'f' ? '#e3584a' : e.hp / e.mhp > 0.4 ? '#7fd36a' : '#e3a64a');
+  }
+  // Veteranen: gouden streepjes boven hun hoofd, één per rang (zie game/army.ts). Ver uitgezoomd alleen
+  // bij wie je geselecteerd hebt, anders wordt het een rommeltje.
+  for (const u of G.us) {
+    if (!u.kills) continue; // de meeste soldaten hebben nog niets verslagen: snel overslaan
+    const rank = unitRank(u);
+    if (rank && (z > 14 || sel.us.has(u.id))) rankChevrons(u, rank);
   }
   for (const f of G.foes) if (f.boss && !f.retreat) bossLabel(f);
   for (const e of G.fx)

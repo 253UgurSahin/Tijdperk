@@ -35,6 +35,7 @@ import { bossDefeated, bossForRaid } from './bosses';
 import { gateDestroyed, gateHurt, isCharging, raidBoost } from './finale';
 import { allyHelp, atWarWith, commonEnemyBeaten, fairTarget, helpersNear } from './diplomacy';
 import { spreadOut } from '../data/finale';
+import { creditKill, veteranMul } from './army';
 
 /** Een schot: schade, spatschade, laser, kleur, groot projectiel, beginhoogte, van een vijand, geluid. */
 interface FireOpts {
@@ -62,7 +63,8 @@ function tpos(t: Target): { x: number; y: number; rad: number } {
 }
 export const isDead = (t: Target | null | undefined): boolean | undefined =>
   !t || t.dead || t.hidden || (t.kind === 'c' && !t.alive) || (t.kind === 'f' && t.retreat);
-function hit(t: Target, dmg: number) {
+// `by`: de soldaat van jou die raakte (of niets). Versla je zo een vijand, dan telt die overwinning voor hem.
+function hit(t, dmg, by) {
   if (isDead(t)) return;
   const hpBefore = t.hp;
   t.hp -= dmg;
@@ -90,6 +92,7 @@ function hit(t: Target, dmg: number) {
     burst(t.x, t.y, '#7a3a30'); // een helper van een bondgenoot sneuvelt: geen vijand van jou
   } else if (t.kind === 'f') {
     G.stats.killed++;
+    creditKill(by); // na genoeg overwinningen wordt hij veteraan (zie game/army.ts)
     burst(t.x, t.y, '#7a3a30');
     if (t.boss) {
       bossDefeated(t); // een kampioen: extra zegening (zie game/bosses.ts)
@@ -177,8 +180,9 @@ function campDestroyed(c: Camp) {
 export function fire(_from: Target, x: number, y: number, t: Target, o: FireOpts) {
   // Geluid hoort bij het wapen (musket, kanon, laser, ...); vijanden iets minder vaak
   sfx(o.snd || 'shot', o.foe ? 0.3 : 0.12);
+  const by = from && from.kind === 'u' ? from : null; // een eigen soldaat: hij krijgt de overwinning
   if (o.laser) {
-    hit(t, o.dmg);
+    hit(t, o.dmg, by);
     G.fx.push({ type: 'beam', x, y, x2: t.x, y2: t.y, life: 0.12, col: '#5ff0ff' });
     return;
   }
@@ -196,6 +200,7 @@ export function fire(_from: Target, x: number, y: number, t: Target, o: FireOpts
     foe: !!o.foe,
     ally: !!o.ally, // geschoten door een helper van een bondgenoot
     allyOf: o.allyOf || 0, // van welke rivaal die helper is (zijn eigen volk raakt hij niet)
+    by,
     big: !!o.big,
     h0: o.h0 || 14,
   });
@@ -216,7 +221,7 @@ export function updateProj(dt: number) {
       if (p.splash) {
         // Wie in de ontploffing staat: bij een vijandelijk schot jouw mensen, anders vijanden
         for (const e of splashVictims(p))
-          if (!e.hidden && dist(e.x, e.y, p.lx, p.ly) <= p.splash) hit(e, p.dmg);
+          if (!e.hidden && dist(e.x, e.y, p.lx, p.ly) <= p.splash) hit(e, p.dmg, p.by);
         if (p.foe && !isDead(p.t) && p.t.kind === 'b') hit(p.t, p.dmg);
         if (!p.foe && !p.ally) {
           for (const c of G.camps)
@@ -230,7 +235,7 @@ export function updateProj(dt: number) {
           }
         }
         G.fx.push({ type: 'boom', x: p.lx, y: p.ly, life: 0.35, r: p.splash });
-      } else if (!isDead(p.t)) hit(p.t, p.dmg);
+      } else if (!isDead(p.t)) hit(p.t, p.dmg, p.by);
     } else {
       p.x += (dx / d) * st;
       p.y += (dy / d) * st;
@@ -266,14 +271,15 @@ export function nearestFoe(x: number, y: number, r: number, air?: boolean | 1): 
   }
   return best;
 }
-// Schade van een eigen eenheid tegen doel t: basis × wapens × onderzoek × rol-bonus
+// Schade van een eigen eenheid tegen doel t: basis × wapens × onderzoek × rol-bonus × rang (veteranen)
 function udmg(u: Unit, t: Target): number {
   return (
     UNITS[u.k].dmg *
     bonusMul(UNITS[u.k], t) *
     armsMul() *
     mul('army.dmg') *
-    (u.k === 'drone' || u.k === 'exo' ? mul('robot.dmg') : 1)
+    (u.k === 'drone' || u.k === 'exo' ? mul('robot.dmg') : 1) *
+    veteranMul(u)
   );
 }
 export function uUpdate(u: Unit, dt: number) {
@@ -339,7 +345,7 @@ export function uUpdate(u: Unit, dt: number) {
           });
         else {
           if (U.snd) sfx(U.snd, 0.15);
-          hit(u.tgt, udmg(u, u.tgt));
+          hit(u.tgt, udmg(u, u.tgt), u);
         }
       }
     } else if (u.stance === 'hold' && u.order === 'guard') {
@@ -347,12 +353,18 @@ export function uUpdate(u: Unit, dt: number) {
     } else chase(u, p, dt, SP, U.fly);
     return;
   }
+  // In formatie lopen ze samen in het tempo van de langzaamste (zie formationMove in game/army.ts).
+  // Vechten doen ze wel op hun eigen snelheid (hierboven).
+  const walk = u.pace ? Math.min(SP, u.pace * mul('army.speed') * mul('move.all')) : SP;
   if (u.order === 'move' || u.order === 'attack' || u.order === 'amove') {
-    if (moveToward(u, u.gx, u.gy, dt, SP, U.fly)) u.order = 'guard';
+    if (moveToward(u, u.gx, u.gy, dt, u.order === 'attack' ? SP : walk, U.fly)) {
+      u.order = 'guard';
+      u.pace = 0;
+    }
     return;
   }
   if (u.order === 'patrol') {
-    if (moveToward(u, u.gx, u.gy, dt, SP, U.fly)) {
+    if (moveToward(u, u.gx, u.gy, dt, walk, U.fly)) {
       const a = u.gx,
         b2 = u.gy;
       // Bij patrouilleren is het tweede punt (px, py) altijd gezet

@@ -15,11 +15,21 @@ import { ownerAt } from '../game/rivals';
 import { rivalBuildingTip, rivalLandTip, rivalUnitTip } from './rivals';
 import { VH, VW, cv } from '../render/scene';
 import { bShort } from './buildmenu';
+import { chevronsHTML, rankTip } from './army';
+import { unitRank } from '../game/army';
 import { esc, fmt } from './format';
 import { $ } from '../util/dom';
 import { SET } from '../core/settings';
 import { clamp } from '../util/math';
 import { amt, inb, isUnl, node, nodeVis } from '../world/world';
+
+// Tooltip voor je eigen soldaat: naam met rangstreepjes, daaronder rang, leven en of hij vecht
+function ownUnitTip(u) {
+  const name = UNITS[u.k].n + chevronsHTML(unitRank(u));
+  const health = `${Math.ceil(u.hp)}/${Math.round(u.mhp)} leven`;
+  const doing = u.tgt ? 'in gevecht' : 'paraat';
+  return `<b>${name}</b><span>${rankTip(u)}${health} · ${doing}</span>`;
+}
 
 // Tooltip bij de muis
 export function updateHover() {
@@ -85,8 +95,7 @@ export function updateHover() {
     h = `<b>${bossName(boss)}</b><span>Kampioen · ${fmt(f.hp)}/${fmt(f.mhp)} leven · verslaan = extra zegening</span>`;
   } else if (f)
     h = `<b>${FOES[f.type].n.replace(/en$|s$/, '')}</b><span>Vijand · ${Math.ceil(f.hp)} levenspunten</span>`;
-  else if (u)
-    h = `<b>${UNITS[u.k].n}</b><span>${Math.ceil(u.hp)}/${Math.round(u.mhp)} leven · ${u.tgt ? 'in gevecht' : 'paraat'}</span>`;
+  else if (u) h = ownUnitTip(u);
   else if (v)
     h = `<b>${esc(v.name)}</b><span>${v.job === 'auto' ? 'Automatisch' : v.job === 'build' ? 'Bouwer' : RES[v.job].n}${v.carry.amt ? ` · draagt ${v.carry.amt}` : ''}</span>`;
   else if (c) h = `<b>Vijandelijk kamp</b><span>Niveau ${c.tier + 1} · klik om te bekijken</span>`;

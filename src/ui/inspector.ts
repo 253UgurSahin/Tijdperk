@@ -31,6 +31,8 @@ import {
   upgradeTools,
 } from '../game/upgrades';
 import { buildCost } from '../game/placement';
+import { formationMove, unitRank, veteranMul } from '../game/army';
+import { chevronsHTML, formationLineHTML, rankLineHTML } from './army';
 import { unhide } from '../game/villagers';
 import { clearSel, resetV, selUnits, selVills } from '../input/selection';
 import { centerOn } from '../render/camera';
@@ -80,6 +82,13 @@ export const CB = (data: string, glyph: string, label: string, o: CmdOpts = {}):
 // Selectiepaneel met de knoppen die bij de selectie horen
 export let selCmds: string | null = null,
   selCtx = '';
+// Kop van het paneel bij soldaten: één met zijn rangstreepjes, "3 × Speerdrager" of (gemengd) "Leger"
+function armyTitle(us, oneKind) {
+  const name = UNITS[us[0].k].n;
+  if (us.length === 1) return name + chevronsHTML(unitRank(us[0]));
+  if (oneKind) return `${us.length} × ${name}`;
+  return 'Leger';
+}
 export function renderInspector() {
   const p = $('#inspector'),
     vs = selVills(),
@@ -161,14 +170,18 @@ export function renderInspector() {
         on: cur === 'aggr',
         tip: 'Gaat achter elke vijand in de buurt aan',
       });
+    // Eén soldaat: zijn rang erbij (veteranen, zie game/army.ts). Meer soldaten: hoe ze in formatie lopen.
+    const solo = us.length === 1 ? us[0] : null;
+    const armyLine = solo ? rankLineHTML(solo) : formationLineHTML(us);
     return setHTML(
       p,
       'ins',
-      'u' + JSON.stringify(by) + Math.round((hp / mhp) * 20) + cur,
-      () => `${head(im(portrait('u', us[0].k)), us.length === 1 ? U.n : one ? `${us.length} × ${U.n}` : 'Leger', `${us.length} ${us.length === 1 ? 'eenheid' : 'eenheden'}${G.armsLvl ? ` · pantser ${G.armsLvl + 1}` : ''}`)}${hpl(hp / mhp, `${Math.ceil(hp)}/${Math.ceil(mhp)}`)}
+      'u' + JSON.stringify(by) + Math.round((hp / mhp) * 20) + cur + armyLine,
+      () => `${head(im(portrait('u', us[0].k)), armyTitle(us, one), `${us.length} ${us.length === 1 ? 'eenheid' : 'eenheden'}${G.armsLvl ? ` · pantser ${G.armsLvl + 1}` : ''}`)}${hpl(hp / mhp, `${Math.ceil(hp)}/${Math.ceil(mhp)}`)}
+      ${armyLine}
       ${
         one
-          ? `<div class="stats"><span><i>${ico('⚔')}</i>${Math.round(U.dmg * armsMul())} schade</span><span><i>${ico('◎')}</i>bereik ${U.r}</span><span><i>${ico('»')}</i>snelheid ${U.spd}</span>${U.air ? `<span><i>${ico('✈')}</i>raakt drones</span>` : ''}</div>`
+          ? `<div class="stats"><span><i>${ico('⚔')}</i>${Math.round(U.dmg * armsMul() * (solo ? veteranMul(solo) : 1))} schade</span><span><i>${ico('◎')}</i>bereik ${U.r}</span><span><i>${ico('»')}</i>snelheid ${U.spd}</span>${U.air ? `<span><i>${ico('✈')}</i>raakt drones</span>` : ''}</div>`
           : `<div class="stack">${Object.keys(by)
               .map(
                 k =>
@@ -549,14 +562,9 @@ export function insHandler(e: MouseEvent) {
     }
     computeCaches();
   } else if (t.dataset.u === 'home') {
+    // In formatie naar het plein voor het stamhuis, maar ieder op volle snelheid (vaak is het dringend)
     const th = G.bs.find(x => x.type === 'townhall')!;
-    selUnits().forEach((u, k) => {
-      u.tgt = null;
-      u.order = 'move';
-      u.path = null;
-      u.gx = th.x + 1 + ((k % 5) - 2) * 0.8;
-      u.gy = th.y + 3 + Math.floor(k / 5) * 0.8;
-    });
+    if (th) formationMove(selUnits(), th.x + 1, th.y + 4, 'move', { keepPace: false });
   } else if (t.dataset.u === 'stop')
     selUnits().forEach(u => {
       u.tgt = null;
