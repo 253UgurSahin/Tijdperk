@@ -37,6 +37,9 @@ interface PinchDrag {
   mode: 'pinch';
   d0: number;
   z0: number;
+  /** Het punt tussen de twee vingers op het scherm. */
+  mx: number;
+  my: number;
 }
 /** Wat een klik of sleep met één knop of vinger bijhoudt: beginpunt (sx, sy) en laatste punt (lx, ly). */
 interface Press {
@@ -77,7 +80,7 @@ cv.addEventListener('pointerdown', e => {
   mouse.touch = e.pointerType === 'touch';
   if (ptrs.size === 2) {
     const [p, q] = [...ptrs.values()];
-    drag = { mode: 'pinch', d0: dist(p.x, p.y, q.x, q.y), z0: cam.z };
+    drag = { mode: 'pinch', d0: dist(p.x, p.y, q.x, q.y), z0: cam.z, mx: (p.x + q.x) / 2, my: (p.y + q.y) / 2 };
     return;
   }
   drag = {
@@ -113,9 +116,23 @@ cv.addEventListener('pointermove', e => {
   hoverChunk = [Math.floor(mouse.tx / CS), Math.floor(mouse.ty / CS)];
   if (ptrs.has(e.pointerId)) ptrs.set(e.pointerId, { x: sx, y: sy });
   if (!drag) return;
-  if (drag.mode === 'pinch' && ptrs.size === 2) {
-    const [p, q] = [...ptrs.values()];
+  if (drag.mode === 'pinch') {
+    if (ptrs.size !== 2) return;
+    // Zoom rond het punt tussen de vingers en schuif mee met de vingers
+    const [p, q] = [...ptrs.values()],
+      mx = (p.x + q.x) / 2,
+      my = (p.y + q.y) / 2,
+      before = s2t(drag.mx, drag.my);
     setZoom((drag.z0 * dist(p.x, p.y, q.x, q.y)) / drag.d0);
+    updateCamera();
+    const after = s2t(mx, my);
+    cam.tx = null;
+    cam.x += before[0] - after[0];
+    cam.y += before[1] - after[1];
+    clampCam();
+    updateCamera();
+    drag.mx = mx;
+    drag.my = my;
     return;
   }
   if (drag.mode === 'line') {
@@ -153,7 +170,11 @@ cv.addEventListener('pointerup', e => {
   ptrs.delete(e.pointerId);
   if (!drag) return;
   if (drag.mode === 'pinch') {
-    if (ptrs.size === 0) drag = null;
+    // Nog één vinger op het scherm: daarmee verder schuiven (telt nooit als tik)
+    const rest = [...ptrs.values()][0];
+    drag = rest
+      ? { mode: 'pan', btn: 0, sx: rest.x, sy: rest.y, lx: rest.x, ly: rest.y, shift: false, ctrl: false, moved: 99, t0: 0 }
+      : null;
     return;
   }
   const [sx, sy] = local(e);

@@ -30,20 +30,30 @@
   --barh: 226px;
   --resw: 214px;
 }
+/* Accentkleur per tijdperk (zelfde rij als AGE_COLORS in ui/modals.ts) */
 body[data-age='1'] {
   --accent: #d08b3c;
 }
 body[data-age='2'] {
-  --accent: #d6705f;
+  --accent: #b9a48f;
 }
 body[data-age='3'] {
-  --accent: #8fb2c9;
+  --accent: #d6705f;
 }
 body[data-age='4'] {
-  --accent: #a6c25c;
+  --accent: #e9b949;
 }
 body[data-age='5'] {
+  --accent: #8fb2c9;
+}
+body[data-age='6'] {
+  --accent: #a6c25c;
+}
+body[data-age='7'] {
   --accent: #46d3d6;
+}
+body[data-age='8'] {
+  --accent: #b49cff;
 }
 html,
 body {

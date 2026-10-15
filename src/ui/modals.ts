@@ -28,8 +28,10 @@ export function closeModal() {
   $('#modal').hidden = true;
   setSpeed($('#title').hidden ? prevSpeed : 0);
 }
+// Accentkleur per tijdperk, gelijk aan body[data-age] in styles/base.css
+const AGE_COLORS = ['#d9a441', '#d08b3c', '#b9a48f', '#d6705f', '#e9b949', '#8fb2c9', '#a6c25c', '#46d3d6', '#b49cff'];
 $('#modal').addEventListener('click', e => {
-  const t = (e.target as HTMLElement).closest<HTMLElement>('[data-m]');
+  const t = (e.target as HTMLElement).closest<HTMLElement>('[data-m],[data-view],[data-snd],[data-q],[data-set]');
   if ((e.target as HTMLElement).id === 'modal' && !G.over) {
     closeModal();
     return;
@@ -98,14 +100,6 @@ $('#modal').addEventListener('input', e => {
     sfx('tick', 0.1);
   }
 });
-$('#modal').addEventListener('change', e => {
-  const input = e.target as HTMLInputElement;
-  if (input.id === 'peace') {
-    G.peaceful = input.checked;
-    toast(G.peaceful ? 'Vredige modus aan: geen nachtelijke aanvallen.' : 'Aanvallen staan weer aan.');
-    sigs.def = null;
-  }
-});
 export function openPause() {
   openModal(`<div class="eyebrow">${placeName()} · dag ${G.day} · ${AGES[G.age].n}</div><h1>Gepauzeerd</h1>
   <p>${fmt(G.stats.gathered)} grondstoffen · ${G.stats.killed} vijanden verslagen · ${G.stats.camps} kampen veroverd · ${Object.keys(G.tech).length} uitvindingen</p>
@@ -149,11 +143,11 @@ export function showTitle() {
     ['Zwaar', 'Elke nacht, grotere groepen.'],
   ];
   const draw = () => {
-    el.innerHTML = `<div class="tw"><div class="tag">Van vuursteen tot drone</div><div class="logo">TIJD<br>PERKEN</div><div class="agesrow">${AGES.map((a, i) => `<span style="background:${['#d9a441', '#d08b3c', '#d6705f', '#8fb2c9', '#a6c25c', '#46d3d6'][i]}" title="${a.n}">${a.r}</span>`).join('')}</div>
+    el.innerHTML = `<div class="tw"><div class="tag">Van vuursteen tot de sterren</div><div class="logo">TIJD<br>PERKEN</div><div class="agesrow">${AGES.map((a, i) => `<span style="background:${AGE_COLORS[i]}" title="${a.n}">${a.r}</span>`).join('')}</div>
     <div class="mstack">${has_ ? `<button class="mbtn primary" data-t="cont"><span>Verder spelen</span><small>${placeName()} · dag ${G.day} · ${AGES[G.age].n}</small></button>` : ''}<button class="mbtn ${has_ ? '' : 'primary'}" data-t="new"><span>${has_ ? 'Nieuwe wereld' : 'Begin'}</span><small>${D[diff][0].toLowerCase()}</small></button></div>
     <div><div class="eyebrow" style="margin-bottom:6px">Moeilijkheid</div><div class="diff">${D.map((d, i) => `<button class="${i === diff ? 'on' : ''}" data-d="${i}"><b>${d[0]}</b><small>${d[1]}</small></button>`).join('')}</div></div>
     <div class="mstack"><button class="mbtn" data-t="help"><span>Uitleg</span><small>besturing</small></button><button class="mbtn" data-t="settings"><span>Instellingen</span><small>geluid · camera</small></button></div>
-    <div class="tfoot">Zes tijdperken · seizoenen · muren · onderzoek · voortgang wordt in deze browser bewaard</div></div>`;
+    <div class="tfoot">Negen tijdperken · seizoenen · muren · onderzoek · voortgang wordt in deze browser bewaard</div></div>`;
   };
   draw();
   el.onclick = e => {
@@ -194,7 +188,7 @@ export function showTitle() {
 $('#menuBtn').onclick = () => openPause();
 export function showHelp() {
   openModal(`<button class="quiet x" data-m="close" aria-label="Sluiten">×</button><div class="eyebrow">Welkom in ${placeName()}</div><h1>Bouw. Groei. Overleef.</h1>
-  <p>Leid je stam van de <b>steentijd</b> naar het <b>dronetijdperk</b>, in zes hoofdstukken. Elk tijdperk onthult nieuwe grondstoffen op de kaart: koper en tin, ijzer en goud, kolen, olie en zand, en tot slot lithium.</p>
+  <p>Leid je stam van de <b>steentijd</b> naar het <b>sterrentijdperk</b>, in negen hoofdstukken. Elk tijdperk onthult nieuwe grondstoffen op de kaart: koper en tin, ijzer en goud, kolen, olie en zand, en tot slot lithium.</p>
   <p>Je <b>dorpelingen</b> werken vanzelf op wat het hardst nodig is. Wil je regie, geef ze dan een vaste taak in het paneel Volk, of selecteer ze en klik op een boom, ader of bouwplaats.</p>
   <p>'s <b>Nachts</b> gaan dorpelingen buiten het licht naar huis. Elke tweede nacht vallen vijanden aan. Bouw torens, train een <b>leger</b> en verover de kampen op de kaart voor buit en grond.</p>
   <p>Herken iedereen aan de schijf eronder: <b>blauw</b> is jouw leger, <b>rood</b> is de vijand, licht zijn je dorpelingen. Soms valt er een <b>meteoriet</b>: rond de krater liggen daarna nieuwe ertsen.</p>
@@ -205,7 +199,7 @@ export function showHelp() {
 }
 export function showVictory() {
   openModal(
-    `<div class="eyebrow">Hoofdstuk VI voltooid</div><h1>Van vuursteen tot drone.</h1><p>${placeName()} doorliep de hele geschiedenis in ${G.day} dagen. ${fmt(G.stats.gathered)} grondstoffen verzameld, ${G.stats.killed} vijanden verslagen, ${G.stats.camps} kampen veroverd.</p><div class="row"><button class="primary" data-m="close">Verder bouwen</button><button data-m="new">Nieuwe wereld</button></div>`,
+    `<div class="eyebrow">Hoofdstuk IX voltooid</div><h1>Van vuursteen tot de sterren.</h1><p>${placeName()} doorliep de hele geschiedenis in ${G.day} dagen. ${fmt(G.stats.gathered)} grondstoffen verzameld, ${G.stats.killed} vijanden verslagen, ${G.stats.camps} kampen veroverd.</p><div class="row"><button class="primary" data-m="close">Verder bouwen</button><button data-m="new">Nieuwe wereld</button></div>`,
   );
 }
 export function showGameOver() {

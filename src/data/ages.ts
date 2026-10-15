@@ -1,5 +1,5 @@
 // De negen tijdperken en wat je nodig hebt om naar het volgende te gaan.
-// `acc` is de kleur van het tijdperk: de hele interface kleurt mee.
+// `acc` is de kleur van het tijdperk (voor effecten); de interface kleurt mee via styles/base.css.
 import type { AgeDef, AgeUpDef, Cost } from '../types';
 export const AGES: AgeDef[] = [
   {

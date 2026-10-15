@@ -119,7 +119,7 @@ function renderBuilds() {
           return `<button class="gb ${store.placing === k ? 'active' : ''} ${has(d.cost) ? '' : 'poor'} ${store.coachTile === k && store.placing !== k ? 'hint' : ''}" data-b="${k}" aria-pressed="${store.placing === k}" aria-label="${d.n}">${d.age === G.age && G.age > 0 ? '<span class="nw">nieuw</span>' : ''}<img src="${iconFor(k)}" alt=""><b>${hy(d.n)}</b></button>`;
         })
         .join('') +
-      (next.length && G.age < 5
+      (next.length && G.age < AGES.length - 1
         ? next
             .map(
               k =>

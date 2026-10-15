@@ -105,7 +105,6 @@ export function drawFx() {
       m.rotation.set(0, Math.atan2(dx, dy), 0);
       m.geometry = GB;
       m.position.set((e.x + e.x2) / 2, 0.7, (e.y + e.y2) / 2);
-      m.translateZ(-l / 2);
     }
   }
 }

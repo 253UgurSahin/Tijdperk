@@ -27,7 +27,7 @@ function repairCost() {
 }
 export function renderDefense() {
   const th = G.bs.find(b => b.type === 'townhall'),
-    hp = th ? th.hp / B.townhall.hp : 0,
+    hp = th ? th.hp / bMaxHp(th) : 0,
     raidNow = G.foes.filter(f => !f.camp && !f.retreat).length,
     hrs = hoursUntilRaid(),
     rc = repairCost();
