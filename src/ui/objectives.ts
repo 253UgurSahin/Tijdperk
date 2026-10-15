@@ -33,8 +33,8 @@ import { $, isCompact } from '../util/dom';
 export function renderChronicle() {
   renderGoalButton();
   const nx = AGE_UP[G.age + 1];
-  let rows = [],
-    allReq = true,
+  const rows: string[] = [];
+  let allReq = true,
     fix = '',
     total = 0,
     ready = 0;

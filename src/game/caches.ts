@@ -19,11 +19,11 @@ export let lights: { x: number; y: number; r: number; warm: boolean }[] = [],
   /** Wat er te verzamelen valt (1 of true), en hoeveel dorpelingen per grondstof werken. */
   avail: Record<string, number | boolean> = {},
   wr: Record<string, number> = {},
-  /** Hoeveel dorpelingen op weg zijn naar elke bouwplaats en akker (op id). */
-  siteCnt = new Map<number, number>(),
-  farmCnt = new Map<number, number>(),
   /** Grondstoffen die gebouwen of soldaten nodig hebben (1 = nodig). */
   demand: Record<string, number> = {};
+/** Hoeveel dorpelingen op weg zijn naar elke bouwplaats en akker (op id). */
+export const siteCnt = new Map<number, number>(),
+  farmCnt = new Map<number, number>();
 /** Hoeveel stroom centrale b levert als hij draait. Alleen voor gebouwen met `gen` (een centrale). */
 export const genPower = (b: Building): number => B[b.type].gen!.power * bRate(b) * mul('power');
 export function computeCaches(): void {
