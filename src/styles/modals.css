@@ -238,6 +238,30 @@
   flex-direction: column;
   gap: 9px;
 }
+/* Twee kleinere menuknoppen naast elkaar, met de toelichting onder de titel */
+.mpair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 9px;
+}
+.mpair .mbtn {
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: flex-start;
+  gap: 0;
+  padding-block: 9px;
+  text-align: left;
+}
+/* Op een telefoon iets kleiner, zodat het hele pauzemenu bijna zonder scrollen past */
+@media (max-width: 560px) {
+  .mpair .mbtn {
+    padding: 8px 12px;
+    font-size: 17px;
+  }
+  .mpair .mbtn small {
+    font-size: 11px;
+  }
+}
 .diff {
   display: grid;
   grid-template-columns: repeat(3, 1fr);

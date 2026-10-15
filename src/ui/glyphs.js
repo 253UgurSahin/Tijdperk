@@ -97,6 +97,16 @@ const PATHS = {
   '⛺': '<path d="M3 20L12 5l9 15z"/><path d="M12 5V3M9 20l3-6 3 6"/>',
   // hangslot: nog op slot
   '⚿': '<rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3M12 14.5v2"/>',
+
+  // Voor prestaties
+  // ster: gewonnen
+  '★': '<path d="M12 3.5l2.6 5.4 5.9.8-4.3 4.1 1 5.8L12 16.8l-5.2 2.8 1-5.8-4.3-4.1 5.9-.8z"/>',
+  // zandloper: snel
+  '⌛': '<path d="M6 3h12M6 21h12"/><path d="M7.5 3c0 4.5 4.5 6 4.5 9s-4.5 4.5-4.5 9M16.5 3c0 4.5-4.5 6-4.5 9s4.5 4.5 4.5 9"/>',
+  // kroon: alle volken
+  '♛': '<path d="M4 18L3 7.5l5 4 4-6.5 4 6.5 5-4L20 18z"/><path d="M4 21h16"/>',
+  // vraagteken: geheime prestatie
+  '?': '<path d="M9 9a3 3 0 1 1 4.2 2.8c-.8.4-1.2 1-1.2 1.9V15"/><circle cx="12" cy="18.6" r=".6" fill="currentColor"/>',
 };
 
 // Geeft een SVG-pictogram terug voor een bekend teken, of het teken zelf als we het niet kennen.

@@ -112,6 +112,7 @@ function pickOres() {
 
 function impact(m) {
   G.meteor = null;
+  G.stats.meteors++;
   const cx = Math.floor(m.x),
     cy = Math.floor(m.y);
   // Klap: explosie, rook en een schudden van het scherm

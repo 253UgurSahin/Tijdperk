@@ -6,6 +6,7 @@ import { SET } from '../core/settings.js';
 import { B } from '../data/buildings.js';
 import { RES } from '../data/resources.js';
 import { FOES, UNITS, bonusMul } from '../data/units.js';
+import { endGame } from './achievements.js';
 import { computeAvail } from './caches.js';
 import { gain } from './economy.js';
 import { burst, floater } from './fx.js';
@@ -15,7 +16,6 @@ import { armsMul } from './upgrades.js';
 import { unhide } from './villagers.js';
 import { scrX } from '../render/scene.js';
 import { note, toast } from '../ui/hud.js';
-import { showGameOver } from '../ui/modals.js';
 import { dist } from '../util/math.js';
 import { findPath, follow } from '../world/pathfinding.js';
 import { bmap, foeWalk, freeWalk, isUnl, nearestWall, setBlk, walkable } from '../world/world.js';
@@ -72,7 +72,7 @@ function destroyBuilding(b) {
   sfx('boom');
   if (b.type === 'townhall') {
     G.over = true;
-    setTimeout(showGameOver, 900);
+    endGame(false, 900);
   } else if (d.wall) {
     note(`${d.n} doorbroken.`, 'bad');
   } else {
@@ -480,6 +480,7 @@ export function spawnRaid() {
       if (!isUnl(x - 1, y) || !isUnl(x + 1, y) || !isUnl(x, y - 1) || !isUnl(x, y + 1)) edge.push([x, y]);
     }
   if (!edge.length) return;
+  G.stats.raidDay = G.day; // voor de prestaties "doorsta ... aanvallen" (zie game/time.js)
   const anchor = edge[(Math.random() * edge.length) | 0],
     near = edge.filter(e => dist(e[0], e[1], anchor[0], anchor[1]) < 7);
   for (let k = 0; k < n; k++) {

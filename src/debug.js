@@ -63,11 +63,23 @@ window.__tp.bless = () => earnBlessing();
 // Opslaan en laden testen zonder de opslag van de browser: __tp.saves.deserialize(__tp.saves.serialize())
 import * as saves from './game/save.js';
 window.__tp.saves = saves;
-// Volken: speel alle volken vrij (alsof je de prestaties al hebt), of begin meteen als een volk
+// Volken: speel alle volken vrij (zonder nep-prestaties in je profiel te zetten), of begin meteen als een volk
 import { PEOPLES } from './data/peoples.js';
+import * as profile from './core/profile.js';
 window.__tp.unlockPeoples = () => {
-  const achievements = {};
-  for (const p of PEOPLES) if (p.locked) achievements[p.locked.by] = true;
-  store.profile = { achievements };
+  for (const p of PEOPLES) {
+    if (p.locked) profile.addPeople(store.profile, p.k);
+  }
+  profile.saveProfile();
 };
 window.__tp.playAs = (people, diff = 1) => newGame(undefined, diff, people);
+// Prestaties en score: het profiel bekijken, alles kijken wat je nu haalt, of meteen winnen of verliezen
+import * as achievements from './game/achievements.js';
+window.__tp.profile = profile;
+window.__tp.achievements = achievements;
+window.__tp.checkAchievements = () => achievements.checkAchievements();
+window.__tp.endGame = (won = true) => {
+  if (won) G.won = true;
+  else G.over = true;
+  achievements.endGame(won, 0);
+};

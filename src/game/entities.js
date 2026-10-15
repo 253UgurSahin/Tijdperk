@@ -5,12 +5,12 @@ import { W } from '../config.js';
 import { B } from '../data/buildings.js';
 import { NAMES } from '../data/names.js';
 import { FOES, UNITS } from '../data/units.js';
+import { endGame } from './achievements.js';
 import { fxRing } from './fx.js';
 import { G, bById } from './state.js';
 import { add, mul } from './bonus.js';
 import { armsMul, bMaxHp, bPop } from './upgrades.js';
 import { toast } from '../ui/hud.js';
-import { showVictory } from '../ui/modals.js';
 import { clamp } from '../util/math.js';
 import { bmap, node, setBlk } from '../world/world.js';
 
@@ -58,6 +58,7 @@ export function completeBuilding(b, silent) {
     if (!silent) toast('Smidse klaar: betere werktuigen voor iedereen', 'good');
   }
   b.pop_t = G.t;
+  if (d.wall) G.stats.walls++; // voor de prestatie "win zonder muren"
   if (!silent) {
     store.notePos = [b.x + d.size / 2, b.y + d.size / 2];
     toast(d.n + ' is klaar');
@@ -67,7 +68,7 @@ export function completeBuilding(b, silent) {
   }
   if (d.win && !G.won) {
     G.won = true;
-    setTimeout(showVictory, 800);
+    endGame(true, 800);
   }
   store.uiDirty = true;
 }

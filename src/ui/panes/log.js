@@ -8,21 +8,21 @@ import { esc, fmt } from '../format.js';
 import { setHTML } from '../header.js';
 import { $ } from '../../util/dom.js';
 
-export function renderChart() {
-  const c = $('#chart');
-  if (!c || !G.hist.length || !document.querySelector('.pane[data-pane="log"]').classList.contains('on'))
-    return;
+/** Welke grondstoffen in de grafiek staan: voedsel, hout, steen en wat nieuw is in dit tijdperk (max. 5). */
+export const chartKeys = age =>
+  ['food', 'wood', 'stone', ...RKEYS.filter(k => RES[k].age === age && !RES[k].cr)].slice(0, 5);
+
+/**
+ * Teken de voorraadgrafiek op een canvas: één lijn per grondstof.
+ * `hist` is G.hist: elke 10 seconden de hele voorraad (in de volgorde van RKEYS).
+ */
+export function drawChart(c, hist, keys) {
   const x = c.getContext('2d'),
     Wc = c.width,
     Hc = c.height;
   x.clearRect(0, 0, Wc, Hc);
-  const keys = ['food', 'wood', 'stone', ...RKEYS.filter(k => RES[k].age === G.age && !RES[k].cr)].slice(
-      0,
-      5,
-    ),
-    H2 = G.hist;
   let mx = 1;
-  for (const h of H2) for (const k of keys) mx = Math.max(mx, h[RKEYS.indexOf(k)]);
+  for (const h of hist) for (const k of keys) mx = Math.max(mx, h[RKEYS.indexOf(k)]);
   x.strokeStyle = 'rgba(43,37,32,.1)';
   x.lineWidth = 1;
   for (let i = 1; i < 4; i++) {
@@ -36,8 +36,8 @@ export function renderChart() {
     x.strokeStyle = RES[k].c;
     x.lineWidth = 2;
     x.beginPath();
-    H2.forEach((h, i) => {
-      const px = (i / Math.max(59, H2.length - 1)) * Wc,
+    hist.forEach((h, i) => {
+      const px = (i / Math.max(59, hist.length - 1)) * Wc,
         py = Hc - (h[ki] / mx) * (Hc - 6) - 3;
       i ? x.lineTo(px, py) : x.moveTo(px, py);
     });
@@ -47,6 +47,13 @@ export function renderChart() {
   x.font = '10px "IBM Plex Mono",monospace';
   x.textAlign = 'right';
   x.fillText(fmt(mx), Wc - 3, 10);
+}
+
+export function renderChart() {
+  const c = $('#chart');
+  if (!c || !G.hist.length || !document.querySelector('.pane[data-pane="log"]').classList.contains('on'))
+    return;
+  drawChart(c, G.hist, chartKeys(G.age));
 }
 function logItem(l) {
   const j = l.x != null;

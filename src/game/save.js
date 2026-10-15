@@ -1,6 +1,7 @@
 // Opslaan en laden in de browser.
 import { store } from '../core/store.js';
 import { CX, CY, H, TH, TW, W } from '../config.js';
+import { ACHIEVEMENT } from '../data/achievements.js';
 import { BLESSING } from '../data/blessings.js';
 import { B } from '../data/buildings.js';
 import { DEFAULT_PEOPLE, PEOPLE } from '../data/peoples.js';
@@ -70,6 +71,9 @@ export function serialize() {
     'blessings',
     'blessingQueue',
     'people',
+    'achieved',
+    'result',
+    'countedAsPlayed',
   ])
     g[k] = G[k];
   return JSON.stringify({
@@ -140,12 +144,18 @@ export function deserialize(str) {
   G.hist = fromOld ? [] : G.hist || [];
   G.offer = null;
   G.stats = Object.assign(baseState(0).stats, s.g.stats);
+  // Prestaties en score: opslag van vóór het profiel begint zonder (het spel telt dan nog mee)
+  G.achieved = Array.isArray(s.g.achieved) ? s.g.achieved.filter(k => ACHIEVEMENT[k]) : [];
+  G.result = s.g.result || null;
+  G.countedAsPlayed = !!s.g.countedAsPlayed;
   G.log = s.g.log || [];
   G.toolLvl = s.g.toolLvl || 0;
   G.armsLvl = s.g.armsLvl || 0;
   G.tech = G.tech || {};
   G.buff = G.buff || {};
   G.diff = G.diff == null ? 1 : G.diff;
+  // Opslag van vóór deze teller: stond de vredige modus aan (of speel je Vredig), dan telt dat als gebruikt
+  if (G.peaceful || G.diff === 0) G.stats.peaceUsed = true;
   G.event = null;
   if (s.road) road.set(ub64(s.road));
   node.set(ub64(s.node));

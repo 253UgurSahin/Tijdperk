@@ -88,7 +88,7 @@ export const PEOPLES = [
     start: { villagers: 2 },
     // De twee extra dorpelingen krijgen ook een plek om te wonen
     bonus: { 'chunk.cost': -0.3, 'vill.speed': 0.1, pop: 2 },
-    locked: { by: 'camps3', text: 'Verover 3 vijandelijke kampen' },
+    locked: { by: 'camps3', text: 'Verover 3 vijandelijke kampen in één spel' },
   },
 ];
 
@@ -103,8 +103,9 @@ export const DEFAULT_PEOPLE = 'friezen';
 export const peopleBonuses = k => (PEOPLE[k] && PEOPLE[k].bonus ? [PEOPLE[k].bonus] : []);
 
 /**
- * Mag je met dit volk spelen? `profile` is het spelersprofiel, zoals
- * { achievements: { age3: true } }: de prestaties die je ooit haalde.
+ * Mag je met dit volk spelen? `profile` is het spelersprofiel (zie core/profile.js), zoals
+ * { achievements: { age3: 1760000000000 }, unlockedPeoples: ['bergvolk'] }.
+ * Het slot gaat eraf met de prestatie die het volk noemt, of als het volk al vrijgespeeld is.
  * Zonder profiel (of met een leeg profiel) kun je alleen de vrije volken kiezen.
  */
 export function isPeopleUnlocked(k, profile = {}) {
@@ -112,7 +113,8 @@ export function isPeopleUnlocked(k, profile = {}) {
   if (!people) return false;
   if (!people.locked) return true;
   const achievements = (profile && profile.achievements) || {};
-  return !!achievements[people.locked.by];
+  const unlocked = (profile && profile.unlockedPeoples) || [];
+  return !!achievements[people.locked.by] || unlocked.includes(k);
 }
 
 /** Wat je nog moet doen om dit volk vrij te spelen, of '' als dat al gelukt is. */

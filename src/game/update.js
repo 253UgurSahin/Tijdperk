@@ -19,6 +19,7 @@ import { note, toast } from '../ui/hud.js';
 import { dist } from '../util/math.js';
 import { amt, bmap, node, nodeLists } from '../world/world.js';
 import { updateMeteors } from './meteors.js';
+import { checkAchievements } from './achievements.js';
 
 /** Onthoud waar alles stond vóór de volgende speltik, zodat de weergave ertussen kan tekenen. */
 export function rememberPositions() {
@@ -73,6 +74,11 @@ export function update(dt) {
   if (store.slowP <= 0) {
     store.slowP = 2;
     computeAvail();
+  }
+  store.achievementTimer -= dt;
+  if (store.achievementTimer <= 0) {
+    store.achievementTimer = 3;
+    checkAchievements();
   }
   G.res.food -= (G.vs.length * 0.05 + G.us.length * 0.08) * dt;
   if (G.res.food < 0) {

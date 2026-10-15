@@ -50,6 +50,9 @@ export function advanceClock(dt) {
     toast(`Radio: vannacht valt een groep van ±${raidSize()} aan.`, 'bad');
   if (crossed(p, c, 21) && raidNight()) spawnRaid();
   if (crossed(p, c, 6.3)) {
+    // Het is ochtend en het stamhuis staat nog: de aanval van vannacht is doorstaan.
+    // We kijken naar de aanval die echt begon (niet naar het rooster): de vredige modus kan intussen zijn omgezet.
+    if (G.stats.raidDay === G.day - 1 && !G.over) G.stats.survived++;
     let n = 0;
     for (const f of G.foes)
       if (!f.camp && !f.retreat) {

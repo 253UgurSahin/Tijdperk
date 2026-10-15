@@ -10,4 +10,5 @@
 @import './clarity.css';
 @import './blessings.css';
 @import './peoples.css';
+@import './achievements.css';
 @import './settings.css'; /* als laatste: de grootte-instelling moet boven de rest winnen */

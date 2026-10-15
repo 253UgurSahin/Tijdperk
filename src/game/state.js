@@ -67,7 +67,23 @@ export function baseState(seed) {
     over: false,
     bought: 0,
     hungry: false,
-    stats: { gathered: 0, killed: 0, born: 0, camps: 0, trained: 0, knight: 0 },
+    // Tellers voor doelen, prestaties en de score
+    stats: {
+      gathered: 0,
+      killed: 0,
+      born: 0,
+      camps: 0,
+      trained: 0,
+      knight: 0,
+      walls: 0, // muren en poorten gebouwd
+      survived: 0, // aanvallen doorstaan
+      raidDay: 0, // de dag waarop de laatste aanval echt begon
+      meteors: 0, // meteorieten ingeslagen
+      peaceUsed: false, // stond de vredige modus ooit aan in dit spel? (dan telt de score half)
+    },
+    achieved: [], // prestaties die je in dít spel voor het eerst haalde
+    result: null, // de eindscore, zodra het spel gewonnen of verloren is (zie game/achievements.js)
+    countedAsPlayed: false, // telt dit spel al mee bij "gespeeld" in je profiel?
   };
   RKEYS.forEach(k => (g.res[k] = 0));
   return g;
@@ -79,6 +95,7 @@ export function newGame(seed, diff = 1, people = DEFAULT_PEOPLE) {
   G.people = PEOPLE[people] ? people : DEFAULT_PEOPLE;
   G.diff = diff;
   G.peaceful = diff === 0;
+  G.stats.peaceUsed = G.peaceful;
   G.blessingQueue = [{ age: 0, at: FIRST_BLESSING_AT }];
   Object.assign(
     G.res,

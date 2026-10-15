@@ -165,6 +165,14 @@ export function sfx(k, minGap = 0.05) {
     case 'raidend':
       tone(392, 523, 0.3, 'triangle', 0.06);
       break;
+    case 'achieve':
+      // Prestatie behaald: twee snelle klokjes omhoog, dan een heldere, lange toon met wat glinstering
+      tone(880, 0, 0.12, 'sine', 0.06);
+      tone(1175, 0, 0.12, 'sine', 0.06, 0.08);
+      tone(1568, 0, 0.7, 'sine', 0.07, 0.16);
+      tone(2349, 0, 0.5, 'triangle', 0.02, 0.18);
+      noise(0.4, 0.015, 6000, 0.16);
+      break;
   }
 }
 export function setSound(on) {

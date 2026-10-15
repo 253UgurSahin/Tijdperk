@@ -15,6 +15,13 @@ Een real-time strategiespel in de browser: leid je stam van de **steentijd** naa
 - Volken: kies op het titelscherm met welk volk je begint. Elk volk heeft eigen voordelen; de Noormannen trainen
   zelfs een eigen soldaat (de Berserker). Friezen, Noormannen en Hanze zijn vrij; Bergvolk, Sterrenkijkers en
   Nomaden speel je vrij met prestaties
+- Prestaties en profiel: ruim 40 prestaties (elk tijdperk, winnen op Zwaar, winnen met elk volk, kampen veroveren,
+  aanvallen doorstaan, en een paar geheime). Je haalt ze in het spel met een eigen geluid en kaartje; op het
+  titelscherm zie je onder **Prestaties** wat je hebt, je beste scores en je laatste spellen. Het profiel blijft
+  bewaard, ook als je een nieuwe wereld begint
+- Eindscore: bij winst of verlies rekent het spel je score uit (tijdperken verder, kampen, vijanden, min de dagen,
+  keer de moeilijkheid) en krijg je een medaille van brons, zilver of goud. Zet je de vredige modus aan, dan telt
+  de score van dat spel half
 - 3D-wereld in WebGL ([three.js](https://threejs.org) r149), met dag/nacht, seizoenen, regen en schaduwen
 - RTS-interface: grondstoffen met dorpelingen per taak, selectiepaneel, knoppenraster en minikaart
 - Bouwen, verzamelen, gebied uitbreiden, onderzoek, een leger trainen en kampen veroveren
