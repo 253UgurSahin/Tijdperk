@@ -19,8 +19,8 @@ import { $, isCompact } from '../util/dom';
 
 export function renderChronicle() {
   const nx = AGE_UP[G.age + 1];
-  let rows: string[] = [],
-    allReq = true,
+  const rows: string[] = [];
+  let allReq = true,
     fix = '';
   if (nx) {
     for (const n of nx.need) {

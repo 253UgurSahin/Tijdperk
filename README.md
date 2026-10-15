@@ -1,6 +1,8 @@
 # Tijdperken
 
-Een real-time strategiespel in de browser: leid je stam van de **steentijd** naar het **dronetijdperk**, in zes tijdperken.
+Een real-time strategiespel in de browser: leid je stam van de **steentijd** naar het **sterrentijdperk**, in negen tijdperken.
+
+**Online spelen:** <https://253ugursahin.github.io/Tijdperk/>
 
 - Elke wereld wordt opnieuw gegenereerd (256×256 tegels): zee en kust, rivieren en meren, bossen, heuvels, bergketens met sneeuw, woestijnen en zoutvlaktes. Ertsen liggen waar ze logisch horen
 - Meteorieten: af en toe slaat er een in (met waarschuwing). Rond de krater liggen daarna nieuwe ertsen, vooral wat bij jou schaars is
@@ -11,28 +13,32 @@ Een real-time strategiespel in de browser: leid je stam van de **steentijd** naa
 - Het spel wijst zelf de volgende stap aan; geen uitleg nodig
 - Voortgang wordt in de browser bewaard (localStorage)
 
-## Spelen
+## Zelf ontwikkelen
+
+De code is **TypeScript** (strict) en wordt gebouwd met [Vite](https://vite.dev). Nodig: Node.js 20.19 of nieuwer.
 
 ```bash
 npm install
-npm run dev       # ontwikkelserver op http://localhost:5173
-npm run build     # productiebuild in dist/
-npm run preview   # bekijk de build lokaal
-npm test          # unittests (Vitest)
-npm run lint      # ESLint + opmaakcontrole
-npm run format    # code netjes opmaken (Prettier)
+npm run dev        # ontwikkelserver op http://localhost:5173
+npm run typecheck  # alleen de types controleren
+npm run build      # types controleren en productiebuild in dist/
+npm run preview    # bekijk de build lokaal
+npm test           # unittests (Vitest)
+npm run lint       # ESLint + opmaakcontrole
+npm run format     # code netjes opmaken (Prettier)
 ```
 
-Bij elke push naar `main` draait de CI (lint, tests, build) en wordt `dist/` naar GitHub Pages gepubliceerd
-(*Settings → Pages → Source: GitHub Actions*).
+Bij elke push draait de CI (lint, tests, typecheck en build). Vanaf `main` wordt `dist/` op GitHub Pages gezet;
+dat staat één keer aan via *Settings → Pages → Source: GitHub Actions*.
 
 ## Projectstructuur
 
 ```
-index.html            alleen de HUD-markup; laadt src/main.js
+index.html            alleen de HUD-markup; laadt src/main.ts
 src/
-  main.js             opstarten en de spellus (frame)
-  config.js           kaartgrootte en vaste getallen
+  main.ts             opstarten en de spellus (frame)
+  types.ts            gedeelde types: gebouwen, dorpelingen, soldaten, de spelstand
+  config.ts           kaartgrootte en vaste getallen
   core/               gedeelde mutabele toestand (store) en instellingen
   data/               pure speldata: grondstoffen, gebouwen, eenheden, tijdperken, techniek
   world/              kaartgeneratie, terreinlagen en padvinding
