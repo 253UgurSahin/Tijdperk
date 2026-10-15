@@ -15,7 +15,8 @@ import { proj, s2iso, s2t } from '../render/camera.js';
 import { nearScreen, pickGroup } from '../render/picking.js';
 import { BG3, CG3 } from '../render/sync.js';
 import { RG3 } from '../render/rivals3d.js';
-import { landOwner, orderRivalAttack, rbById } from '../game/rivals.js';
+import { landOwner, orderRivalAttack, rbById, rivalById } from '../game/rivals.js';
+import { confirmSurprise, surpriseTarget } from '../game/diplomacy.js';
 import { RIVAL } from '../data/rivals.js';
 import { setExpand, toast } from '../ui/hud.js';
 import { demolish } from '../ui/inspector.js';
@@ -96,6 +97,14 @@ function command(X, Y, tx, ty) {
       rb = !f && !c && rbAt(X, Y);
     if (f || c || rb) {
       const target = f || c || rb;
+      // Soldaten van een bondgenoot die jou helpen, val je niet aan
+      if (f && f.helper) {
+        toast(`Deze soldaten van ${RIVAL[rivalById(f.rival)?.k]?.n || 'je bondgenoot'} helpen jou.`);
+        return true;
+      }
+      // Zonder oorlog is dit een verrassingsaanval: eerst een waarschuwing, pas de tweede klik valt aan
+      const rival = surpriseTarget(target);
+      if (rival && !confirmSurprise(rival)) return true;
       // Een gebouw van een rivaal: ze blijven daarna in hun stad (zie game/rivals.js)
       if (rb) orderRivalAttack(us, rb);
       else

@@ -17,4 +17,5 @@
 @import './rivals.css';
 @import './wonders.css';
 @import './finale.css';
+@import './diplomacy.css';
 @import './settings.css'; /* als laatste: de grootte-instelling moet boven de rest winnen */

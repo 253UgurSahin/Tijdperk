@@ -8,6 +8,7 @@ import { bUpdate } from './buildings.js';
 import { computeAvail, computeCaches } from './caches.js';
 import { spawnFoe } from './entities.js';
 import { makeOffer, th, updateEvents } from './events.js';
+import { expireRivalOffer } from './diplomacy.js';
 import { fUpdate, isRaider, uUpdate, updateProj } from './military.js';
 import { updateRivals } from './rivals.js';
 import { G } from './state.js';
@@ -49,9 +50,13 @@ export function update(dt) {
     makeOffer();
   }
   if (G.offer && G.t > G.offer.until) {
-    G.offer = null;
-    sigs.offer = null;
-    note('De handelaar is verder getrokken.');
+    // Een bericht van een rivaal zonder antwoord telt als nee (zie game/diplomacy.js)
+    if (G.offer.from) expireRivalOffer();
+    else {
+      G.offer = null;
+      sigs.offer = null;
+      note('De handelaar is verder getrokken.');
+    }
   }
   if (G.research) {
     G.research.t += dt;
@@ -143,7 +148,8 @@ export function update(dt) {
     if (h && h.done && !G.over) {
       const mx = bMaxHp(h);
       // Herstellen zolang er geen aanvallers zijn (kampbewakers en rivalen thuis tellen alleen als ze dichtbij zijn)
-      const threat = f => !f.retreat && (isRaider(f) || dist(f.x, f.y, h.x + 1, h.y + 1) < 12);
+      // (helpers van een bondgenoot zijn geen gevaar)
+      const threat = f => !f.retreat && !f.helper && (isRaider(f) || dist(f.x, f.y, h.x + 1, h.y + 1) < 12);
       if (h.hp < mx && !G.foes.some(threat)) h.hp = Math.min(mx, h.hp + (mx * dt) / 240);
     }
   }

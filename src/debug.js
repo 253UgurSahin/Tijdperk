@@ -167,3 +167,25 @@ window.__tp.bossRaid = (age = Math.max(1, G.age)) => {
   G.boss = { age };
   spawnRaid();
 };
+// Diplomatie: zet een relatie (__tp.rel(0, 70)), laat een rivaal een bericht sturen (__tp.rivalOffer(0, 'ask')),
+// open het venster (__tp.diplo()), of laat een bondgenoot meteen helpen (__tp.allyHelp(0))
+import * as diplomacy from './game/diplomacy.js';
+import { showDiplomacy } from './ui/diplomacy.js';
+window.__tp.diplomacy = diplomacy;
+window.__tp.rel = (i = 0, value = 0) => {
+  const r = G.rivals[i];
+  if (r) diplomacy.changeRelation(r, value - r.rel);
+  return r;
+};
+window.__tp.rivalOffer = (i = 0, kind = 'trade') => {
+  G.offer = null;
+  return diplomacy.makeRivalOffer(G.rivals[i], kind);
+};
+window.__tp.diplo = (i = -1) => showDiplomacy(G.rivals[i]?.id || 0);
+window.__tp.allyHelp = (i = 0) => {
+  const r = G.rivals[i];
+  if (!r) return;
+  r.ally = true;
+  r.atWar = false;
+  diplomacy.sendHelpers(r);
+};

@@ -32,6 +32,7 @@ import { bmap, foeWalk, freeWalk, isUnl, nearestWall, setBlk, walkable } from '.
 import { wonderDestroyed } from './wonders.js';
 import { bossDefeated, bossForRaid } from './bosses.js';
 import { gateDestroyed, gateHurt, isCharging, raidBoost } from './finale.js';
+import { allyHelp, atWarWith, commonEnemyBeaten, fairTarget, helpersNear } from './diplomacy.js';
 import { spreadOut } from '../data/finale.js';
 
 function tpos(t) {
@@ -69,10 +70,15 @@ function hit(t, dmg) {
     G.us = G.us.filter(x => x !== t);
     sel.us.delete(t.id);
     burst(t.x, t.y, '#b0463a');
+  } else if (t.kind === 'f' && t.helper) {
+    burst(t.x, t.y, '#7a3a30'); // een helper van een bondgenoot sneuvelt: geen vijand van jou
   } else if (t.kind === 'f') {
     G.stats.killed++;
     burst(t.x, t.y, '#7a3a30');
-    if (t.boss) bossDefeated(t); // een kampioen: extra zegening (zie game/bosses.js)
+    if (t.boss) {
+      bossDefeated(t); // een kampioen: extra zegening (zie game/bosses.js)
+      commonEnemyBeaten('boss'); // rivalen waarmee het vrede is, vinden dat goed (zie game/diplomacy.js)
+    }
     if (Math.random() < 0.35) {
       const n = 5 + G.age * 3;
       G.res.food += n;
@@ -145,6 +151,7 @@ function campDestroyed(c) {
   for (let k = 0; k < 10; k++) burst(c.x + Math.random() * 2, c.y + Math.random() * 2, '#b9822f');
   store.notePos = [c.x + 1, c.y + 1];
   toast(`Vijandelijk kamp veroverd! Buit binnengehaald.${extra}`, 'good');
+  commonEnemyBeaten('camp'); // een gezamenlijke vijand minder: rivalen vinden dat goed (zie game/diplomacy.js)
   sfx('age');
   floater(c.x + 1, c.y + 1, 'BUIT', '#e2b92c');
   if (sel.camp === c.id) sel.camp = null;
@@ -171,6 +178,8 @@ export function fire(from, x, y, t, o) {
     spd: o.big ? 11 : 15,
     col: o.col || '#fff3c4',
     foe: !!o.foe,
+    ally: !!o.ally, // geschoten door een helper van een bondgenoot
+    allyOf: o.allyOf || 0, // van welke rivaal die helper is (zijn eigen volk raakt hij niet)
     big: !!o.big,
     h0: o.h0 || 14,
   });
@@ -189,14 +198,17 @@ export function updateProj(dt) {
     if (d <= st + 0.15) {
       p.done = true;
       if (p.splash) {
-        const list = p.foe ? [...G.vs, ...G.us] : G.foes;
-        for (const e of list) if (!e.hidden && dist(e.x, e.y, p.lx, p.ly) <= p.splash) hit(e, p.dmg);
+        // Wie in de ontploffing staat: bij een vijandelijk schot jouw mensen, anders vijanden
+        for (const e of splashVictims(p))
+          if (!e.hidden && dist(e.x, e.y, p.lx, p.ly) <= p.splash) hit(e, p.dmg);
         if (p.foe && !isDead(p.t) && p.t.kind === 'b') hit(p.t, p.dmg);
-        if (!p.foe) {
+        if (!p.foe && !p.ally) {
           for (const c of G.camps)
             if (c.alive && dist(c.x + 1, c.y + 1, p.lx, p.ly) <= p.splash + 1) hit(c, p.dmg);
-          // Gebouwen van rivalen in de ontploffing (een kopie van de lijst: er kan er een instorten)
+          // Gebouwen van rivalen in de ontploffing (een kopie van de lijst: er kan er een instorten).
+          // Alleen van wie je in oorlog bent, of het gebouw waar je op mikte: zo begint geen oorlog per ongeluk.
           for (const b of [...rbById.values()]) {
+            if (b !== p.t && !atWarWith(b.rival)) continue;
             const s = B[b.type].size / 2;
             if (dist(b.x + s, b.y + s, p.lx, p.ly) <= p.splash + s) hit(b, p.dmg);
           }
@@ -210,12 +222,26 @@ export function updateProj(dt) {
   }
   G.proj = G.proj.filter(p => !p.done);
 }
+/**
+ * Wie een ontploffing kan raken. Een vijandelijk schot: jouw mensen. Een schot van een helper van een
+ * bondgenoot: jouw aanvallers (niet zijn eigen volk, niet de andere helpers). Jouw schot: vijanden, maar
+ * geen helpers en geen soldaten van een rivaal waarmee het vrede is (behalve waar je op mikte).
+ */
+function splashVictims(p) {
+  if (p.foe) return [...G.vs, ...G.us];
+  if (p.ally)
+    return G.foes.filter(
+      e => !e.helper && e.rival !== p.allyOf && (!e.rival || isRaider(e) || isMarching(e)),
+    );
+  return G.foes.filter(e => !e.helper && (e === p.t || fairTarget(e)));
+}
 export function nearestFoe(x, y, r, air) {
   let best = null,
     bd = r;
   for (const f of G.foes) {
     if (f.retreat || f.dead) continue;
     if (f.air && !air) continue;
+    if (!fairTarget(f)) continue; // niet de soldaten van een rivaal waarmee het vrede is (zie game/diplomacy.js)
     const d = dist(x, y, f.x, f.y);
     if (d < bd) {
       bd = d;
@@ -259,7 +285,9 @@ export function uUpdate(u, dt) {
         leash = am ? 8 : st === 'hold' ? U.r + 0.3 : st === 'aggr' ? 11 : u.order === 'move' ? 4.5 : 7;
       const f = nearestFoe(u.x, u.y, leash, U.air);
       // In een aanvalsmars of op aanvallen: ook gebouwen van rivalen in de buurt aanvallen
-      const rb = !f && !u.tgt && (am || st === 'aggr') ? nearestRivalBuilding(u.x, u.y, leash) : null;
+      // (alleen van rivalen waarmee het oorlog is: zo begin je niet per ongeluk een oorlog)
+      const rb =
+        !f && !u.tgt && (am || st === 'aggr') ? nearestRivalBuilding(u.x, u.y, leash, 0, true) : null;
       if (rb) u.tgt = rb;
       else if (
         f &&
@@ -332,7 +360,8 @@ function chase(e, p, dt, spd, fly) {
     return;
   }
   e.pt -= dt;
-  const foe = e.kind === 'f',
+  // Vijanden lopen niet door jouw muren; helpers van een bondgenoot lopen zoals jouw eigen mensen
+  const foe = e.kind === 'f' && !e.helper,
     mode = foe ? 2 : true;
   if (!e.path || !e.path.length || e.pt <= 0) {
     e.pt = 1.5;
@@ -382,7 +411,7 @@ export function moveToward(e, x, y, dt, spd, fly) {
     return false;
   }
   if (!e.path) {
-    e.path = findPath(e.x | 0, e.y | 0, x | 0, y | 0, e.kind === 'f' ? 2 : true);
+    e.path = findPath(e.x | 0, e.y | 0, x | 0, y | 0, e.kind === 'f' && !e.helper ? 2 : true);
     if (!e.path) {
       e.gx = e.x;
       e.gy = e.y;
@@ -415,6 +444,15 @@ export function foeTarget(f) {
     if (d < bd) {
       bd = d;
       best = v;
+    }
+  }
+  // Helpers van een bondgenoot vechten mee, dus vallen aanvallers ook hen aan
+  for (const h of helpersNear(f.x, f.y, bd)) {
+    if (h.rival === f.rival) continue;
+    const d = dist(f.x, f.y, h.x, h.y);
+    if (d < bd) {
+      bd = d;
+      best = h;
     }
   }
   if (best || f.camp) return best;
@@ -500,7 +538,9 @@ export function fUpdate(f, dt) {
       if (f.proj)
         fire(f, f.x, f.y, f.tgt, {
           dmg: f.dmg,
-          foe: 1,
+          foe: f.helper ? 0 : 1, // een helper van een bondgenoot schiet op jouw vijanden
+          ally: !!f.helper,
+          allyOf: f.helper ? f.rival : 0,
           col: f.air ? '#ff6a5a' : '#ff9b6b',
           big: f.big,
           splash: f.splash ?? (f.big ? 1 : 0),
@@ -560,6 +600,7 @@ export function spawnRaid() {
   toast(`Aanval! ${n} × ${FOES[a].n.toLowerCase()} uit het ${joinWords(from)}.`, 'bad');
   sfx('alarm');
   store.raidPing = { x: anchor[0], y: anchor[1], t: 8, more: anchors.slice(1) };
+  allyHelp(); // bondgenoten sturen misschien soldaten (zie game/diplomacy.js)
 }
 // Hoe groot de volgende aanval is: groeit met elke aanval en elk tijdperk, maar blijft te overzien.
 // (Latere vijanden zijn per stuk al veel sterker, dus het aantal groeit rustig.)

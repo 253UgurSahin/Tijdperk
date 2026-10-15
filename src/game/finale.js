@@ -84,7 +84,7 @@ function callRivals() {
   G.finale.rivalsCalled = true;
   let count = 0;
   for (const r of G.rivals) {
-    if (r.dead) continue;
+    if (r.dead || r.ally) continue; // een bondgenoot doet niet mee (zie game/diplomacy.js)
     // Ook hun wacht gaat mee: alles wat ze hebben
     const army = rivalArmy(r).filter(f => f.mode === 'home');
     const kinds = rivalUnitsFor(r);

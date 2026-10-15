@@ -109,6 +109,9 @@ export function baseState(seed) {
       wonderRaces: 0, // wonderen die je afmaakte terwijl een rivaal hetzelfde wonder bouwde
       wondersTaken: 0, // wonderen die je veroverde door een rivaal te verslaan
       bosses: 0, // kampioenen verslagen (zie game/bosses.js)
+      alliances: 0, // bondgenootschappen gesloten (zie game/diplomacy.js)
+      treaties: 0, // handelsverdragen gesloten
+      traded: 0, // grondstoffen ontvangen via handelsverdragen
       lost: 0, // dorpelingen en gebouwen (geen muren) die je kwijtraakte, voor de medailles van uitdagingen
       peaceUsed: false, // stond de vredige modus ooit aan in dit spel? (dan telt de score half)
     },

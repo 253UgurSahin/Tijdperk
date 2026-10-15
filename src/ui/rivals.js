@@ -2,10 +2,19 @@
 import { store } from '../core/store.js';
 import { AGES } from '../data/ages.js';
 import { B } from '../data/buildings.js';
-import { PERSONALITY, RIVAL, armyPower, armyToAttack, strengthWord, verb } from '../data/rivals.js';
+import { PERSONALITY, RIVAL, armyToAttack, strengthWord, verb } from '../data/rivals.js';
 import { theWonder } from '../data/wonders.js';
 import { canMake } from '../data/succession.js';
 import { UNITS } from '../data/units.js';
+import {
+  confirmSurprise,
+  rivalAttackDay,
+  rivalPower,
+  surpriseArmed,
+  surpriseTarget,
+  surpriseText,
+  yourPower,
+} from '../game/diplomacy.js';
 import { isDead } from '../game/military.js';
 import { G, sel } from '../game/state.js';
 import {
@@ -18,7 +27,6 @@ import {
   rivalHall,
   rivalWonderSaving,
 } from '../game/rivals.js';
-import { armsMul } from '../game/upgrades.js';
 import { clearSel } from '../input/selection.js';
 import { centerOn } from '../render/camera.js';
 import { iconFor } from '../render/icons.js';
@@ -26,29 +34,14 @@ import { esc } from './format.js';
 import { ico } from './glyphs.js';
 import { setHTML, sigs } from './header.js';
 import { toast } from './hud.js';
+import { pactIconsHTML, relChipHTML, relationWords, showDiplomacy } from './diplomacy.js';
 import { bannerHTML } from './peoples.js';
 import { $ } from '../util/dom.js';
 import { dist } from '../util/math.js';
 
 // ---- Sterkte en status ----
 
-// Torens tellen mee voor de sterkte, net als soldaten
-const towerStats = (type, hp) => ({ hp, dmg: B[type].def.dmg, rate: B[type].def.rate });
-
-/** Hoe sterk een rivaal is: zijn leger plus zijn torens. */
-function rivalPower(r) {
-  const army = rivalArmy(r).map(f => ({ hp: f.mhp, dmg: f.dmg, rate: f.rate }));
-  const towers = r.bs.filter(b => b.done && B[b.type].def).map(b => towerStats(b.type, b.mhp));
-  return armyPower(army) + armyPower(towers);
-}
-/** Hoe sterk jij bent, op dezelfde manier geteld. */
-function yourPower() {
-  const army = G.us.map(u => ({ hp: u.mhp, dmg: UNITS[u.k].dmg * armsMul(), rate: UNITS[u.k].rate }));
-  const towers = G.bs.filter(b => b.done && B[b.type].def).map(b => towerStats(b.type, B[b.type].hp));
-  return armyPower(army) + armyPower(towers);
-}
-
-/** Zwakker, gelijk of sterker dan jij (een sleutel: zie de woorden hieronder). */
+/** Zwakker, gelijk of sterker dan jij (een sleutel: zie de woorden hieronder). De sterkte telt in game/diplomacy.js. */
 export const rivalStrength = r => strengthWord(rivalPower(r), yourPower());
 // De sterkte in woorden: kort in de lijst, als hele zin op de kaart. De sleutel blijft de CSS-klasse.
 const STRENGTH_SHORT = { zwakker: 'zwakker', gelijk: 'even sterk', sterker: 'sterker' };
@@ -73,7 +66,9 @@ export function rivalStatus(r) {
     return { text: `Onderweg naar jou: ${soldiersText(marching.length)}, rond ${when}`, tone: 'bad' };
   }
   if (G.peaceful) return { text: 'Vredige modus: valt niet aan', tone: '' };
-  const first = Math.max(4, PERSONALITY[r.p].first, r.nextAttack);
+  if (r.ally) return { text: 'Bondgenoot: valt niet aan', tone: 'good' };
+  // Wanneer ze weer kunnen aanvallen, hangt af van de relatie (zie game/diplomacy.js)
+  const first = rivalAttackDay(r);
   if (G.day < first) return { text: `Aanval niet vóór dag ${first}`, tone: '' };
   // Ze vallen pas aan als er genoeg soldaten thuis zijn (dezelfde regel als in game/rivals.js)
   const home = army.filter(f => f.mode === 'home').length;
@@ -100,7 +95,13 @@ function rivalWonderLine(r) {
 }
 
 // Wat een soldaat van een rivaal nu doet, in een paar woorden
-const DOING = { home: 'op wacht', march: 'onderweg naar jou', raid: 'valt aan', return: 'gaat naar huis' };
+const DOING = {
+  home: 'op wacht',
+  march: 'onderweg naar jou',
+  raid: 'valt aan',
+  return: 'gaat naar huis',
+  help: 'helpt jou',
+};
 
 // ---- Tooltips bij de muis ----
 
@@ -109,7 +110,7 @@ export function rivalUnitTip(f) {
   const r = rivalById(f.rival);
   if (!r) return '';
   const title = `${UNITS[f.uk].n} · ${RIVAL[r.k].n}`;
-  const line = `${subLine(r)} · ${DOING[f.mode] || 'valt aan'} · ${Math.ceil(f.hp)} leven`;
+  const line = `${relationWords(r)} · ${DOING[f.mode] || 'valt aan'} · ${Math.ceil(f.hp)} leven`;
   return `<b>${title}</b><span>${line}</span>`;
 }
 /** Tooltip bij een gebouw van een rivaal. */
@@ -119,14 +120,14 @@ export function rivalBuildingTip(b) {
   const title = `${B[b.type].n} · ${RIVAL[r.k].n}`;
   // Bij een wereldwonder in aanbouw: hoe ver ze zijn
   const busy = B[b.type].wonder && !b.done ? ` · wonder ${Math.floor((b.prog / b.bt) * 100)}% gebouwd` : '';
-  const line = `${subLine(r)} · ${Math.ceil(b.hp)}/${Math.round(b.mhp)} leven${busy}`;
+  const line = `${relationWords(r)} · ${Math.ceil(b.hp)}/${Math.round(b.mhp)} leven${busy}`;
   return `<b>${title}</b><span>${line}</span>`;
 }
 /** Tooltip boven het land van een rivaal. */
 export function rivalLandTip(id) {
   const r = rivalById(id);
   if (!r) return '';
-  return `<b>Land van ${RIVAL[r.k].n}</b><span>Verwoest hun stamhuis om het te veroveren</span>`;
+  return `<b>Land van ${RIVAL[r.k].n}</b><span>${relationWords(r)} · verwoest hun stamhuis om het te veroveren</span>`;
 }
 
 // ---- Overzicht in het paneel Leger ----
@@ -152,10 +153,16 @@ export function renderRivals() {
       status.text,
       power,
       wonder,
+      Math.round(r.rel),
+      r.ally,
+      r.atWar,
+      !!r.trade,
     ]),
   );
   const left = list.filter(r => !r.dead).length;
-  head.lastChild.textContent = left ? `${left} van ${list.length} over` : 'allemaal verslagen';
+  $('#rivLeft').textContent = left ? `${left} van ${list.length} over` : 'allemaal verslagen';
+  // De knop naar het venster Diplomatie staat in de kop, zodat je hem meteen ziet (zie ui/diplomacy.js)
+  $('#diploBtn').hidden = !left;
   setHTML(box, 'rivals', sig, () => rows.map(rowHTML).join(''));
 }
 
@@ -174,17 +181,22 @@ function rowHTML({ r, status, power, wonder }) {
       <small>${subLine(r)}${army}</small>
       <small class="rivstat ${status.tone}">${status.text}</small>
       ${wonder ? `<small class="rivwonder">${ico('★')}${wonder}</small>` : ''}
+      ${r.dead ? '' : `<span class="rivrel" title="Open Diplomatie">${relChipHTML(r)}${pactIconsHTML(r)}</span>`}
     </span>
     ${chip}
   </button>`;
 }
+
+$('#diploBtn').addEventListener('click', () => showDiplomacy());
 
 $('#rivals').addEventListener('click', e => {
   const t = e.target.closest('[data-rival]');
   if (!t) return;
   const r = rivalById(+t.dataset.rival);
   if (!r || r.dead) return;
-  showRival(r);
+  // Een klik op de relatie opent het venster Diplomatie bij deze rivaal; de rest van de rij toont hun stad
+  if (e.target.closest('.rivrel')) showDiplomacy(r.id);
+  else showRival(r);
 });
 
 /** Camera naar de stad van een rivaal, en hem selecteren. */
@@ -210,7 +222,7 @@ function yourSiege() {
   return keys.length ? UNITS[keys[0]] : null;
 }
 
-// De soldaat waarop je klikte, als hij nog meedoet en van deze rivaal is
+// De soldaat waarop je klikte, als hij nog meedoet en van deze rivaal is (ook een helper die jou helpt)
 function clickedSoldier(r) {
   const f = sel.rivalUnit && G.foes.find(o => o.id === sel.rivalUnit);
   return f && f.rival === r.id && !isDead(f) ? f : null;
@@ -224,6 +236,7 @@ function factsHTML(r, army, status, power) {
       <span>${soldiersText(army)}</span>
       <span>${buildings} ${buildings === 1 ? 'gebouw' : 'gebouwen'}</span>
       <span class="rivpow ${power}">${STRENGTH_LONG[power]}</span>
+      ${relChipHTML(r)}${pactIconsHTML(r)}
     </div>
     <div class="statline ${danger}"><i class="dot"></i>${status.text}</div>`;
 }
@@ -248,7 +261,15 @@ export function rivalSelection({ head, hpl, CB, im }) {
     power = rivalStrength(r);
   const facts = factsHTML(r, army, status, power);
   // Alles wat op de kaart staat, zit in de handtekening: verandert iets, dan tekent de kaart opnieuw
-  const shared = `${soldiers}|${status.text}|${power}|${army}|${r.bs.length}|${r.age}`;
+  const shared = `${soldiers}|${status.text}|${power}|${army}|${r.bs.length}|${r.age}|${Math.round(r.rel)}|${r.ally}|${r.atWar}|${!!r.trade}`;
+  // Zonder oorlog is aanvallen een verrassingsaanval: zeg wat dat kost, en vraag om een tweede klik
+  // (zie confirmSurprise in game/diplomacy.js)
+  const surprise = r.atWar ? '' : ` Let op: ${surpriseText(r)} Je klikt dan twee keer.`;
+  const armed = surpriseArmed(r);
+  const sure = 'Zeker? Klik nog eens';
+  const diplo = CB('data-riv="diplo"', '⚭', 'Diplomatie', {
+    tip: 'Relatie, geschenken, handel, verbond, oorlog en vrede',
+  });
 
   if (b) {
     const d = B[b.type],
@@ -260,9 +281,10 @@ export function rivalSelection({ head, hpl, CB, im }) {
     const note = hall ? HALL_NOTE : d.wonder ? wonderNote(b, info) : `Gebouw van ${esc(info.n)}.${siegeNote}`;
     // Het pictogram van het gebouw, met hun vaandel ervoor: zo zie je meteen dat het niet van jou is
     const portrait = im(iconFor(b.type)) + bannerHTML(info, 'rivbadge');
-    const attack = CB('data-riv="attack"', '⚔', `Leger (${soldiers}) valt aan`, {
+    const attack = CB('data-riv="attack"', '⚔', armed ? sure : `Leger (${soldiers}) valt aan`, {
       dis: !soldiers,
-      tip: 'Stuur al je soldaten naar dit gebouw',
+      danger: !r.atWar,
+      tip: `Stuur al je soldaten naar dit gebouw.${surprise}`,
     });
     const look = CB('data-riv="go"', '◎', 'Bekijk', { tip: 'Camera naar dit gebouw' });
     const toHall = hall
@@ -270,7 +292,7 @@ export function rivalSelection({ head, hpl, CB, im }) {
       : CB('data-riv="hall"', '⌂', 'Hun stamhuis', { tip: 'Camera naar hun stamhuis' });
     return {
       ctx: info.n,
-      cmds: attack + look + toHall,
+      cmds: attack + look + toHall + diplo,
       sig: `rb${b.id}|${Math.round(b.hp)}|${b.done}|${Math.floor(b.prog)}|${G.age}|${shared}`,
       html:
         head(portrait, d.n, `${esc(info.n)} · ${subLine(r)}`) +
@@ -285,16 +307,20 @@ export function rivalSelection({ head, hpl, CB, im }) {
 
   // De rivaal zelf. Klikte je op een van hun soldaten, dan kun je ook die ene aanvallen.
   const unit = clickedSoldier(r);
-  const attackUnit = unit
-    ? CB('data-riv="unit"', '⚔', `Val soldaat aan (${soldiers})`, {
-        dis: !soldiers,
-        tip: 'Al je soldaten vallen deze soldaat aan',
-      })
-    : '';
+  // Een helper van je bondgenoot val je niet aan
+  const attackUnit =
+    unit && !unit.helper
+      ? CB('data-riv="unit"', '⚔', armed && surpriseTarget(unit) ? sure : `Val soldaat aan (${soldiers})`, {
+          dis: !soldiers,
+          danger: !r.atWar,
+          tip: `Al je soldaten vallen deze soldaat aan.${surprise}`,
+        })
+      : '';
   const look = CB('data-riv="go"', '◎', 'Bekijk stad', { tip: 'Camera naar hun stamhuis' });
-  const attackHall = CB('data-riv="attack"', '⚔', `Leger (${soldiers}) naar stad`, {
+  const attackHall = CB('data-riv="attack"', '⚔', armed ? sure : `Leger (${soldiers}) naar stad`, {
     dis: !soldiers || !rivalHall(r),
-    tip: 'Al je soldaten lopen naar hun stad en vallen het stamhuis aan',
+    danger: !r.atWar,
+    tip: `Al je soldaten lopen naar hun stad en vallen het stamhuis aan.${surprise}`,
   });
   const unitLine = unit
     ? `<p class="small rivnote"><b>${UNITS[unit.uk].n}</b> · ${DOING[unit.mode] || 'valt aan'}</p>` +
@@ -303,7 +329,7 @@ export function rivalSelection({ head, hpl, CB, im }) {
   const unitSig = unit ? `${unit.id}:${Math.ceil(unit.hp)}:${unit.mode}` : '';
   return {
     ctx: info.n,
-    cmds: attackUnit + look + attackHall,
+    cmds: attackUnit + look + attackHall + diplo,
     sig: `rv${r.id}|${unitSig}|${shared}`,
     html:
       head(bannerHTML(info), esc(info.n), subLine(r)) +
@@ -333,6 +359,8 @@ function armyCentre() {
 // Je hele leger op een gebouw van een rivaal af, met een melding hoe ver het moet lopen
 function sendArmy(r, target) {
   if (!G.us.length) return;
+  // Zonder oorlog: eerst een waarschuwing, pas de tweede klik valt aan
+  if (surpriseTarget(target) && !confirmSurprise(r)) return;
   orderRivalAttack(G.us, target);
   const s = B[target.type].size / 2,
     from = armyCentre();
@@ -344,7 +372,8 @@ function sendArmy(r, target) {
 function attackSoldier(r) {
   const f = clickedSoldier(r),
     n = G.us.length;
-  if (!f || !n) return;
+  if (!f || f.helper || !n) return;
+  if (surpriseTarget(f) && !confirmSurprise(r)) return;
   for (const u of G.us) {
     u.tgt = f;
     u.order = 'attack';
@@ -373,6 +402,7 @@ export function rivalCommand(t) {
     }
   } else if (action === 'attack' && target) sendArmy(r, target);
   else if (action === 'unit') attackSoldier(r);
+  else if (action === 'diplo') showDiplomacy(r.id);
   sigs.ins = null;
   store.uiDirty = true;
   return true;

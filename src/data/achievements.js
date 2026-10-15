@@ -44,6 +44,7 @@ export const emptyFacts = () => ({
   wonderRaces: 0, // wonderen afgemaakt terwijl een rivaal hetzelfde wonder bouwde
   wondersTaken: 0, // wonderen veroverd door een rivaal te verslaan
   bosses: 0, // kampioenen verslagen (zie data/bosses.js)
+  alliances: 0, // bondgenootschappen gesloten (zie data/diplomacy.js)
 });
 
 /** Prestatie: win een spel met dit volk. */
@@ -196,6 +197,14 @@ export const ACHIEVEMENTS = [
     g: '⚑',
     d: 'Versla drie rivalen in één spel',
     when: f => f.rivalsBeaten >= 3,
+  },
+  {
+    k: 'ally1',
+    n: 'Verbonden',
+    cat: 'war',
+    g: '⚭',
+    d: 'Sluit een bondgenootschap met een rivaal (Diplomatie in het paneel Leger)',
+    when: f => f.alliances >= 1,
   },
   {
     k: 'wonder_taken',

@@ -264,7 +264,7 @@ function idleOrHome(v, night) {
 }
 function foeNear(x, y, r) {
   for (const f of G.foes) {
-    if (f.retreat) continue;
+    if (f.retreat || f.helper) continue; // helpers van een bondgenoot zijn geen gevaar
     if (f.camp && !f.aggro) continue;
     if (Math.abs(f.x - x) < r && Math.abs(f.y - y) < r && dist(f.x, f.y, x, y) < r) return f;
   }
