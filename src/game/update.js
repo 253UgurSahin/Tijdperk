@@ -33,7 +33,8 @@ export function update(dt) {
   if (G.over) return;
   G.t += dt;
   advanceClock(dt);
-  if (!G.offer && G.day >= 2 && !isNight() && Math.random() < dt / 420) makeOffer();
+  // Af en toe komt er een reizende handelaar langs (bij de Hanze vaker)
+  if (!G.offer && G.day >= 2 && !isNight() && Math.random() < (dt / 420) * mul('trader.rate')) makeOffer();
   if (G.offer && G.t > G.offer.until) {
     G.offer = null;
     sigs.offer = null;

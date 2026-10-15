@@ -160,7 +160,7 @@
   #cmdPanel {
     width: min(400px, 58%);
   }
-  /* Knoppenrij boven de onderbalk: Volk, Leger, ... plus Doel en Kaart */
+  /* Knoppenrij boven de onderbalk: Dorp, Leger, ... plus Doel en Kaart */
   #sidebtns {
     left: 6px;
     right: 6px;

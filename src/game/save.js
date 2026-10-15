@@ -3,6 +3,7 @@ import { store } from '../core/store.js';
 import { CX, CY, H, TH, TW, W } from '../config.js';
 import { BLESSING } from '../data/blessings.js';
 import { B } from '../data/buildings.js';
+import { DEFAULT_PEOPLE, PEOPLE } from '../data/peoples.js';
 import { RKEYS } from '../data/resources.js';
 import { computeAvail, computeCaches } from './caches.js';
 import { spawnFoe, spawnUnit, spawnVillager } from './entities.js';
@@ -68,6 +69,7 @@ export function serialize() {
     'nextMeteor',
     'blessings',
     'blessingQueue',
+    'people',
   ])
     g[k] = G[k];
   return JSON.stringify({
@@ -128,6 +130,8 @@ export function deserialize(str) {
     G.blessingQueue = [{ age: G.age, at: 0 }];
   }
   G.blessings = G.blessings.filter(k => BLESSING[k]); // zegeningen die niet meer bestaan vallen weg
+  // Volk: opslag van vóór de volken (of met een volk dat niet meer bestaat) speelt als Friezen
+  if (!PEOPLE[G.people]) G.people = DEFAULT_PEOPLE;
   if (!Array.isArray(G.blessingQueue)) G.blessingQueue = [];
   // Grondstoffen die toen nog niet bestonden (buskruit, sterrenmetaal, ...) beginnen op 0;
   // anders telt 'undefined' als genoeg en wordt de voorraad NaN

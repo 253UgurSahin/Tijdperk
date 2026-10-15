@@ -63,3 +63,11 @@ window.__tp.bless = () => earnBlessing();
 // Opslaan en laden testen zonder de opslag van de browser: __tp.saves.deserialize(__tp.saves.serialize())
 import * as saves from './game/save.js';
 window.__tp.saves = saves;
+// Volken: speel alle volken vrij (alsof je de prestaties al hebt), of begin meteen als een volk
+import { PEOPLES } from './data/peoples.js';
+window.__tp.unlockPeoples = () => {
+  const achievements = {};
+  for (const p of PEOPLES) if (p.locked) achievements[p.locked.by] = true;
+  store.profile = { achievements };
+};
+window.__tp.playAs = (people, diff = 1) => newGame(undefined, diff, people);

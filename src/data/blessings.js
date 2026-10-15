@@ -161,7 +161,7 @@ export const BLESSINGS = [
     n: 'Heelmeesters',
     g: '✚',
     cat: 'army',
-    d: 'Volk geneest 1 levenspunt per seconde, leger 2',
+    d: 'Dorpelingen genezen 1 levenspunt per seconde, leger 2',
     bonus: { heal: 1 },
   },
   {

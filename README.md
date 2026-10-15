@@ -12,6 +12,9 @@ Een real-time strategiespel in de browser: leid je stam van de **steentijd** naa
 - Zegeningen: na de eerste minuut en bij elk nieuw tijdperk kies je één van drie kaarten met een voordeel voor de
   rest van het spel (sommige met een nadeel erbij). Dezelfde wereld geeft dezelfde kaarten; je zegeningen staan
   bovenaan het paneel Verbeteren
+- Volken: kies op het titelscherm met welk volk je begint. Elk volk heeft eigen voordelen; de Noormannen trainen
+  zelfs een eigen soldaat (de Berserker). Friezen, Noormannen en Hanze zijn vrij; Bergvolk, Sterrenkijkers en
+  Nomaden speel je vrij met prestaties
 - 3D-wereld in WebGL ([three.js](https://threejs.org) r149), met dag/nacht, seizoenen, regen en schaduwen
 - RTS-interface: grondstoffen met dorpelingen per taak, selectiepaneel, knoppenraster en minikaart
 - Bouwen, verzamelen, gebied uitbreiden, onderzoek, een leger trainen en kampen veroveren
@@ -72,7 +75,7 @@ tests/                Vitest-tests voor data, wereldgeneratie en hulpfuncties
 ## Op telefoon en tablet
 
 Het spel past zich aan elk scherm aan, staand en liggend. Tik om te selecteren of te bouwen, sleep om de kaart
-te verschuiven en knijp om te zoomen. Onderin staan knoppen voor **Volk**, **Leger**, **Onderzoek**, **Doel** en
+te verschuiven en knijp om te zoomen. Onderin staan knoppen voor **Dorp**, **Leger**, **Verbeteren**, **Doel** en
 **Kaart**. Tik op de "volgende stap" bovenin voor meer uitleg.
 
 ## Besturing

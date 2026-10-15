@@ -91,6 +91,12 @@ const PATHS = {
   '✹': '<circle cx="12" cy="12" r="3.5"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1"/>',
   // vallende ster
   '☄': '<circle cx="15.5" cy="8.5" r="4"/><path d="M12.5 11.5L4 20M11.6 8.2L6 13.8M15.8 12.4L10.2 18"/>',
+
+  // Voor volken
+  // tent: de Nomaden
+  '⛺': '<path d="M3 20L12 5l9 15z"/><path d="M12 5V3M9 20l3-6 3 6"/>',
+  // hangslot: nog op slot
+  '⚿': '<rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3M12 14.5v2"/>',
 };
 
 // Geeft een SVG-pictogram terug voor een bekend teken, of het teken zelf als we het niet kennen.

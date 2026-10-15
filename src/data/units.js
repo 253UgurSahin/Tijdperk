@@ -1,4 +1,6 @@
 // Je eigen soldaten en de vijanden. `bonus`: extra schade tegen een soort doel (zie bonusMul).
+// `people`: deze soldaat hoort bij één volk (zie data/peoples.js); andere volken kunnen hem niet trainen.
+// `note`: korte extra uitleg voor de speler, bij de knop om hem te trainen.
 export const UNITS = {
   spear: {
     n: 'Speerdrager',
@@ -61,6 +63,22 @@ export const UNITS = {
     r: 0.9,
     rate: 1,
     spd: 2.1,
+    cost: { food: 55, iron: 15 },
+    t: 8,
+  },
+  // Alleen voor de Noormannen (zie data/peoples.js): vervangt daar de zwaardvechter.
+  // Slaat vaker toe en loopt iets sneller, maar heeft minder levens.
+  berserker: {
+    n: 'Berserker',
+    people: 'norse',
+    note: 'eigen soldaat van de Noormannen: slaat vaker toe (elke 0,7 s, zwaardvechter elke 1 s) en loopt iets sneller, maar heeft minder leven (135 tegen 170)',
+    src: 'barracks',
+    age: 2,
+    hp: 135,
+    dmg: 15,
+    r: 0.9,
+    rate: 0.7,
+    spd: 2.3,
     cost: { food: 55, iron: 15 },
     t: 8,
   },

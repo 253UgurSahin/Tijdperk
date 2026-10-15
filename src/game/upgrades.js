@@ -3,7 +3,7 @@ import { store } from '../core/store.js';
 import { sfx } from '../audio/sound.js';
 import { AGES, AGE_MAT } from '../data/ages.js';
 import { B } from '../data/buildings.js';
-import { RES } from '../data/resources.js';
+import { tradePrices } from '../data/resources.js';
 import { add, mul } from './bonus.js';
 import { has, pay } from './economy.js';
 import { floater, fxRing } from './fx.js';
@@ -25,7 +25,10 @@ export const maxLvl = b => (UPG_OK(b.type) ? Math.max(0, G.age - B[b.type].age) 
 export const canUpg = b => b.done && lvlOf(b) < maxLvl(b);
 // Het stamhuis groeit mee met je tijdperk, anders is het in latere tijdperken te snel gesloopt
 const ageHp = b => (b.type === 'townhall' && G ? 1 + 0.3 * G.age : 1);
-export const bMaxHp = (b, l = lvlOf(b)) => B[b.type].hp * ageHp(b) * (1 + 0.35 * l) * mul('bld.hp');
+// Torens (alles wat schiet, behalve het stamhuis) kunnen extra levens krijgen, zoals bij het Bergvolk
+const towerHp = b => (B[b.type].def && b.type !== 'townhall' ? mul('tower.hp') : 1);
+export const bMaxHp = (b, l = lvlOf(b)) =>
+  B[b.type].hp * ageHp(b) * (1 + 0.35 * l) * mul('bld.hp') * towerHp(b);
 export const bPop = b => {
   const p = B[b.type].pop;
   return p ? Math.round(p * (1 + 0.4 * lvlOf(b))) : 0;
@@ -39,13 +42,7 @@ export const farmSlots = b => B.farm.work + lvlOf(b) + add('farm.slots');
 /** Hoe lang onderzoek T duurt, in seconden. */
 export const researchTime = T => T.t * mul('research.time');
 /** Marktprijzen in goud voor 100 stuks van grondstof r, bij markt b. */
-export function marketPrices(b, r) {
-  const base = 1 + RES[r].age * 0.5;
-  return {
-    buy: Math.round((20 * base * (1 - 0.1 * lvlOf(b))) / mul('market')),
-    sell: Math.round(8 * base * (1 + 0.15 * lvlOf(b)) * mul('market')),
-  };
-}
+export const marketPrices = (b, r) => tradePrices(r, lvlOf(b), mul('market'));
 export function upgCost(b) {
   const d = B[b.type],
     l = lvlOf(b) + 1,
@@ -144,7 +141,10 @@ export function upgradeTools() {
   pay(c);
   G.toolLvl++;
   sfx('upgrade');
-  toast(`Betere werktuigen (niveau ${G.toolLvl + 1}): je volk verzamelt sneller en draagt meer.`, 'good');
+  toast(
+    `Betere werktuigen (niveau ${G.toolLvl + 1}): je dorpelingen verzamelen sneller en dragen meer.`,
+    'good',
+  );
   store.uiDirty = true;
 }
 export function upgradeArms() {

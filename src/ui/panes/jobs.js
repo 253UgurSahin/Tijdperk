@@ -1,4 +1,4 @@
-// Paneel "Volk": hoeveel dorpelingen welk werk doen.
+// Paneel "Dorp": hoeveel dorpelingen welk werk doen.
 import { store } from '../../core/store.js';
 import { B } from '../../data/buildings.js';
 import { GATHER, RES } from '../../data/resources.js';

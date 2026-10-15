@@ -1,0 +1,353 @@
+/* Volken: het vaandel, de kaarten om je volk te kiezen, en je volk in het spel. */
+
+/* ---- vaandel: een doek in de kleur van het volk, met een inkeping onderaan en een teken erop ---- */
+.banner {
+  --bw: 34px;
+  display: grid;
+  justify-items: center;
+  align-content: start;
+  flex: none;
+  width: var(--bw);
+  height: calc(var(--bw) * 1.32);
+  padding-top: calc(var(--bw) * 0.22);
+  color: #fffaf2;
+  /* donkere stok bovenaan, een lichte streep onderin, en de kleur van het volk */
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--flag) 55%, #1d1712) 0 3px, transparent 3px),
+    linear-gradient(180deg, transparent 64%, rgba(255, 250, 242, 0.85) 64% 70%, transparent 70%), var(--flag);
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 80%, 0 100%);
+}
+.banner .ico {
+  width: calc(var(--bw) * 0.56);
+  height: calc(var(--bw) * 0.56);
+  stroke-width: 2.3;
+}
+.banner.xs {
+  --bw: 12px;
+  padding: 0;
+}
+.banner.xs .ico {
+  display: none;
+}
+.banner.sm {
+  --bw: 26px;
+}
+.banner.lg {
+  --bw: 58px;
+}
+
+/* ---- titelscherm: welk volk je hebt gekozen, klik om te wisselen ---- */
+.folkpick {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 8px 12px;
+  text-align: left;
+  border-radius: var(--r);
+  box-shadow: 0 3px 0 var(--paper-edge);
+}
+.folkpick:active:not(:disabled) {
+  transform: translateY(3px);
+}
+.folkpick .fp {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+.folkpick b {
+  font: 650 18px/1.15 var(--f-display);
+}
+.folkpick small {
+  font: italic 13px/1.3 var(--f-display);
+  color: var(--ink-3);
+}
+.folkpick .fchg {
+  padding: 3px 10px;
+  border: 1px solid var(--rule-2);
+  border-radius: 99px;
+  background: var(--paper);
+  font: 600 12px var(--f-mono);
+  color: var(--acc-ink);
+}
+.folkpick .fchg::after {
+  content: ' ›';
+}
+
+/* ---- de kiezer: zes kaarten ---- */
+.sheet.folksheet {
+  width: min(900px, 100%);
+}
+.folkgrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+  margin-top: 18px;
+}
+/* Eén kaart: een kartonnen tegel met bovenaan een rand in de kleur van het volk.
+   Ook bij hover: anders wint de gewone knopstijl uit base.css. */
+.folk,
+.folk:hover:not(:disabled) {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-content: start;
+  gap: 10px 12px;
+  padding: 14px 14px 13px;
+  text-align: left;
+  border: 1px solid var(--rule-2);
+  border-top: 5px solid var(--flag);
+  border-radius: 16px;
+  background: var(--panel);
+  box-shadow:
+    0 4px 0 var(--paper-edge),
+    0 10px 22px rgba(30, 20, 10, 0.12);
+  transition:
+    transform 0.14s,
+    box-shadow 0.14s,
+    border-color 0.15s;
+}
+.folk:hover:not([aria-disabled='true']) {
+  transform: translateY(-3px);
+  border-color: var(--acc-edge);
+  border-top-color: var(--flag);
+  box-shadow:
+    0 7px 0 var(--paper-edge),
+    0 16px 28px rgba(30, 20, 10, 0.18);
+}
+.folk:active:not([aria-disabled='true']) {
+  transform: translateY(3px);
+  box-shadow: 0 1px 0 var(--paper-edge);
+}
+/* Gekozen: een ring in de kleur van het tijdperk, net als andere keuzes (ook bij hover, zie boven) */
+.folk.on,
+.folk.on:hover:not(:disabled) {
+  border-color: var(--acc-edge);
+  border-top-color: var(--flag);
+  box-shadow:
+    0 0 0 3px var(--acc),
+    0 4px 0 var(--paper-edge),
+    0 12px 26px rgba(30, 20, 10, 0.2);
+}
+.folk .fhead {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  min-width: 0;
+}
+.folk .fhead b {
+  font: 700 19px/1.1 var(--f-display);
+  letter-spacing: -0.01em;
+}
+.folk .fhead i {
+  font: italic 13px/1.3 var(--f-display);
+  color: var(--ink-3);
+}
+.folk .flines {
+  grid-column: 1 / -1;
+}
+/* Op slot: de kaart is vaag en het vaandel grijs, maar wat je moet doen blijft goed leesbaar */
+.folk[aria-disabled='true'] {
+  /* Niet half doorzichtig zoals andere uitgeschakelde knoppen: de slottekst moet leesbaar blijven */
+  opacity: 1;
+  border-style: dashed;
+  border-top-style: solid;
+  border-top-color: var(--rule-2);
+  background: var(--well);
+  box-shadow: 0 2px 0 var(--paper-edge);
+}
+.folk.locked .banner {
+  filter: grayscale(1);
+  opacity: 0.45;
+}
+.folk.locked .fhead,
+.folk.locked .flines {
+  opacity: 0.55;
+}
+/* Een korte "nee"-schud als je op een volk klikt dat nog op slot zit */
+.folk.nope {
+  animation: folknope 0.36s;
+}
+.calm .folk.nope {
+  animation: none;
+}
+@keyframes folknope {
+  20% {
+    translate: -5px 0;
+  }
+  40% {
+    translate: 5px 0;
+  }
+  60% {
+    translate: -3px 0;
+  }
+  80% {
+    translate: 3px 0;
+  }
+}
+/* Label onderaan: "Gekozen" of wat je moet doen om het volk vrij te spelen */
+.folk .fstate {
+  grid-column: 1 / -1;
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px 3px 8px;
+  border: 1px solid var(--rule-2);
+  border-radius: 9px;
+  background: var(--paper-hi);
+  font: 600 12px/1.35 var(--f-body);
+  color: var(--ink-2);
+}
+.folk .fstate .ico {
+  flex: none;
+  width: 14px;
+  height: 14px;
+}
+.folk .fstate.pick {
+  border-color: color-mix(in srgb, var(--good) 50%, transparent);
+  background: color-mix(in srgb, var(--good) 14%, var(--paper));
+  color: color-mix(in srgb, var(--good) 70%, var(--ink));
+}
+
+/* ---- voordelen als lijstje met ruitjes in de kleur van het volk ---- */
+.flines {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.flines .fl {
+  position: relative;
+  padding-left: 15px;
+  font-size: 13px;
+  line-height: 1.35;
+  color: var(--ink-2);
+}
+.flines .fl::before {
+  content: '';
+  position: absolute;
+  left: 2px;
+  top: 0.48em;
+  width: 6px;
+  height: 6px;
+  border-radius: 1.5px;
+  background: var(--flag);
+  rotate: 45deg;
+}
+.flines .fstart {
+  font-family: var(--f-mono);
+  font-size: 12px;
+  color: var(--ink-3);
+}
+.flines .fstart::before {
+  background: transparent;
+  box-shadow: inset 0 0 0 1.5px var(--ink-4);
+}
+.flines.big {
+  gap: 8px;
+  margin-top: 18px;
+}
+.flines.big .fl {
+  padding-left: 18px;
+  font-size: 15px;
+}
+.flines.big .fl::before {
+  width: 8px;
+  height: 8px;
+}
+
+/* ---- in het spel: pauzescherm, venster en snelknop ---- */
+.folkbar {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  margin-top: 16px;
+  padding: 12px 14px;
+  border: 1px solid var(--rule-2);
+  border-left: 5px solid var(--flag);
+  border-radius: 14px;
+  background: var(--paper-hi);
+}
+.folkbar b {
+  font: 700 17px/1.2 var(--f-display);
+}
+.folkbar i {
+  font: italic 13px var(--f-display);
+  color: var(--ink-3);
+}
+.folkbar .flines {
+  margin-top: 6px;
+}
+.folkinfo {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-top: 10px;
+}
+.folkinfo h1 {
+  margin: 0;
+}
+.sheet .folkinfo p {
+  margin: 2px 0 0;
+  font: italic 16px/1.4 var(--f-display);
+  color: var(--ink-3);
+}
+.quick.folkq {
+  gap: 8px;
+}
+
+/* Kleiner scherm: twee kaarten naast elkaar */
+@media (max-width: 860px) {
+  .folkgrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+/* Telefoon rechtop: kaarten onder elkaar */
+@media (max-width: 560px) and (min-height: 561px) {
+  .folkgrid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+  .folk .banner {
+    --bw: 28px;
+  }
+}
+/* Laag scherm (telefoon liggend): drie smalle kaarten naast elkaar, zonder motto */
+@media (max-height: 560px) {
+  .sheet.folksheet {
+    padding: 16px 20px 18px;
+  }
+  .sheet.folksheet h1 {
+    font-size: 24px;
+    margin-top: 0;
+  }
+  .sheet.folksheet p {
+    margin-top: 4px;
+    line-height: 1.45;
+  }
+  .folkgrid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-top: 10px;
+  }
+  /* Ook bij hover, anders wint de gewone knopstijl uit base.css */
+  .folk,
+  .folk:hover:not(:disabled) {
+    gap: 6px 10px;
+    padding: 10px 11px;
+  }
+  .folk .banner {
+    --bw: 22px;
+  }
+  .folk .fhead b {
+    font-size: 16px;
+  }
+  .folk .fhead i {
+    display: none;
+  }
+  .flines .fl {
+    font-size: 12px;
+  }
+}

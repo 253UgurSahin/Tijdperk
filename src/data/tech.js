@@ -76,7 +76,7 @@ export const TECH = [
     age: 3,
     n: 'Kruidenkunde',
     g: '✚',
-    d: 'Volk geneest 1 levenspunt per seconde, leger 2',
+    d: 'Dorpelingen genezen 1 levenspunt per seconde, leger 2',
     cost: { food: 250, gold: 40 },
     t: 50,
     bonus: { heal: 1 },

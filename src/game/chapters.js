@@ -31,7 +31,8 @@ export const CHAPTERS = [
       ['Bouw een smidse', () => built('smithy')],
       ['Bouw een stenen huis', () => built('stonehouse')],
       ['Bouw een heuvelfort', () => built('hillfort')],
-      ['Train een zwaardvechter', () => G.stats.swordsman > 0],
+      // De Noormannen trainen een berserker in plaats van een zwaardvechter
+      ['Train een zwaardvechter', () => G.stats.swordsman > 0 || G.stats.berserker > 0],
     ],
   },
   {

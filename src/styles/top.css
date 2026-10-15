@@ -148,7 +148,7 @@
     opacity 0.2s,
     translate 0.2s;
 }
-/* Staat er een paneel open (Volk, Leger, ...), dan schuift de doelenkaart even opzij */
+/* Staat er een paneel open (Dorp, Leger, ...), dan schuift de doelenkaart even opzij */
 body.panelopen #objectives {
   opacity: 0;
   translate: -12px 0;

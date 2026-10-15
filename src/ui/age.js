@@ -37,7 +37,7 @@ export function enterNextAge() {
   const nr = RKEYS.filter(k => RES[k].age === G.age && !RES[k].cr).map(k => RES[k].n.toLowerCase());
   sfx('age');
   const nu = G.bs.filter(canUpg).length;
-  const old = retiredIn(G.age).map(k => (B[k] || UNITS[k]).n.toLowerCase());
+  const old = retiredIn(G.age, G.people).map(k => (B[k] || UNITS[k]).n.toLowerCase());
   toast(
     `De ${AGES[G.age].n.toLowerCase()} breekt aan.${nr.length ? ` Ontdekt: ${nr.join(' en ')}.` : ''} Nieuwe verbeteringen: werktuigen, wapens${nu ? ` en ${nu} gebouwen` : ''}.${old.length ? ` Verouderd: ${old.join(', ')}.` : ''}`,
     'age',

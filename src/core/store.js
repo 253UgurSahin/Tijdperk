@@ -29,4 +29,5 @@ export const store = {
   coachTile: null,
   coachAct: null,
   modalLocked: false, // het open venster gaat niet dicht met Esc of een klik ernaast
+  profile: null, // spelersprofiel met prestaties, zoals { achievements: { age3: true } }; leeg = alleen vrije volken
 };

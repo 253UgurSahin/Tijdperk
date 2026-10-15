@@ -2,6 +2,7 @@
 import { CN, CX, CY, TAU, W } from '../config.js';
 import { FIRST_BLESSING_AT } from '../data/blessings.js';
 import { PLACES } from '../data/names.js';
+import { DEFAULT_PEOPLE, PEOPLE } from '../data/peoples.js';
 import { RKEYS } from '../data/resources.js';
 import { placeBuilding, spawnFoe, spawnVillager } from './entities.js';
 import { afterLoad } from './save.js';
@@ -52,6 +53,7 @@ export function baseState(seed) {
     diff: 1,
     tech: {},
     research: null,
+    people: DEFAULT_PEOPLE, // je volk (sleutel uit data/peoples.js)
     blessings: [], // gekozen zegeningen (sleutels uit data/blessings.js)
     blessingQueue: [], // zegeningen die je nog mag kiezen, zie game/blessings.js
     buff: {},
@@ -70,9 +72,11 @@ export function baseState(seed) {
   RKEYS.forEach(k => (g.res[k] = 0));
   return g;
 }
-export function newGame(seed, diff = 1) {
+export function newGame(seed, diff = 1, people = DEFAULT_PEOPLE) {
   seed = seed || (Math.random() * 1e9) | 0;
   G = baseState(seed);
+  // Het volk meteen zetten: zijn bonussen tellen mee voor alles wat hieronder gebouwd wordt
+  G.people = PEOPLE[people] ? people : DEFAULT_PEOPLE;
   G.diff = diff;
   G.peaceful = diff === 0;
   G.blessingQueue = [{ age: 0, at: FIRST_BLESSING_AT }];
@@ -80,6 +84,9 @@ export function newGame(seed, diff = 1) {
     G.res,
     diff === 2 ? { food: 150, wood: 120, stone: 40 } : { food: 200, wood: 160, stone: 60 },
   );
+  // Startvoordeel van je volk: wat extra grondstoffen en soms extra dorpelingen
+  const start = PEOPLE[G.people].start || {};
+  for (const [r, n] of Object.entries(start.res || {})) G.res[r] += n;
   // Je begint met de vier gebieden in het midden van de kaart
   for (const [x, y] of [
     [CN / 2 - 1, CN / 2 - 1],
@@ -92,7 +99,9 @@ export function newGame(seed, diff = 1) {
   buildLists();
   bById.clear();
   placeBuilding('townhall', CX - 1, CY - 1, true);
-  for (let k = 0; k < 5; k++) spawnVillager(CX - 1 + (k % 3) * 0.7, CY + 1.5 + (k > 2 ? 0.8 : 0));
+  const villagers = 5 + (start.villagers || 0);
+  for (let k = 0; k < villagers; k++)
+    spawnVillager(CX - 1 + (k % 3) * 0.7, CY + 1.5 + Math.floor(k / 3) * 0.8);
   genCamps(seed);
   clearSel();
   centerOn(CX, CY, true);

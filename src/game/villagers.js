@@ -413,9 +413,17 @@ function doGather(v, dt) {
 }
 // Bonussen voor één soort grondstof: voedsel (ook het seizoen telt mee), hout, of steen en erts
 function resourceBonus(res) {
-  if (res === 'food') return season().food * mul('gather.food');
+  if (res === 'food') return seasonFood() * mul('gather.food');
   if (res === 'wood') return mul('gather.wood');
-  return mul('gather.mine');
+  const rock = res === 'stone' || res === 'iron' || res === 'coal' ? mul('gather.rock') : 1;
+  return mul('gather.mine') * rock;
+}
+// Hoeveel voedsel het seizoen geeft. In de winter kan een bonus (zoals bij de Friezen) helpen,
+// maar nooit meer dan in een gewoon seizoen.
+function seasonFood() {
+  const sn = season();
+  if (sn.n !== 'Winter') return sn.food;
+  return Math.min(1, sn.food * mul('winter.food'));
 }
 function deplete(i) {
   const t = node[i];

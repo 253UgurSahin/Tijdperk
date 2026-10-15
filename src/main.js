@@ -64,6 +64,7 @@ import './ui/inspector.js';
 import './ui/modals.js';
 import './ui/objectives.js';
 import './ui/panel.js';
+import './ui/peoples.js';
 import './ui/panes/defense.js';
 import './ui/panes/jobs.js';
 import './ui/panes/log.js';

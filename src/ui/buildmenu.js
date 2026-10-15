@@ -59,7 +59,7 @@ export function bShort(k) {
     return (
       'Traint ' +
       Object.keys(UNITS)
-        .filter(u => UNITS[u].src === d.train && canMake(u, Math.max(G.age, d.age)))
+        .filter(u => UNITS[u].src === d.train && canMake(u, Math.max(G.age, d.age), G.people))
         .map(u => UNITS[u].n.toLowerCase())
         .join(', ')
     );

@@ -22,7 +22,7 @@ export const th = () => G.bs.find(b => b.type === 'townhall');
 /** De beste soldaat die je kazerne nu kan trainen (voor huurlingen en zegeningen). */
 export function bestMerc() {
   return Object.keys(UNITS)
-    .filter(k => UNITS[k].src === 'barracks' && canMake(k, G.age))
+    .filter(k => UNITS[k].src === 'barracks' && canMake(k, G.age, G.people))
     .pop();
 }
 export const EVENTS = [

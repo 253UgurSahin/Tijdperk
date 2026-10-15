@@ -423,6 +423,8 @@ export function makeUnit(k, foe) {
     soldier: { shirt: '#5f6b3c', tool: 'gun', hat: 'helmet', hatc: '#4a5530' },
     exo: { shirt: '#3c4a52', tool: 'gun', hat: 'helmet', hatc: '#2a3238', pants: '#2a3238' },
     swordsman: { shirt: '#7d848a', tool: 'sword', hat: 'helmet', hatc: '#6e767e', shield: T, round: 1 },
+    // Berserker (alleen Noormannen): bontkraag, grote bijl en rond schild, zonder helm
+    berserker: { shirt: '#7a5236', tool: 'bigaxe', hat: 'hair', fur: '#a08a6a', shield: T, round: 1 },
     javelin: { shirt: '#8a7a52', tool: 'javelin', hat: 'hood', hatc: '#5d5030', quiver: 1 },
     musketeer: { shirt: '#4a3a30', tool: 'gun', hat: 'widebrim', hatc: '#22201e', sash: T, pants: '#3a3430' },
     pikeman: { shirt: '#6a5a48', tool: 'pike', hat: 'morion', armor: '#9aa3ae' },

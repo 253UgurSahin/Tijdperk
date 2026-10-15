@@ -5,6 +5,7 @@ import { W } from '../config.js';
 import { AGES } from '../data/ages.js';
 import { B } from '../data/buildings.js';
 import { NODES } from '../data/nodes.js';
+import { PEOPLE } from '../data/peoples.js';
 import { GATHER, RES } from '../data/resources.js';
 import { UNITS } from '../data/units.js';
 import { avail, computeCaches, powerRatio, siteCnt } from '../game/caches.js';
@@ -40,10 +41,11 @@ import { TOUCH, compareHTML, compareText, costHTML, esc, fmt, gem, hy } from './
 import { ico } from './glyphs.js';
 import { setHTML, sigs } from './header.js';
 import { setExpand, toast } from './hud.js';
+import { bannerHTML, showPeopleInfo } from './peoples.js';
 import { $ } from '../util/dom.js';
 import { clamp, dist } from '../util/math.js';
 import { amt, bmap, isUnl, node, setBlk } from '../world/world.js';
-import { canMake } from '../data/succession.js';
+import { canMake, fitsPeople } from '../data/succession.js';
 
 // Selectiepaneel
 // Een opdrachttegel. De uitleg (data-tip) toont buildmenu.js in een eigen tooltip.
@@ -76,10 +78,14 @@ export function renderInspector() {
     selCmds = null;
     selCtx = '';
     const idle = G.vs.filter(v => !v.hidden && v.state === 'idle').length;
-    const sig = 'e' + G.age + popNow() + popCap() + G.us.length + G.unl.filter(Boolean).length + '/' + idle;
+    const sig =
+      'e' + G.people + G.age + popNow() + popCap() + G.us.length + G.unl.filter(Boolean).length + '/' + idle;
     // Niets geselecteerd: een overzicht van je stad met snelknoppen, zodat het paneel nooit leeg is
     const quick = (k, label, key, n) =>
       `<button class="quick" data-quick="${k}">${label}${n != null ? `<b>${n}</b>` : ''}${TOUCH ? '' : `<kbd>${key}</kbd>`}</button>`;
+    // Je volk, met zijn vlag: klik om te zien wat het goed kan
+    const folk = PEOPLE[G.people];
+    const folkBtn = `<button class="quick folkq" data-quick="people" title="Je volk: wat kan het goed?">${bannerHTML(folk, 'xs')}Volk: ${folk.n}</button>`;
     return setHTML(
       p,
       'ins',
@@ -88,7 +94,7 @@ export function renderInspector() {
         `<div class="empty"><div class="selh" style="padding-right:0"><div class="port">${im(iconFor('townhall'))}</div><div><div class="selt">${placeName()}</div><div class="sels">${AGES[G.age].n} · ${AGES[G.age].lvl}</div></div></div>` +
         `<p class="chron">Hoofdstuk ${AGES[G.age].r} · ${CHAPTERS[G.age].t}</p>` +
         `<div class="stats"><span><i>${ico('⌂')}</i>${popNow()}/${popCap()} inwoners</span><span><i>${ico('⚔')}</i>${G.us.length} soldaten</span><span><i>${ico('◇')}</i>${G.unl.filter(Boolean).length} gebieden</span></div>` +
-        `<div class="quicks">${quick('idle', 'Wie doet niets?', 'I', idle)}${G.us.length ? quick('army', 'Hele leger', 'Q', G.us.length) : ''}${quick('home', 'Naar het stamhuis', 'Home')}</div></div>`,
+        `<div class="quicks">${quick('idle', 'Wie doet niets?', 'I', idle)}${G.us.length ? quick('army', 'Hele leger', 'Q', G.us.length) : ''}${quick('home', 'Naar het stamhuis', 'Home')}${folkBtn}</div></div>`,
     );
   }
   document.body.classList.add('insp');
@@ -271,10 +277,11 @@ export function renderInspector() {
         });
     }
     if (d.train) {
-      // Wat je nu kunt trainen, plus alleen het eerstvolgende tijdperk als vooruitblik
-      const mine = Object.keys(UNITS).filter(k => UNITS[k].src === d.train);
+      // Wat je nu kunt trainen, plus alleen het eerstvolgende tijdperk als vooruitblik.
+      // Alleen soldaten van jouw volk: de Noormannen hebben een Berserker in plaats van een zwaardvechter.
+      const mine = Object.keys(UNITS).filter(k => UNITS[k].src === d.train && fitsPeople(k, G.people));
       const nextAge = Math.min(...mine.map(k => UNITS[k].age).filter(a => a > G.age));
-      const list = mine.filter(k => canMake(k, G.age) || UNITS[k].age === nextAge);
+      const list = mine.filter(k => canMake(k, G.age, G.people) || UNITS[k].age === nextAge);
       cmd += list
         .map(k => {
           const U = UNITS[k],
@@ -285,7 +292,7 @@ export function renderInspector() {
             cost: lock ? `<span class="lk">${AGES[U.age].r}</span>` : costHTML(U.cost, true),
             tip: lock
               ? `Vanaf de ${AGES[U.age].n.toLowerCase()}`
-              : `${U.hp} leven · ${U.dmg} schade · bereik ${U.r}${U.air ? ' · raakt drones' : ''}${U.bonus ? ' · ' + U.bonus.d : ''} · ${U.t}s · Shift-klik: 5 tegelijk`,
+              : `${U.hp} leven · ${U.dmg} schade · bereik ${U.r}${U.air ? ' · raakt drones' : ''}${U.bonus ? ' · ' + U.bonus.d : ''}${U.note ? ' · ' + U.note : ''} · ${U.t}s · Shift-klik: 5 tegelijk`,
           });
         })
         .join('');
@@ -426,6 +433,7 @@ export function insHandler(e) {
   if (t.dataset.quick === 'idle') return selectIdle();
   if (t.dataset.quick === 'army') return selectArmy();
   if (t.dataset.quick === 'home') return $('#zHome').click();
+  if (t.dataset.quick === 'people') return showPeopleInfo();
   // Klik op een soort in een gemengde selectie: alleen die houden (Shift: die juist weghalen)
   if (t.dataset.only) {
     for (const u of selUnits()) if ((u.k === t.dataset.only) === e.shiftKey) sel.us.delete(u.id);
@@ -526,7 +534,7 @@ export function insHandler(e) {
       v.keep = { k: 'node', i };
       toast(`${v.name} gaat ${RES[v.job].n.toLowerCase()} halen.`);
     } else toast('Geen automatische dorpeling vrij.');
-  } else if (t.dataset.train && b && canMake(t.dataset.train, G.age)) {
+  } else if (t.dataset.train && b && canMake(t.dataset.train, G.age, G.people)) {
     const U = UNITS[t.dataset.train],
       n = e.shiftKey ? 5 : 1;
     for (let i = 0; i < n && has(U.cost); i++) {

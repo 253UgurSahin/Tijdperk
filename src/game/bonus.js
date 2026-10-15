@@ -1,6 +1,7 @@
 // Bonusregister: één plek die alle bonussen bij elkaar telt (onderzoek, volk, zegeningen, wonderen, regels).
 import { blessingBonuses } from '../data/blessings.js';
-import { bonusesIn, sumAll } from '../data/bonus.js';
+import { bonusesIn, limitTotal, sumAll } from '../data/bonus.js';
+import { peopleBonuses } from '../data/peoples.js';
 import { TECH } from '../data/tech.js';
 import { G } from './state.js';
 
@@ -15,8 +16,9 @@ const SOURCES = [
   g => TECH.filter(T => T.bonus && g.tech && g.tech[T.k]).map(T => T.bonus),
   // Gekozen zegeningen (G.blessings bewaart alleen de sleutels, zie src/data/blessings.js)
   g => blessingBonuses(g.blessings),
+  // Je volk (G.people bewaart alleen de sleutel, zie src/data/peoples.js)
+  g => peopleBonuses(g.people),
   // Nog leeg: deze vullen latere onderdelen van het spel
-  g => bonusesIn(g.people), // je volk
   g => bonusesIn(g.wonders), // wereldwonderen
   g => bonusesIn(g.mods), // spelregels, bijv. van een uitdaging
 ];
@@ -37,7 +39,7 @@ function totals() {
 }
 
 /** Vermenigvuldiger voor een sleutel: 15% bonus geeft 1.15. Zonder bonus precies 1. */
-export const mul = key => Math.max(0, 1 + (totals()[key] || 0));
+export const mul = key => Math.max(0, 1 + limitTotal(key, totals()[key] || 0));
 
 /** Vaste bonus voor een sleutel (tegels, levens per seconde, ...). Zonder bonus precies 0. */
 export const add = key => totals()[key] || 0;

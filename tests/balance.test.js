@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { AGES, AGE_MAT, AGE_UP } from '../src/data/ages.js';
 import { B } from '../src/data/buildings.js';
 import { NODES } from '../src/data/nodes.js';
+import { tradePrices } from '../src/data/resources.js';
 import { canMake } from '../src/data/succession.js';
 import { TECH } from '../src/data/tech.js';
 import { FOES, UNITS, bonusMul } from '../src/data/units.js';
@@ -108,5 +109,23 @@ describe('rol-bonussen', () => {
       const roles = Object.keys(UNITS).filter(k => canMake(k, a) && UNITS[k].bonus);
       expect(roles.length, AGES[a].n).toBeGreaterThan(0);
     }
+  });
+});
+
+describe('markt', () => {
+  it('zonder bonus blijven de prijzen gelijk', () => {
+    expect(tradePrices('food', 0, 1)).toEqual({ buy: 20, sell: 8 });
+    expect(tradePrices('iron', 2, 1)).toEqual({ buy: 32, sell: 21 });
+  });
+
+  // Hanze plus de zegening Handelsgeest (en hoge marktniveaus) mogen geen gratis goud geven
+  it('verkopen levert nooit meer op dan kopen kost, ook met veel marktbonussen', () => {
+    const maxLevel = AGES.length - 1 - B.market.age;
+    for (const r of ['food', 'wood', 'stone', 'copper', 'iron', 'coal'])
+      for (let level = 0; level <= maxLevel; level++)
+        for (let marketMul = 1; marketMul <= 3; marketMul += 0.05) {
+          const { buy, sell } = tradePrices(r, level, marketMul);
+          expect(sell, `${r} niveau ${level} bonus ${marketMul.toFixed(2)}`).toBeLessThan(buy);
+        }
   });
 });

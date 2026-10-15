@@ -2,7 +2,7 @@
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { BONUS_KEYS, bonusesIn, combine, sumAll } from '../src/data/bonus.js';
+import { BONUS_KEYS, bonusesIn, combine, limitTotal, sumAll } from '../src/data/bonus.js';
 import { TECH, TK } from '../src/data/tech.js';
 
 describe('bonussen optellen', () => {
@@ -36,6 +36,28 @@ describe('bonussen optellen', () => {
     expect(bonusesIn(a)).toEqual([a.bonus]);
     expect(bonusesIn([a, leeg, null, b])).toEqual([a.bonus, b.bonus]);
     expect(bonusesIn({ x: a, y: b, z: leeg })).toEqual([a.bonus, b.bonus]);
+  });
+});
+
+describe('ondergrens voor kortingen', () => {
+  it('veel kortingen samen gaan niet onder de ondergrens', () => {
+    expect(limitTotal('research.time', -0.95)).toBe(-0.75);
+    expect(limitTotal('chunk.cost', -1.35)).toBe(-0.75);
+    expect(limitTotal('chunk.cost', -0.3)).toBe(-0.3);
+  });
+
+  it('sleutels zonder ondergrens blijven gewoon zoals ze zijn', () => {
+    expect(limitTotal('farm', 5)).toBe(5);
+    expect(limitTotal('raid.size', -2)).toBe(-2);
+    expect(limitTotal('bestaatniet', -3)).toBe(-3);
+  });
+
+  it('elke ondergrens is een korting tussen 0% en 100%', () => {
+    for (const [key, info] of Object.entries(BONUS_KEYS))
+      if (info.min != null) {
+        expect(info.min, key).toBeLessThan(0);
+        expect(info.min, key).toBeGreaterThan(-1);
+      }
   });
 });
 
