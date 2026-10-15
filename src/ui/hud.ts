@@ -47,7 +47,7 @@ export function toast(msg: string, kind = '') {
 }
 let bannerTimer = 0;
 /** Een grote kaart midden in beeld (een nieuw tijdperk, de finale). Na `ms` milliseconden is hij weer weg. */
-export function showBanner(html, ms = 4500) {
+export function showBanner(html: string, ms = 4500) {
   const banner = $('#banner');
   banner.innerHTML = html;
   banner.hidden = false;

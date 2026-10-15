@@ -1,4 +1,5 @@
 // De finale in het spel: de sterrenpoort laadt twee nachten op terwijl iedereen aanvalt. Daarna win je.
+import type { Building } from '../types';
 import { store } from '../core/store';
 import { sfx } from '../audio/sound';
 import { DAYLEN } from '../config';
@@ -16,30 +17,31 @@ import { showFinaleBanner } from '../ui/finale';
 import { note, toast } from '../ui/hud';
 
 /** Laadt de poort nu op? Dan komen er elke nacht grotere aanvallen (zie game/time.ts en game/military.ts). */
-export const isCharging = () => !!(G && G.finale && !G.finale.done && G.finale.need > 0);
+export const isCharging = (): boolean => !!(G && G.finale && !G.finale.done && G.finale.need > 0);
 
 /** De sterrenpoort die af is, of null. */
-export const finishedGate = () => (G ? G.bs.find(b => b.type === 'stargate' && b.done) || null : null);
+export const finishedGate = (): Building | null =>
+  G ? G.bs.find(b => b.type === 'stargate' && b.done) || null : null;
 
 /** Hoe heel de sterrenpoort is: { hp, max }, of null als er geen (af) staat. */
-export function gateHealth() {
+export function gateHealth(): { hp: number; max: number } | null {
   const gate = finishedGate();
   return gate ? { hp: Math.max(0, gate.hp), max: bMaxHp(gate) } : null;
 }
 
 /** Telt de sterrenpoort in dit spel om te winnen, en heb je nog niet echt gewonnen? */
-function gateCanWin() {
+function gateCanWin(): boolean {
   if (G.scenario) return false; // een uitdaging heeft haar eigen doel
   if (!G.opts.victories.includes('stargate')) return false;
   return !(G.won && VICTORY[G.wonBy]?.full);
 }
 
 /** Hoe de aanvallen nu zijn: tijdens het opladen 2× zo groot en uit 3 richtingen. */
-export const raidBoost = () =>
+export const raidBoost = (): { size: number; sides: number } =>
   isCharging() ? { size: FINALE_RAID_MUL, sides: FINALE_SIDES } : { size: 1, sides: 1 };
 
 /** De sterrenpoort is af: het opladen begint (of opnieuw, als hij eerder verwoest werd). */
-export function startFinale(gate) {
+export function startFinale(gate: Building): void {
   if (!gateCanWin()) return;
   if (!G.finale) G.finale = { hours: 0, need: 0, rivalsCalled: false, done: false, resets: 0 };
   if (G.finale.done) return;
@@ -78,10 +80,11 @@ export function startFinale(gate) {
 /**
  * Alle rivalen die nog over zijn, sturen hun hele leger: dit is hun laatste kans.
  * Een klein leger vullen ze eerst snel aan. Niet in de vredige modus. Geeft het aantal rivalen.
+ * (Alleen aangeroepen als de finale bezig is: dan bestaat G.finale zeker.)
  */
-function callRivals() {
-  if (G.peaceful || G.finale.rivalsCalled) return 0;
-  G.finale.rivalsCalled = true;
+function callRivals(): number {
+  if (G.peaceful || G.finale!.rivalsCalled) return 0;
+  G.finale!.rivalsCalled = true;
   let count = 0;
   for (const r of G.rivals) {
     if (r.dead || r.ally) continue; // een bondgenoot doet niet mee (zie game/diplomacy.ts)
@@ -97,7 +100,7 @@ function callRivals() {
 }
 
 /** Elke speltik: de poort laadt op, op het tempo van de klok. Vol? Dan gaat hij open. */
-export function updateFinale(dt) {
+export function updateFinale(dt: number): void {
   if (!G.finale || G.finale.done) return;
   // Intussen echt gewonnen op een andere manier? Dan is de finale niet meer nodig
   if (!gateCanWin()) {
@@ -120,9 +123,10 @@ export function updateFinale(dt) {
 }
 
 // Helemaal opgeladen: de poort gaat open, de aanvallers vluchten en je wint
-function gateOpens() {
-  G.finale.done = true;
-  G.finale.hours = G.finale.need;
+// (alleen vanuit updateFinale: dan bestaat G.finale zeker)
+function gateOpens(): void {
+  G.finale!.done = true;
+  G.finale!.hours = G.finale!.need;
   let fled = 0;
   for (const f of G.foes) {
     if (f.camp || f.retreat) continue;
@@ -149,11 +153,12 @@ function gateOpens() {
 }
 
 /** De sterrenpoort is verwoest. Was hij aan het opladen, dan is die lading weg. */
-export function gateDestroyed() {
+export function gateDestroyed(): void {
   const charging = isCharging();
+  // (isCharging geeft alleen true als er een finale is)
   if (charging) {
-    resetCharge(G.finale);
-    G.finale.resets++;
+    resetCharge(G.finale!);
+    G.finale!.resets++;
   }
   toast(
     charging
@@ -173,7 +178,7 @@ const GATE_WARNINGS = [0.5, 0.25];
  * De sterrenpoort is geraakt (hpBefore: zijn levens vóór de klap). Zakt hij tijdens het opladen
  * onder de helft of een kwart, dan waarschuwen we: hij staat vaak buiten beeld.
  */
-export function gateHurt(gate, hpBefore) {
+export function gateHurt(gate: Building, hpBefore: number): void {
   if (!isCharging() || gate.hp <= 0) return;
   const max = bMaxHp(gate);
   const crossed = GATE_WARNINGS.some(part => hpBefore >= max * part && gate.hp < max * part);

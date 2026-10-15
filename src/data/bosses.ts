@@ -1,4 +1,5 @@
 // Kampioenen: na elk nieuw tijdperk leidt een sterke aanvoerder met een eigen naam de eerste aanval. Puur.
+import type { PendingBoss } from '../types';
 
 /** Zoveel keer meer levens dan een gewone aanvaller van zijn soort. */
 export const BOSS_HP = 6;
@@ -13,7 +14,16 @@ export const BOSS_SCALE = 1.7;
  * - role: wie hij is, in een paar woorden
  * - foe: welk soort vijand hij is (nummer in FOES; meestal de vijanden van zijn eigen tijdperk)
  */
-export const BOSSES = [
+/** Een kampioen (zie de uitleg hierboven). */
+export interface BossDef {
+  age: number;
+  n: string;
+  title: string;
+  role: string;
+  foe: number;
+}
+
+export const BOSSES: BossDef[] = [
   { age: 1, n: 'Grimnar', title: 'de Verscheurder', role: 'Aanvoerder van de plunderaars', foe: 1 },
   { age: 2, n: 'Brennos', title: 'IJzervuist', role: 'Koning van de barbaren', foe: 2 },
   { age: 3, n: 'Roderik', title: 'de Zwarte Ridder', role: 'Heer van de roofridders', foe: 3 },
@@ -25,16 +35,18 @@ export const BOSSES = [
 ];
 
 /** De kampioen van een tijdperk, of null (de Steentijd, of een nummer dat niet bestaat). */
-export const bossForAge = age => BOSSES.find(b => b.age === age) || null;
+export const bossForAge = (age: number | undefined): BossDef | null =>
+  BOSSES.find(b => b.age === age) || null;
 
 /** Zijn hele naam: "Grimnar de Verscheurder". */
-export const bossName = boss => `${boss.n} ${boss.title}`;
+export const bossName = (boss: BossDef): string => `${boss.n} ${boss.title}`;
 
 /**
  * De kampioen die nog moet komen, netjes voor de opslag: { age } of null.
  * Opslag van daarvóór (of een tijdperk zonder kampioen) geeft null: dan komt er geen.
  */
-export function cleanPendingBoss(o) {
+export function cleanPendingBoss(o: unknown): PendingBoss | null {
   if (!o || typeof o !== 'object') return null;
-  return bossForAge(o.age) ? { age: o.age } : null;
+  // o is nu een object, maar age kan nog van alles zijn: bossForAge vindt alleen iets bij een echt tijdperk
+  return bossForAge((o as PendingBoss).age) ? { age: (o as PendingBoss).age } : null;
 }

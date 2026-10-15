@@ -1,4 +1,5 @@
 // De finale: een afgebouwde sterrenpoort moet eerst twee nachten opladen voordat je wint. Puur.
+import type { FinaleState, Tile } from '../types';
 
 /** Zoveel hele nachten moet de poort opladen. */
 export const CHARGE_NIGHTS = 2;
@@ -17,13 +18,21 @@ const DAWN = 6;
  * - rivalsCalled: alle rivalen zijn al opgeroepen voor hun grote aanval
  * - done: helemaal opgeladen, de poort is open
  * - resets: zo vaak werd de poort verwoest tijdens het opladen
+ * (Het type staat in src/types.ts: FinaleState.)
  */
+
+/** Genoeg van de finale om de lading te berekenen: uren opgeladen, uren nodig, en of hij al open is. */
+export interface Charge {
+  hours: number;
+  need: number;
+  done?: boolean;
+}
 
 /**
  * Hoeveel uur de poort moet opladen als hij af is om `clock` uur (0 tot 24):
  * tot de ochtend na twee hele nachten. Een nacht die al bezig is, telt niet mee.
  */
-export function chargeHours(clock) {
+export function chargeHours(clock: number): number {
   let toEvening = EVENING - clock;
   if (toEvening <= 0) toEvening += 24;
   // Tot de eerste avond, dan (CHARGE_NIGHTS - 1) hele dagen, en de laatste nacht tot de ochtend
@@ -31,7 +40,7 @@ export function chargeHours(clock) {
 }
 
 /** Hoe vol de poort is, van 0 tot 1. */
-export function chargeFrac(f) {
+export function chargeFrac(f: Charge | null | undefined): number {
   if (!f) return 0;
   if (f.done) return 1;
   if (!(f.need > 0)) return 0; // verwoest: er laadt niets op
@@ -39,20 +48,21 @@ export function chargeFrac(f) {
 }
 
 /** De lading is weg (de poort is verwoest of staat er niet meer): het opladen begint opnieuw bij de bouw. */
-export function resetCharge(f) {
+export function resetCharge(f: Charge): void {
   f.need = 0;
   f.hours = 0;
 }
 
 /** De lading als heel percentage. Pas 100 als hij echt vol is, zodat "100%" nooit blijft hangen. */
-export const chargePercent = frac => (frac >= 1 ? 100 : Math.max(0, Math.min(99, Math.floor(frac * 100))));
+export const chargePercent = (frac: number): number =>
+  frac >= 1 ? 100 : Math.max(0, Math.min(99, Math.floor(frac * 100)));
 
 /**
  * Hoeveel nachten je nog moet doorstaan. clock: het uur nu, hoursLeft: zoveel uur moet de poort nog opladen,
  * hoursDone: zoveel uur laadt hij al op. Een nacht die nu bezig is, telt alleen mee als het opladen al
  * vóór die nacht begon (zie chargeHours: een nacht die al bezig was, telt niet).
  */
-export function nightsLeft(clock, hoursLeft, hoursDone = Infinity) {
+export function nightsLeft(clock: number, hoursLeft: number, hoursDone = Infinity): number {
   if (hoursLeft <= 0) return 0;
   const nightNow = clock >= EVENING || clock < DAWN;
   const sinceEvening = clock >= EVENING ? clock - EVENING : clock + 24 - EVENING;
@@ -70,7 +80,12 @@ export function nightsLeft(clock, hoursLeft, hoursDone = Infinity) {
  * De teksten voor de balk bovenaan: { title, sub }. `rebuilding`: er staat al een nieuwe poort in de steigers.
  * `peaceful`: de vredige modus, dan komen er geen aanvallen en hoef je ook niet stand te houden.
  */
-export function finaleText(f, clock, rebuilding = false, peaceful = false) {
+export function finaleText(
+  f: Charge | null | undefined,
+  clock: number,
+  rebuilding = false,
+  peaceful = false,
+): { title: string; sub: string } {
   if (!f || f.done) return { title: 'De sterrenpoort is open', sub: '' };
   if (!(f.need > 0)) {
     const sub = rebuilding
@@ -86,7 +101,7 @@ export function finaleText(f, clock, rebuilding = false, peaceful = false) {
 }
 
 // Hoe lang het nog duurt, in nachten. Met aanvallen moet je standhouden; in de vredige modus wacht je alleen.
-function nightsText(nights, peaceful) {
+function nightsText(nights: number, peaceful: boolean): string {
   if (nights > 1)
     return peaceful
       ? `Open over ${nights} nachten, bij zonsopgang`
@@ -96,16 +111,27 @@ function nightsText(nights, peaceful) {
   return 'De zon komt bijna op';
 }
 
+/** De finale zoals hij in de opslag staat: oude of kapotte opslag kan rare waarden hebben. */
+interface SavedFinale {
+  hours?: unknown;
+  need?: unknown;
+  rivalsCalled?: unknown;
+  done?: unknown;
+  resets?: unknown;
+}
+
 /** De finale netjes voor de opslag. Opslag van daarvóór (of rommel) geeft null: de poort was nog nooit af. */
-export function cleanFinale(o) {
+export function cleanFinale(o: unknown): FinaleState | null {
   if (!o || typeof o !== 'object') return null;
-  const num = v => (Number.isFinite(v) && v >= 0 ? v : 0);
+  // Na Number.isFinite is v zeker een getal
+  const num = (v: unknown): number => (Number.isFinite(v) && (v as number) >= 0 ? (v as number) : 0);
+  // o is nu een object; wat erin staat, kan nog van alles zijn (zie SavedFinale)
   return {
-    hours: num(o.hours),
-    need: num(o.need),
-    rivalsCalled: !!o.rivalsCalled,
-    done: !!o.done,
-    resets: Math.round(num(o.resets)),
+    hours: num((o as SavedFinale).hours),
+    need: num((o as SavedFinale).need),
+    rivalsCalled: !!(o as SavedFinale).rivalsCalled,
+    done: !!(o as SavedFinale).done,
+    resets: Math.round(num((o as SavedFinale).resets)),
   };
 }
 
@@ -113,11 +139,11 @@ export function cleanFinale(o) {
  * Waar een aanval vandaan komt: `sides` plekken uit `points` (lijst van [x, y]) die ver uit elkaar liggen.
  * De eerste is points[first]; elke volgende is de plek die het verst van de al gekozen plekken ligt.
  */
-export function spreadOut(points, sides, first = 0) {
+export function spreadOut(points: Tile[], sides: number, first = 0): Tile[] {
   if (!points.length) return [];
   const picks = [points[Math.min(first, points.length - 1)]];
   while (picks.length < sides) {
-    let best = null,
+    let best: Tile | null = null,
       bestDist = 0;
     for (const p of points) {
       const nearest = Math.min(...picks.map(q => Math.hypot(p[0] - q[0], p[1] - q[1])));

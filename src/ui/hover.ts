@@ -80,8 +80,8 @@ export function updateHover() {
   store.hover = hit ? { kind: hit.kind, id: hit.id } : null;
   if (f && f.rival) h = rivalUnitTip(f);
   else if (f && f.boss) {
-    // Een kampioen: zijn naam, en wat hem verslaan oplevert
-    const boss = bossForAge(f.boss);
+    // Een kampioen: zijn naam, en wat hem verslaan oplevert (f.boss is altijd een tijdperk met een kampioen)
+    const boss = bossForAge(f.boss)!;
     h = `<b>${bossName(boss)}</b><span>Kampioen · ${fmt(f.hp)}/${fmt(f.mhp)} leven · verslaan = extra zegening</span>`;
   } else if (f)
     h = `<b>${FOES[f.type].n.replace(/en$|s$/, '')}</b><span>Vijand · ${Math.ceil(f.hp)} levenspunten</span>`;

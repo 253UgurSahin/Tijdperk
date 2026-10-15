@@ -91,7 +91,7 @@ export function advanceClock(dt: number): void {
 }
 // De waarschuwing voor de aanval van vannacht. Met de radio weet je ook hoe groot hij wordt.
 // Tijdens de finale komen ze uit meer richtingen en gaan ze op de sterrenpoort af (zie game/finale.ts).
-function raidWarning(radio) {
+function raidWarning(radio: boolean): string {
   if (isCharging() && radio)
     return `Radio: vannacht vallen ±${raidSize()} vijanden de sterrenpoort aan, uit ${FINALE_SIDES} richtingen${ledBy()}.`;
   if (isCharging())
@@ -100,7 +100,7 @@ function raidWarning(radio) {
   return `Er naderen vijanden${ledBy()}. Vannacht volgt een aanval.`;
 }
 // ", geleid door Grimnar de Verscheurder" als de kampioen meekomt met de aanval van vannacht
-function ledBy() {
+function ledBy(): string {
   const boss = pendingBoss();
   return boss && !liveBoss() ? `, geleid door ${bossName(boss)}` : '';
 }

@@ -1,4 +1,4 @@
-import type { Building, Foe, GameState, NewGameOptions, Rival, Unit } from './types';
+import type { Building, Foe, GameState, NewGameOptions, OfferKind, Rival, Unit } from './types';
 // Alleen tijdens ontwikkelen (npm run dev): handige hulpjes in de browserconsole
 // en voor automatische tests, bijv. window.__tp.G of __tp.place('hut', x, y).
 import { store } from './core/store';
@@ -65,6 +65,20 @@ interface DevTools {
   /** Geeft de rivaal terug, of null als die er niet is. */
   rivalWonder?: (i?: number) => Rival | null;
   myWonder?: (k: string, x: number, y: number) => Building;
+  finale?: typeof finale;
+  bosses?: typeof bosses;
+  /** Zet een afgebouwde sterrenpoort neer (standaard vlak bij je stamhuis). */
+  gate?: (x?: number, y?: number) => Building;
+  /** Zet de lading van de poort: 0.9 is 90%. */
+  charge?: (frac: number) => void;
+  bossRaid?: (age?: number) => void;
+  diplomacy?: typeof diplomacy;
+  /** Geeft de rivaal terug (leeg als die er niet is). */
+  rel?: (i?: number, value?: number) => Rival | undefined;
+  /** Geeft false als er nu geen bericht van die soort kan. */
+  rivalOffer?: (i?: number, kind?: OfferKind) => boolean;
+  diplo?: (i?: number) => void;
+  allyHelp?: (i?: number) => void;
 }
 declare global {
   interface Window {

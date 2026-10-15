@@ -102,7 +102,7 @@ function command(X: number, Y: number, tx: number, ty: number) {
       const target = (f || c || rb) as Foe | Camp | RivalBuilding;
       // Soldaten van een bondgenoot die jou helpen, val je niet aan
       if (f && f.helper) {
-        toast(`Deze soldaten van ${RIVAL[rivalById(f.rival)?.k]?.n || 'je bondgenoot'} helpen jou.`);
+        toast(`Deze soldaten van ${RIVAL[rivalById(f.rival)?.k as string]?.n || 'je bondgenoot'} helpen jou.`);
         return true;
       }
       // Zonder oorlog is dit een verrassingsaanval: eerst een waarschuwing, pas de tweede klik valt aan

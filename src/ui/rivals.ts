@@ -123,7 +123,7 @@ export function rivalUnitTip(f: Foe) {
   if (!r) return '';
   // Een soldaat van een rivaal heeft altijd een soort (uk) en een mode: zie spawnRivalUnit in game/rivals.ts
   const title = `${UNITS[f.uk!].n} · ${RIVAL[r.k].n}`;
-  const line = `${relationWords(r)} · ${DOING[f.mode] || 'valt aan'} · ${Math.ceil(f.hp)} leven`;
+  const line = `${relationWords(r)} · ${DOING[f.mode!] || 'valt aan'} · ${Math.ceil(f.hp)} leven`;
   return `<b>${title}</b><span>${line}</span>`;
 }
 /** Tooltip bij een gebouw van een rivaal. */
@@ -218,7 +218,7 @@ $('#rivals').addEventListener('click', e => {
   const r = rivalById(+t.dataset.rival!);
   if (!r || r.dead) return;
   // Een klik op de relatie opent het venster Diplomatie bij deze rivaal; de rest van de rij toont hun stad
-  if (e.target.closest('.rivrel')) showDiplomacy(r.id);
+  if ((e.target as HTMLElement).closest('.rivrel')) showDiplomacy(r.id);
   else showRival(r);
 });
 

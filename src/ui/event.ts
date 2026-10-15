@@ -189,7 +189,8 @@ export function renderOffer() {
     return;
   }
   el.hidden = false;
-  const canPay = !o.give || has({ [o.give]: o.price });
+  // (bij give hoort altijd een price: bij de handelaar en bij een rivaal, zie makeRivalOffer)
+  const canPay = !o.give || has({ [o.give]: o.price! });
   const sig = 'o' + o.until + canPay + Math.floor((o.until - G.t) / 5) + (o.from || '');
   // Een bericht van een rivaal heeft een eigen kaartje (zie ui/diplomacy.ts)
   if (o.from) {
@@ -197,7 +198,8 @@ export function renderOffer() {
     return;
   }
   setHTML(el, 'offer', sig, () => {
-    const deal = `${gem(o.want)} ${o.amt} ${RES[o.want].n} voor ${gem(o.give)} ${o.price} ${RES[o.give].n}`;
+    // Zonder afzender is het de reizende handelaar: die heeft altijd want, amt, give en price
+    const deal = `${gem(o.want!)} ${o.amt} ${RES[o.want!].n} voor ${gem(o.give!)} ${o.price} ${RES[o.give!].n}`;
     const timeBar = `<div class="bar acc"><i style="width:${((o.until - G.t) / 70) * 100}%"></i></div>`;
     return [
       `<div class="ic">${ico('⚖')}</div>`,
@@ -217,10 +219,11 @@ $('#offer').addEventListener('click', e => {
     return;
   }
   if (t.dataset.o === 'ok') {
-    pay({ [o.give]: o.price });
-    G.res[o.want] += o.amt;
-    pulseRes(o.want);
-    toast(`Geruild: ${o.amt} ${RES[o.want].n.toLowerCase()} ontvangen.`, 'good');
+    // Zonder afzender is het de reizende handelaar: die heeft altijd want, amt, give en price
+    pay({ [o.give!]: o.price! });
+    G.res[o.want!] += o.amt!;
+    pulseRes(o.want!);
+    toast(`Geruild: ${o.amt} ${RES[o.want!].n.toLowerCase()} ontvangen.`, 'good');
     sfx('upgrade');
   } else note('Aanbod van de handelaar afgeslagen.');
   G.offer = null;

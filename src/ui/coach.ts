@@ -45,7 +45,8 @@ interface CoachStep {
   t: string;
   h: string;
   tile?: string;
-  act?: CoachAct;
+  /** De knop; leeg (of null) = geen knop. */
+  act?: CoachAct | null;
   alarm?: boolean;
 }
 
@@ -108,10 +109,11 @@ function sourceStep(k: string, left: string, goal: string, depth = 0): CoachStep
   };
 }
 // Een aanval tijdens de finale: de poort moet heel blijven, dus laat zien hoe hij ervoor staat
-function finaleRaidStep(raid, boss) {
+function finaleRaidStep(raid: number, boss: Foe | null): CoachStep {
   const gate = finishedGate(),
     health = gateHealth();
-  const led = boss ? `, geleid door ${bossName(bossForAge(boss.boss))},` : '';
+  // (een kampioen in het veld hoort altijd bij een tijdperk met een kampioen: zie makeBoss)
+  const led = boss ? `, geleid door ${bossName(bossForAge(boss.boss)!)},` : '';
   const left = health ? ` De poort is nog ${Math.round((health.hp / health.max) * 100)}% heel.` : '';
   return {
     t: 'Verdedig de sterrenpoort!',
@@ -128,9 +130,10 @@ export function coach(): CoachStep {
   const raid = G.foes.filter(isRaider).length;
   const boss = liveBoss();
   if (raid && isCharging()) return finaleRaidStep(raid, boss);
+  // (een kampioen in het veld hoort altijd bij een tijdperk met een kampioen: zie makeBoss)
   if (raid && boss)
     return {
-      t: `Aanval, geleid door ${bossName(bossForAge(boss.boss))}!`,
+      t: `Aanval, geleid door ${bossName(bossForAge(boss.boss)!)}!`,
       h: `${raid} vijanden in je land. Versla de kampioen met je hele leger: dat levert een extra zegening op.`,
       act: { l: 'Bekijk de aanval', k: 'alarm' },
       alarm: true,
@@ -302,9 +305,10 @@ function lastAgeStep(): CoachStep {
   if (isCharging()) {
     // De finale: de poort laadt op en moet heel blijven tot de zon opkomt
     const gate = finishedGate();
-    const act = gate ? { l: 'Bekijk de poort', k: 'sel', id: gate.id } : null;
+    const act: CoachAct | null = gate ? { l: 'Bekijk de poort', k: 'sel', id: gate.id } : null;
     const percent = chargePercent(chargeFrac(G.finale));
-    const nights = nightsLeft(G.clock, G.finale.need - G.finale.hours, G.finale.hours);
+    // isCharging() hierboven: dan is er zeker een finale
+    const nights = nightsLeft(G.clock, G.finale!.need - G.finale!.hours, G.finale!.hours);
     // In de vredige modus komen er geen aanvallen: dan is er niets te verdedigen
     if (G.peaceful) {
       const when = nights > 1 ? `Bij zonsopgang na ${nights} nachten` : 'Bij de volgende zonsopgang';

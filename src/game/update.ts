@@ -150,7 +150,8 @@ export function update(dt: number) {
       const mx = bMaxHp(h);
       // Herstellen zolang er geen aanvallers zijn (kampbewakers en rivalen thuis tellen alleen als ze dichtbij zijn)
       // (helpers van een bondgenoot zijn geen gevaar)
-      const threat = f => !f.retreat && !f.helper && (isRaider(f) || dist(f.x, f.y, h.x + 1, h.y + 1) < 12);
+      const threat = (f: Foe) =>
+        !f.retreat && !f.helper && (isRaider(f) || dist(f.x, f.y, h.x + 1, h.y + 1) < 12);
       if (h.hp < mx && !G.foes.some(threat)) h.hp = Math.min(mx, h.hp + (mx * dt) / 240);
     }
   }

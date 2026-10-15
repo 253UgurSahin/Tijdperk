@@ -1,4 +1,5 @@
 // 2D-laag over de wereld: levensbalken en labels.
+import type { Foe } from '../types';
 import { store } from '../core/store';
 import { CN, CS, TAU } from '../config';
 import { SET } from '../core/settings';
@@ -38,7 +39,7 @@ function otext(x: number, y: number, t: string, col: string, size = 12, a = 1) {
   c.globalAlpha = 1;
 }
 // Een kampioen: zijn naam en een brede levensbalk boven zijn hoofd, in goud omrand
-function bossLabel(f) {
+function bossLabel(f: Foe) {
   const boss = bossForAge(f.boss);
   if (!boss) return;
   const top = eRec.get(f.id)?.bossTop ?? 2;

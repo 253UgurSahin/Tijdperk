@@ -37,7 +37,8 @@ export function drawFinaleFx() {
     charge = chargeFrac(G.finale),
     pulse = 0.5 + Math.sin(store.TM * (2 + charge * 4)) * 0.5;
   // Twee lagen: een brede zachte gloed en een smalle felle kern. Hoe voller, hoe breder en feller.
-  const layers = [
+  // Per laag: naam, straal, kleur en doorzichtigheid.
+  const layers: [string, number, string, number][] = [
     ['gateglow', 0.5 + charge * 0.7, '#8a5cff', 0.08 + charge * 0.14 + pulse * 0.05],
     ['gatecore', 0.14 + charge * 0.2, '#e6dcff', 0.25 + charge * 0.4 + pulse * 0.1],
   ];

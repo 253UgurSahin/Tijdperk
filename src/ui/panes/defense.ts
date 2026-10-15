@@ -15,6 +15,7 @@ import { repairBuildings, repairCost } from '../../game/repair';
 import { arrivalHour, clockText } from '../../game/rivals';
 import { G, sel } from '../../game/state';
 import { hoursUntilRaid } from '../../game/time';
+import { bMaxHp } from '../../game/upgrades';
 import { selectArmy } from '../../input/input';
 import { clearSel } from '../../input/selection';
 import { centerOn } from '../../render/camera';
@@ -29,10 +30,11 @@ import { dist } from '../../util/math';
 // Wat de aanvalskaart zegt: een aanval in je land, rivalen onderweg, of wanneer de volgende nachtelijke aanval komt
 function raidCardText(raidNow: number, marching: Foe[], hrs: number | null, secs: number | null) {
   const live = liveBoss();
+  // (een kampioen in het veld hoort altijd bij een tijdperk met een kampioen: zie makeBoss)
   if (raidNow && live)
     return {
       title: `${raidNow} aanvallers in je land`,
-      sub: `Geleid door ${bossName(bossForAge(live.boss))}`,
+      sub: `Geleid door ${bossName(bossForAge(live.boss)!)}`,
     };
   if (raidNow) return { title: `${raidNow} aanvallers in je land`, sub: 'Dorpelingen schuilen' };
   if (marching.length) {

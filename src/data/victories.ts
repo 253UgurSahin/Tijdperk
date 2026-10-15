@@ -32,6 +32,9 @@ export interface VictoryFacts {
   age: number;
   day: number;
   stargate?: boolean;
+  /** De sterrenpoort laadt op, en hoe vol hij is (0 tot 1). */
+  charging?: boolean;
+  charge?: number;
   stargateBusy?: boolean;
   campsLeft?: number;
   wonders?: number;
@@ -79,7 +82,8 @@ export const VICTORIES: VictoryDef[] = [
     text: f => {
       if (f.stargate) return 'klaar';
       if (f.age < LAST_AGE) return `tijdperk ${f.age + 1} van ${LAST_AGE + 1}`;
-      if (f.charging) return `laadt op: ${chargePercent(f.charge)}%`;
+      // (wie charging meegeeft, geeft ook charge mee: zie victoryFacts in game/victory.ts)
+      if (f.charging) return `laadt op: ${chargePercent(f.charge!)}%`;
       return f.stargateBusy ? 'in aanbouw' : 'nu bouwen';
     },
     end: {

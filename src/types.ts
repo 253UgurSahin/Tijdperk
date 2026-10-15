@@ -279,8 +279,15 @@ export interface Foe extends Hittable {
   until?: number;
   /** Gezamenlijk looptempo van de groep op weg naar jou. */
   pace?: number;
+  /** Een soldaat van een bondgenoot die jou komt helpen (zie sendHelpers in game/diplomacy.ts). */
+  helper?: boolean;
+  /** Speltijd waarop die helper aankwam. */
+  since?: number;
+  /** Een kampioen die een aanval leidt: het tijdperk waar hij bij hoort (zie data/bosses.ts). */
+  boss?: number;
 }
-export type RivalMode = 'home' | 'march' | 'raid' | 'return';
+/** Wat een soldaat van een rivaal doet: thuis op wacht, op mars, aanvallen, naar huis, of jou helpen. */
+export type RivalMode = 'home' | 'march' | 'raid' | 'return' | 'help';
 
 export interface Camp extends Hittable {
   kind: 'c';
@@ -305,8 +312,46 @@ export interface RivalBuilding extends Hittable {
   aim?: number;
 }
 
-/** Een rivaliserende beschaving (zie newRival in game/rivals.ts). */
-export interface Rival {
+/** Een handelsverdrag: elke minuut geef je `giveAmt` van `give` en krijg je `getAmt` van `get`. */
+export interface TradeDeal {
+  give: string;
+  giveAmt: number;
+  get: string;
+  getAmt: number;
+}
+
+/** De diplomatie met een rivaal (zie diplomacyStart in data/diplomacy.ts en game/diplomacy.ts). */
+export interface Diplomacy {
+  /** Relatie, van −100 (vijandig) tot 100 (beste vrienden). */
+  rel: number;
+  /** Het handelsverdrag (of null), en seconden sinds de laatste ruil. */
+  trade: TradeDeal | null;
+  tradeT: number;
+  /** De handel wacht omdat je te weinig hebt (dan komt er maar één melding). */
+  tradeShort?: boolean;
+  /** Bondgenootschap, en oorlog (verklaard door jou of door hen) sinds dag `warDay`. */
+  ally: boolean;
+  atWar: boolean;
+  warDay: number;
+  /** Dag van hun laatste aanval op jou (of van de vrede of een betaalde eis). */
+  lastAttack: number;
+  /** Dag waarop ze je echt voor het laatst aanvielen: terugslaan is dan geen verraad. */
+  raidDay: number;
+  /** Je weigerde hun eis: op deze dag vallen ze aan (0 = niet). */
+  threatDay: number;
+  /** Je betaalde hun eis: tot deze dag vallen ze niet aan (0 = niet). */
+  spareUntil: number;
+  /** Per actie de dag vanaf wanneer je het opnieuw mag vragen. */
+  retry: Record<string, number>;
+  /** Geschenken van de laatste tijd (zakt 1 per dag). */
+  gifts: number;
+  /** Dag waarop ze je voor het laatst hulp stuurden, en dag van hun volgende bericht. */
+  helpDay: number;
+  offerDay: number;
+}
+
+/** Een rivaliserende beschaving (zie newRival in game/rivals.ts), met de diplomatie erbij. */
+export interface Rival extends Diplomacy {
   /** Klein nummer: soldaten en gebouwen verwijzen hiernaar. */
   id: number;
   /** Naam en kleur (sleutel uit data/rivals.ts). */
@@ -327,8 +372,8 @@ export interface Rival {
   chunks: number[];
   bs: RivalBuilding[];
   attacks: number;
-  /** Dag van de volgende aanval. */
-  nextAttack: number;
+  /** Alleen in oude opslag: de dag van de volgende aanval (bij het laden weggehaald, zie cleanDiplomacy). */
+  nextAttack?: number;
   grewDay: number;
   giftDay: number;
   /** Speltijd van jouw laatste aanval op hen, en van de laatste treffer op hun stad. */
@@ -344,6 +389,11 @@ export interface Rival {
 
 export type Target = Building | Villager | Unit | Foe | Camp | RivalBuilding;
 export type Mobile = Villager | Unit | Foe;
+/**
+ * Iets wat je aanvalt, met wat de diplomatie erover vraagt: van welke rivaal is het (`rival`, alleen bij
+ * soldaten en gebouwen van een rivaal) en is het een helper van een bondgenoot? Bij de rest is dat leeg.
+ */
+export type AttackTarget = Target & { rival?: number; helper?: boolean };
 
 export interface Projectile {
   x: number;
@@ -356,6 +406,9 @@ export interface Projectile {
   spd: number;
   col: string;
   foe: boolean;
+  /** Geschoten door een helper van een bondgenoot, en van welke rivaal die is (anders 0). */
+  ally: boolean;
+  allyOf: number;
   big: boolean;
   h0: number;
   done?: boolean;
@@ -390,12 +443,37 @@ export interface LogEntry {
   y?: number;
   id: number;
 }
+/** Een aanbod van de reizende handelaar: je krijgt `amt` van `want` voor `price` van `give`. */
 export interface Offer {
   want: string;
   amt: number;
   give: string;
   price: number;
   until: number;
+  /** Een aanbod van de handelaar heeft geen afzender; een bericht van een rivaal wel (zie RivalOffer). */
+  from?: undefined;
+}
+/** Wat een rivaal je stuurt: een ruil, een vraag om hulp, een verbond, een eis of vrede. */
+export type OfferKind = 'trade' | 'ask' | 'ally' | 'demand' | 'peace';
+/**
+ * Een bericht van een rivaal (zie makeRivalOffer in game/diplomacy.ts), in hetzelfde kaartje als de
+ * handelaar. Bij een ruil krijg je `amt` van `want`; bij een ruil, vraag of eis betaal je `price` van `give`.
+ */
+export interface RivalOffer {
+  /** Nummer van de rivaal die het stuurt. */
+  from: number;
+  kind: OfferKind;
+  /** Speltijd waarop het bericht verloopt: geen antwoord telt als nee. */
+  until: number;
+  /** De zin zonder de naam (voor het kaartje), en de hele zin (voor het logboek). */
+  line?: string;
+  text?: string;
+  want?: string;
+  amt?: number;
+  give?: string;
+  price?: number;
+  /** Bij een eis: zoveel dagen vallen ze niet aan als je betaalt. */
+  spareDays?: number;
 }
 /** Het kaartje van een gebeurtenis dat nu openstaat (zie startEvent in game/events.ts). */
 export interface GameEvent {
@@ -439,6 +517,26 @@ export interface Followup {
 export interface BlessingSlot {
   age: number;
   at: number;
+  /** De beloning voor een verslagen kampioen: dan liggen er andere kaarten (zie game/bosses.ts). */
+  boss?: boolean;
+}
+
+/** De sterrenpoort die oplaadt (zie data/finale.ts en game/finale.ts). */
+export interface FinaleState {
+  /** Zoveel uur (op de klok) laadt de poort al op, en zoveel uur moet hij in totaal (0 = verwoest). */
+  hours: number;
+  need: number;
+  /** Alle rivalen zijn al opgeroepen voor hun grote aanval. */
+  rivalsCalled: boolean;
+  /** Helemaal opgeladen: de poort is open. */
+  done: boolean;
+  /** Zo vaak werd de poort verwoest tijdens het opladen. */
+  resets: number;
+}
+
+/** De kampioen die de volgende aanval leidt: het tijdperk waar hij bij hoort (zie game/bosses.ts). */
+export interface PendingBoss {
+  age: number;
 }
 
 /** Wie een wereldwonder heeft ('you' of de sleutel van een rivaal), en sinds welke dag. */
@@ -571,6 +669,12 @@ export interface Stats {
   wonderRaces: number;
   /** Wonderen veroverd door een rivaal te verslaan. */
   wondersTaken: number;
+  /** Kampioenen verslagen (zie game/bosses.ts). */
+  bosses: number;
+  /** Bondgenootschappen en handelsverdragen gesloten, en grondstoffen ontvangen via verdragen. */
+  alliances: number;
+  treaties: number;
+  traded: number;
   /** Dorpelingen en gebouwen (geen muren) die je kwijtraakte. */
   lost: number;
   /** Stond de vredige modus ooit aan in dit spel? Dan telt de score half. */
@@ -597,7 +701,8 @@ export interface GameState {
   fx: Fx[];
   regrow: { i: number; t: number; at: number }[];
   camps: Camp[];
-  spawnQ: { type: number; x: number; y: number; scale: number; at: number }[];
+  /** Aanvallers die nog komen; `boss` is het tijdperk van de kampioen die de aanval leidt. */
+  spawnQ: { type: number; x: number; y: number; scale: number; at: number; boss?: number }[];
   log: LogEntry[];
   nid: number;
   raids: number;
@@ -610,7 +715,8 @@ export interface GameState {
   rain: number;
   groups: Record<string, number[]>;
   hist: number[][];
-  offer: Offer | null;
+  /** Het kaartje bovenaan: een aanbod van de handelaar of een bericht van een rivaal, of null. */
+  offer: Offer | RivalOffer | null;
   stance: Stance;
   diff: number;
   tech: Record<string, number>;
@@ -658,6 +764,10 @@ export interface GameState {
   wonders: Record<string, WonderOwner>;
   /** De dag waarop de handelaar van het Oost-Indisch Huis voor het laatst kwam. */
   traderDay: number;
+  /** De sterrenpoort die oplaadt, of null zolang hij nog nooit af was. */
+  finale: FinaleState | null;
+  /** De kampioen die de volgende aanval leidt, of null. */
+  boss: PendingBoss | null;
   /** Aangekondigde of vallende meteoriet, en wanneer de volgende komt. */
   meteor?: Meteor | null;
   nextMeteor?: number;

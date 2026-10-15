@@ -1,4 +1,5 @@
 // Tests voor diplomatie: woorden bij een relatie, kansen, aanvallen, handel, geschenken en oude opslag.
+import type { OfferFacts } from '../src/data/diplomacy';
 import { describe, expect, it } from 'vitest';
 import {
   ALLY_KEEP,
@@ -133,7 +134,7 @@ describe('diplomatie: kansen', () => {
       expect(tradeChance({ rel: 50, personality })).toBeGreaterThan(tradeChance({ rel: 25, personality }));
     }
     // Een Handelaar handelt het liefst, een Krijger het minst
-    const at = personality => tradeChance({ rel: 30, personality });
+    const at = (personality: string) => tradeChance({ rel: 30, personality });
     expect(at('handelaar')).toBeGreaterThan(at('bouwer'));
     expect(at('bouwer')).toBeGreaterThan(at('krijger'));
   });
@@ -185,7 +186,7 @@ describe('diplomatie: wanneer rivalen aanvallen', () => {
   });
 
   // Alleen de dagen van een karakter (zijn andere velden, zoals 'war', betekenen hier iets anders)
-  const days = p => ({ first: PERSONALITY[p].first, every: PERSONALITY[p].every });
+  const days = (p: string) => ({ first: PERSONALITY[p].first, every: PERSONALITY[p].every });
 
   it('nooit vóór dag 4, en met een betere relatie later', () => {
     for (const p of KINDS)
@@ -195,7 +196,7 @@ describe('diplomatie: wanneer rivalen aanvallen', () => {
         const later = nextAttackDay({ ...days(p), attacks: 3, lastAttack: 10, rel });
         expect(later).toBeGreaterThan(10);
       }
-    const at = (rel, more = {}) =>
+    const at = (rel: number, more: { war?: boolean; ally?: boolean } = {}) =>
       nextAttackDay({ ...days('krijger'), attacks: 2, lastAttack: 10, rel, ...more });
     expect(at(40)).toBeGreaterThan(at(-30));
     expect(at(-30)).toBeGreaterThan(at(-80));
@@ -204,13 +205,13 @@ describe('diplomatie: wanneer rivalen aanvallen', () => {
   });
 
   it('een Krijger valt aan het begin eerder aan dan een Bouwer, en die eerder dan een Handelaar', () => {
-    const first = p => nextAttackDay({ ...days(p), attacks: 0, lastAttack: 0, rel: START_REL[p] });
+    const first = (p: string) => nextAttackDay({ ...days(p), attacks: 0, lastAttack: 0, rel: START_REL[p] });
     expect(first('krijger')).toBeLessThan(first('bouwer'));
     expect(first('bouwer')).toBeLessThan(first('handelaar'));
   });
 
   it('op een zwaardere stand komt de eerste aanval nooit later, en bij een Bouwer eerder', () => {
-    const first = (p, diff) =>
+    const first = (p: string, diff: number) =>
       nextAttackDay({ ...days(p), attacks: 0, lastAttack: 0, rel: startRel(p, diff) });
     for (const p of KINDS) expect(first(p, 3)).toBeLessThanOrEqual(first(p, 1));
     expect(first('bouwer', 3)).toBeLessThan(first('bouwer', 1));
@@ -247,7 +248,8 @@ describe('diplomatie: vanzelf terug naar het rustpunt', () => {
   it('een verdrag of verbond houdt vanzelf stand, bij elk karakter en op elke moeilijkheid', () => {
     for (const personality of KINDS)
       for (const diff of [0, 1, 2, 3]) {
-        const rest = more => restingRel({ personality, diff, ...more });
+        const rest = (more: { ally?: boolean; trade?: boolean }) =>
+          restingRel({ personality, diff, ...more });
         expect(rest({ ally: true })).toBeGreaterThanOrEqual(ALLY_KEEP + 10);
         expect(rest({ ally: true, trade: true })).toBeGreaterThanOrEqual(ALLY_KEEP + 10);
         expect(rest({ trade: true })).toBeGreaterThanOrEqual(TRADE_KEEP + 10);
@@ -271,7 +273,7 @@ describe('diplomatie: geschenken en handel', () => {
   });
 
   it('een geschenk kost je grootste voorraad en doet steeds minder als je er veel achter elkaar geeft', () => {
-    const cost = giftCost({ food: 50, wood: 400, stone: 10 }, keys, 0);
+    const cost = giftCost({ food: 50, wood: 400, stone: 10 }, keys, 0)!;
     expect(Object.keys(cost)).toEqual(['wood']);
     expect(cost.wood).toBeGreaterThan(0);
     expect(giftCost({ food: 0, wood: 0, stone: 0 }, keys, 0)).toBe(null);
@@ -283,7 +285,7 @@ describe('diplomatie: geschenken en handel', () => {
   });
 
   it('een handelsverdrag ruilt je overschot voor wat je tekortkomt, voor 80% van de waarde', () => {
-    const deal = tradeDeal({ food: 900, wood: 80, stone: 20, gold: 0 }, [...keys, 'gold'], 3);
+    const deal = tradeDeal({ food: 900, wood: 80, stone: 20, gold: 0 }, [...keys, 'gold'], 3)!;
     expect(deal.give).toBe('food');
     expect(deal.get).toBe('gold');
     expect(deal.giveAmt).toBeGreaterThan(0);
@@ -303,8 +305,8 @@ describe('diplomatie: geschenken en handel', () => {
 
   it('een eenmalige ruil van een rivaal: vrienden krijgen een betere prijs', () => {
     const res = { food: 900, wood: 80, stone: 20 };
-    const friend = rivalTrade(res, keys, 1, 40),
-      stranger = rivalTrade(res, keys, 1, -10);
+    const friend = rivalTrade(res, keys, 1, 40)!,
+      stranger = rivalTrade(res, keys, 1, -10)!;
     expect(friend.give).toBe('food');
     expect(friend.want).toBe('stone');
     expect(friend.amt).toBe(stranger.amt);
@@ -326,7 +328,7 @@ describe('diplomatie: berichten en hulp', () => {
   });
 
   it('een Krijger stelt nooit zelf een verbond voor; eisen komen alleen van wie sterker is', () => {
-    const kinds = o => offerKinds(o).map(k => k[0]);
+    const kinds = (o: OfferFacts) => offerKinds(o).map(k => k[0]);
     expect(kinds({ rel: 90, personality: 'krijger' })).not.toContain('ally');
     expect(kinds({ rel: 90, personality: 'bouwer' })).toContain('ally');
     expect(kinds({ rel: 90, personality: 'bouwer', ally: true })).not.toContain('ally');
@@ -337,7 +339,7 @@ describe('diplomatie: berichten en hulp', () => {
 
   it('elk bericht zegt wat ja en nee doen; nee op een eis kost relatie', () => {
     expect(OFFER_TIME).toBeGreaterThan(0);
-    for (const k of ['trade', 'ask', 'ally', 'demand', 'peace']) expect(OFFER_REL[k]).toBeTruthy();
+    for (const k of ['trade', 'ask', 'ally', 'demand', 'peace'] as const) expect(OFFER_REL[k]).toBeTruthy();
     expect(OFFER_REL.demand.no).toBeLessThan(0);
     expect(OFFER_REL.ask.yes).toBeGreaterThan(0);
   });

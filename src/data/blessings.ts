@@ -448,8 +448,13 @@ export function blessingOffer(
  * tijdperk zag. `history`: de zegeningen die je koos, in volgorde. De gewone keuze was een van je
  * laatste keuzes; welke kaarten er toen lagen, hangt af van wat je daarvóór al had. Die laten we weg.
  */
-export function bossOffer(seed, age, history = [], opts = {}) {
-  const seen = new Set();
+export function bossOffer(
+  seed: number,
+  age: number,
+  history: string[] = [],
+  opts: BlessingRules = {},
+): BlessingDef[] {
+  const seen = new Set<string>();
   // Zoals de gewone keuze er nu, één keuze geleden en twee keuzes geleden uit zou zien
   for (let back = 0; back <= Math.min(2, history.length); back++) {
     const before = history.slice(0, history.length - back);

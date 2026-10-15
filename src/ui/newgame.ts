@@ -175,7 +175,7 @@ function rivalsHTML(draft: NewGameDraft) {
     .join('');
   const lineup = seed === null ? [] : rivalLineup(seed).slice(0, draft.rivals);
   // De relatie waarmee ze beginnen: op de zware standen lager (zie startRel in data/diplomacy.ts)
-  const rel = p => startRel(p, draft.diff);
+  const rel = (p: string) => startRel(p, draft.diff);
   // Per rivaal: vaandel, naam, karakter en in één zin wat dat karakter doet
   const who = lineup.map(
     ({ k, p }) =>

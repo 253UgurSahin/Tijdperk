@@ -1,4 +1,5 @@
 // Tests voor de finale (de sterrenpoort die oplaadt) en de kampioenen na elk nieuw tijdperk.
+import type { Tile } from '../src/types';
 import { describe, expect, it } from 'vitest';
 import { ACHIEVEMENT, emptyFacts, newAchievements } from '../src/data/achievements';
 import { AGES } from '../src/data/ages';
@@ -39,7 +40,7 @@ describe('kampioenen: de gegevens', () => {
   });
 
   it('de eerste heet Grimnar de Verscheurder', () => {
-    expect(bossName(bossForAge(1))).toBe('Grimnar de Verscheurder');
+    expect(bossName(bossForAge(1)!)).toBe('Grimnar de Verscheurder');
   });
 
   it('een kampioen is echt sterker: veel meer levens en meer schade', () => {
@@ -59,7 +60,7 @@ describe('kampioenen: de beloning', () => {
   it('na een kampioen liggen er geen kaarten die je bij de gewone keuze al zag, net zo voorspelbaar', () => {
     // Een heel spel nagespeeld: elk tijdperk de gewone keuze (de eerste kaart), dan de beloning van de kampioen
     for (let seed = 1; seed <= 300; seed++) {
-      const history = [];
+      const history: string[] = [];
       for (let age = 1; age < AGES.length; age++) {
         const normal = blessingOffer(seed, age, history).map(b => b.k);
         if (!normal.length) break;
@@ -186,7 +187,7 @@ describe('finale: opladen', () => {
 
   it('aanvallen uit drie richtingen liggen ver uit elkaar', () => {
     // Een vierkante rand van 40 bij 40 tegels
-    const edge = [];
+    const edge: Tile[] = [];
     for (let i = 0; i < 40; i++) edge.push([i, 0], [i, 39], [0, i], [39, i]);
     const picks = spreadOut(edge, 3, 0);
     expect(picks.length).toBe(3);

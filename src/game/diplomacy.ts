@@ -1,5 +1,6 @@
 // Diplomatie in het spel: relaties met rivalen, verdragen, oorlog en vrede, berichten en hulp van bondgenoten.
 // De getallen (kansen, kosten, grenzen) staan in data/diplomacy.ts.
+import type { AttackTarget, Cost, Foe, OfferKind, Rival, RivalMode, RivalOffer, Target } from '../types';
 import { store } from '../core/store';
 import { sfx } from '../audio/sound';
 import { W } from '../config';
@@ -20,6 +21,7 @@ import {
   TRADE_MIN,
   TRADE_RESERVE,
   WAR_AT,
+  type OfferRelation,
   allyChance,
   amountFor,
   attackWait,
@@ -46,6 +48,7 @@ import {
 } from '../data/diplomacy';
 import { GATHER, RES } from '../data/resources';
 import { PERSONALITY, RIVAL, armyPower, costValue, rivalUnits, verb } from '../data/rivals';
+import type { Fighter } from '../data/rivals';
 import { UNITS } from '../data/units';
 import { gain, has, pay } from './economy';
 import { dayLength, th } from './events';
@@ -65,21 +68,21 @@ const HELP_TIME = 110;
 // ---- Kleine hulpjes ----
 
 /** De naam van een rivaal. */
-const nameOf = r => RIVAL[r.k].n;
+const nameOf = (r: Rival): string => RIVAL[r.k].n;
 /** Naam plus werkwoord: says(r, 'valt', 'vallen') wordt "De Zoutkoningen vallen". */
-const says = (r, one, many) => `${nameOf(r)} ${verb(RIVAL[r.k], one, many)}`;
+const says = (r: Rival, one: string, many: string): string => `${nameOf(r)} ${verb(RIVAL[r.k], one, many)}`;
 /** "voedsel", "hout": de naam van een grondstof in een zin. */
-const resName = k => RES[k].n.toLowerCase();
+const resName = (k: string): string => RES[k].n.toLowerCase();
 /** Grondstoffen om mee te geven en te ruilen: wat je in je tijdperk kunt verzamelen. */
-const tradeKeys = () => GATHER.filter(k => RES[k].age <= G.age);
+const tradeKeys = (): string[] => GATHER.filter(k => RES[k].age <= G.age);
 /** Alle rivalen die nog meedoen. */
-const living = () => (G && G.rivals ? G.rivals.filter(r => !r.dead) : []);
+const living = (): Rival[] => (G && G.rivals ? G.rivals.filter(r => !r.dead) : []);
 /** Gooi met een kans in procenten: true als het lukt. */
-const roll = chance => Math.random() * 100 < chance;
+const roll = (chance: number): boolean => Math.random() * 100 < chance;
 /** De relatie als heel getal, zoals je hem ziet: alle grenzen rekenen hiermee, zodat "+20" ook echt genoeg is. */
-const relNow = r => Math.round(r.rel);
+const relNow = (r: Rival): number => Math.round(r.rel);
 // De interface opnieuw laten tekenen: het paneel Leger, de selectie en het venster Diplomatie
-function refresh() {
+function refresh(): void {
   sigs.rivals = null;
   sigs.ins = null;
   store.uiDirty = true;
@@ -87,49 +90,57 @@ function refresh() {
 
 // ---- Sterkte ----
 
-// Torens tellen mee voor de sterkte, net als soldaten
-const towerStats = (type, hp) => ({ hp, dmg: B[type].def.dmg, rate: B[type].def.rate });
+// Torens tellen mee voor de sterkte, net als soldaten (alleen gebouwen met een verdediging komen hier)
+const towerStats = (type: string, hp: number): Fighter => ({
+  hp,
+  dmg: B[type].def!.dmg,
+  rate: B[type].def!.rate,
+});
 
 /** Hoe sterk een rivaal is: zijn leger plus zijn torens. */
-export function rivalPower(r) {
+export function rivalPower(r: Rival): number {
   const army = rivalArmy(r).map(f => ({ hp: f.mhp, dmg: f.dmg, rate: f.rate }));
   const towers = r.bs.filter(b => b.done && B[b.type].def).map(b => towerStats(b.type, b.mhp));
   return armyPower(army) + armyPower(towers);
 }
 /** Hoe sterk jij bent, op dezelfde manier geteld. */
-export function yourPower() {
+export function yourPower(): number {
   const army = G.us.map(u => ({ hp: u.mhp, dmg: UNITS[u.k].dmg * armsMul(), rate: UNITS[u.k].rate }));
   const towers = G.bs.filter(b => b.done && B[b.type].def).map(b => towerStats(b.type, B[b.type].hp));
   return armyPower(army) + armyPower(towers);
 }
 /** Hoeveel keer zo sterk jij bent als deze rivaal (1 = even sterk). */
-export const ratioWith = r => powerRatio(yourPower(), rivalPower(r));
+export const ratioWith = (r: Rival): number => powerRatio(yourPower(), rivalPower(r));
 
 // ---- Oorlog of vrede? ----
 
 /** Is het oorlog met de rivaal met dit nummer? */
-export const atWarWith = id => !!rivalById(id)?.atWar;
+export const atWarWith = (id: number): boolean => !!rivalById(id)?.atWar;
 
 /**
  * Mag je leger of een toren deze soldaat vanzelf aanvallen? Ja bij gewone vijanden en bij soldaten die
  * jou aanvallen. Soldaten van een rivaal waarmee het vrede is (thuis of op weg naar huis) niet,
  * en soldaten van een bondgenoot die je komen helpen nooit.
  */
-export function fairTarget(f) {
+export function fairTarget(f: Foe): boolean {
   if (!f.rival) return true;
   if (f.helper) return false;
   if (f.mode === 'march' || f.mode === 'raid') return true;
   return atWarWith(f.rival);
 }
 
-/** Valt deze soldaat van een rivaal jou aan (of gaat hij net naar huis)? Dan is terugslaan altijd goed. */
-export const strikesBack = t => t.kind === 'f' && ['march', 'raid', 'return'].includes(t.mode);
+/**
+ * Valt deze soldaat van een rivaal jou aan (of gaat hij net naar huis)? Dan is terugslaan altijd goed.
+ * (Gewone vijanden hebben geen mode: dan is het gewoon false.)
+ */
+export const strikesBack = (t: Target): boolean =>
+  t.kind === 'f' && (['march', 'raid', 'return'] as (RivalMode | undefined)[]).includes(t.mode);
 
 /** Vielen ze je de laatste dagen zelf aan? Dan is terugslaan geen verraad. */
-const theyRaidedYou = r => r.raidDay > 0 && G.day - r.raidDay <= RETALIATE_DAYS;
+const theyRaidedYou = (r: Rival): boolean => r.raidDay > 0 && G.day - r.raidDay <= RETALIATE_DAYS;
 
 /** Op welke dag deze rivaal op zijn vroegst weer aanvalt (Infinity bij een bondgenoot). */
-export function rivalAttackDay(r) {
+export function rivalAttackDay(r: Rival): number {
   const P = PERSONALITY[r.p];
   const day = nextAttackDay({
     first: P.first,
@@ -147,7 +158,7 @@ export function rivalAttackDay(r) {
 }
 
 /** Om de hoeveel dagen een rivaal ongeveer aanvalt, met zijn huidige relatie (Infinity bij een bondgenoot). */
-export function attackEveryDays(r) {
+export function attackEveryDays(r: Rival): number {
   const wait = attackWait({ rel: relNow(r), ally: r.ally, war: r.atWar });
   return wait === Infinity ? Infinity : Math.max(1, Math.round(PERSONALITY[r.p].every * wait));
 }
@@ -155,7 +166,7 @@ export function attackEveryDays(r) {
 // ---- De relatie verandert ----
 
 /** Verander de relatie met een rivaal. Zakt ze te ver, dan stoppen verdragen of verklaren zij de oorlog. */
-export function changeRelation(r, delta) {
+export function changeRelation(r: Rival | null, delta: number): void {
   if (!r || r.dead || !delta) return;
   r.rel = clampRel(r.rel + delta);
   checkLimits(r);
@@ -163,7 +174,7 @@ export function changeRelation(r, delta) {
 }
 
 // Verdragen houden op als de relatie te laag wordt; heel laag en ze verklaren de oorlog
-function checkLimits(r) {
+function checkLimits(r: Rival): void {
   if (r.ally && relNow(r) < ALLY_KEEP) {
     r.ally = false;
     store.notePos = [r.x + 1, r.y + 1];
@@ -183,7 +194,7 @@ function checkLimits(r) {
 }
 
 // Oorlog: verdragen vervallen en hun wachters en torens vallen je mensen aan
-function startWar(r) {
+function startWar(r: Rival): void {
   r.atWar = true;
   r.warDay = G.day;
   r.ally = false;
@@ -196,7 +207,7 @@ function startWar(r) {
 const PEACE_REL = -40;
 
 // Vrede: geen oorlog meer, de relatie is daarna minstens koel. Wie onderweg was, gaat naar huis.
-function makePeace(r) {
+function makePeace(r: Rival): void {
   r.atWar = false;
   r.rel = Math.max(r.rel, PEACE_REL);
   r.threatDay = 0;
@@ -206,7 +217,7 @@ function makePeace(r) {
   refresh();
 }
 
-function makeAlly(r) {
+function makeAlly(r: Rival): void {
   r.ally = true;
   r.atWar = false;
   r.threatDay = 0;
@@ -218,9 +229,10 @@ function makeAlly(r) {
 
 // Jouw soldaten die nog op deze rivaal afgaan, stoppen en blijven staan waar ze zijn.
 // Anders vechten ze na de vrede gewoon door, en begint de oorlog meteen opnieuw.
-function standDown(r) {
+function standDown(r: Rival): void {
+  // (alleen soldaten en gebouwen van een rivaal hebben een rivaal-nummer, zie AttackTarget)
   for (const u of G.us) {
-    if (!u.tgt || u.tgt.rival !== r.id) continue;
+    if (!u.tgt || (u.tgt as AttackTarget).rival !== r.id) continue;
     u.tgt = null;
     u.path = null;
     if (u.order === 'attack') {
@@ -235,7 +247,7 @@ function standDown(r) {
  * Jij valt iets van een rivaal aan op zijn eigen land (zie rivalHurt in game/rivals.ts), één keer per aanval.
  * Zonder oorlogsverklaring: het is meteen oorlog, en de andere rivalen vertrouwen je minder.
  */
-export function youAttacked(r) {
+export function youAttacked(r: Rival): void {
   if (r.atWar) {
     changeRelation(r, REL.attackedAtWar);
     return;
@@ -262,7 +274,7 @@ export function youAttacked(r) {
  * Begint een aanval op dit doel (een gebouw of soldaat van een rivaal) een oorlog? Dan die rivaal, anders null.
  * Soldaten die jou aanvallen of naar huis gaan, mag je altijd terugslaan (zie rivalHurt in game/rivals.ts).
  */
-export function surpriseTarget(t) {
+export function surpriseTarget(t: AttackTarget | null | undefined): Rival | null {
   if (!t || !t.rival || t.helper || strikesBack(t)) return null;
   const r = rivalById(t.rival);
   return r && !r.dead && !r.atWar ? r : null;
@@ -273,10 +285,11 @@ const CONFIRM_MS = 8000;
 let armed = { id: 0, until: 0 };
 
 /** Wacht de aanval op deze rivaal op een tweede klik? (Dan zegt de knop "Zeker?") */
-export const surpriseArmed = r => !!r && armed.id === r.id && Date.now() < armed.until;
+export const surpriseArmed = (r: Rival | null): boolean =>
+  !!r && armed.id === r.id && Date.now() < armed.until;
 
 /** Wat een aanval zonder oorlogsverklaring kost, in één zin (voor de waarschuwing en de tooltip). */
-export function surpriseText(r) {
+export function surpriseText(r: Rival): string {
   if (theyRaidedYou(r))
     return `Dan is het oorlog met ${nameOf(r)}. Zij vielen jou net aan, dus de anderen vinden dat niet erg.`;
   const others =
@@ -288,7 +301,7 @@ export function surpriseText(r) {
  * Een aanval zonder oorlogsverklaring: de eerste klik geeft een waarschuwing (false),
  * een tweede klik binnen 8 seconden op iets van dezelfde rivaal valt echt aan (true).
  */
-export function confirmSurprise(r) {
+export function confirmSurprise(r: Rival): boolean {
   if (surpriseArmed(r)) {
     armed = { id: 0, until: 0 };
     return true;
@@ -301,7 +314,7 @@ export function confirmSurprise(r) {
 }
 
 /** Je versloeg een gezamenlijke vijand (een kamp of een kampioen): rivalen waarmee het vrede is, vinden dat goed. */
-export function commonEnemyBeaten(kind) {
+export function commonEnemyBeaten(kind: 'camp' | 'boss'): void {
   const glad = living().filter(r => !r.atWar);
   if (!glad.length) return;
   const delta = REL[kind];
@@ -311,7 +324,7 @@ export function commonEnemyBeaten(kind) {
 }
 
 /** Je versloeg een rivaal: een Krijger krijgt respect, de anderen worden bang. */
-export function rivalConquered(beaten) {
+export function rivalConquered(beaten: Rival): void {
   for (const r of living()) if (r !== beaten) changeRelation(r, conquestEffect(r.p));
   if (G.offer && G.offer.from === beaten.id) {
     G.offer = null;
@@ -322,7 +335,7 @@ export function rivalConquered(beaten) {
 // ---- Elke seconde ----
 
 /** Werk de diplomatie met één rivaal bij (eens per seconde, vanuit game/rivals.ts). */
-export function diplomacySecond(r) {
+export function diplomacySecond(r: Rival): void {
   const days = 1 / dayLength();
   r.rel = drift(r.rel, restingOf(r), days);
   r.gifts = Math.max(0, r.gifts - days);
@@ -332,15 +345,16 @@ export function diplomacySecond(r) {
 }
 
 /** Waar de relatie met deze rivaal vanzelf naartoe schuift (zie restingRel in data/diplomacy.ts). */
-export const restingOf = r =>
+export const restingOf = (r: Rival): number =>
   restingRel({ personality: r.p, diff: G.diff, trade: !!r.trade, ally: r.ally, war: r.atWar });
 
 // Het handelsverdrag: elke minuut wordt er geruild, als je genoeg overhoudt
-function tradeTick(r) {
+// (alleen aangeroepen als er een verdrag is, zie diplomacySecond)
+function tradeTick(r: Rival): void {
   r.tradeT += 1;
   if (r.tradeT < TRADE_EVERY) return;
   r.tradeT = 0;
-  const t = r.trade;
+  const t = r.trade!;
   const give = { [t.give]: t.giveAmt };
   // Je laatste voorraad houd je zelf, anders verhongert je volk door de handel
   if (tradeWaits(G.res, t)) {
@@ -362,14 +376,35 @@ function tradeTick(r) {
 
 // ---- Acties in het venster Diplomatie ----
 
+/** Eén actie in het venster Diplomatie (zie diplomacyActions hieronder voor wat elk veld betekent). */
+export interface DiplomacyAction {
+  k: string;
+  n: string;
+  g: string;
+  chance: number;
+  cost?: Cost | null;
+  deal?: string;
+  yes: string;
+  no?: string;
+  why: string;
+  danger?: boolean;
+  bad?: boolean;
+}
+
+/** Hoe een actie afliep: gelukt of niet, en de zin voor de melding. */
+export interface DiplomacyResult {
+  ok: boolean;
+  text: string;
+}
+
 // Hoe lang je nog moet wachten voor je dit opnieuw mag vragen (een zin), of ''
-function retryText(r, k) {
+function retryText(r: Rival, k: string): string {
   const day = r.retry[k] || 0;
   return G.day < day ? `Ze willen pas op dag ${day} weer praten` : '';
 }
 
 // "Nodig: relatie +20 (nu −4)"
-const needText = (min, rel) => `Nodig: relatie ${relText(min)} (nu ${relText(rel)})`;
+const needText = (min: number, rel: number): string => `Nodig: relatie ${relText(min)} (nu ${relText(rel)})`;
 
 /**
  * Alle acties voor een rivaal, met wat ze kosten, de kans dat ze lukken en wat er dan gebeurt.
@@ -379,7 +414,7 @@ const needText = (min, rel) => `Nodig: relatie ${relText(min)} (nu ${relText(rel
  * - why: waarom het nu niet kan (dan is de knop uit) · danger: rode knop (oorlog)
  * - bad: het gevolg is een verlies (opzeggen, oorlog), dus in het rood
  */
-export function diplomacyActions(r) {
+export function diplomacyActions(r: Rival): DiplomacyAction[] {
   const war = r.atWar;
   const noWar = war ? 'Niet tijdens een oorlog' : '';
   const actions = [giftAction(r)];
@@ -390,7 +425,7 @@ export function diplomacyActions(r) {
   return actions;
 }
 
-function giftAction(r) {
+function giftAction(r: Rival): DiplomacyAction {
   const cost = giftCost(G.res, tradeKeys(), G.age);
   const effect = giftEffect(r.p, r.gifts);
   let why = '';
@@ -415,7 +450,7 @@ function giftAction(r) {
   };
 }
 
-function tradeAction(r, noWar) {
+function tradeAction(r: Rival, noWar: string): DiplomacyAction {
   const deal = tradeDeal(G.res, tradeKeys(), G.age);
   const chance = tradeChance({ rel: relNow(r), personality: r.p, war: r.atWar });
   let why = noWar;
@@ -439,7 +474,7 @@ function tradeAction(r, noWar) {
   };
 }
 
-function cancelTradeAction() {
+function cancelTradeAction(): DiplomacyAction {
   return {
     k: 'endtrade',
     n: 'Verdrag opzeggen',
@@ -451,7 +486,7 @@ function cancelTradeAction() {
   };
 }
 
-function allyAction(r, noWar) {
+function allyAction(r: Rival, noWar: string): DiplomacyAction {
   const odds = { rel: relNow(r), personality: r.p, war: r.atWar };
   const chance = allyChance({ ...odds, trade: !!r.trade });
   let why = noWar;
@@ -474,7 +509,7 @@ function allyAction(r, noWar) {
   };
 }
 
-function cancelAllyAction() {
+function cancelAllyAction(): DiplomacyAction {
   return {
     k: 'endally',
     n: 'Verbond opzeggen',
@@ -486,7 +521,7 @@ function cancelAllyAction() {
   };
 }
 
-function tributeAction(r, noWar) {
+function tributeAction(r: Rival, noWar: string): DiplomacyAction {
   const ratio = ratioWith(r);
   const chance = tributeChance({ ratio, personality: r.p });
   let why = noWar;
@@ -506,9 +541,9 @@ function tributeAction(r, noWar) {
 }
 
 // "1,8×": hoeveel keer zo sterk je bent, met een komma
-const ratioText = ratio => `${ratio.toFixed(1).replace('.', ',')}×`;
+const ratioText = (ratio: number): string => `${ratio.toFixed(1).replace('.', ',')}×`;
 
-function warAction(r) {
+function warAction(r: Rival): DiplomacyAction {
   const days = Math.max(1, PERSONALITY[r.p].every);
   return {
     k: 'war',
@@ -523,7 +558,7 @@ function warAction(r) {
   };
 }
 
-function peaceAction(r) {
+function peaceAction(r: Rival): DiplomacyAction {
   const warDays = G.day - r.warDay;
   const chance = peaceChance({ ratio: ratioWith(r), warDays, personality: r.p, rel: relNow(r) });
   let why = warDays < 1 ? 'Kan pas na een dag oorlog' : '';
@@ -541,7 +576,7 @@ function peaceAction(r) {
 }
 
 /** Voer een actie uit (zie diplomacyActions). Geeft { ok, text } voor de melding in het venster. */
-export function doDiplomacy(r, k) {
+export function doDiplomacy(r: Rival | null, k: string): DiplomacyResult | null {
   if (!r || r.dead) return null;
   const action = diplomacyActions(r).find(a => a.k === k);
   if (!action || action.why) return null;
@@ -556,23 +591,33 @@ export function doDiplomacy(r, k) {
 }
 
 // Een poging die kan mislukken: bij mislukken zakt de relatie en moet je even wachten
-function attempt(r, k, chance, onSuccess, failRel, failText) {
+function attempt(
+  r: Rival,
+  k: string,
+  chance: number,
+  onSuccess: () => string,
+  failRel: number,
+  failText: string,
+): DiplomacyResult {
   if (roll(chance)) return { ok: true, text: onSuccess() };
   r.retry[k] = G.day + RETRY_DAYS[k];
   changeRelation(r, failRel);
   return { ok: false, text: failText };
 }
 
-const ACTIONS = {
+// Wat elke actie doet (de sleutel is de k van de actie, zie diplomacyActions)
+const ACTIONS: Record<string, (r: Rival, a: DiplomacyAction) => DiplomacyResult> = {
   gift(r, a) {
-    pay(a.cost);
+    // Zonder iets om te geven is er een reden (why) en komt de actie hier niet: cost is er zeker
+    pay(a.cost!);
     const effect = giftEffect(r.p, r.gifts);
     r.gifts += 1;
     changeRelation(r, effect);
     return { ok: true, text: `${says(r, 'neemt', 'nemen')} je geschenk aan: relatie ${relText(effect)}.` };
   },
   trade(r, a) {
-    const deal = tradeDeal(G.res, tradeKeys(), G.age);
+    // Valt er niets te ruilen, dan is er een reden (why) en komt de actie hier niet: deal is er zeker
+    const deal = tradeDeal(G.res, tradeKeys(), G.age)!;
     return attempt(
       r,
       'trade',
@@ -651,7 +696,7 @@ const ACTIONS = {
 // ---- Berichten van rivalen (in het kaartje van de handelaar, zie ui/event.ts) ----
 
 // Kies er één, waarbij een gewicht van 2 twee keer zoveel kans geeft als 1
-function weightedPick(list) {
+function weightedPick(list: [OfferKind, number][]): OfferKind | null {
   const total = list.reduce((sum, [, w]) => sum + w, 0);
   let left = Math.random() * total;
   for (const [k, w] of list) {
@@ -662,7 +707,7 @@ function weightedPick(list) {
 }
 
 // Om de twee à drie dagen stuurt elke rivaal een bericht, overdag, als er geen ander kaartje openstaat
-function maybeOffer(r) {
+function maybeOffer(r: Rival): void {
   if (G.offer || G.event || G.over || G.day < r.offerDay || G.clock < 9 || G.clock > 16) return;
   r.offerDay = G.day + 2 + Math.floor(Math.random() * 2);
   const kinds = offerKinds({
@@ -681,12 +726,12 @@ function maybeOffer(r) {
 }
 
 /** Zet een bericht van een rivaal klaar (zie OFFER_REL in data/diplomacy.ts voor wat ja en nee doen). */
-export function makeRivalOffer(r, kind) {
+export function makeRivalOffer(r: Rival, kind: OfferKind): boolean {
   const keys = tradeKeys();
-  const offer = { from: r.id, kind, until: G.t + OFFER_TIME };
+  const offer: RivalOffer = { from: r.id, kind, until: G.t + OFFER_TIME };
   const surplus = surplusRes(G.res, keys);
   // Het werkwoord past bij de naam: "De Zoutkoningen bieden", "Het Duinvolk biedt"
-  const v = (one, many) => verb(RIVAL[r.k], one, many);
+  const v = (one: string, many: string): string => verb(RIVAL[r.k], one, many);
   if (kind === 'trade') {
     const deal = rivalTrade(G.res, keys, G.age, relNow(r));
     if (!deal) return false;
@@ -722,11 +767,12 @@ export function makeRivalOffer(r, kind) {
 }
 
 /** Wat ja en nee doen met de relatie, voor op het kaartje: { yes, no }. */
-export const offerRelation = kind => OFFER_REL[kind] || { yes: 0, no: 0 };
+export const offerRelation = (kind: OfferKind): OfferRelation => OFFER_REL[kind] || { yes: 0, no: 0 };
 
 /** Je antwoordt op het bericht van een rivaal: ja (`yes`) of nee. */
-export function answerRivalOffer(yes) {
-  const o = G.offer;
+export function answerRivalOffer(yes: boolean): void {
+  // Alleen bij een bericht van een rivaal (zie ui/event.ts). Zonder bericht is r leeg en stopt het.
+  const o = G.offer as RivalOffer;
   const r = o && rivalById(o.from);
   G.offer = null;
   sigs.offer = null;
@@ -738,9 +784,10 @@ export function answerRivalOffer(yes) {
     refuse(r, o);
     return;
   }
-  if (o.give && !has({ [o.give]: o.price })) return;
-  if (o.give) pay({ [o.give]: o.price });
-  if (o.want) gain({ [o.want]: o.amt });
+  // (een bericht met `give` heeft ook altijd een `price`, en met `want` een `amt`: zie makeRivalOffer)
+  if (o.give && !has({ [o.give]: o.price! })) return;
+  if (o.give) pay({ [o.give]: o.price! });
+  if (o.want) gain({ [o.want]: o.amt! });
   if (o.kind === 'ally') makeAlly(r);
   if (o.kind === 'peace') makePeace(r);
   if (o.kind === 'demand') {
@@ -763,7 +810,7 @@ export function answerRivalOffer(yes) {
 }
 
 // Nee gezegd (of niet geantwoord, `late`): bij een eis komen ze morgen aanvallen
-function refuse(r, o, late = false) {
+function refuse(r: Rival, o: RivalOffer, late = false): void {
   const rel = offerRelation(o.kind);
   changeRelation(r, rel.no);
   const after = rel.no ? ` Relatie ${relText(rel.no)}.` : '';
@@ -777,8 +824,9 @@ function refuse(r, o, late = false) {
 }
 
 /** Het bericht verloopt zonder antwoord: dat telt als nee. */
-export function expireRivalOffer() {
-  const o = G.offer;
+export function expireRivalOffer(): void {
+  // Alleen bij een bericht van een rivaal (zie game/update.ts). Zonder bericht is r leeg en stopt het.
+  const o = G.offer as RivalOffer;
   const r = o && rivalById(o.from);
   G.offer = null;
   sigs.offer = null;
@@ -794,7 +842,7 @@ export function expireRivalOffer() {
  * Je wordt aangevallen: elke bondgenoot stuurt misschien soldaten (hoogstens één keer per dag).
  * `attacker` is het nummer van de rivaal die aanvalt (die helpt natuurlijk niet), of 0.
  */
-export function allyHelp(attacker = 0) {
+export function allyHelp(attacker = 0): void {
   if (G.peaceful) return;
   for (const r of living()) {
     if (!r.ally || r.id === attacker || r.helpDay === G.day) continue;
@@ -805,7 +853,7 @@ export function allyHelp(attacker = 0) {
 }
 
 /** Soldaten van een bondgenoot verschijnen aan de rand van jouw land, aan de kant van hun stad. */
-export function sendHelpers(r) {
+export function sendHelpers(r: Rival): void {
   const spot = borderToward(r.x + 1, r.y + 1);
   if (!spot) return;
   const kinds = rivalUnits(r.age);
@@ -825,13 +873,13 @@ export function sendHelpers(r) {
 }
 
 // De laatste tegel van jouw land op de lijn van je stamhuis naar (tx, ty): daar komen helpers binnen
-function borderToward(tx, ty) {
+function borderToward(tx: number, ty: number): { x: number; y: number } | null {
   const h = th();
   if (!h) return null;
   const sx = h.x + 1,
     sy = h.y + 1;
   const len = Math.hypot(tx - sx, ty - sy) || 1;
-  let spot = null;
+  let spot: { x: number; y: number } | null = null;
   for (let step = 0; step < len; step++) {
     const x = sx + ((tx - sx) * step) / len,
       y = sy + ((ty - sy) * step) / len;
@@ -845,9 +893,10 @@ function borderToward(tx, ty) {
  * Wat een helper van een bondgenoot doet (vanuit rivalThink in game/rivals.ts): de dichtstbijzijnde aanvaller
  * aanvallen, of anders naar je stamhuis lopen. Na een tijdje, of als er niemand meer aanvalt, gaat hij weer.
  * Geeft true als hij een doel heeft (dan valt fUpdate aan).
+ * (Een helper heeft altijd een eindtijd `until` en een aankomsttijd `since`, zie sendHelpers.)
  */
-export function helperThink(f, dt) {
-  if (G.t > f.until) {
+export function helperThink(f: Foe, dt: number): boolean {
+  if (G.t > f.until!) {
     f.retreat = true;
     return false;
   }
@@ -860,7 +909,7 @@ export function helperThink(f, dt) {
   }
   if (f.tgt) return true;
   // Niemand meer om tegen te vechten: even bij je stamhuis wachten, en dan weer naar huis
-  if (G.t - f.since > 30) {
+  if (G.t - f.since! > 30) {
     f.retreat = true;
     return false;
   }
@@ -870,8 +919,8 @@ export function helperThink(f, dt) {
 }
 
 // De dichtstbijzijnde vijand van jou (niet van hun eigen volk), binnen 40 tegels
-function nearestAttacker(f) {
-  let best = null,
+function nearestAttacker(f: Foe): Foe | null {
+  let best: Foe | null = null,
     bd = 40;
   for (const e of G.foes) {
     if (e === f || e.helper || e.rival === f.rival) continue;
@@ -887,11 +936,11 @@ function nearestAttacker(f) {
 }
 
 /** Helpers van bondgenoten die nu in je land zijn (voor aanvallers die ook hen aanvallen). */
-export const helpersNear = (x, y, r) =>
+export const helpersNear = (x: number, y: number, r: number): Foe[] =>
   G.foes.filter(h => h.helper && !h.retreat && !h.dead && dist(x, y, h.x, h.y) < r);
 
 /** De volgende stap met deze rivaal, als korte tip voor de kaart in het venster Diplomatie (of leeg). */
-export const nextStep = r => {
+export const nextStep = (r: Rival): string => {
   if (r.atWar || r.ally) return ''; // daar zeggen de fiches Oorlog en Bondgenoot al genoeg
   if (relNow(r) < TRADE_MIN) return `Handel vanaf ${relText(TRADE_MIN)}`;
   if (relNow(r) < ALLY_MIN) return `Bondgenoot vanaf ${relText(ALLY_MIN)}`;

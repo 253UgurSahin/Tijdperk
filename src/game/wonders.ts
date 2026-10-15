@@ -240,7 +240,7 @@ export function wonderDestroyed(b: Building | RivalBuilding): void {
 }
 
 /** Breek je dit gebouw af? Het stamhuis en een af wereldwonder niet, en de sterrenpoort niet terwijl hij oplaadt. */
-export function canDemolish(b) {
+export function canDemolish(b: Building): boolean {
   if (b.type === 'townhall') return false;
   if (B[b.type].wonder && b.done) return false;
   if (B[b.type].win && b.done && isCharging()) return false;
@@ -248,7 +248,7 @@ export function canDemolish(b) {
 }
 
 /** Waarom je dit gebouw niet kunt afbreken, in één zin (zie canDemolish). */
-export function noDemolishText(b) {
+export function noDemolishText(b: Building): string {
   if (B[b.type].win && isCharging()) return 'De sterrenpoort laadt op: die kun je nu niet afbreken.';
   return `${B[b.type].n} kun je niet afbreken.`;
 }

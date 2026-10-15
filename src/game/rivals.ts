@@ -1,5 +1,15 @@
 // Rivaliserende beschavingen in het spel: hun land, economie, gebouwen, leger, aanvallen en hun val.
-import type { Cost, Foe, Path, Rival, RivalBuilding, RivalMode, Unit, Villager } from '../types';
+import type {
+  AttackTarget,
+  Cost,
+  Foe,
+  Path,
+  Rival,
+  RivalBuilding,
+  RivalMode,
+  Unit,
+  Villager,
+} from '../types';
 import { store } from '../core/store';
 import { sfx } from '../audio/sound';
 import { CN, CS, DAYLEN, H, W } from '../config';
@@ -118,7 +128,8 @@ export const rivalColour = (id: number | null | undefined): string => {
 /** Het stamhuis van een rivaal, of null als het er niet meer staat. */
 export const rivalHall = (r: Rival): RivalBuilding | null => r.bs.find(b => b.type === 'townhall') || null;
 /** Alle soldaten van een rivaal die nog meedoen (zonder de helpers die hij jou stuurt: die horen niet bij zijn leger). */
-export const rivalArmy = r => G.foes.filter(f => f.rival === r.id && !f.retreat && !f.dead && !f.helper);
+export const rivalArmy = (r: Rival): Foe[] =>
+  G.foes.filter(f => f.rival === r.id && !f.retreat && !f.dead && !f.helper);
 /** "de IJzertijd" of "het Dronetijdperk": het tijdperk met het goede lidwoord. */
 export const ageWithArticle = (age: number): string =>
   (AGES[age].n.endsWith('tijdperk') ? 'het ' : 'de ') + AGES[age].n;
@@ -308,7 +319,8 @@ export function rivalBuildingDestroyed(b: RivalBuilding): void {
 export function rivalHurt(target: Foe | RivalBuilding): void {
   const r = rivalById(target.rival);
   // Helpers van een bondgenoot horen niet bij hun leger of stad: een treffer op hen telt nooit
-  if (!r || target.helper) return;
+  // (alleen een soldaat kan een helper zijn, zie AttackTarget)
+  if (!r || (target as AttackTarget).helper) return;
   // Jezelf verdedigen telt niet als aanvallen: alleen treffers op hun gebouwen of op hun eigen land
   const onTheirSide = target.kind === 'rb' || ownerAt(target.x, target.y) === r.id;
   if (!onTheirSide) return;
@@ -847,7 +859,7 @@ export function launchAttack(r: Rival, group: Foe[]): void {
 }
 
 /** Iedereen van deze rivaal die onderweg is of aanvalt, gaat naar huis (na vrede of een verbond). */
-export function recallArmy(r) {
+export function recallArmy(r: Rival): void {
   for (const f of rivalArmy(r)) if (f.mode === 'march' || f.mode === 'raid') startReturn(f);
 }
 
@@ -995,7 +1007,13 @@ function nearestOfYours(x: number, y: number, range: number, air?: boolean | 1):
  * Het dichtstbijzijnde gebouw van een rivaal binnen r tegels (voor je soldaten in een aanvalsmars).
  * Met `rivalId` alleen gebouwen van die ene rivaal; met `warOnly` alleen van rivalen waarmee het oorlog is.
  */
-export function nearestRivalBuilding(x, y, r, rivalId = 0, warOnly = false) {
+export function nearestRivalBuilding(
+  x: number,
+  y: number,
+  r: number,
+  rivalId = 0,
+  warOnly = false,
+): RivalBuilding | null {
   let best: RivalBuilding | null = null,
     bd = r;
   for (const b of rbById.values()) {

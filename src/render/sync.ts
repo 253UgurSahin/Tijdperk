@@ -7,7 +7,7 @@ import { B } from '../data/buildings';
 import { RES } from '../data/resources';
 import { G, sel } from '../game/state';
 import { RINGG, quadG } from './decals';
-import { bx, gOct, gTorus, mat, mergeStatic, mk } from './kit';
+import { bx, gOct, gTorus, isMesh, mat, mergeStatic, mk } from './kit';
 import { BOSS_SCALE } from '../data/bosses';
 import { makeBuilding, makeCamp, wallMask } from './models';
 import { nodesNeedUpdate, rebuildNodes } from './nodes';
@@ -46,9 +46,10 @@ interface BuildingRec {
 }
 /**
  * Een figuur zoals de 3D-weergave hem leest. Alleen soldaten van een rivaal hebben `rival` en `uk`,
- * alleen vijanden kunnen vluchten (`retreat`); bij een dorpeling of jouw soldaat zijn die leeg.
+ * alleen vijanden kunnen vluchten (`retreat`), en alleen vijanden hebben een soort (`type`) en kunnen
+ * een kampioen zijn (`boss`); bij een dorpeling of jouw soldaat zijn die leeg.
  */
-type Figure = Mobile & Partial<Pick<Foe, 'rival' | 'uk' | 'retreat'>>;
+type Figure = Mobile & Partial<Pick<Foe, 'rival' | 'uk' | 'retreat' | 'type' | 'boss'>>;
 /** Wat er per figuur (dorpeling, soldaat, vijand) in de 3D-wereld bewaard wordt (zie ook animate.ts). */
 export interface EntityRec {
   g: T3.Group;
@@ -64,7 +65,7 @@ export interface EntityRec {
   ringSize: number;
   ring: T3.Mesh<T3.RingGeometry, T3.MeshBasicMaterial>;
   /** De gekleurde schijf onder het figuur. */
-  base: T3.Mesh;
+  base: T3.Mesh<T3.BufferGeometry, T3.MeshBasicMaterial>;
   /** 1 als het figuur dit beeldje nog bestaat. */
   seen: number;
   /** Het figuur in de spelstand. */
@@ -93,6 +94,14 @@ export interface EntityRec {
   machine?: boolean;
   fallDir?: number;
   landed?: number;
+  // Alleen bij een kampioen (gezet door bossLook):
+  /** Hij ziet er al uit als kampioen (groter, met kroon). */
+  bossLook?: boolean;
+  /** De gouden kroon boven zijn hoofd, en hoe hoog die gewoon hangt. */
+  crown?: T3.Group;
+  crownY?: number;
+  /** Hoogte boven de grond voor zijn naam en levensbalk (zie overlay.ts). */
+  bossTop?: number;
 }
 /** Wat er per vijandelijk kamp in de 3D-wereld bewaard wordt. */
 interface CampRec {
@@ -303,7 +312,7 @@ function entKey(e: Figure): string {
 }
 // Een kampioen: veel groter, met een gouden kroon boven zijn hoofd en een gouden schijf eronder
 const GOLD = mat('#e2b92c', { m: 0.6, r: 0.35 });
-function bossLook(r, e) {
+function bossLook(r: EntityRec, e: Foe) {
   r.bossLook = true;
   // De kroon hangt aan het figuur (zodat hij meebeweegt en mee omvalt), maar het figuur zelf is al
   // vergroot: daarom delen we hoogte en maat door die vergroting
@@ -497,7 +506,8 @@ export function syncEntities() {
     // De kroon draait langzaam rond en zweeft een beetje
     if (r.crown) {
       r.crown.rotation.y = store.TM * 1.5;
-      r.crown.position.y = r.crownY + Math.sin(store.TM * 2.4) * 0.02;
+      // crownY is samen met de kroon gezet (zie bossLook)
+      r.crown.position.y = r.crownY! + Math.sin(store.TM * 2.4) * 0.02;
     }
     const fl = r.body.userData.fly as T3.Group | undefined;
     if (fl) {

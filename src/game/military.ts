@@ -1,4 +1,4 @@
-import type { Building, Camp, Cost, Foe, Target, Tile, Unit, Villager } from '../types';
+import type { Building, Camp, Cost, Foe, Mobile, Projectile, Target, Tile, Unit, Villager } from '../types';
 // Gevechten: soldaten, vijanden, torens en projectielen.
 import { store } from '../core/store';
 import { sfx } from '../audio/sound';
@@ -44,7 +44,10 @@ interface FireOpts {
   col?: string;
   big?: boolean | 1;
   h0?: number;
-  foe?: boolean | 1;
+  foe?: boolean | 0 | 1;
+  /** Geschoten door een helper van een bondgenoot, en van welke rivaal die is. */
+  ally?: boolean;
+  allyOf?: number;
   snd?: string;
 }
 
@@ -240,7 +243,7 @@ export function updateProj(dt: number) {
  * bondgenoot: jouw aanvallers (niet zijn eigen volk, niet de andere helpers). Jouw schot: vijanden, maar
  * geen helpers en geen soldaten van een rivaal waarmee het vrede is (behalve waar je op mikte).
  */
-function splashVictims(p) {
+function splashVictims(p: Projectile): Mobile[] {
   if (p.foe) return [...G.vs, ...G.us];
   if (p.ally)
     return G.foes.filter(
@@ -451,8 +454,9 @@ export function moveToward(
   }
   return false;
 }
-export function foeTarget(f: Foe): Unit | Villager | Building | null {
-  let best: Unit | Villager | Building | null = null,
+export function foeTarget(f: Foe): Unit | Villager | Building | Foe | null {
+  // (een Foe is hier een helper van een bondgenoot, zie hieronder)
+  let best: Unit | Villager | Building | Foe | null = null,
     bd = f.camp ? 7 : 5.5;
   for (const u of G.us) {
     const d = dist(f.x, f.y, u.x, u.y);
@@ -578,7 +582,7 @@ export function fUpdate(f: Foe, dt: number) {
 // Tijdens de finale: zoveel seconden speltijd tussen de groepen uit verschillende richtingen
 const WAVE_GAP = 20;
 // "noorden", "noorden en westen", "noorden, oosten en zuiden"
-const joinWords = list =>
+const joinWords = (list: string[]): string =>
   list.length > 1 ? `${list.slice(0, -1).join(', ')} en ${list[list.length - 1]}` : list[0];
 
 export function spawnRaid(): void {
