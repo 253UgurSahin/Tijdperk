@@ -11,6 +11,7 @@ import { avail, computeAvail } from './caches.js';
 import { burst } from './fx.js';
 import { G } from './state.js';
 import { mul } from './bonus.js';
+import { hasRule } from './mods.js';
 import { bMaxHp } from './upgrades.js';
 import { note, toast } from '../ui/hud.js';
 import { clamp, dist } from '../util/math.js';
@@ -37,7 +38,11 @@ const METEOR_ORES = ['rock', 'copper', 'tin', 'iron', 'gold', 'coal', 'lithium',
 
 /** Elke speltik: plan de volgende meteoriet, tel af en laat hem inslaan. */
 export function updateMeteors(dt) {
-  if (G.nextMeteor == null) G.nextMeteor = (FIRST_DAY - 1) * DAYLEN + DAYLEN * (0.5 + Math.random());
+  if (G.nextMeteor == null) {
+    // Met de spelregel Meteorietenregen valt de eerste al op dag 1
+    const firstDay = hasRule('meteorShower') ? 1 : FIRST_DAY;
+    G.nextMeteor = (firstDay - 1) * DAYLEN + DAYLEN * (0.5 + Math.random());
+  }
   // In het Sterrentijdperk is sterrenmetaal nodig: de eerste meteoriet komt dan snel
   if (G.age >= 8 && !G.starMeteor) {
     G.starMeteor = true;

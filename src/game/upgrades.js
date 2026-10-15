@@ -6,6 +6,7 @@ import { B } from '../data/buildings.js';
 import { tradePrices } from '../data/resources.js';
 import { add, mul } from './bonus.js';
 import { has, pay } from './economy.js';
+import { hasRule } from './mods.js';
 import { floater, fxRing } from './fx.js';
 import { G } from './state.js';
 import { toast } from '../ui/hud.js';
@@ -147,8 +148,11 @@ export function upgradeTools() {
   );
   store.uiDirty = true;
 }
+/** Hebben wapens en pantser zin? Niet met de spelregel Geen leger: ze helpen alleen soldaten, geen torens. */
+export const armsUseful = () => !hasRule('noArmy');
+
 export function upgradeArms() {
-  if (G.armsLvl >= G.age) return;
+  if (G.armsLvl >= G.age || !armsUseful()) return;
   const c = armsCost();
   if (!has(c)) {
     toast('Te weinig grondstoffen.', 'bad');

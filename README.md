@@ -17,6 +17,12 @@ Een real-time strategiespel in de browser: leid je stam van de **steentijd** naa
   Gouden Eeuw. Elke wereld heeft een zaadcode zoals `TP-7K2Q`: dezelfde code met dezelfde kaart geeft dezelfde
   wereld, dus je kunt hem delen. Je ziet de code in het pauzemenu. Prestaties voor winnen tellen alleen met de
   sterrenpoort; win je eerst met een kort doel, dan kun je daarvoor gewoon doorspelen
+- Uitdagingen: tien opdrachten van 20 tot 45 minuten met eigen spelregels, zoals Lange winter, Belegering (10
+  nachten overleven tegen grotere aanvallen), Alleen torens (geen leger), Eilandvolk en Sprint naar de sterren
+  (begin in het Dronetijdperk). Haal je het doel, dan krijg je brons, zilver of goud, op tijd of op hoe weinig je
+  verloor. Op de doelenkaart zie je het doel, hoe ver je bent en de klok. Je beste medaille blijft bewaard
+- Wereld van de dag: elke dag een nieuwe wereld met een doel en twee spelregels, voor iedereen hetzelfde. Je beste
+  score van die dag blijft bewaard
 - Volken: kies bij een nieuwe wereld met welk volk je begint. Elk volk heeft eigen voordelen; de Noormannen trainen
   zelfs een eigen soldaat (de Berserker). Friezen, Noormannen en Hanze zijn vrij; Bergvolk, Sterrenkijkers en
   Nomaden speel je vrij met prestaties

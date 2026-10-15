@@ -71,6 +71,7 @@ export const EVENTS = [
           const v = G.vs[(Math.random() * G.vs.length) | 0];
           G.vs = G.vs.filter(x => x !== v);
           sel.vs.delete(v.id);
+          G.stats.lost++; // telt mee voor de medailles van uitdagingen, net als in een gevecht
         }
         toast('Twee dorpelingen zijn bezweken aan de ziekte.', 'bad');
       },

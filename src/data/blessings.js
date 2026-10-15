@@ -378,11 +378,16 @@ function shuffled(list, random) {
  * Regels: hooguit één kaart met een prijs, en niet drie van dezelfde soort (dus ook nooit alleen
  * economie).
  */
-export function blessingOffer(seed, age, taken = [], { peaceful = false } = {}) {
-  // De volgorde hangt alleen af van seed en tijdperk; wat je al koos, valt er daarna pas uit
+export function blessingOffer(seed, age, taken = [], { peaceful = false, noArmy = false } = {}) {
+  // De volgorde hangt alleen af van seed en tijdperk; wat je al koos, valt er daarna pas uit.
+  // Zonder leger (spelregel van een uitdaging) hebben legerkaarten geen zin.
   const random = mulberry32((seed | 0) + (age + 1) * 7919);
   const pool = shuffled(BLESSINGS, random).filter(
-    b => (b.minAge || 0) <= age && !taken.includes(b.k) && !(peaceful && b.raids),
+    b =>
+      (b.minAge || 0) <= age &&
+      !taken.includes(b.k) &&
+      !(peaceful && b.raids) &&
+      !(noArmy && b.cat === 'army'),
   );
 
   const picks = [];

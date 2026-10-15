@@ -7,6 +7,7 @@ import { B, BKEYS, CATS } from '../data/buildings.js';
 import { RES } from '../data/resources.js';
 import { UNITS } from '../data/units.js';
 import { has } from '../game/economy.js';
+import { ruleAllowsBuilding } from '../game/mods.js';
 import { buildCost, lackText } from '../game/placement.js';
 import { G, sel } from '../game/state.js';
 import { mouse } from '../input/input.js';
@@ -69,7 +70,9 @@ export function bShort(k) {
   if (d.market) return 'Handel tegen goud';
   if (d.once) return '+30% verzamelsnelheid';
   if (d.pump) return 'Pompt olie op een bron';
-  // Of de sterrenpoort laat winnen, hangt af van de doelen die je bij een nieuwe wereld koos
+  // Of de sterrenpoort laat winnen, hangt af van de doelen die je bij een nieuwe wereld koos.
+  // In een uitdaging telt alleen het doel van de uitdaging.
+  if (d.win && G.scenario) return 'In deze uitdaging win je met het doel van de uitdaging';
   if (d.win)
     return G.opts.victories.includes('stargate')
       ? 'Hiermee win je'
@@ -105,8 +108,10 @@ $('#cats').addEventListener('click', e => {
   setTab(b.dataset.t);
 });
 function renderBuilds() {
-  const avail = BKEYS.filter(k => !B[k].nobuild && B[k].cat === store.tab && canMake(k, G.age)),
-    next = BKEYS.filter(k => !B[k].nobuild && B[k].cat === store.tab && B[k].age === G.age + 1);
+  // Wat in dit tabblad staat; zonder leger (spelregel) geen kazernes en andere trainingsgebouwen
+  const inTab = k => !B[k].nobuild && B[k].cat === store.tab && ruleAllowsBuilding(k);
+  const avail = BKEYS.filter(k => inTab(k) && canMake(k, G.age)),
+    next = BKEYS.filter(k => inTab(k) && B[k].age === G.age + 1);
   const sig =
     'b' +
     store.tab +

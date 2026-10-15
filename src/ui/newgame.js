@@ -34,7 +34,9 @@ function rememberChoices(draft) {
  * Met `keepCode` houden we de code van de wereld die nu achter het titelscherm ligt.
  */
 export function newGameDraft(keepCode = false) {
-  const last = { ...(G && G.opts), ...rememberedChoices() };
+  // Een uitdaging heeft haar eigen instellingen (zoals Zwaar of een vast volk): die nemen we niet over
+  const plainGame = !!G && !G.scenario;
+  const last = { ...(plainGame ? G.opts : {}), ...rememberedChoices() };
   const people =
     PEOPLE[last.people] && isPeopleUnlocked(last.people, playerProfile()) ? last.people : DEFAULT_PEOPLE;
   return {
@@ -43,7 +45,7 @@ export function newGameDraft(keepCode = false) {
     diff: cleanDiff(last.diff),
     map: cleanMap(last.map),
     victories: cleanVictories(last.victories),
-    code: keepCode && G ? G.opts.seedCode : codeFromSeed(randomSeed()),
+    code: keepCode && plainGame ? G.opts.seedCode : codeFromSeed(randomSeed()),
   };
 }
 

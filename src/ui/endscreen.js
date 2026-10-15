@@ -1,4 +1,5 @@
 // Eindscherm na winst of verlies: je score met medaille, nieuwe prestaties en de voorraadgrafiek.
+// Bij een uitdaging komen kop, medaille en knoppen uit ui/challengeend.js.
 import { sfx } from '../audio/sound.js';
 import { AGES } from '../data/ages.js';
 import { ACHIEVEMENT } from '../data/achievements.js';
@@ -7,9 +8,12 @@ import { DIFF_NAMES, MEDALS } from '../data/score.js';
 import { VICTORY } from '../data/victories.js';
 import { finishGame } from '../game/achievements.js';
 import { wipe } from '../game/save.js';
+import { currentChallenge } from '../game/scenario.js';
 import { G, placeName } from '../game/state.js';
 import { victoryFacts } from '../game/victory.js';
 import { achievementIcon, clearAchievementCards, medalHTML, scoreText } from './achievements.js';
+import { challengeEndParts } from './challengeend.js';
+import { openChallengeList, retryChallenge } from './challenges.js';
 import { ageTimeline, fmt, gem } from './format.js';
 import { ico } from './glyphs.js';
 import { openModal, showTitle } from './modals.js';
@@ -39,9 +43,10 @@ const tableRow = (label, count, per, pts, cls = '') => `<tr class="${cls}">
   </tr>`;
 
 /** Een onderdeel van de score, zoals "Kampen veroverd · 4 · × 200 · 800". */
-function scoreRowHTML(row) {
-  // Tijdperken tellen vanaf de Steentijd: in het Sterrentijdperk ben je 8 tijdperken verder
-  const count = row.k === 'age' ? `${row.count} (${AGES[row.count].n})` : fmt(row.count);
+function scoreRowHTML(row, result) {
+  // Tijdperken tellen vanaf je begin (meestal de Steentijd): in het Sterrentijdperk ben je 8 tijdperken verder
+  const ageName = (AGES[result.age] || AGES[row.count]).n;
+  const count = row.k === 'age' ? `${row.count} (${ageName})` : fmt(row.count);
   return tableRow(row.n, count, `× ${signed(row.per)}`, signed(row.pts));
 }
 
@@ -61,7 +66,7 @@ function scoreTableHTML(result) {
   const factorRow =
     result.factor !== 1 ? tableRow(factorName, factorText(result.factor), '', factorPoints, 'sub') : '';
   return `<table class="scoretab">
-    <tbody>${rows.map(scoreRowHTML).join('')}${sumRow}${factorRow}</tbody>
+    <tbody>${rows.map(row => scoreRowHTML(row, result)).join('')}${sumRow}${factorRow}</tbody>
     <tfoot>${tableRow('Score', '', '', scoreText(result.score))}</tfoot>
   </table>`;
 }
@@ -102,12 +107,8 @@ function chartHTML(keys) {
     <div class="chartkey">${keys.map(k => `<span>${gem(k)}${RES[k].n}</span>`).join('')}</div>`;
 }
 
-/** Laat het eindscherm zien. `won`: gewonnen (zie G.wonBy) of verloren (stamhuis gevallen). */
-export function showEndScreen(won) {
-  const result = G.result || finishGame(); // meestal al bewaard bij het einde (zie game/achievements.js)
-  // De kaartjes bovenin zijn niet meer nodig: hieronder staan alle nieuwe prestaties van dit spel
-  if (clearAchievementCards()) sfx('achieve');
-  const keys = chartKeys(G.age);
+/** Kop, verhaal, score en knoppen bij een gewoon spel (zonder uitdaging). */
+function freePlayParts(won, result) {
   // Waarmee je won (sterrenpoort, overleven of een kort spel) bepaalt de kop en het verhaal
   const victory = VICTORY[G.wonBy] || VICTORY.stargate;
   const head = won
@@ -116,16 +117,45 @@ export function showEndScreen(won) {
   const story = won
     ? victory.end.story(victoryFacts())
     : `${placeName()} hield ${G.day} dagen stand en bereikte de ${AGES[G.age].n.toLowerCase()}. Bouw volgende keer eerder torens en een leger, of speel in de vredige modus.`;
-  // De tijdlijn: bij de sterrenpoort helemaal vol, anders tot waar je kwam
-  const timelineAge = won && victory.k === 'stargate' ? AGES.length - 1 : G.age;
   // "Nieuwe wereld" opent meteen het nieuw-spelscherm: er gaat niets verloren, want het spel wordt eerst bewaard
   const buttons = won
     ? `<button class="primary" data-m="close">Verder bouwen</button><button data-m="newok">Nieuwe wereld</button>`
     : `<button class="primary" data-m="newok">Nieuwe wereld</button><button data-end="menu">Hoofdmenu</button>`;
+  return {
+    head,
+    story,
+    // De tijdlijn: bij de sterrenpoort helemaal vol, anders tot waar je kwam
+    timelineAge: won && victory.k === 'stargate' ? AGES.length - 1 : G.age,
+    score: `<div class="endscore">${scoreHeadHTML(result)}${scoreTableHTML(result)}</div>`,
+    buttons,
+  };
+}
+
+/** Kop, verhaal, medaille en knoppen bij een uitdaging (zie ui/challengeend.js). De score staat eronder. */
+function challengeParts(won, result, def) {
+  const parts = challengeEndParts(won, result, def);
+  return {
+    ...parts,
+    timelineAge: G.age,
+    score: `<div class="endscore">${parts.medal}${parts.key}</div>
+      <div class="sect">Score</div>${scoreTableHTML(result)}${parts.extra}`,
+  };
+}
+
+/** Laat het eindscherm zien. `won`: gewonnen (zie G.wonBy) of verloren (stamhuis gevallen, of de tijd op). */
+export function showEndScreen(won) {
+  const result = G.result || finishGame(); // meestal al bewaard bij het einde (zie game/achievements.js)
+  // De kaartjes bovenin zijn niet meer nodig: hieronder staan alle nieuwe prestaties van dit spel
+  if (clearAchievementCards()) sfx('achieve');
+  const keys = chartKeys(G.age);
+  const def = currentChallenge();
+  const { head, story, timelineAge, score, buttons } = def
+    ? challengeParts(won, result, def)
+    : freePlayParts(won, result);
   openModal(
     `${head}<div class="sheettl">${ageTimeline(timelineAge, true)}</div>
     <p>${story} ${fmt(G.stats.gathered)} grondstoffen verzameld, ${G.stats.killed} vijanden verslagen, ${G.stats.camps} kampen veroverd.</p>
-    <div class="endscore">${scoreHeadHTML(result)}${scoreTableHTML(result)}</div>
+    ${score}
     <div class="sect">Nieuwe prestaties <span>${G.achieved.length}</span></div>
     ${newAchievementsHTML()}
     ${chartHTML(keys)}
@@ -142,6 +172,8 @@ $('#modal').addEventListener('click', e => {
   const t = e.target.closest('[data-end]');
   if (!t) return;
   if (t.dataset.end === 'profile') showProfile({ back: () => showEndScreen(lastWon) });
+  else if (t.dataset.end === 'retry') retryChallenge();
+  else if (t.dataset.end === 'challenges') openChallengeList();
   else if (t.dataset.end === 'menu') {
     // Dit spel is voorbij: niet bewaren, zodat "Verder spelen" niet terugkomt naar een gevallen stad
     wipe();

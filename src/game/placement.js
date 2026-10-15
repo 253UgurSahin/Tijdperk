@@ -11,6 +11,7 @@ import { placeBuilding } from './entities.js';
 import { fxRing } from './fx.js';
 import { G } from './state.js';
 import { mul } from './bonus.js';
+import { ruleAllowsBuilding } from './mods.js';
 import { roadTier } from './upgrades.js';
 import { mouse } from '../input/input.js';
 import { resetV, selVills } from '../input/selection.js';
@@ -86,6 +87,7 @@ export function ghostPos() {
 export function canPlace(type, x, y, skipCost) {
   const d = B[type];
   if (G.age < d.age) return 'Nog niet ontdekt';
+  if (!ruleAllowsBuilding(type)) return 'Geen leger in deze uitdaging';
   if (!canMake(type, G.age)) return 'Verouderd: bouw een ' + B[SUCCESSOR[type]].n.toLowerCase();
   if (d.road) {
     if (!isUnl(x, y)) return 'Buiten je gebied';

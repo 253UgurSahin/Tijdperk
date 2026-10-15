@@ -6,10 +6,13 @@ import { AGES } from '../data/ages.js';
 import { MAP } from '../data/maps.js';
 import { DEFAULT_PEOPLE, isPeopleUnlocked } from '../data/peoples.js';
 import { DIFF_NAMES } from '../data/score.js';
+import { DAILY, SCENARIOS, goalText } from '../data/scenarios.js';
 import { SKEY, load, save, wipe } from '../game/save.js';
+import { currentChallenge } from '../game/scenario.js';
 import { G, newGame, placeName } from '../game/state.js';
 import { setView } from '../input/input.js';
 import { measureHud } from '../main.js';
+import { dailyLine, medalCount, modsHTML, showChallenges } from './challenges.js';
 import { ageTimeline, fmt } from './format.js';
 import { ico } from './glyphs.js';
 import { sigs } from './header.js';
@@ -172,11 +175,17 @@ export function openPause() {
         <button class="mbtn" data-m="pl"><span>Dorp en leger</span><small>verdediging · onderzoek</small></button>
       </div>`
     : '';
-  // Je wereld in één regel, zodat je de zaadcode kunt delen
-  const world = `Zaadcode <b>${G.opts.seedCode}</b> · ${MAP[G.opts.map].n} · ${DIFF_NAMES[G.diff]}`;
+  // Je wereld in één regel, zodat je de zaadcode kunt delen (in een uitdaging staat de naam ervoor)
+  const challenge = currentChallenge();
+  const world = `${challenge ? `${challenge.n} · ` : ''}Zaadcode <b>${G.opts.seedCode}</b> · ${MAP[G.opts.map].n} · ${DIFF_NAMES[G.diff]}`;
+  // In een uitdaging: het doel en wat elke spelregel doet, zodat je het ook op een telefoon kunt nalezen
+  const challengeInfo = challenge
+    ? `<div class="sect">Doel: ${goalText(challenge.goal)}</div>${modsHTML(challenge)}`
+    : '';
   openModal(`<div class="eyebrow">${placeName()} · dag ${G.day} · ${AGES[G.age].n}</div><h1>Gepauzeerd</h1>
   <p>${stats}</p>
   <p class="pworld">${world}</p>
+  ${challengeInfo}
   ${peopleBarHTML()}
   <div class="mstack" style="margin-top:18px">
     <button class="mbtn primary" data-m="close"><span>Hervatten</span><small>terug naar het spel</small></button>
@@ -230,6 +239,8 @@ function showSettings() {
       `<span class="rng"><input type="range" data-range="${k}" min="${min}" max="${max}" step="${step}" value="${val}" aria-label="${l}"><output>${show}</output></span>`,
     );
   const inGame = $('#title').hidden && G && !G.over;
+  // In een uitdaging kun je de vredige modus niet aanzetten: dan zou het doel te makkelijk worden
+  const peaceToggle = inGame && !G.scenario;
   const gfx = SET.gfx;
   const custom = SET.quality === 'custom';
   const nowLevel =
@@ -240,7 +251,7 @@ function showSettings() {
       tog('tips', 'Uitleg bij de muis', 'Tooltips als je over iets heen beweegt') +
       tog('hp', 'Levensbalken altijd tonen', 'Ook bij gezonde eenheden en gebouwen') +
       tog('autosave', 'Automatisch opslaan', 'Elke minuut, en als je het tabblad verlaat') +
-      (inGame
+      (peaceToggle
         ? tog(
             'peaceful',
             'Vredige modus',
@@ -353,10 +364,11 @@ function changeSetting(k, v) {
 }
 
 /**
- * Het titelscherm: verder spelen, een nieuwe wereld, prestaties, uitleg en instellingen.
- * Met `setup` opent meteen het nieuw-spelscherm (zie ui/newgame.js).
+ * Het titelscherm: verder spelen, een nieuwe wereld, uitdagingen, prestaties, uitleg en instellingen.
+ * Met `setup` opent meteen het nieuw-spelscherm (zie ui/newgame.js), met `challenges` de lijst met
+ * uitdagingen (zie ui/challenges.js); `focus` is dan de uitdaging die open staat.
  */
-export function showTitle({ setup = false } = {}) {
+export function showTitle({ setup = false, challenges = false, focus = null } = {}) {
   const has_ = (() => {
     try {
       return !!localStorage.getItem(SKEY);
@@ -377,8 +389,10 @@ export function showTitle({ setup = false } = {}) {
     setSpeed(1);
   };
   const drawHome = () => {
+    // Bij een uitdaging staat haar naam erbij, anders de naam van je stad
+    const where = currentChallenge() ? currentChallenge().n : placeName();
     const continueButton = has_
-      ? `<button class="mbtn primary" data-t="cont"><span>Verder spelen</span><small>${placeName()} · dag&nbsp;${G.day} · ${AGES[G.age].n}</small></button>`
+      ? `<button class="mbtn primary" data-t="cont"><span>Verder spelen</span><small>${where} · dag&nbsp;${G.day} · ${AGES[G.age].n}</small></button>`
       : '';
     el.innerHTML = `<div class="tw">
     <div class="tag">Van vuursteen tot sterrenpoort</div>
@@ -387,6 +401,10 @@ export function showTitle({ setup = false } = {}) {
     <div class="mstack">
       ${continueButton}
       <button class="mbtn ${has_ ? '' : 'primary'}" data-t="new"><span>Nieuwe wereld</span><small class="whole">volk · kaart · doel</small></button>
+      <div class="mpair">
+        <button class="mbtn" data-t="challenges"><span>Uitdagingen</span><small class="whole">${medalCount()}/${SCENARIOS.length} medailles</small></button>
+        <button class="mbtn" data-t="daily"><span>Wereld van de dag</span><small class="whole">${dailyLine()}</small></button>
+      </div>
     </div>
     <div class="mstack">
       <button class="mbtn" data-t="profile"><span>Prestaties</span><small>${achievementsLine()}</small></button>
@@ -400,17 +418,17 @@ export function showTitle({ setup = false } = {}) {
     el.onclick = onHomeClick;
     el.oninput = el.onchange = el.onkeydown = null;
   };
-  const openSetup = () =>
-    showNewGame(el, draft, {
-      onBack: drawHome,
-      onStart: opts => {
-        // Voor de zekerheid: nooit beginnen met een volk dat (weer) op slot zit
-        if (!isPeopleUnlocked(opts.people, playerProfile())) opts.people = DEFAULT_PEOPLE;
-        wipe();
-        newGame(opts);
-        leaveTitle();
-      },
-    });
+  // Een nieuwe wereld of uitdaging beginnen: oude opslag weg, nieuwe wereld, titelscherm dicht
+  const startGame = opts => {
+    // Voor de zekerheid: nooit beginnen met een volk dat (weer) op slot zit
+    if (opts.people && !isPeopleUnlocked(opts.people, playerProfile())) opts.people = DEFAULT_PEOPLE;
+    wipe();
+    newGame(opts);
+    leaveTitle();
+  };
+  const openSetup = () => showNewGame(el, draft, { onBack: drawHome, onStart: startGame });
+  const openChallenges = (focusOn = null) =>
+    showChallenges(el, { focus: focusOn, hasSave: has_, onBack: drawHome, onStart: startGame });
   const onHomeClick = e => {
     const t = e.target.closest('button');
     if (!t) return;
@@ -420,9 +438,12 @@ export function showTitle({ setup = false } = {}) {
     // Hoe het venster ook dichtgaat (Klaar, Esc of een klik ernaast): daarna het titelscherm opnieuw tekenen
     else if (t.dataset.t === 'profile') showProfile({ onClose: drawHome });
     else if (t.dataset.t === 'new') openSetup();
+    else if (t.dataset.t === 'challenges') openChallenges();
+    else if (t.dataset.t === 'daily') openChallenges(DAILY);
     else if (t.dataset.t === 'cont') leaveTitle();
   };
   if (setup) openSetup();
+  else if (challenges) openChallenges(focus);
   else drawHome();
 }
 $('#menuBtn').onclick = () => openPause();
@@ -434,6 +455,7 @@ export function showHelp() {
   <p>Herken iedereen aan de schijf eronder: <b>blauw</b> is jouw leger, <b>rood</b> is de vijand, licht zijn je dorpelingen. Soms valt er een <b>meteoriet</b>: rond de krater liggen daarna nieuwe ertsen.</p>
   <p><b>Muren</b> houden vijanden echt tegen: ze moeten erdoorheen hakken. Bouw een <b>poort</b> zodat je eigen mensen erdoor kunnen. <b>Wegen</b> laten iedereen sneller lopen. In het paneel <b>Verbeteren</b> zie je per verbetering precies wat ze oplevert (nu → straks): werktuigen, wapens, gebouwen en uitvindingen, en soms vraagt een <b>gebeurtenis</b> om een keuze.</p>
   <p>Elk nieuw tijdperk ontgrendelt <b>verbeteringen</b> voor wat je al hebt: gebouwen gaan een niveau omhoog, je dorpelingen krijgen betere werktuigen en je leger beter pantser. Een pijltje boven een gebouw betekent dat er een verbetering klaarstaat.</p>
+  <p>Zin in iets anders? Onder <b>Uitdagingen</b> staan opdrachten met eigen regels, zoals een lange winter of geen leger, en een doel binnen een tijd. Haal je het, dan krijg je een medaille. De <b>wereld van de dag</b> is elke dag nieuw en voor iedereen hetzelfde.</p>
   <p>Bij een <b>nieuwe wereld</b> kies je je volk, de moeilijkheid, de kaart en hoe je wint: de sterrenpoort bouwen, 30 nachten overleven of een kort spel tot de Gouden Eeuw. Je doelen staan op de doelenkaart onder <b>Winnen</b> (op een telefoon: knop <b>Doel</b>). Met dezelfde <b>zaadcode</b> krijg je dezelfde wereld; je vindt hem onder <b>Menu</b>.</p>
   <p>Elk <b>volk</b> heeft eigen voordelen; je ziet ze onder <b>Menu</b>, en in het overzicht onderin als je niets hebt geselecteerd.</p>
   <p>Onderweg haal je <b>prestaties</b>, zoals een nieuw tijdperk of een veroverd kamp. Sommige spelen een nieuw volk vrij. Aan het eind krijg je een <b>score</b> en misschien een medaille. Alles staat onder <b>Prestaties</b> in het menu.</p>

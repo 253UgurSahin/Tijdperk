@@ -6,6 +6,7 @@ import { ACHIEVEMENTS, ACHIEVEMENT_CATS, AGE_BUILDINGS } from '../data/achieveme
 import { B } from '../data/buildings.js';
 import { PEOPLE, PEOPLES, isPeopleUnlocked } from '../data/peoples.js';
 import { DIFF_NAMES, MEDALS, medalFor } from '../data/score.js';
+import { DAILY, SCENARIO } from '../data/scenarios.js';
 import { achievementIcon, medalHTML, scoreText } from './achievements.js';
 import { ico } from './glyphs.js';
 import { closeModal, openModal } from './modals.js';
@@ -96,6 +97,10 @@ function bestHTML(profile) {
     <div class="pbests">${perPeople}</div><div class="pbests diffs">${perDiff}</div>`;
 }
 
+/** De naam van een gespeelde uitdaging, zoals "Belegering" of "Wereld van de dag". */
+const challengeName = game =>
+  game.scenario === DAILY ? 'Wereld van de dag' : (SCENARIO[game.scenario] || { n: 'Uitdaging' }).n;
+
 /** Je laatste spellen als lijstje. */
 function recentHTML(profile) {
   if (!profile.recent.length)
@@ -105,10 +110,14 @@ function recentHTML(profile) {
       const people = PEOPLE[game.people];
       const age = AGES[game.age] || AGES[0];
       const diffName = game.peaceful ? 'Vredige modus' : DIFF_NAMES[game.diff] || '';
+      // Een uitdaging: haar naam in plaats van de moeilijkheid, en "gehaald" in plaats van "gewonnen"
+      const mode = game.scenario ? challengeName(game) : diffName;
+      const won = game.scenario ? 'Gehaald' : 'Gewonnen';
+      const fell = game.scenario ? 'Niet gehaald' : 'Gevallen';
       return `<tr>
         <td><span class="rfolk">${people ? bannerHTML(people, 'xs') + people.n : ''}</span></td>
-        <td>${game.won ? '<b class="won">Gewonnen</b>' : 'Gevallen'} · ${age.n}</td>
-        <td>${diffName} · dag ${game.day}</td>
+        <td>${game.won ? `<b class="won">${won}</b>` : fell} · ${age.n}</td>
+        <td>${mode} · dag ${game.day}</td>
         <td class="pts">${scoreText(game.score)}</td>
         <td>${medalHTML(game.medal)}</td>
       </tr>`;

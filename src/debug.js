@@ -90,3 +90,11 @@ window.__tp.endGame = (won = true, by = 'stargate') => {
 import * as victory from './game/victory.js';
 window.__tp.victory = victory;
 window.__tp.day = n => (G.day = n);
+// Uitdagingen: begin er meteen een (__tp.challenge('siege') of __tp.challenge('daily')), of spring in de tijd
+import * as scenarios from './data/scenarios.js';
+import * as challenge from './game/scenario.js';
+window.__tp.scenarios = scenarios;
+window.__tp.challengeState = challenge;
+window.__tp.challenge = (k, people) =>
+  newGame({ scenario: { k, date: k === 'daily' ? scenarios.dateKey() : '' }, people });
+window.__tp.time = t => (G.t = t);

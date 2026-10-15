@@ -5,6 +5,7 @@ import { GATHER, RES } from '../data/resources.js';
 import { avail } from '../game/caches.js';
 import { built } from '../game/chapters.js';
 import { popCap, popNow } from '../game/entities.js';
+import { ruleAllowsBuilding } from '../game/mods.js';
 import { G } from '../game/state.js';
 import { hoursUntilRaid, isNight } from '../game/time.js';
 import { fmt } from './format.js';
@@ -162,7 +163,8 @@ export function coach() {
         tile: 'campfire',
         act: bAct('campfire'),
       };
-    if (!G.peaceful && !placed('barracks'))
+    // Zonder leger (spelregel van een uitdaging) is er geen kazerne om te bouwen
+    if (!G.peaceful && ruleAllowsBuilding('barracks') && !placed('barracks'))
       return {
         t: 'Bouw een kazerne.',
         h: 'Vanaf de tweede nacht vallen vijanden aan. In de kazerne train je verdedigers.',
@@ -223,6 +225,8 @@ export function coach() {
 
 /** De stap in het laatste tijdperk: de sterrenpoort bouwen, of het doel dat nog over is. */
 function lastAgeStep() {
+  // In een uitdaging telt alleen het doel van de uitdaging, niet de sterrenpoort
+  if (G.scenario && G.won) return { t: 'Uitdaging gehaald.', h: 'Bouw gerust verder.' };
   const stargateGoal = G.opts.victories.includes('stargate');
   // Echt klaar: gewonnen met de sterrenpoort, of met een ander doel als de sterrenpoort niet meetelt
   if (G.won && (VICTORY[G.wonBy]?.full || !stargateGoal))

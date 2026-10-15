@@ -1,9 +1,12 @@
 // Het spelersprofiel: prestaties, beste scores en gespeelde spellen. Blijft bewaard, ook na een nieuw spel.
+import { DAILY, betterMedal, medalRank } from '../data/scenarios.js';
 import { store } from './store.js';
 
 export const PKEY = 'tijdperken-profiel-v1';
 // Zoveel van je laatste spellen onthouden we voor het profielscherm
 const RECENT = 8;
+// Zoveel dagen onthouden we de beste score van de wereld van de dag
+const DAILY_DAYS = 30;
 
 /** Een nieuw, leeg profiel. */
 export const emptyProfile = () => ({
@@ -13,6 +16,8 @@ export const emptyProfile = () => ({
   best: { score: 0, perPeople: {}, perDiff: {} }, // hoogste scores: in totaal, per volk, per moeilijkheid
   unlockedPeoples: [], // volken die je met prestaties hebt vrijgespeeld
   recent: [], // je laatste spellen, nieuwste eerst
+  scenarios: {}, // per uitdaging: { medal, best, wins } (zie addChallengeResult)
+  daily: {}, // per datum ("2026-10-15"): je beste spel in de wereld van de dag, { score, medal, won }
 });
 
 /** Maak van wat er bewaard was een volledig profiel; wat ontbreekt of kapot is, wordt de standaardwaarde. */
@@ -30,6 +35,8 @@ export function normalizeProfile(raw) {
   }
   if (Array.isArray(raw.unlockedPeoples)) p.unlockedPeoples = raw.unlockedPeoples.slice();
   if (Array.isArray(raw.recent)) p.recent = raw.recent.slice(0, RECENT);
+  if (isObj(raw.scenarios)) p.scenarios = { ...raw.scenarios };
+  if (isObj(raw.daily)) p.daily = { ...raw.daily };
   return p;
 }
 
@@ -87,6 +94,53 @@ export function replaceResult(p, at, game) {
   const record = raiseBest(p, game);
   const i = p.recent.findIndex(old => old.at === at);
   if (i >= 0) p.recent[i] = { ...game, at };
+  return record;
+}
+
+/**
+ * Een gespeelde uitdaging of wereld van de dag in het profiel zetten. Telt niet mee voor de beste scores per
+ * volk en moeilijkheid: die zijn voor gewone spellen (een uitdaging kan bijvoorbeeld rijk beginnen).
+ * `game` is zoals bij addResult, met daarbij scenario (sleutel), date (bij de wereld van de dag), medal
+ * (van de uitdaging) en value (tijd of verlies, waarmee de medaille gehaald is; lager is beter).
+ * Geeft true als het een nieuw record is: een betere medaille of tijd, of een hogere score die dag.
+ */
+export function addChallengeResult(p, game, at = Date.now()) {
+  if (game.won) p.wins++;
+  p.recent.unshift({ ...game, at });
+  p.recent.length = Math.min(p.recent.length, RECENT);
+  return game.scenario === DAILY ? raiseDaily(p, game) : raiseScenario(p, game);
+}
+
+/** Beste medaille en beste tijd (of minste verlies) van een uitdaging bijwerken. */
+function raiseScenario(p, game) {
+  const old = p.scenarios[game.scenario] || { medal: '', best: null, wins: 0 };
+  if (!game.won) {
+    p.scenarios[game.scenario] = old;
+    return false;
+  }
+  const betterValue = old.best == null || game.value < old.best;
+  const record = medalRank(game.medal) < medalRank(old.medal) || betterValue;
+  p.scenarios[game.scenario] = {
+    medal: betterMedal(old.medal, game.medal),
+    best: betterValue ? game.value : old.best,
+    wins: old.wins + 1,
+  };
+  return record;
+}
+
+/** De beste score van die dag bijwerken, en alleen de laatste dagen bewaren. */
+function raiseDaily(p, game) {
+  const old = p.daily[game.date] || { score: 0, medal: '', won: false };
+  const record = !p.daily[game.date] || game.score > old.score;
+  // De hoogste score, maar ook de beste medaille van die dag: een hogere score kan met een slechtere medaille zijn
+  p.daily[game.date] = {
+    score: record ? game.score : old.score,
+    medal: game.won ? betterMedal(old.medal, game.medal) : old.medal,
+    won: !!(old.won || game.won),
+  };
+  // Datums als "2026-10-15" staan op alfabet ook op tijd: de oudste vallen eraf
+  const dates = Object.keys(p.daily).sort().reverse();
+  for (const date of dates.slice(DAILY_DAYS)) delete p.daily[date];
   return record;
 }
 

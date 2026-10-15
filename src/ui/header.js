@@ -10,7 +10,7 @@ import { popCap, popNow } from '../game/entities.js';
 import { buildCost, chunkCost, lackText } from '../game/placement.js';
 import { G, sel } from '../game/state.js';
 import { isNight, raidNight, season } from '../game/time.js';
-import { armsCost, canUpg, hasT, toolCost, upgCost } from '../game/upgrades.js';
+import { armsCost, armsUseful, canUpg, hasT, toolCost, upgCost } from '../game/upgrades.js';
 import { costText } from './buildmenu.js';
 import { coach } from './coach.js';
 import { TOUCH, fmt } from './format.js';
@@ -199,7 +199,7 @@ export function updateWorldTop() {
       'dot',
       G.bs.some(b => canUpg(b) && has(upgCost(b))) ||
         (G.toolLvl < G.age && has(toolCost())) ||
-        (G.armsLvl < G.age && has(armsCost())) ||
+        (armsUseful() && G.armsLvl < G.age && has(armsCost())) ||
         (!G.research && TECH.some(T => T.age <= G.age && !hasT(T.k) && has(T.cost))),
     );
 }

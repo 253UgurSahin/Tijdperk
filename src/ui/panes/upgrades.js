@@ -10,6 +10,7 @@ import { G } from '../../game/state.js';
 import {
   armsCost,
   armsRows,
+  armsUseful,
   canUpg,
   hasT,
   lvlOf,
@@ -71,7 +72,8 @@ export function renderUpgrades() {
   const up = G.bs.filter(canUpg),
     aff = up.filter(b => has(upgCost(b))),
     techOpen = TECH.filter(T => T.age <= G.age && !hasT(T.k)).length,
-    open = up.length + (G.age - G.toolLvl) + (G.age - G.armsLvl) + techOpen;
+    armsOpen = armsUseful() ? G.age - G.armsLvl : 0,
+    open = up.length + (G.age - G.toolLvl) + armsOpen + techOpen;
   $('#upgSect').textContent = open > 0 ? `${open} mogelijk` : 'alles klaar';
   const sig = JSON.stringify([
     G.age,
@@ -100,15 +102,17 @@ export function renderUpgrades() {
       toolCost(),
       G.toolLvl >= G.age,
     );
-    h += block(
-      'arms',
-      `${ico('⛨')} Wapens en pantser`,
-      G.armsLvl,
-      'Je hele leger slaat harder en kan meer hebben, ook soldaten die je later traint.',
-      armsRows(),
-      armsCost(),
-      G.armsLvl >= G.age,
-    );
+    // Zonder leger (spelregel Geen leger) hebben wapens en pantser geen zin
+    if (armsUseful())
+      h += block(
+        'arms',
+        `${ico('⛨')} Wapens en pantser`,
+        G.armsLvl,
+        'Je hele leger slaat harder en kan meer hebben, ook soldaten die je later traint.',
+        armsRows(),
+        armsCost(),
+        G.armsLvl >= G.age,
+      );
 
     // 2. Gebouwen: per soort één regel, met wat het belangrijkste is dat verbetert
     h += `<div class="usub">Gebouwen</div>`;

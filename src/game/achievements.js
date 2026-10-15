@@ -1,6 +1,7 @@
 // Prestaties tijdens het spel: kijkt om de paar tellen wat je bereikt hebt, en rekent aan het eind je score uit.
 import {
   addAchievement,
+  addChallengeResult,
   addPeople,
   addResult,
   getProfile,
@@ -13,6 +14,7 @@ import { B } from '../data/buildings.js';
 import { PEOPLE } from '../data/peoples.js';
 import { gameScore } from '../data/score.js';
 import { VICTORY } from '../data/victories.js';
+import { challengeOutcome, currentChallenge } from './scenario.js';
 import { G } from './state.js';
 import { showAchievement } from '../ui/achievements.js';
 import { showEndScreen } from '../ui/endscreen.js';
@@ -21,19 +23,23 @@ import { note } from '../ui/hud.js';
 /** Stond de vredige modus in dit spel ooit aan? Dan telt de score als Vredig, ook als hij nu uit staat. */
 const peaceUsed = () => G.peaceful || G.stats.peaceUsed;
 
+/** Het tijdperk waarin dit spel begon: 0, of later bij sommige uitdagingen (zie data/scenarios.js). */
+const startAge = () => (currentChallenge() ? currentChallenge().startAge : 0);
+
 /** Alles wat de prestaties willen weten, verzameld uit de spelstand (zie emptyFacts in data/achievements.js). */
 export function gameFacts() {
   const standing = G.bs.filter(b => b.done).map(b => b.type);
   return {
     ...emptyFacts(),
-    age: G.age,
+    // Begon je in een later tijdperk (een uitdaging), dan tellen de prestaties voor tijdperken niet mee
+    age: startAge() ? 0 : G.age,
     day: G.day,
     diff: G.diff,
     peaceful: peaceUsed(),
     people: G.people,
     // Prestaties voor winnen tellen alleen een volledige overwinning (de sterrenpoort), geen kort spel
     won: G.won && VICTORY[G.wonBy]?.full === true,
-    lost: G.over,
+    lost: G.over && !(G.scenario && G.scenario.failed), // alleen als het stamhuis viel, niet als de tijd op was
     villagers: G.vs.length,
     soldiers: G.us.length,
     camps: G.stats.camps,
@@ -46,7 +52,7 @@ export function gameFacts() {
     riskyBlessings: G.blessings.filter(k => BLESSING[k] && BLESSING[k].risk).length,
     // Muren van vóór de teller (oude opslag) tellen ook, als ze af zijn en nog staan
     builtWalls: G.stats.walls > 0 || G.bs.some(b => b.done && B[b.type].wall),
-    fullAge: fullAge(standing),
+    fullAge: startAge() ? -1 : fullAge(standing),
     expansions: G.bought,
     meteors: G.stats.meteors,
   };
@@ -83,13 +89,15 @@ function unlock(k) {
 function scoreNow() {
   // Stond de vredige modus ooit aan, dan telt de score als Vredig (ook als je hem later weer uitzette)
   const diff = peaceUsed() ? 0 : G.diff;
+  const challenge = challengeOutcome(); // in een uitdaging: medaille, tijd en verlies
   const score = gameScore({
-    age: G.age,
+    age: G.age - startAge(), // alleen de tijdperken die je zelf haalde
     wonders: 0, // wonderen komen later
     camps: G.stats.camps,
     kills: G.stats.killed,
     days: G.day,
     diff,
+    challenge: challenge && { won: G.won, medal: challenge.medal },
   });
   const game = {
     score: score.total,
@@ -102,6 +110,17 @@ function scoreNow() {
     diff,
     peaceful: diff === 0 && G.diff !== 0, // wel een moeilijkheid met aanvallen gekozen, maar met de vredige modus
   };
+  // Een uitdaging: de medaille van de uitdaging (op tijd of verlies) in plaats van die van de score
+  if (challenge) {
+    Object.assign(game, {
+      scenario: challenge.def.k,
+      date: challenge.def.date || '',
+      medal: challenge.medal,
+      value: challenge.def.medals.by === 'lost' ? challenge.lost : challenge.time,
+      time: challenge.time,
+      losses: challenge.lost,
+    });
+  }
   return { score, game };
 }
 
@@ -125,7 +144,9 @@ export function finishGame() {
   if (G.result) return G.result;
   const { score, game } = scoreNow();
   const at = Date.now();
-  const record = addResult(getProfile(), game, at);
+  const record = game.scenario
+    ? addChallengeResult(getProfile(), game, at)
+    : addResult(getProfile(), game, at);
   saveProfile();
   G.result = resultOf(score, game, at, record);
   return G.result;

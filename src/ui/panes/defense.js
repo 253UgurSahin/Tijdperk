@@ -5,6 +5,7 @@ import { B } from '../../data/buildings.js';
 import { FOES, UNITS } from '../../data/units.js';
 import { has, pay } from '../../game/economy.js';
 import { raidSize } from '../../game/military.js';
+import { dayPace } from '../../game/mods.js';
 import { G, sel } from '../../game/state.js';
 import { hoursUntilRaid } from '../../game/time.js';
 import { bMaxHp } from '../../game/upgrades.js';
@@ -31,7 +32,8 @@ export function renderDefense() {
     raidNow = G.foes.filter(f => !f.camp && !f.retreat).length,
     hrs = hoursUntilRaid(),
     rc = repairCost();
-  const secs = hrs == null ? null : (hrs * DAYLEN) / 24 / (G.speed || 1);
+  // Uren op de klok omrekenen naar echte seconden (met Snelle dagen loopt de klok sneller)
+  const secs = hrs == null ? null : (hrs * DAYLEN) / 24 / dayPace() / (G.speed || 1);
   const army = {};
   G.us.forEach(u => (army[u.k] = (army[u.k] || 0) + 1));
   {

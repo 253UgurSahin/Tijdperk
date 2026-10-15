@@ -2,6 +2,7 @@
 import { blessingOffer } from '../data/blessings.js';
 import { applyBonusChange } from './bonus.js';
 import { spawnUnit, spawnVillager } from './entities.js';
+import { hasRule } from './mods.js';
 import { bestMerc, th } from './events.js';
 import { G } from './state.js';
 
@@ -26,7 +27,7 @@ export function waitingBlessing() {
 export function blessingChoices() {
   const next = waitingBlessing();
   if (!next) return [];
-  return blessingOffer(G.seed, next.age, G.blessings, { peaceful: G.peaceful });
+  return blessingOffer(G.seed, next.age, G.blessings, { peaceful: G.peaceful, noArmy: hasRule('noArmy') });
 }
 
 /** Kies zegening k uit de kaarten die nu klaarliggen. Geeft de zegening terug, of null. */

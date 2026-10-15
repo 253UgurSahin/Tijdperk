@@ -40,6 +40,7 @@ function hit(t, dmg) {
   t.dead = true;
   if (t.kind === 'b') destroyBuilding(t);
   else if (t.kind === 'v') {
+    G.stats.lost++; // voor de medailles van uitdagingen
     G.vs = G.vs.filter(x => x !== t);
     sel.vs.delete(t.id);
     store.notePos = [t.x, t.y];
@@ -66,6 +67,7 @@ function destroyBuilding(b) {
   for (let dy = 0; dy < d.size; dy++) for (let dx = 0; dx < d.size; dx++) bmap[(b.y + dy) * W + b.x + dx] = 0;
   G.bs = G.bs.filter(x => x !== b);
   bById.delete(b.id);
+  if (!d.wall) G.stats.lost++; // muren tellen niet: die zijn er juist om stuk te gaan
   if (sel.b === b.id) sel.b = null;
   for (let k = 0; k < 6; k++) burst(b.x + Math.random() * d.size, b.y + Math.random() * d.size, '#8a7a62');
   for (const v of G.vs) if (v.hidden && v.shelter === b.id) unhide(v);

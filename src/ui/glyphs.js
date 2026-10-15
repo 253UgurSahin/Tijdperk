@@ -119,6 +119,10 @@ const PATHS = {
   // pijl naar links: terug
   '←': '<path d="M20 12H5M11 6l-6 6 6 6"/>',
 
+  // Voor uitdagingen
+  // sneeuwvlok: de lange winter
+  '❄': '<path d="M12 3v18M4.2 7.5l15.6 9M4.2 16.5l15.6-9"/><path d="M9.5 4.5L12 6.5l2.5-2M9.5 19.5l2.5-2 2.5 2M4 10.8l3.2-.6-.9-3M20 13.2l-3.2.6.9 3M4 13.2l3.2.6-.9 3M20 10.8l-3.2-.6.9-3"/>',
+
   // vraagteken: geheime prestatie
   '?': '<path d="M9 9a3 3 0 1 1 4.2 2.8c-.8.4-1.2 1-1.2 1.9V15"/><circle cx="12" cy="18.6" r=".6" fill="currentColor"/>',
 };

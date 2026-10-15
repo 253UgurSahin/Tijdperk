@@ -5,8 +5,10 @@ import { ACHIEVEMENT } from '../data/achievements.js';
 import { BLESSING } from '../data/blessings.js';
 import { B } from '../data/buildings.js';
 import { cleanDiff } from '../data/difficulty.js';
+import { cleanMods } from '../data/modifiers.js';
 import { DEFAULT_PEOPLE, PEOPLE } from '../data/peoples.js';
 import { RKEYS } from '../data/resources.js';
+import { cleanScenarioState } from '../data/scenarios.js';
 import { VICTORY } from '../data/victories.js';
 import { computeAvail, computeCaches } from './caches.js';
 import { spawnFoe, spawnUnit, spawnVillager } from './entities.js';
@@ -78,6 +80,8 @@ export function serialize() {
     'countedAsPlayed',
     'opts',
     'wonBy',
+    'scenario',
+    'mods',
   ])
     g[k] = G[k];
   return JSON.stringify({
@@ -131,8 +135,15 @@ export function deserialize(str) {
   genWorld(s.seed, opts.map);
   Object.assign(G, s.g);
   G.opts = opts;
-  // Al gewonnen in opslag van vóór de keuze: dat was altijd met de sterrenpoort
-  G.wonBy = G.won ? (VICTORY[s.g.wonBy] ? s.g.wonBy : 'stargate') : '';
+  // Uitdaging en spelregels: opslag van daarvóór (of een uitdaging die niet meer bestaat) is een gewoon spel.
+  // Dit moet vóór het terugzetten van soldaten: spelregels kunnen hun levens veranderen.
+  G.scenario = cleanScenarioState(s.g.scenario);
+  G.mods = cleanMods(s.g.mods);
+  // Al gewonnen in opslag van vóór de keuze: dat was altijd met de sterrenpoort. Een uitdaging wint met haar doel.
+  const knownVictory = !!VICTORY[s.g.wonBy];
+  const wonChallenge = s.g.wonBy === 'scenario' && !!G.scenario;
+  const wonBy = knownVictory || wonChallenge ? s.g.wonBy : 'stargate';
+  G.wonBy = G.won ? wonBy : '';
   // Opslag van vóór de negen tijdperken: zet oude tijdperk- en vijandnummers om
   const fromOld = s.ages !== 9;
   if (fromOld) G.age = OLD_AGE[G.age] ?? G.age;

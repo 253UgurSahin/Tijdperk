@@ -4,6 +4,7 @@ import { AGES } from '../data/ages.js';
 import { VICTORY, reachedVictory } from '../data/victories.js';
 import { endGame, upgradeWin } from './achievements.js';
 import { built } from './chapters.js';
+import { checkChallenge } from './scenario.js';
 import { G, placeName } from './state.js';
 
 /** Alles wat de doelen willen weten, uit de spelstand van nu. */
@@ -29,6 +30,11 @@ export const victoryGoals = () => {
 /** Heb je net gewonnen? Dan het spel als gewonnen markeren en het eindscherm tonen. */
 export function checkVictory() {
   if (!G || G.over) return;
+  // Een uitdaging heeft haar eigen doel (en soms een tijdsgrens), zie game/scenario.js
+  if (G.scenario) {
+    checkChallenge();
+    return;
+  }
   if (G.won) {
     checkFullVictoryAfterShort();
     return;
