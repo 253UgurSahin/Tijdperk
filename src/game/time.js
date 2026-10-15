@@ -61,8 +61,9 @@ export function advanceClock(dt) {
     // We kijken naar de aanval die echt begon (niet naar het rooster): de vredige modus kan intussen zijn omgezet.
     if (G.stats.raidDay === G.day - 1 && !G.over) G.stats.survived++;
     let n = 0;
+    // (Soldaten van rivalen niet: die gaan pas naar huis als hun eigen aanval voorbij is, zie game/rivals.js)
     for (const f of G.foes)
-      if (!f.camp && !f.retreat) {
+      if (!f.camp && !f.rival && !f.retreat) {
         f.retreat = true;
         n++;
       }

@@ -13,6 +13,7 @@ import { G } from './state.js';
 import { mul } from './bonus.js';
 import { ruleAllowsBuilding } from './mods.js';
 import { roadTier } from './upgrades.js';
+import { landOwner } from './rivals.js';
 import { mouse } from '../input/input.js';
 import { resetV, selVills } from '../input/selection.js';
 import { fmt } from '../ui/format.js';
@@ -41,6 +42,8 @@ export function chunkCost() {
 }
 export function canBuyChunk(cx, cy) {
   if (cx < 0 || cy < 0 || cx >= CN || cy >= CN || G.unl[cy * CN + cx]) return false;
+  // Land van een rivaal kun je niet kopen: dat moet je veroveren (verwoest zijn stamhuis)
+  if (landOwner(cy * CN + cx)) return false;
   return [
     [1, 0],
     [-1, 0],

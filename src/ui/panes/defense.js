@@ -4,8 +4,9 @@ import { CX, CY, DAYLEN } from '../../config.js';
 import { B } from '../../data/buildings.js';
 import { FOES, UNITS } from '../../data/units.js';
 import { has, pay } from '../../game/economy.js';
-import { raidSize } from '../../game/military.js';
+import { isMarching, isRaider, raidSize } from '../../game/military.js';
 import { dayPace } from '../../game/mods.js';
+import { arrivalHour, clockText } from '../../game/rivals.js';
 import { G, sel } from '../../game/state.js';
 import { hoursUntilRaid } from '../../game/time.js';
 import { bMaxHp } from '../../game/upgrades.js';
@@ -26,14 +27,34 @@ function repairCost() {
   miss = Math.ceil(miss);
   return miss < 1 ? null : { wood: Math.ceil(miss * 0.08), stone: Math.ceil(miss * 0.05) };
 }
+// Wat de aanvalskaart zegt: een aanval in je land, rivalen onderweg, of wanneer de volgende nachtelijke aanval komt
+function raidCardText(raidNow, marching, hrs, secs) {
+  if (raidNow) return { title: `${raidNow} aanvallers in je land`, sub: 'Dorpelingen schuilen' };
+  if (marching.length) {
+    const n = marching.length;
+    return {
+      title: `Onderweg: ${n} ${n === 1 ? 'soldaat' : 'soldaten'} van een rivaal`,
+      sub: `Rond ${clockText(arrivalHour(marching))} hier · maak je leger klaar`,
+    };
+  }
+  if (G.peaceful) return { title: 'Vredige modus', sub: 'Aanvallen staan uit' };
+  let title = `Aanval over ${Math.ceil(secs / 60)} min`;
+  if (secs == null) title = 'Geen aanval gepland';
+  else if (hrs <= 0.01) title = 'Aanval begint';
+  const sub = `±${raidSize()} ${FOES[G.age].n.toLowerCase()}${G.speed ? '' : ' · gepauzeerd'}`;
+  return { title, sub };
+}
+
 export function renderDefense() {
   const th = G.bs.find(b => b.type === 'townhall'),
     hp = th ? th.hp / B.townhall.hp : 0,
-    raidNow = G.foes.filter(f => !f.camp && !f.retreat).length,
+    raidNow = G.foes.filter(isRaider).length,
+    marching = G.foes.filter(isMarching), // soldaten van rivalen die nog onderweg zijn: nog niet in je land
     hrs = hoursUntilRaid(),
     rc = repairCost();
   // Uren op de klok omrekenen naar echte seconden (met Snelle dagen loopt de klok sneller)
   const secs = hrs == null ? null : (hrs * DAYLEN) / 24 / dayPace() / (G.speed || 1);
+  const card = raidCardText(raidNow, marching, hrs, secs);
   const army = {};
   G.us.forEach(u => (army[u.k] = (army[u.k] || 0) + 1));
   {
@@ -43,6 +64,8 @@ export function renderDefense() {
   const sig = JSON.stringify([
     Math.round(hp * 50),
     raidNow,
+    card.title,
+    card.sub,
     secs == null ? -1 : Math.round(secs / 5),
     G.speed ? 1 : 0,
     rc && has(rc),
@@ -56,7 +79,7 @@ export function renderDefense() {
     'def',
     sig,
     () => `<div class="hlt"><span>Stamhuis${hp < 0.995 && !raidNow ? ' · herstelt vanzelf' : ''}</span><b>${Math.round(hp * 100)}%</b></div><div class="bar ${hp < 0.4 ? 'bad' : ''}"><i style="width:${hp * 100}%"></i></div>
-    <div class="raidcard ${raidNow ? 'now' : ''}"><canvas class="moon" width="60" height="60"></canvas><div><b>${raidNow ? `${raidNow} aanvallers in je land` : G.peaceful ? 'Vredige modus' : secs == null ? 'Geen aanval gepland' : hrs <= 0.01 ? 'Aanval begint' : `Aanval over ${Math.ceil(secs / 60)} min`}</b><small>${raidNow ? 'Dorpelingen schuilen' : G.peaceful ? 'Aanvallen staan uit' : `±${raidSize()} ${FOES[G.age].n.toLowerCase()}${G.speed ? '' : ' · gepauzeerd'}`}</small></div></div>
+    <div class="raidcard ${raidNow ? 'now' : ''}"><canvas class="moon" width="60" height="60"></canvas><div><b>${card.title}</b><small>${card.sub}</small></div></div>
     <div class="cmd" style="margin-top:10px">${rc ? CB('data-act="repair"', '✚', 'Herstel', { dis: !has(rc), cost: costHTML(rc, true), tip: 'Herstel alle gebouwen' }) : ''}${CB('data-act="army"', '⚔', 'Kies leger', { dis: !G.us.length, tip: 'Selecteer het hele leger' })}${CB('data-act="rally"', '⌂', 'Naar huis', { dis: !G.us.length, tip: 'Leger terug naar het stamhuis' })}${CB('data-act="camps"', '◎', 'Vijandelijk kamp', { tip: 'Camera naar het dichtstbijzijnde vijandelijke kamp' })}</div>
     ${
       G.us.length

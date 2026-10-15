@@ -371,7 +371,7 @@ function hasNodeNear(node, W, H, start, t, limit, ok) {
 }
 
 /** Alle tegels die je vanaf `from` te voet kunt bereiken (1 = bereikbaar). */
-function reachableFrom(ter, W, H, from) {
+export function reachableFrom(ter, W, H, from) {
   const seen = new Uint8Array(W * H),
     q = [from];
   seen[from] = 1;

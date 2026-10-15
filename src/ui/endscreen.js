@@ -152,9 +152,12 @@ export function showEndScreen(won) {
   const { head, story, timelineAge, score, buttons } = def
     ? challengeParts(won, result, def)
     : freePlayParts(won, result);
+  // Speelden er rivalen mee? Dan ook hoeveel je er versloeg
+  const rivalsLine = () =>
+    G.rivals.length ? `, ${G.stats.rivals || 0} van ${G.rivals.length} rivalen verslagen` : '';
   openModal(
     `${head}<div class="sheettl">${ageTimeline(timelineAge, true)}</div>
-    <p>${story} ${fmt(G.stats.gathered)} grondstoffen verzameld, ${G.stats.killed} vijanden verslagen, ${G.stats.camps} kampen veroverd.</p>
+    <p>${story} ${fmt(G.stats.gathered)} grondstoffen verzameld, ${G.stats.killed} vijanden verslagen, ${G.stats.camps} kampen veroverd${rivalsLine()}.</p>
     ${score}
     <div class="sect">Nieuwe prestaties <span>${G.achieved.length}</span></div>
     ${newAchievementsHTML()}

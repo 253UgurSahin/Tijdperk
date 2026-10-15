@@ -13,6 +13,7 @@ import {
   VICTORY,
   cleanVictories,
   reachedVictory,
+  victoryAllowed,
 } from '../src/data/victories.js';
 import {
   CODE_LEN,
@@ -145,13 +146,27 @@ describe('manieren om te winnen', () => {
     expect(VICTORY.stargate.end.story(facts({ day: 40 }))).toContain('in 40 dagen.');
   });
 
-  it('nu te kiezen: sterrenpoort, overleven en kort spel; verovering en wonderen komen later', () => {
-    expect(SELECTABLE_VICTORIES.map(v => v.k)).toEqual(['stargate', 'survive', 'age']);
-    expect(VICTORY.conquest.soon).toBe(true);
+  it('nu te kiezen: sterrenpoort, overleven, kort spel en verovering; wonderen komen later', () => {
+    expect(SELECTABLE_VICTORIES.map(v => v.k)).toEqual(['stargate', 'survive', 'age', 'conquest']);
+    expect(VICTORY.conquest.soon).toBeFalsy();
     expect(VICTORY.wonders.soon).toBe(true);
     expect(DEFAULT_VICTORIES).toEqual(['stargate']);
     // Alleen de sterrenpoort telt als volledige overwinning voor prestaties
     expect(VICTORIES.filter(v => v.full).map(v => v.k)).toEqual(['stargate']);
+  });
+
+  it('verovering kan alleen met rivalen, en is gewonnen als ze allemaal verslagen zijn', () => {
+    // Zonder rivalen valt verovering weg (en blijft er altijd een doel over)
+    expect(cleanVictories(['conquest'])).toEqual(DEFAULT_VICTORIES);
+    expect(cleanVictories(['conquest', 'age'], 0)).toEqual(['age']);
+    expect(cleanVictories(['conquest', 'age'], 2)).toEqual(['age', 'conquest']);
+    expect(victoryAllowed(VICTORY.conquest, 0)).toBe(false);
+    expect(victoryAllowed(VICTORY.conquest, 1)).toBe(true);
+    expect(reachedVictory(['conquest'], facts({ rivals: 2, rivalsBeaten: 1 }))).toBeNull();
+    expect(reachedVictory(['conquest'], facts({ rivals: 2, rivalsBeaten: 2 }))).toBe('conquest');
+    expect(VICTORY.conquest.text(facts({ rivals: 3, rivalsBeaten: 1 }))).toBe('1 van 3 verslagen');
+    // Zonder rivalen win je er nooit mee
+    expect(VICTORY.conquest.frac(facts({ rivals: 0, rivalsBeaten: 0 }))).toBe(0);
   });
 
   it('een gekozen lijst wordt netjes gemaakt, en is nooit leeg', () => {

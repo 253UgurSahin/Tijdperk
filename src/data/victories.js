@@ -10,13 +10,15 @@ const LAST_AGE = AGES.length - 1;
 /*
  * Feiten (`f`) die de doelen gebruiken, zoals game/victory.js ze verzamelt:
  * age (tijdperk), day (dag), stargate (sterrenpoort af), stargateBusy (sterrenpoort neergezet),
- * campsLeft (kampen die nog over zijn), wonders (wonderen gebouwd).
+ * campsLeft (kampen die nog over zijn), wonders (wonderen gebouwd),
+ * rivals (rivalen in dit spel), rivalsBeaten (rivalen verslagen).
  *
  * Elke manier om te winnen:
  * - k: vaste sleutel (wordt bewaard in G.opts.victories), n: naam, d: wat je moet doen, g: pictogram
  * - len: hoe lang een spel ongeveer duurt
  * - on: staat standaard aan bij een nieuwe wereld
  * - soon: komt later; nog niet te kiezen en nergens te zien
+ * - needsRivals: alleen te kiezen als er minstens één rivaal meedoet
  * - full: een volledige overwinning; alleen die telt voor prestaties als "win een spel"
  * - frac(f): hoe ver je bent, van 0 tot 1 (1 = gewonnen); text(f): hetzelfde in een paar woorden
  * - end: teksten voor het eindscherm; story(f) krijgt ook f.place (naam van je stad) en f.ageName
@@ -71,22 +73,23 @@ export const VICTORIES = [
       story: f => `${f.place} bereikte de ${AGES[SHORT_AGE].n} in ${days(f.day)}.`,
     },
   },
-  // Komen later: de gegevens staan klaar, maar je kunt ze nog niet kiezen
   {
     k: 'conquest',
     n: 'Verovering',
-    d: 'Verover alle vijandelijke kampen',
+    d: 'Versla alle rivalen: verwoest hun stamhuis',
     g: '⚔',
     len: 'Middellang spel',
-    soon: true,
-    frac: f => (f.campsLeft === 0 ? 1 : 0),
-    text: f => `nog ${f.campsLeft} kampen`,
+    needsRivals: true,
+    frac: f => (f.rivals > 0 ? Math.min(1, (f.rivalsBeaten || 0) / f.rivals) : 0),
+    text: f =>
+      f.rivals > 0 ? `${Math.min(f.rivalsBeaten || 0, f.rivals)} van ${f.rivals} verslagen` : 'geen rivalen',
     end: {
-      eyebrow: 'Alle kampen veroverd',
+      eyebrow: 'Alle rivalen verslagen',
       title: 'Het land is van jullie.',
-      story: f => `${f.place} veroverde alle kampen in ${days(f.day)}.`,
+      story: f => `${f.place} versloeg alle rivalen in ${days(f.day)}.`,
     },
   },
+  // Komt later: de gegevens staan klaar, maar je kunt hem nog niet kiezen
   {
     k: 'wonders',
     n: 'Wonderen',
@@ -120,19 +123,25 @@ export const SELECTABLE_VICTORIES = VICTORIES.filter(v => !v.soon);
 /** Wat standaard aan staat bij een nieuwe wereld. */
 export const DEFAULT_VICTORIES = SELECTABLE_VICTORIES.filter(v => v.on).map(v => v.k);
 
+/** Kun je deze overwinning kiezen met zoveel rivalen? (Verovering vraagt minstens één rivaal.) */
+export const victoryAllowed = (v, rivals = 0) => !v.soon && (!v.needsRivals || rivals > 0);
+
 /**
  * Een nette lijst gekozen overwinningen: alleen bestaande en kiesbare, elk één keer, in vaste volgorde.
+ * `rivals` is het aantal rivalen in het spel: zonder rivalen valt Verovering weg.
  * Een lege of kapotte lijst wordt de standaard: er is altijd minstens één manier om te winnen.
  */
-export function cleanVictories(list) {
+export function cleanVictories(list, rivals = 0) {
   const chosen = Array.isArray(list) ? list : [];
-  const keys = SELECTABLE_VICTORIES.map(v => v.k).filter(k => chosen.includes(k));
+  const keys = SELECTABLE_VICTORIES.filter(v => victoryAllowed(v, rivals) && chosen.includes(v.k)).map(
+    v => v.k,
+  );
   return keys.length ? keys : DEFAULT_VICTORIES.slice();
 }
 
 /** De eerste gekozen overwinning die je nu haalt, of null. */
 export function reachedVictory(keys, f) {
-  const v = cleanVictories(keys)
+  const v = cleanVictories(keys, f.rivals || 0)
     .map(k => VICTORY[k])
     .find(v => v.frac(f) >= 1);
   return v ? v.k : null;

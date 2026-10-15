@@ -16,6 +16,8 @@ export function victoryFacts() {
     stargateBusy: G.bs.some(b => b.type === 'stargate'),
     campsLeft: G.camps.filter(c => c.alive).length,
     wonders: 0, // wonderen komen later
+    rivals: G.rivals.length,
+    rivalsBeaten: G.rivals.filter(r => r.dead).length,
     place: placeName(),
     ageName: AGES[G.age].n,
   };

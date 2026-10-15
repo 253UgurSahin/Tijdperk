@@ -40,7 +40,8 @@ export function updateTabs() {
       G.us.length ||
       G.raids > 0 ||
       G.bs.some(b => b.type === 'barracks' || (B[b.type].def && b.type !== 'townhall')) ||
-      G.foes.some(f => !f.camp),
+      G.foes.some(f => !f.camp) ||
+      G.rivals.length > 0, // met rivalen staat het leger-paneel (met het overzicht van rivalen) er meteen
     upg: G.age >= 1 || G.day >= 3 || Object.keys(G.tech).length || G.blessings.length,
     log: G.day >= 2,
   };

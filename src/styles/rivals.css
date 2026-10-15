@@ -1,0 +1,137 @@
+/* Rivalen: de keuze op het nieuw-spelscherm, het overzicht in het paneel Leger en de kaart bij een selectie. */
+
+/* ---- nieuw-spelscherm: hoeveel rivalen, en wie ---- */
+.rivseg button {
+  flex: 1;
+  font-weight: 600;
+}
+.ngrivs {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 8px;
+}
+.ngriv {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+.ngriv b {
+  font-family: var(--f-display);
+  font-weight: 650;
+}
+.ngriv i {
+  color: var(--ink-3);
+}
+/* Wat het karakter doet, klein onder de naam */
+.ngriv small {
+  display: block;
+  font-size: 12px;
+  color: var(--ink-3);
+  line-height: 1.3;
+}
+/* Een manier om te winnen die nu niet kan (Verovering zonder rivalen) */
+.vic:disabled {
+  opacity: 0.55;
+}
+
+/* ---- paneel Leger: één rij per rivaal ---- */
+#rivSect {
+  margin-top: 16px;
+}
+#rivals {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+.rivrow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 10px;
+  text-align: left;
+}
+.rivrow.dead {
+  opacity: 0.6;
+  cursor: default;
+}
+.rivrow.dead .banner {
+  filter: grayscale(1);
+}
+.rivtxt {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+.rivtxt b {
+  font-family: var(--f-display);
+  font-size: 14.5px;
+  font-weight: 650;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.rivtxt small {
+  font-size: 12px;
+  color: var(--ink-3);
+}
+.rivstat.bad {
+  color: var(--bad);
+  font-weight: 600;
+}
+.rivstat.warn {
+  color: var(--warn);
+}
+.rivstat.good {
+  color: var(--good);
+}
+
+/* Sterkte vergeleken met jou: groen = zwakker, inkt = gelijk, rood = sterker */
+.rivpow {
+  flex: none;
+  padding: 2px 8px;
+  font-family: var(--f-mono);
+  font-size: 11px;
+  border-radius: 99px;
+  border: 1px solid var(--rule-2);
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+.rivpow.zwakker {
+  color: var(--good);
+  border-color: color-mix(in srgb, var(--good) 45%, transparent);
+}
+.rivpow.sterker {
+  color: var(--bad);
+  border-color: color-mix(in srgb, var(--bad) 45%, transparent);
+}
+
+/* ---- selectiepaneel: een gebouw van een rivaal, of de rivaal zelf ---- */
+.rivnote {
+  margin-top: 8px;
+}
+.rivfacts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+  margin-top: 8px;
+  font-family: var(--f-mono);
+  font-size: 12px;
+  color: var(--ink-2);
+}
+
+/* Portret van een gebouw van een rivaal: hun vaandel onderaan in de cirkel */
+.port:has(.rivbadge) {
+  position: relative;
+}
+.port .rivbadge {
+  --bw: 20px;
+  position: absolute;
+  bottom: 2px;
+  left: calc(50% - 10px);
+}

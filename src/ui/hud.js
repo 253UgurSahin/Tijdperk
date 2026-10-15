@@ -4,6 +4,7 @@ import { sfx } from '../audio/sound.js';
 import { B } from '../data/buildings.js';
 import { has } from '../game/economy.js';
 import { th } from '../game/events.js';
+import { isMarching, isRaider } from '../game/military.js';
 import { buildCost, lackText } from '../game/placement.js';
 import { G, bById, sel } from '../game/state.js';
 import { selectArmy, selectIdle, zoomTo } from '../input/input.js';
@@ -88,10 +89,10 @@ $('#coachBtn').onclick = () => {
   } else if (a.k === 'expand') setExpand(true);
   else if (a.k === 'age') ageUp();
   else if (a.k === 'alarm') {
+    // De dichtstbijzijnde aanvaller, of anders de dichtstbijzijnde soldaat van een rivaal die nog onderweg is
     const h = th(),
-      f = G.foes
-        .filter(f => !f.camp && !f.retreat)
-        .sort((p, q) => dist(p.x, p.y, h.x, h.y) - dist(q.x, q.y, h.x, h.y))[0];
+      near = (p, q) => dist(p.x, p.y, h.x, h.y) - dist(q.x, q.y, h.x, h.y),
+      f = G.foes.filter(isRaider).sort(near)[0] || G.foes.filter(isMarching).sort(near)[0];
     if (f) centerOn(f.x, f.y);
   } else if (a.k === 'sel') {
     const b = bById.get(a.id);

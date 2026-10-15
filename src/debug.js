@@ -107,3 +107,32 @@ window.__tp.event = k => {
   return events.startEvent(EVENT[k]);
 };
 window.__tp.followNow = k => G.followups.push({ k, day: G.day, from: 'traveler' });
+// Rivalen: bekijk ze (__tp.rivals), laat er een meteen aanvallen of een tijdperk verder gaan,
+// of laat de tijd snel lopen zonder te tekenen (__tp.run(200) = één dag)
+import * as rivals from './game/rivals.js';
+import { rememberPositions, update } from './game/update.js';
+window.__tp.rivals = rivals;
+window.__tp.run = (seconds = 60) => {
+  for (let t = 0; t < seconds && !G.over; t += 1 / 30) {
+    rememberPositions();
+    update(1 / 30);
+  }
+};
+window.__tp.rivalHome = (i = 0) => {
+  const r = G.rivals[i];
+  if (r) centerOn(r.x + 1, r.y + 1, true);
+};
+window.__tp.rivalAge = (i = 0) => rivals.rivalAgeUp(G.rivals[i]);
+window.__tp.rivalAttack = (i = 0, n = 4) => {
+  const r = G.rivals[i];
+  // Te weinig soldaten thuis? Dan eerst een paar laten verschijnen
+  const units = rivals.rivalUnitsFor(r);
+  while (rivals.rivalArmy(r).filter(f => f.mode === 'home').length < n) rivals.spawnRivalUnit(r, units[0]);
+  rivals.launchAttack(
+    r,
+    rivals
+      .rivalArmy(r)
+      .filter(f => f.mode === 'home')
+      .slice(0, n),
+  );
+};

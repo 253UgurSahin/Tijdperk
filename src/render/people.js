@@ -180,10 +180,14 @@ function faceForward(g) {
   g.add(h);
   return g;
 }
-export function makeUnit(k, foe) {
+/**
+ * Een soldaat of vijand. `foe`: rood (vijand) in plaats van blauw (jouw leger).
+ * `colour`: een eigen kleur, voor de soldaten van een rivaal (zie game/rivals.js).
+ */
+export function makeUnit(k, foe, colour) {
   const g = new T3.Group(),
-    T = foe ? FOE : TEAM,
-    TD = foe ? '#7a2a24' : TEAMD;
+    T = colour || (foe ? FOE : TEAM),
+    TD = colour ? darker(colour) : foe ? '#7a2a24' : TEAMD;
   if (k === 'tank') {
     bx(g, 0.7, 0.22, 0.44, foe ? '#5a3a32' : '#5b6644', 0, 0.06, 0);
     bx(g, 0.74, 0.1, 0.12, '#2e3236', 0, 0, 0.2);
@@ -457,6 +461,12 @@ export function makeUnit(k, foe) {
   person(g, Object.assign({ tabard: T, crest: U.hat === 'helmet' || U.hat === 'cap' ? T : null }, U));
   g.scale.setScalar(k === 'plasma' ? 1.85 : k === 'exo' ? 1.75 : k === 'spacepirate' ? 1.7 : 1.45);
   return g;
+}
+// Een donkerdere tint van een kleur (#rrggbb), voor helmen en petten in de kleur van een rivaal
+function darker(hex) {
+  const n = parseInt(hex.slice(1), 16);
+  const part = shift => Math.round(((n >> shift) & 255) * 0.62);
+  return '#' + ((part(16) << 16) | (part(8) << 8) | part(0)).toString(16).padStart(6, '0');
 }
 // Model per vijandsoort, in dezelfde volgorde als FOES in data/units.js
 export const FOEK = [

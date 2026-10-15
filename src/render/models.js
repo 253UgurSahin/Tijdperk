@@ -10,7 +10,6 @@ import {
   GLASS,
   GLOWM,
   PINKM,
-  TEAM,
   VIOLETM,
   WIN,
   bx,
@@ -28,6 +27,7 @@ import {
   gTorus,
   gr,
   mat,
+  paint,
   mergeStatic,
   mk,
   pr,
@@ -117,7 +117,7 @@ const MODELS = {
       bx(g, 0.4, 0.06, 0.18, C.stone, 0, 0.1, 0.38);
       // Ronde schilden aan de voorgevel in de legerkleur
       for (const x of [-0.45, 0.42]) {
-        const s = cy(g, 0.09, 0.02, TEAM, x, 0.38, 0.27, 10);
+        const s = cy(g, 0.09, 0.02, paint.team, x, 0.38, 0.27, 10);
         s.rotation.x = Math.PI / 2;
       }
       flagpole(g, 0.62, 0.14, -0.55, 1.1);
@@ -1198,7 +1198,7 @@ export function makeCamp(g, tier) {
 }
 // Een hangend doek in de legerkleur, zodat verdediging en leger direct opvallen
 function banner(g, x, y, z) {
-  bx(g, 0.16, 0.36, 0.02, TEAM, x, y, z);
+  bx(g, 0.16, 0.36, 0.02, paint.team, x, y, z);
   bx(g, 0.16, 0.05, 0.022, '#e9d9a6', x, y + 0.31, z);
 }
 

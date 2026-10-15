@@ -2,7 +2,7 @@
 import { DIFFICULTIES } from './difficulty.js';
 
 /** Punten per onderdeel. Tijdperken tellen vanaf de Steentijd (0). Dagen kosten punten: hoe sneller, hoe beter. */
-export const POINTS = { age: 1000, wonders: 500, camps: 200, kills: 5, days: -15 };
+export const POINTS = { age: 1000, wonders: 500, camps: 200, kills: 5, days: -15, rivals: 1500 };
 
 /** De moeilijkheden, zoals op het nieuw-spelscherm (zie data/difficulty.js). */
 export const DIFF_NAMES = DIFFICULTIES.map(d => d.n);
@@ -27,6 +27,7 @@ export const CHALLENGE_POINTS = { goal: 2000, goud: 1500, zilver: 1000, brons: 5
  * De eindscore uitgerekend, met elke regel apart voor het eindscherm.
  * Tijdperk ×1000 + wonderen ×500 + kampen ×200 + vijanden ×5 − dagen ×15 (nooit onder 0),
  * en dat keer de factor voor de moeilijkheid.
+ * Versloeg je rivalen (`rivals`), dan krijg je per rivaal 1500 punten extra (een eigen regel op het eindscherm).
  * In een uitdaging (`challenge`: { won, medal }) komen er punten bij voor het doel en de medaille.
  */
 export function gameScore({
@@ -36,6 +37,7 @@ export function gameScore({
   kills = 0,
   days = 0,
   diff = 1,
+  rivals = 0,
   challenge = null,
 } = {}) {
   const list = [
@@ -45,6 +47,7 @@ export function gameScore({
     { k: 'kills', n: 'Vijanden verslagen', count: kills, per: POINTS.kills },
     { k: 'days', n: 'Dagen', count: days, per: POINTS.days },
   ];
+  if (rivals > 0) list.push({ k: 'rivals', n: 'Rivalen verslagen', count: rivals, per: POINTS.rivals });
   if (challenge) {
     list.push({ k: 'goal', n: 'Doel gehaald', count: challenge.won ? 1 : 0, per: CHALLENGE_POINTS.goal });
     const medal = MEDALS.find(m => m.k === challenge.medal);

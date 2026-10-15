@@ -9,9 +9,11 @@ import { NODES } from '../data/nodes.js';
 import { DEFAULT_PEOPLE, PEOPLE } from '../data/peoples.js';
 import { RKEYS } from '../data/resources.js';
 import { cleanScenarioState, goalInSentence, scenarioDef, startOptions } from '../data/scenarios.js';
+import { cleanRivalCount } from '../data/rivals.js';
 import { cleanVictories } from '../data/victories.js';
 import { placeBuilding, spawnFoe, spawnVillager } from './entities.js';
 import { hasRule } from './mods.js';
+import { setupRivals } from './rivals.js';
 import { afterLoad } from './save.js';
 import { clearSel } from '../input/selection.js';
 import { centerOn } from '../render/camera.js';
@@ -24,7 +26,18 @@ import { amt, buildLists, genWorld, inb, node, passable } from '../world/world.j
 
 export let G = null;
 export const bById = new Map();
-export const sel = { vs: new Set(), us: new Set(), b: null, camp: null, node: -1 };
+// Wat je geselecteerd hebt. rb: een gebouw van een rivaal · rival: een rivaal zelf
+// (na een klik op een van zijn soldaten, of in het paneel Leger) · rivalUnit: de soldaat waarop je klikte
+export const sel = {
+  vs: new Set(),
+  us: new Set(),
+  b: null,
+  camp: null,
+  node: -1,
+  rb: null,
+  rival: null,
+  rivalUnit: null,
+};
 export function baseState(seed) {
   const g = {
     seed,
@@ -91,6 +104,7 @@ export function baseState(seed) {
       survived: 0, // aanvallen doorstaan
       raidDay: 0, // de dag waarop de laatste aanval echt begon
       meteors: 0, // meteorieten ingeslagen
+      rivals: 0, // rivalen verslagen
       lost: 0, // dorpelingen en gebouwen (geen muren) die je kwijtraakte, voor de medailles van uitdagingen
       peaceUsed: false, // stond de vredige modus ooit aan in dit spel? (dan telt de score half)
     },
@@ -100,6 +114,7 @@ export function baseState(seed) {
     opts: gameOpts(seed), // de keuzes van het nieuw-spelscherm (zie gameOpts hieronder)
     scenario: null, // de uitdaging van dit spel, of null (zie cleanScenarioState in data/scenarios.js)
     mods: [], // spelregels van een uitdaging (sleutels uit data/modifiers.js); het bonusregister telt ze mee
+    rivals: [], // rivaliserende beschavingen (zie game/rivals.js)
   };
   RKEYS.forEach(k => (g.res[k] = 0));
   return g;
@@ -107,14 +122,17 @@ export function baseState(seed) {
 /**
  * De keuzes voor een wereld, netjes gemaakt: wat ontbreekt of niet (meer) bestaat, wordt de standaard.
  * people: volk · diff: moeilijkheid · map: kaartsoort · seedCode: zaadcode · victories: manieren om te winnen
+ * rivals: aantal rivalen (zonder keuze 0: zo hebben oude opslag en uitdagingen geen rivalen)
  */
 export function gameOpts(seed, o = {}) {
+  const rivals = cleanRivalCount(o.rivals);
   return {
     people: PEOPLE[o.people] ? o.people : DEFAULT_PEOPLE,
     diff: cleanDiff(o.diff),
     map: cleanMap(o.map),
     seedCode: codeFromSeed(seed),
-    victories: cleanVictories(o.victories),
+    victories: cleanVictories(o.victories, rivals),
+    rivals,
   };
 }
 
@@ -168,6 +186,13 @@ export function newGame(o = {}) {
   for (let k = 0; k < villagers; k++)
     spawnVillager(CX - 1 + (k % 3) * 0.7, CY + 1.5 + Math.floor(k / 3) * 0.8);
   genCamps(seed);
+  // Rivalen ver weg op de kaart (een uitdaging heeft er geen: die kiest niets bij "rivals")
+  setupRivals(G.opts.rivals, seed);
+  // Paste er minder op de kaart dan gekozen (heel weinig land), dan telt wat er echt is
+  if (G.rivals.length < G.opts.rivals) {
+    G.opts.rivals = G.rivals.length;
+    G.opts.victories = cleanVictories(G.opts.victories, G.rivals.length);
+  }
   clearSel();
   centerOn(CX, CY, true);
   cam.z = 1;

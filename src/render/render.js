@@ -19,6 +19,8 @@ import { applySeason, lighting } from './lighting.js';
 import { drawOverlay } from './overlay.js';
 
 import { bRec, cRec, checkWorld, eRec, syncBuildings, syncCamps, syncEntities } from './sync.js';
+import { rbRec, syncRivalBuildings } from './rivals3d.js';
+import { rbById, rivalById } from '../game/rivals.js';
 import { inb } from '../world/world.js';
 import { outlinesOn, renderFrame, setOutlined } from './post.js';
 import { applyPendingResize } from './scene.js';
@@ -34,6 +36,7 @@ const MAX_OUTLINED = 120;
 function objectFor(kind, id) {
   if (kind === 'b') return bRec.get(id)?.g;
   if (kind === 'c') return cRec.get(id)?.g;
+  if (kind === 'rb') return rbRec.get(id)?.g;
   return eRec.get(id)?.body;
 }
 function updateOutlines() {
@@ -43,6 +46,7 @@ function updateOutlines() {
   const add = (list, o) => o && list.length < MAX_OUTLINED && list.push(o);
   if (sel.b) add(selected, objectFor('b', sel.b));
   if (sel.camp) add(selected, objectFor('c', sel.camp));
+  if (sel.rb) add(selected, objectFor('rb', sel.rb));
   for (const id of sel.us) add(selected, objectFor('u', id));
   for (const id of sel.vs) add(selected, objectFor('v', id));
   if (drag && drag.mode === 'box') {
@@ -68,6 +72,7 @@ export function render() {
   syncBuildings();
   syncEntities();
   syncCamps();
+  syncRivalBuildings();
   updateGroundShade(store.TM, b => bRec.get(b.id)?.h);
   updateScatter();
   stepDying();
@@ -109,6 +114,17 @@ export function render() {
     const c = G.camps.find(c => c.id === sel.camp);
     if (c) ringAt(c.x + 1, c.y + 1, 1.7, '#e3584a', 0.9);
   }
+  // Een gebouw van een rivaal: een rode rand, en het bereik als het een toren is
+  const rb = sel.rb && rbById.get(sel.rb);
+  if (rb) {
+    const d = B[rb.type],
+      s = d.size;
+    quadAt(rb.x + s / 2, rb.y + s / 2, s + 0.15, s + 0.15, '#e3584a', 0.28, 0.025);
+    if (d.def) rangeAt(rb.x + s / 2, rb.y + s / 2, d.def.r, '#ff9b8b');
+  }
+  // Een rivaal zelf: een ring om zijn stamhuis
+  const rival = sel.rival && rivalById(sel.rival);
+  if (rival && !rival.dead) ringAt(rival.x + 1, rival.y + 1, 1.8, '#e3584a', 0.9);
   if (sel.node >= 0) ringAt((sel.node % W) + 0.5, ((sel.node / W) | 0) + 0.5, 0.45, '#ffffff', 0.9);
   if (
     mouse.in &&

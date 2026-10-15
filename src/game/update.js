@@ -8,7 +8,8 @@ import { bUpdate } from './buildings.js';
 import { computeAvail, computeCaches } from './caches.js';
 import { spawnFoe } from './entities.js';
 import { makeOffer, th, updateEvents } from './events.js';
-import { fUpdate, uUpdate, updateProj } from './military.js';
+import { fUpdate, isRaider, uUpdate, updateProj } from './military.js';
+import { updateRivals } from './rivals.js';
 import { G } from './state.js';
 import { advanceClock, isNight } from './time.js';
 import { add, applyBonusChange, mul } from './bonus.js';
@@ -108,6 +109,7 @@ export function update(dt) {
       G.spawnQ = G.spawnQ.filter(s => s.at > G.t);
     }
   }
+  updateRivals(dt); // rivaliserende beschavingen: bouwen, trainen, aanvallen (zie game/rivals.js)
   updateMeteors(dt);
   updateProj(dt);
   for (const e of G.fx) {
@@ -130,8 +132,9 @@ export function update(dt) {
     const h = th();
     if (h && h.done && !G.over) {
       const mx = bMaxHp(h);
-      if (h.hp < mx && !G.foes.some(f => !f.retreat && (!f.camp || dist(f.x, f.y, h.x + 1, h.y + 1) < 12)))
-        h.hp = Math.min(mx, h.hp + (mx * dt) / 240);
+      // Herstellen zolang er geen aanvallers zijn (kampbewakers en rivalen thuis tellen alleen als ze dichtbij zijn)
+      const threat = f => !f.retreat && (isRaider(f) || dist(f.x, f.y, h.x + 1, h.y + 1) < 12);
+      if (h.hp < mx && !G.foes.some(threat)) h.hp = Math.min(mx, h.hp + (mx * dt) / 240);
     }
   }
   if (G.regrow.length && Math.random() < dt)

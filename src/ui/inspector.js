@@ -42,6 +42,7 @@ import { ico } from './glyphs.js';
 import { setHTML, sigs } from './header.js';
 import { setExpand, toast } from './hud.js';
 import { bannerHTML, showPeopleInfo } from './peoples.js';
+import { rivalCommand, rivalSelection } from './rivals.js';
 import { $ } from '../util/dom.js';
 import { clamp, dist } from '../util/math.js';
 import { amt, bmap, isUnl, node, setBlk } from '../world/world.js';
@@ -73,6 +74,14 @@ export function renderInspector() {
     const tone = cls || (f < 0.35 ? 'bad' : f < 0.65 ? 'warn' : '');
     return `<div class="hpline"><div class="bar ${tone}"><i style="width:${clamp(f, 0, 1) * 100}%"></i></div><span>${txt}</span></div>`;
   };
+  // Iets van een rivaal aangeklikt: een gebouw of de rivaal zelf (zie ui/rivals.js)
+  const rival = !vs.length && !us.length && !b && !camp ? rivalSelection({ head, hpl, CB, im }) : null;
+  if (rival) {
+    document.body.classList.add('insp');
+    selCtx = rival.ctx;
+    selCmds = rival.cmds;
+    return setHTML(p, 'ins', rival.sig, () => rival.html);
+  }
   if (!vs.length && !us.length && !b && !camp && sel.node < 0) {
     document.body.classList.remove('insp');
     selCmds = null;
@@ -429,6 +438,7 @@ export function insHandler(e) {
   if (!t || t.disabled) return;
   sfx('tick');
   const b = sel.b && bById.get(sel.b);
+  if (rivalCommand(t)) return; // knoppen bij een rivaal (zie ui/rivals.js)
   // Snelknoppen in het overzicht
   if (t.dataset.quick === 'idle') return selectIdle();
   if (t.dataset.quick === 'army') return selectArmy();

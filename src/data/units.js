@@ -125,7 +125,7 @@ export const UNITS = {
   trebuchet: {
     n: 'Blijde',
     snd: 'thud',
-    bonus: { vs: 'camp', mul: 3, d: 'driedubbele schade tegen kampen' },
+    bonus: { vs: 'camp', mul: 3, d: 'driedubbele schade tegen kampen en gebouwen van rivalen' },
     src: 'siege',
     age: 3,
     hp: 220,
@@ -183,7 +183,7 @@ export const UNITS = {
   bombard: {
     n: 'Kartouw',
     snd: 'cannon',
-    bonus: { vs: 'camp', mul: 3, d: 'driedubbele schade tegen kampen' },
+    bonus: { vs: 'camp', mul: 3, d: 'driedubbele schade tegen kampen en gebouwen van rivalen' },
     src: 'siege',
     age: 4,
     hp: 260,
@@ -213,7 +213,7 @@ export const UNITS = {
   fieldgun: {
     n: 'Veldkanon',
     snd: 'cannon',
-    bonus: { vs: 'camp', mul: 3, d: 'driedubbele schade tegen kampen' },
+    bonus: { vs: 'camp', mul: 3, d: 'driedubbele schade tegen kampen en gebouwen van rivalen' },
     src: 'workshop',
     age: 5,
     hp: 220,
@@ -244,7 +244,7 @@ export const UNITS = {
   tank: {
     n: 'Tank',
     snd: 'cannon',
-    bonus: { vs: 'camp', mul: 2, d: 'dubbele schade tegen kampen' },
+    bonus: { vs: 'camp', mul: 2, d: 'dubbele schade tegen kampen en gebouwen van rivalen' },
     src: 'workshop',
     age: 6,
     hp: 950,
@@ -358,7 +358,8 @@ export const FOES = [
 export function bonusMul(unit, target) {
   const b = unit.bonus;
   if (!b || !target) return 1;
-  // Een kamp is geen vijand maar een gebouw: daar kijken we naar het soort doel
-  const match = b.vs === 'camp' ? target.kind === 'c' : !!target[b.vs];
+  // Een kamp is geen vijand maar een gebouw: daar kijken we naar het soort doel.
+  // Geschut is ook sterk tegen de gebouwen van rivalen ('rb').
+  const match = b.vs === 'camp' ? target.kind === 'c' || target.kind === 'rb' : !!target[b.vs];
   return match ? b.mul : 1;
 }

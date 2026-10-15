@@ -18,6 +18,7 @@ import { S3, cam } from './scene.js';
 import { buildTerrain, flushTerrain, paintAll, pendingTiles, repaintTile } from './terrain.js';
 import { dirtyGround, node, road } from '../world/world.js';
 import { groundChanged } from './terrainlook.js';
+import { landSig, rivalColour } from '../game/rivals.js';
 
 export const BG3 = new T3.Group(),
   EG3 = new T3.Group(),
@@ -30,7 +31,7 @@ let lastG = null,
   terrSnap = null,
   unlSig = '';
 // Steigers rond een bouwplaats: palen, liggers op een paar hoogtes en een schoor
-function scaffold(g, s, h) {
+export function scaffold(g, s, h) {
   const m = mat('#8a6a40'),
     plank = mat('#9a7c52'),
     e = s * 0.5;
@@ -214,6 +215,7 @@ export function syncBuildings() {
     }
 }
 function entKey(e) {
+  if (e.rival) return 'r' + e.rival + e.uk; // soldaat van een rivaal
   return e.kind === 'v' ? 'v' + e.job : e.kind === 'u' ? 'u' + e.k : 'f' + e.type;
 }
 const BASEG = new T3.CircleGeometry(1, 20).rotateX(-Math.PI / 2);
@@ -258,11 +260,17 @@ function syncEnt(e, make) {
     r.ringSize = e.kind === 'u' && BIG_RING.has(e.k) ? 0.42 : 0.28;
     ring.scale.setScalar(r.ringSize);
     // Gekleurde schijf onder elk figuur, zodat je in één oogopslag ziet wie wie is:
-    // licht = dorpeling, blauw = jouw leger, rood = vijand
+    // licht = dorpeling, blauw = jouw leger, rood = vijand, eigen kleur = soldaat van een rivaal
     const base = new T3.Mesh(
       BASEG,
       new T3.MeshBasicMaterial({
-        color: e.kind === 'v' ? '#f1e6c4' : e.kind === 'u' ? '#3d8bff' : '#ff4a3a',
+        color: e.rival
+          ? rivalColour(e.rival)
+          : e.kind === 'v'
+            ? '#f1e6c4'
+            : e.kind === 'u'
+              ? '#3d8bff'
+              : '#ff4a3a',
         transparent: true,
         opacity: e.kind === 'v' ? 0.32 : 0.55,
         depthWrite: false,
@@ -282,7 +290,7 @@ function syncEnt(e, make) {
     g.traverse(o => {
       o.userData.eid = e.id;
     });
-    initAnim(r, e.kind, e.kind === 'v' ? 'v' : e.kind === 'u' ? e.k : FOEK[e.type] || 'plunder');
+    initAnim(r, e.kind, e.kind === 'v' ? 'v' : e.kind === 'u' ? e.k : e.uk || FOEK[e.type] || 'plunder');
     eRec.set(e.id, r);
   }
   r.seen = 1;
@@ -353,7 +361,10 @@ export function syncEntities() {
     showRing(r, sel.us.has(u.id));
   }
   for (const f of G.foes) {
-    const r = syncEnt(f, () => makeUnit(FOEK[f.type] || 'plunder', true));
+    // Een rivaal heeft gewone soldaten in zijn eigen kleur; andere vijanden hun eigen rode figuren
+    const make = () =>
+      f.rival ? makeUnit(f.uk, false, rivalColour(f.rival)) : makeUnit(FOEK[f.type] || 'plunder', true);
+    const r = syncEnt(f, make);
     const fl = r.body.userData.fly;
     if (fl) {
       fl.position.y = 0.9 + Math.sin(store.TM * 3 + f.id) * 0.06;
@@ -414,7 +425,7 @@ function resetWorld3D() {
   paintAll();
   rebuildNodes(true);
   terrSnap = road.slice();
-  unlSig = G.unl.join('');
+  unlSig = landSig();
   store.nodeSnap = node.slice();
   store.nodeAge = G.age;
   lastG = G;
@@ -425,8 +436,8 @@ export function checkWorld() {
     resetWorld3D();
     return;
   }
-  // Nieuw gebied gekocht: alleen die stukken grond (plus een rand) opnieuw schilderen
-  const us = G.unl.join('');
+  // Nieuw gebied gekocht (of land van een rivaal veranderd): alleen die stukken grond (plus een rand) opnieuw schilderen
+  const us = landSig();
   if (us !== unlSig) {
     const before = unlSig;
     unlSig = us;

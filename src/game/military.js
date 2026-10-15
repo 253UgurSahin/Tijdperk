@@ -19,26 +19,39 @@ import { scrX } from '../render/scene.js';
 import { note, toast } from '../ui/hud.js';
 import { dist } from '../util/math.js';
 import { findPath, follow } from '../world/pathfinding.js';
+import {
+  landOwner,
+  nearestRivalBuilding,
+  nextRivalBuilding,
+  rivalBuildingDestroyed,
+  rivalHurt,
+  rivalThink,
+  rbById,
+} from './rivals.js';
 import { bmap, foeWalk, freeWalk, isUnl, nearestWall, setBlk, walkable } from '../world/world.js';
 
 function tpos(t) {
-  if (t.kind === 'b') {
+  // Een gebouw: van jou ('b') of van een rivaal ('rb')
+  if (t.kind === 'b' || t.kind === 'rb') {
     const s = B[t.type].size;
     return { x: t.x + s / 2, y: t.y + s / 2, rad: s / 2 };
   }
   if (t.kind === 'c') return { x: t.x + 1, y: t.y + 1, rad: 1.2 };
   return { x: t.x, y: t.y, rad: 0.25 };
 }
-const isDead = t => !t || t.dead || t.hidden || (t.kind === 'c' && !t.alive) || (t.kind === 'f' && t.retreat);
+export const isDead = t =>
+  !t || t.dead || t.hidden || (t.kind === 'c' && !t.alive) || (t.kind === 'f' && t.retreat);
 function hit(t, dmg) {
   if (isDead(t)) return;
   t.hp -= dmg;
   t.flash = 0.12;
-  if (t.kind === 'b' || t.kind === 'c') sfx('hit', 0.15);
+  if (t.kind === 'b' || t.kind === 'c' || t.kind === 'rb') sfx('hit', 0.15);
   else sfx('hit', 0.3);
+  if (t.rival) rivalHurt(t); // een rivaal merkt dat je hem aanvalt
   if (t.hp > 0) return;
   t.dead = true;
   if (t.kind === 'b') destroyBuilding(t);
+  else if (t.kind === 'rb') rivalBuildingDestroyed(t);
   else if (t.kind === 'v') {
     G.stats.lost++; // voor de medailles van uitdagingen
     G.vs = G.vs.filter(x => x !== t);
@@ -114,7 +127,7 @@ function campDestroyed(c) {
   gain(L);
   const ci = ((c.y + 1) >> 4) * CN + ((c.x + 1) >> 4);
   let extra = '';
-  if (!G.unl[ci]) {
+  if (!G.unl[ci] && !landOwner(ci)) {
     G.unl[ci] = 1;
     extra = ' Het gebied is nu van jou.';
   }
@@ -168,9 +181,15 @@ export function updateProj(dt) {
         const list = p.foe ? [...G.vs, ...G.us] : G.foes;
         for (const e of list) if (!e.hidden && dist(e.x, e.y, p.lx, p.ly) <= p.splash) hit(e, p.dmg);
         if (p.foe && !isDead(p.t) && p.t.kind === 'b') hit(p.t, p.dmg);
-        if (!p.foe)
+        if (!p.foe) {
           for (const c of G.camps)
             if (c.alive && dist(c.x + 1, c.y + 1, p.lx, p.ly) <= p.splash + 1) hit(c, p.dmg);
+          // Gebouwen van rivalen in de ontploffing (een kopie van de lijst: er kan er een instorten)
+          for (const b of [...rbById.values()]) {
+            const s = B[b.type].size / 2;
+            if (dist(b.x + s, b.y + s, p.lx, p.ly) <= p.splash + s) hit(b, p.dmg);
+          }
+        }
         G.fx.push({ type: 'boom', x: p.lx, y: p.ly, life: 0.35, r: p.splash });
       } else if (!isDead(p.t)) hit(p.t, p.dmg);
     } else {
@@ -214,9 +233,11 @@ export function uUpdate(u, dt) {
   const bonusHeal = 2 * add('heal'); // het leger geneest dubbel zo snel als het volk
   u.hp = Math.min(u.mhp, u.hp + dt * (restHeal + bonusHeal));
   if (u.tgt && isDead(u.tgt)) {
-    u.tgt = null;
+    // Een gebouw van een rivaal is gevallen: meteen door naar het volgende gebouw van hun stad
+    const next = u.order === 'attack' && u.tgt.kind === 'rb' ? nextRivalBuilding(u.tgt) : null;
+    u.tgt = next;
     u.path = null;
-    if (u.order === 'attack') u.order = 'guard';
+    if (!next && u.order === 'attack') u.order = 'guard';
   }
   u.scan -= dt;
   if (u.scan <= 0) {
@@ -226,7 +247,10 @@ export function uUpdate(u, dt) {
         am = u.order === 'amove' || u.order === 'patrol',
         leash = am ? 8 : st === 'hold' ? U.r + 0.3 : st === 'aggr' ? 11 : u.order === 'move' ? 4.5 : 7;
       const f = nearestFoe(u.x, u.y, leash, U.air);
-      if (
+      // In een aanvalsmars of op aanvallen: ook gebouwen van rivalen in de buurt aanvallen
+      const rb = !f && !u.tgt && (am || st === 'aggr') ? nearestRivalBuilding(u.x, u.y, leash) : null;
+      if (rb) u.tgt = rb;
+      else if (
         f &&
         (st === 'aggr' ||
           u.order !== 'guard' ||
@@ -326,7 +350,7 @@ function chase(e, p, dt, spd, fly) {
     }
   }
 }
-function moveToward(e, x, y, dt, spd, fly) {
+export function moveToward(e, x, y, dt, spd, fly) {
   if (dist(e.x, e.y, x, y) < 0.35) {
     e.path = null;
     return true;
@@ -364,7 +388,7 @@ function moveToward(e, x, y, dt, spd, fly) {
   }
   return false;
 }
-function foeTarget(f) {
+export function foeTarget(f) {
   let best = null,
     bd = f.camp ? 7 : 5.5;
   for (const u of G.us) {
@@ -438,6 +462,9 @@ export function fUpdate(f, dt) {
       moveToward(f, f.hx, f.hy, dt, f.spd * 0.7, f.air);
       return;
     }
+  } else if (f.rival) {
+    // Soldaten van een rivaal: thuis op wacht, onderweg of aanvallend (zie game/rivals.js)
+    if (!rivalThink(f, dt)) return;
   } else {
     f.rt -= dt;
     if (!f.tgt || isDead(f.tgt) || f.rt <= 0) {
@@ -463,9 +490,9 @@ export function fUpdate(f, dt) {
           foe: 1,
           col: f.air ? '#ff6a5a' : '#ff9b6b',
           big: f.big,
-          splash: f.big ? 1 : 0,
+          splash: f.splash ?? (f.big ? 1 : 0),
           h0: f.air ? 22 : 12,
-          snd: FOES[f.type].snd,
+          snd: f.uk ? f.snd : FOES[f.type].snd, // een rivaal heeft gewone soldaten, met hun eigen geluid
         });
       else hit(f.tgt, f.dmg);
     }
@@ -505,7 +532,7 @@ export function raidSize() {
   const base = 2 + Math.floor((G.raids + 1) * 0.9) + G.age;
   return Math.min(diff.raidMax, Math.round(base * diff.raidSize * mul('raid.size')));
 }
-function compass(x, y) {
+export function compass(x, y) {
   const a = (Math.atan2(y - CY, x - CX) * 180) / Math.PI;
   const dirs = [
     'oosten',
@@ -519,3 +546,12 @@ function compass(x, y) {
   ];
   return dirs[((Math.round(a / 45) % 8) + 8) % 8];
 }
+
+/**
+ * Valt deze vijand nu je land aan? Kampbewakers tellen niet. Van een rivaal tellen alleen soldaten
+ * die echt aanvallen: niet die thuis op wacht staan, nog onderweg zijn of naar huis lopen.
+ */
+export const isRaider = f => !f.retreat && !f.dead && !f.camp && !(f.rival && f.mode !== 'raid');
+
+/** Is deze soldaat van een rivaal nog onderweg naar je stad? Dan is hij er nog niet, maar komt hij wel. */
+export const isMarching = f => !!f.rival && f.mode === 'march' && !f.retreat && !f.dead;

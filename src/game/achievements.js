@@ -55,6 +55,7 @@ export function gameFacts() {
     fullAge: startAge() ? -1 : fullAge(standing),
     expansions: G.bought,
     meteors: G.stats.meteors,
+    rivalsBeaten: G.stats.rivals || 0,
   };
 }
 
@@ -97,6 +98,7 @@ function scoreNow() {
     kills: G.stats.killed,
     days: G.day,
     diff,
+    rivals: G.stats.rivals || 0,
     challenge: challenge && { won: G.won, medal: challenge.medal },
   });
   const game = {

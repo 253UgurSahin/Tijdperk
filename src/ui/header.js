@@ -7,6 +7,7 @@ import { TECH } from '../data/tech.js';
 import { powerDem, powerSup, wr } from '../game/caches.js';
 import { has } from '../game/economy.js';
 import { popCap, popNow } from '../game/entities.js';
+import { isMarching, isRaider } from '../game/military.js';
 import { buildCost, chunkCost, lackText } from '../game/placement.js';
 import { G, sel } from '../game/state.js';
 import { isNight, raidNight, season } from '../game/time.js';
@@ -106,10 +107,12 @@ export function updateWorldTop() {
     const el = $('#dayTxt');
     if (el.textContent !== dt) el.textContent = dt;
   }
-  const raidNow = G.foes.some(f => !f.camp && !f.retreat),
+  const raidNow = G.foes.some(isRaider),
+    // Soldaten van een rivaal onderweg: ze komen eraan, maar zijn nog niet in je land
+    marchNow = !raidNow && G.foes.some(isMarching),
     t = $('#timeTxt');
-  if (raidNow) {
-    t.textContent = 'Aanval gaande';
+  if (raidNow || marchNow) {
+    t.textContent = raidNow ? 'Aanval gaande' : 'Aanval op komst';
     t.className = 'raid';
   } else {
     t.textContent = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')} · ${part}`;
@@ -126,7 +129,7 @@ export function updateWorldTop() {
   }
   if ($('#modeTxt').textContent !== C.t) $('#modeTxt').textContent = C.t;
   if ($('#modeHint').textContent !== C.h) $('#modeHint').textContent = C.h;
-  $('#step').classList.toggle('alarm', C.t === 'Aanval!');
+  $('#step').classList.toggle('alarm', !!C.alarm);
   {
     const cb = $('#coachBtn'),
       al = store.coachAct ? store.coachAct.l : '';
@@ -188,7 +191,7 @@ export function updateWorldTop() {
   $('#raidflash').classList.toggle('on', raidNow);
   const dq = document.querySelector('#sidebtns [data-p="def"]'),
     uq = document.querySelector('#sidebtns [data-p="upg"]');
-  if (dq) dq.classList.toggle('dot', raidNow || (raidNight() && G.clock >= 12 && G.clock < 21));
+  if (dq) dq.classList.toggle('dot', raidNow || marchNow || (raidNight() && G.clock >= 12 && G.clock < 21));
   if (uq)
     uq.classList.toggle(
       'dot',

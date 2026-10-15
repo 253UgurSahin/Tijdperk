@@ -13,6 +13,7 @@ import { cleanScenarioState } from '../data/scenarios.js';
 import { VICTORY } from '../data/victories.js';
 import { computeAvail, computeCaches } from './caches.js';
 import { spawnFoe, spawnUnit, spawnVillager } from './entities.js';
+import { loadRivals, saveRivals } from './rivals.js';
 import { G, bById, baseState, gameOpts, setGame } from './state.js';
 import { setZoom } from '../input/input.js';
 import { clearSel } from '../input/selection.js';
@@ -125,6 +126,7 @@ export function serialize() {
     guards: G.foes
       .filter(f => f.camp)
       .map(f => ({ type: f.type, x: f.x, y: f.y, hp: f.hp, mhp: f.mhp, camp: f.camp })),
+    rivals: saveRivals(), // rivalen met hun gebouwen en soldaten (zie game/rivals.js)
     cam: { x: cam.x, y: cam.y, z: cam.z },
     cv: 2,
   });
@@ -242,6 +244,9 @@ export function deserialize(str) {
     f.hx = c.x + 1 + (Math.random() - 0.5) * 3;
     f.hy = c.y + 1 + (Math.random() - 0.5) * 3;
   }
+  // Rivalen: opslag van daarvóór heeft er geen. Het gekozen aantal is wat er in het spel zit.
+  loadRivals(s.rivals);
+  G.opts.rivals = G.rivals.length;
   if (s.cam) {
     let x = s.cam.x,
       y = s.cam.y;

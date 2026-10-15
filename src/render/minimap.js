@@ -10,6 +10,8 @@ import { RC } from './terrain.js';
 import { $, isCompact } from '../util/dom.js';
 import { clamp } from '../util/math.js';
 import { bmap, ground, node, road } from '../world/world.js';
+import { RIVAL } from '../data/rivals.js';
+import { ownerAt, rbById, rivalById } from '../game/rivals.js';
 
 const mini = $('#mini'),
   mctx = mini.getContext('2d'),
@@ -42,8 +44,14 @@ const NODE_RGB = NODES.map(n =>
 // (store.mapVersion telt op bij nieuwe gebouwen, wegen, bronnen of gebied); anders tekenen we alleen de stippen.
 let drawnVersion = -1,
   drawnAge = -1;
+// Kleur (r, g, b) van een rivaal op nummer, voor zijn land en gebouwen
+function rivalRGB(id) {
+  const r = rivalById(id);
+  return r ? hex(RIVAL[r.k].c) : [200, 200, 200];
+}
 function paintMiniBase() {
   const d = mimg.data;
+  const rivalRGBs = [null, rivalRGB(1), rivalRGB(2), rivalRGB(3)];
   for (let i = 0; i < W * H; i++) {
     const x = i % W,
       y = (i / W) | 0,
@@ -54,8 +62,18 @@ function paintMiniBase() {
     const nc = n && NODES[n].age <= G.age && NODE_RGB[n];
     if (nc) [r, g, b] = nc;
     if (road[i] && !bmap[i]) [r, g, b] = RC[road[i]];
-    if (bmap[i]) [r, g, b] = [74, 136, 232];
-    if (!G.unl[(y >> 4) * CN + (x >> 4)]) {
+    // Gebouwen: blauw van jou, of in de kleur van een rivaal (licht, zodat ze opvallen)
+    const rb = bmap[i] && rbById.get(bmap[i]);
+    if (rb) [r, g, b] = rivalRGBs[rb.rival].map(c => Math.min(255, c * 1.25 + 30));
+    else if (bmap[i]) [r, g, b] = [74, 136, 232];
+    const owner = ownerAt(x, y);
+    if (owner && !rb) {
+      // Land van een rivaal: donker, met een flinke tint van zijn kleur
+      const c = rivalRGBs[owner];
+      r = r * 0.4 + c[0] * 0.3;
+      g = g * 0.4 + c[1] * 0.3;
+      b = b * 0.4 + c[2] * 0.3;
+    } else if (!G.unl[(y >> 4) * CN + (x >> 4)] && !rb) {
       r *= 0.42;
       g *= 0.45;
       b *= 0.5;
@@ -95,7 +113,15 @@ export function renderMini() {
     mctx.stroke();
   }
   mctx.fillStyle = '#ff5a4a';
-  for (const f of G.foes) if (!f.camp) mctx.fillRect(f.x - 1, f.y - 1, 2.5, 2.5);
+  for (const f of G.foes) if (!f.camp && !f.rival) mctx.fillRect(f.x - 1, f.y - 1, 2.5, 2.5);
+  // Soldaten van rivalen in hun eigen kleur, met een donkere rand zodat je ze ook op hun eigen land ziet
+  for (const f of G.foes) {
+    if (!f.rival || f.retreat) continue;
+    mctx.fillStyle = '#1d1712';
+    mctx.fillRect(f.x - 1.4, f.y - 1.4, 3.3, 3.3);
+    mctx.fillStyle = RIVAL[rivalById(f.rival)?.k]?.c || '#ffffff';
+    mctx.fillRect(f.x - 1, f.y - 1, 2.5, 2.5);
+  }
   mctx.fillStyle = '#9fd0ff';
   for (const u of G.us) mctx.fillRect(u.x - 0.8, u.y - 0.8, 2, 2);
   const pts = [s2t(0, 0), s2t(VW, 0), s2t(VW, VH), s2t(0, VH)].map(p => [

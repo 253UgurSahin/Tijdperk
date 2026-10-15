@@ -7,7 +7,8 @@ import { G } from '../game/state.js';
 import { C, GB, M_, gCyl, gDod, gIco, gOct, mat } from './kit.js';
 import { CAM3, S3, cam } from './scene.js';
 import { hash2 } from '../util/random.js';
-import { TER, bmap, ground, isUnl, node, ter } from '../world/world.js';
+import { TER, bmap, ground, node, ter } from '../world/world.js';
+import { settled } from '../game/rivals.js';
 import { groundHeight } from './terrain.js';
 import { camDist } from './camera.js';
 
@@ -210,7 +211,7 @@ function placeCrags(x0, x1, y0, y1) {
         tone = 0.78 + h1 * 0.2;
       _c.setRGB((ground[g] / 255) * tone, (ground[g + 1] / 255) * tone, (ground[g + 2] / 255) * tone);
       _c.lerp(SNOWC, Math.min(0.55, Math.max(0, (gy - 3.8) / 1.2)));
-      if (!isUnl(x, y)) _c.multiply(LOCKED);
+      if (!settled(x, y)) _c.multiply(LOCKED);
       CRAGS[kind].setColorAt(n[kind], _c);
       n[kind]++;
     }
@@ -315,7 +316,7 @@ export function rebuildNodes(full) {
       _s.set(sc, sc * (v.startsWith('pine') ? 0.9 + h2 * 0.4 : 1), sc);
       _m4.compose(_v, _q, _s);
       // Elke boom of steen een net iets andere tint, zodat een bos niet uit klonen bestaat
-      const lk = !isUnl(x, y),
+      const lk = !settled(x, y), // wildernis (niet van jou of een rivaal) is donkerder
         tint = 0.86 + h3 * 0.24;
       _c.setRGB(tint * (0.96 + h1 * 0.08), tint * (0.97 + h2 * 0.05), tint * 0.96);
       if (lk) _c.multiply(LOCKED);

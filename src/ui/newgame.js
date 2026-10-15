@@ -1,15 +1,24 @@
-// Het nieuw-spelscherm: kies je volk, moeilijkheid, kaart, zaadcode en hoe je wint. Daarna begint de wereld.
+// Het nieuw-spelscherm: kies je volk, moeilijkheid, kaart, zaadcode, rivalen en hoe je wint. Daarna begint de wereld.
 import { sfx } from '../audio/sound.js';
 import { H, W } from '../config.js';
 import { DIFFICULTIES, cleanDiff } from '../data/difficulty.js';
 import { MAP, MAPS, cleanMap } from '../data/maps.js';
 import { PLACES } from '../data/names.js';
 import { DEFAULT_PEOPLE, PEOPLE, isPeopleUnlocked } from '../data/peoples.js';
-import { SELECTABLE_VICTORIES, VICTORY, cleanVictories } from '../data/victories.js';
+import { SELECTABLE_VICTORIES, VICTORY, cleanVictories, victoryAllowed } from '../data/victories.js';
+import {
+  DEFAULT_RIVALS,
+  MAX_RIVALS,
+  PERSONALITY,
+  RIVAL,
+  cleanRivalCount,
+  rivalLineup,
+} from '../data/rivals.js';
+import { pickRivalSites } from '../world/rivalsites.js';
 import { G } from '../game/state.js';
 import { esc } from './format.js';
 import { ico } from './glyphs.js';
-import { peoplePickHTML, playerProfile, showPeoplePicker } from './peoples.js';
+import { bannerHTML, peoplePickHTML, playerProfile, showPeoplePicker } from './peoples.js';
 import { cleanCode, codeFromSeed, randomSeed, seedFromCode } from '../util/seedcode.js';
 import { BIOME, generateWorld } from '../world/generate.js';
 
@@ -23,9 +32,9 @@ function rememberedChoices() {
   }
 }
 function rememberChoices(draft) {
-  const { people, diff, map, victories } = draft;
+  const { people, diff, map, victories, rivals } = draft;
   try {
-    localStorage.setItem(KEY, JSON.stringify({ people, diff, map, victories }));
+    localStorage.setItem(KEY, JSON.stringify({ people, diff, map, victories, rivals }));
   } catch (e) {}
 }
 
@@ -36,7 +45,10 @@ function rememberChoices(draft) {
 export function newGameDraft(keepCode = false) {
   // Een uitdaging heeft haar eigen instellingen (zoals Zwaar of een vast volk): die nemen we niet over
   const plainGame = !!G && !G.scenario;
-  const last = { ...(plainGame ? G.opts : {}), ...rememberedChoices() };
+  const remembered = rememberedChoices();
+  const last = { ...(plainGame ? G.opts : {}), ...remembered };
+  // Rivalen: wat je de vorige keer koos, anders één (de wereld achter het titelscherm telt niet mee)
+  const rivals = Number.isInteger(remembered.rivals) ? cleanRivalCount(remembered.rivals) : DEFAULT_RIVALS;
   const people =
     PEOPLE[last.people] && isPeopleUnlocked(last.people, playerProfile()) ? last.people : DEFAULT_PEOPLE;
   return {
@@ -44,7 +56,8 @@ export function newGameDraft(keepCode = false) {
     // Wat ontbreekt of niet meer bestaat, wordt de standaard (Normaal, continent, de sterrenpoort)
     diff: cleanDiff(last.diff),
     map: cleanMap(last.map),
-    victories: cleanVictories(last.victories),
+    victories: cleanVictories(last.victories, rivals),
+    rivals,
     code: keepCode && plainGame ? G.opts.seedCode : codeFromSeed(randomSeed()),
   };
 }
@@ -104,10 +117,13 @@ function atlasHTML(draft) {
 function victoriesHTML(draft) {
   const rows = SELECTABLE_VICTORIES.map(v => {
     const on = draft.victories.includes(v.k);
-    return `<button class="vic ${on ? 'on' : ''}" data-vic="${v.k}" role="checkbox" aria-checked="${on}">
+    // Verovering kan alleen met minstens één rivaal
+    const allowed = victoryAllowed(v, draft.rivals);
+    const why = allowed ? v.d : 'Kies eerst minstens 1 rivaal';
+    return `<button class="vic ${on ? 'on' : ''}" data-vic="${v.k}" role="checkbox" aria-checked="${on}" ${allowed ? '' : 'disabled'}>
       <span class="vbox">${on ? ico('✓') : ''}</span>
       <span class="vic-ic">${ico(v.g)}</span>
-      <span class="vtxt"><b>${v.n}</b><small>${v.d}</small></span>
+      <span class="vtxt"><b>${v.n}</b><small>${why}</small></span>
       <span class="vlen">${v.len}</span>
     </button>`;
   }).join('');
@@ -131,10 +147,43 @@ function winNotes(draft) {
   return notes;
 }
 
+/** Hoeveel rivalen, met wie ze zijn (vast bij de zaadcode) en een korte uitleg. */
+function rivalsHTML(draft) {
+  const seed = seedFromCode(draft.code);
+  // Een knop per aantal: Geen, 1, 2, 3
+  const buttons = Array.from({ length: MAX_RIVALS + 1 }, (_, n) => n)
+    .map(
+      n =>
+        `<button class="${n === draft.rivals ? 'on' : ''}" data-rivals="${n}" aria-pressed="${n === draft.rivals}">${n === 0 ? 'Geen' : n}</button>`,
+    )
+    .join('');
+  const lineup = seed === null ? [] : rivalLineup(seed).slice(0, draft.rivals);
+  // Per rivaal: vaandel, naam, karakter en in één zin wat dat karakter doet
+  const who = lineup.map(
+    ({ k, p }) =>
+      `<span class="ngriv">${bannerHTML(RIVAL[k], 'xs')}<span>
+        <b>${RIVAL[k].n}</b> <i>${PERSONALITY[p].n.toLowerCase()}</i>
+        <small>${PERSONALITY[p].d}</small>
+      </span></span>`,
+  );
+  // De eerste aanval: de vroegste dag van wie er meedoet (nooit vóór dag 4, net als in het spel)
+  const firstDays = lineup.map(({ p }) => PERSONALITY[p].first);
+  const firstAttack = Math.max(4, firstDays.length ? Math.min(...firstDays) : 4);
+  let hint = `Ze bouwen en groeien net als jij. De eerste aanval komt op zijn vroegst op dag ${firstAttack}. Hun stad staat als stip op de kaart.`;
+  if (!draft.rivals) hint = 'Alleen jij en de wildernis.';
+  else if (DIFFICULTIES[draft.diff].peaceful)
+    hint = 'Ze bouwen en groeien net als jij, maar op Vredig vallen ze niet aan.';
+  return `<section class="ng-riv">${label('Rivalen', 'andere volken op de kaart')}
+    <div class="seg rivseg">${buttons}</div>
+    ${who.length ? `<div class="ngrivs">${who.join('')}</div>` : ''}
+    <p class="nghint">${hint}</p></section>`;
+}
+
 function setupHTML(draft) {
   const ok = seedFromCode(draft.code) !== null;
   // Met komma's: op een telefoon loopt dit door op een tweede regel, zonder los puntje aan het eind
-  const summary = `${PEOPLE[draft.people].n}, ${DIFFICULTIES[draft.diff].n.toLowerCase()}, ${MAP[draft.map].n.toLowerCase()}`;
+  const foes = draft.rivals ? `, ${draft.rivals} ${draft.rivals === 1 ? 'rivaal' : 'rivalen'}` : '';
+  const summary = `${PEOPLE[draft.people].n}, ${DIFFICULTIES[draft.diff].n.toLowerCase()}, ${MAP[draft.map].n.toLowerCase()}${foes}`;
   return `<div class="tw ng">
     <div class="nghead">
       <button class="quiet ngback" data-ng="back">${ico('←')}Terug</button>
@@ -150,6 +199,7 @@ function setupHTML(draft) {
       <div class="ngcol">
         ${mapHTML(draft)}
         ${atlasHTML(draft)}
+        ${rivalsHTML(draft)}
       </div>
     </div>
     <button class="mbtn primary ngstart" data-ng="start" ${ok ? '' : 'disabled'}><span>Begin</span><small>${summary}</small></button>
@@ -168,8 +218,10 @@ const COLORS = {
   [BIOME.DESERT]: [214, 186, 128],
   [BIOME.SALT]: [222, 222, 212],
 };
-// Een paar kaartjes onthouden, zodat heen en weer klikken tussen kaartsoorten meteen werkt
-const previews = new Map();
+// Een paar kaartjes onthouden, zodat heen en weer klikken tussen kaartsoorten meteen werkt.
+// Per kaartje ook waar de rivalen wonen (dezelfde plekken als in het spel, zie world/rivalsites.js).
+const previews = new Map(),
+  rivalSpots = new Map();
 let previewTimer = 0;
 
 /** Maak een plaatje van een wereld: kleur per landschap, met wat schaduw zodat je de bergen ziet. */
@@ -213,6 +265,15 @@ function paintPreview(el, draft) {
     ctx.arc(W / 2, H / 2, 8, 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
+    // De rivalen: een stip in hun eigen kleur
+    const lineup = rivalLineup(seed);
+    (rivalSpots.get(key) || []).slice(0, draft.rivals).forEach((spot, i) => {
+      ctx.fillStyle = RIVAL[lineup[i].k].c;
+      ctx.beginPath();
+      ctx.arc(spot.x + 1, spot.y + 1, 7, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+    });
     return;
   }
   clearTimeout(previewTimer);
@@ -222,8 +283,16 @@ function paintPreview(el, draft) {
     const now = seedFromCode(draft.code);
     if (now === null || el.hidden || !el.querySelector('.ngmap canvas')) return;
     const nowKey = `${now}:${draft.map}`;
-    if (!previews.has(nowKey)) previews.set(nowKey, worldImage(generateWorld(now, W, H, draft.map)));
-    if (previews.size > 12) previews.delete(previews.keys().next().value);
+    if (!previews.has(nowKey)) {
+      const world = generateWorld(now, W, H, draft.map);
+      previews.set(nowKey, worldImage(world));
+      rivalSpots.set(nowKey, pickRivalSites(world.ter, W, H, now));
+    }
+    if (previews.size > 12) {
+      const oldest = previews.keys().next().value;
+      previews.delete(oldest);
+      rivalSpots.delete(oldest);
+    }
     paintPreview(el, draft);
   }, 280);
 }
@@ -254,13 +323,16 @@ export function showNewGame(el, draft, { onBack, onStart }) {
       el.querySelector('.ngplace').innerHTML = `${ico('⚑')}${PLACES[seed % PLACES.length]}`;
     }
     el.querySelector('.ngmap').classList.toggle('empty', !ok);
+    // Andere code = andere rivalen
+    el.querySelector('.ng-riv').outerHTML = rivalsHTML(draft);
     paintPreview(el, draft);
   };
   const start = () => {
     const seed = seedFromCode(draft.code);
     if (seed === null) return;
     rememberChoices(draft);
-    onStart({ seed, people: draft.people, diff: draft.diff, map: draft.map, victories: draft.victories });
+    const { people, diff, map, victories, rivals } = draft;
+    onStart({ seed, people, diff, map, victories, rivals });
   };
   draw();
   el.onclick = e => {
@@ -284,6 +356,11 @@ export function showNewGame(el, draft, { onBack, onStart }) {
       });
     else if (t.dataset.diff !== undefined) {
       draft.diff = +t.dataset.diff;
+      draw();
+    } else if (t.dataset.rivals !== undefined) {
+      draft.rivals = cleanRivalCount(+t.dataset.rivals);
+      // Zonder rivalen valt Verovering weg (en is er altijd nog een ander doel)
+      draft.victories = cleanVictories(draft.victories, draft.rivals);
       draw();
     } else if (t.dataset.map) {
       draft.map = t.dataset.map;
@@ -310,7 +387,7 @@ export function showNewGame(el, draft, { onBack, onStart }) {
 function toggleVictory(el, draft, tile, draw) {
   const k = tile.dataset.vic;
   if (!draft.victories.includes(k)) {
-    draft.victories = cleanVictories([...draft.victories, k]);
+    draft.victories = cleanVictories([...draft.victories, k], draft.rivals);
     draw();
     return;
   }

@@ -203,6 +203,8 @@ addEventListener('keydown', e => {
       sel.vs.size ||
       sel.b ||
       sel.camp ||
+      sel.rb ||
+      sel.rival ||
       sel.node >= 0;
     store.placing = null;
     store.cmdMode = null;

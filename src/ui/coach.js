@@ -5,6 +5,9 @@ import { GATHER, RES } from '../data/resources.js';
 import { avail } from '../game/caches.js';
 import { built } from '../game/chapters.js';
 import { popCap, popNow } from '../game/entities.js';
+import { compass, isMarching, isRaider } from '../game/military.js';
+import { arrivalHour, clockText, rivalById } from '../game/rivals.js';
+import { RIVAL, verb } from '../data/rivals.js';
 import { ruleAllowsBuilding } from '../game/mods.js';
 import { G } from '../game/state.js';
 import { hoursUntilRaid, isNight } from '../game/time.js';
@@ -94,13 +97,16 @@ export function coach() {
     NA = nx && AGES[G.age + 1].n.toLowerCase(),
     pn = popNow(),
     cap = popCap();
-  const raid = G.foes.filter(f => !f.camp && !f.retreat).length;
+  const raid = G.foes.filter(isRaider).length;
   if (raid)
     return {
       t: 'Aanval!',
       h: `${raid} vijanden in je land. Je dorpelingen schuilen. Torens en soldaten verdedigen.`,
       act: { l: 'Bekijk de aanval', k: 'alarm' },
+      alarm: true,
     };
+  const marching = G.foes.filter(isMarching);
+  if (marching.length) return marchStep(marching);
   const lit = G.bs.some(b => b.type !== 'townhall' && B[b.type].light && !B[b.type].gen);
   const dark = G.vs.filter(v => v.state === 'sleep' || (v.state === 'walk' && v.on === 'sleep')).length;
   const lamp = BKEYS.find(k => B[k].cat === 'light' && B[k].light && !B[k].gen && canMake(k, G.age));
@@ -220,6 +226,23 @@ export function coach() {
     t: `Klaar voor de ${NA}!`,
     h: 'Alles is binnen. Zet de stap naar een nieuw tijdperk.',
     act: { l: `Naar de ${NA}`, k: 'age' },
+  };
+}
+
+// Soldaten van een rivaal zijn onderweg naar je stad: wie, hoeveel, uit welke richting en hoe laat
+function marchStep(marching) {
+  const lead = marching[0],
+    r = rivalById(lead.rival),
+    n = marching.length;
+  const oneRival = r && marching.every(f => f.rival === lead.rival);
+  const who = oneRival ? `${RIVAL[r.k].n} ${verb(RIVAL[r.k], 'is', 'zijn')}` : 'Rivalen zijn';
+  const soldiers = `${n} ${n === 1 ? 'soldaat' : 'soldaten'}`;
+  const when = clockText(arrivalHour(marching));
+  return {
+    t: 'Aanval op komst!',
+    h: `${who} onderweg: ${soldiers} uit het ${compass(lead.x, lead.y)}, rond ${when} hier.`,
+    act: { l: 'Bekijk ze', k: 'alarm' },
+    alarm: true,
   };
 }
 

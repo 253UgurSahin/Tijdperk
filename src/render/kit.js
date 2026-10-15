@@ -106,6 +106,8 @@ const FIREM = new T3.MeshBasicMaterial({ color: '#ff9d3a' }),
 export const TEAM = '#2f6fd6',
   TEAMD = '#204c96',
   FOE = '#b8352c';
+// De kleur van vlaggen en banieren op gebouwen. Voor een rivaal zet render/rivals3d.js hem even op zijn kleur.
+export const paint = { team: TEAM };
 export const GB = new T3.BoxGeometry(1, 1, 1);
 GB.translate(0, 0.5, 0);
 const GC = {};
@@ -232,7 +234,7 @@ export function wins(g, w, d, y, h, n, cx = 0, cz = 0, wd = 0.12) {
 export function door(g, w, d, dw = 0.16, dh = 0.26, c = '#4a3523', x = 0) {
   bx(g, dw, dh, 0.03, c, x, 0, d / 2 + 0.01);
 }
-export function flagpole(g, x, y, z, h = 0.7, c = TEAM) {
+export function flagpole(g, x, y, z, h = 0.7, c = paint.team) {
   cy(g, 0.015, h, '#5d5348', x, y, z, 5);
   const f = bx(g, 0.26, 0.15, 0.015, c, x + 0.13, y + h - 0.17, z);
   f.userData.flag = 1;

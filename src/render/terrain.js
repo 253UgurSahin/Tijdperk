@@ -9,6 +9,13 @@ import { hash2 } from '../util/random.js';
 import { dressTerrain } from './terrainlook.js';
 import { updateWaterDepth } from './water.js';
 import { TER, ground, mountainHeight, road, ter } from '../world/world.js';
+import { ownerAt, rivalColour } from '../game/rivals.js';
+
+// Kleur van een rivaal als [r, g, b], voor zijn land en de rand eromheen
+const rivalRGB = id => {
+  const c = rivalColour(id);
+  return [1, 3, 5].map(k => parseInt(c.slice(k, k + 2), 16));
+};
 
 const TS = 12, // pixels per tegel in de grondtextuur
   TCAN = document.createElement('canvas');
@@ -50,7 +57,10 @@ const px3 = [0, 0, 0];
 
 export function paintTile(x, y) {
   const i = y * W + x,
-    lk = !G.unl[(y >> 4) * CN + (x >> 4)],
+    mine = G.unl[(y >> 4) * CN + (x >> 4)] === 1,
+    own = mine ? 0 : ownerAt(x, y), // land van een rivaal (zijn nummer), of 0
+    lk = !mine && !own, // wildernis: die tekenen we donkerder
+    tint = own ? rivalRGB(own) : null,
     rd = road[i],
     d = timg.data,
     X0 = x * TS,
@@ -112,14 +122,42 @@ export function paintTile(x, y) {
         g = (g * 0.35 + m * 0.25) * 0.62 + 18;
         b = (b * 0.35 + m * 0.25) * 0.62 + 24;
       }
+      // Land van een rivaal: bewoond (dus niet donker), met een zweem van zijn kleur
+      if (tint) {
+        r = r * 0.88 + (tint[0] - r * 0.88) * 0.14;
+        g = g * 0.88 + (tint[1] - g * 0.88) * 0.14;
+        b = b * 0.88 + (tint[2] - b * 0.88) * 0.14;
+      }
       const o = ((Y0 + py) * WW + X0 + px) * 4;
       d[o] = r;
       d[o + 1] = g;
       d[o + 2] = b;
       d[o + 3] = 255;
     }
+  // Rand van het gebied van een rivaal, in zijn kleur
+  if (tint) {
+    const put = (px, py) => {
+      const o = ((Y0 + py) * WW + X0 + px) * 4;
+      d[o] = tint[0];
+      d[o + 1] = tint[1];
+      d[o + 2] = tint[2];
+    };
+    // Grenst deze tegel links, rechts, boven of onder aan land dat niet van deze rivaal is?
+    const left = ownerAt(x - 1, y) !== own,
+      right = ownerAt(x + 1, y) !== own,
+      up = ownerAt(x, y - 1) !== own,
+      down = ownerAt(x, y + 1) !== own;
+    // Een rand van twee pixels breed
+    for (let p = 0; p < TS; p++)
+      for (const w of [0, 1]) {
+        if (left) put(w, p);
+        if (right) put(TS - 1 - w, p);
+        if (up) put(p, w);
+        if (down) put(p, TS - 1 - w);
+      }
+  }
   // Rand van je gebied
-  if (!lk) {
+  if (mine) {
     const L = (xx, yy) => xx < 0 || yy < 0 || xx >= W || yy >= H || !G.unl[(yy >> 4) * CN + (xx >> 4)];
     const put = (px, py) => {
       const o = ((Y0 + py) * WW + X0 + px) * 4;

@@ -10,12 +10,19 @@ const gS = new Float32Array(W * H),
   stp = new Uint32Array(W * H),
   cls = new Uint32Array(W * H);
 let stamp = 0;
-export function findPath(sx, sy, tx, ty, free) {
+// Alleen water en bergen houden je tegen (muren niet): voor lange routes van rivalen, zie game/rivals.js
+const landWalk = (x, y) => x >= 0 && y >= 0 && x < W && y < H && passable(y * W + x);
+/**
+ * Zoek een route van (sx, sy) naar (tx, ty). `free`: false = alleen in je eigen gebied, true = overal,
+ * 2 = als een vijand (poorten zijn dicht), 3 = over alle begaanbare grond, ook door muren heen.
+ * `maxSteps`: zoveel tegels mag het zoeken hoogstens bekijken (lange routes mogen meer).
+ */
+export function findPath(sx, sy, tx, ty, free, maxSteps = 40000) {
   sx = clamp(sx, 0, W - 1);
   sy = clamp(sy, 0, H - 1);
   tx = clamp(tx, 0, W - 1);
   ty = clamp(ty, 0, H - 1);
-  const ok0 = free === 2 ? foeWalk : free ? freeWalk : walkable,
+  const ok0 = free === 3 ? landWalk : free === 2 ? foeWalk : free ? freeWalk : walkable,
     goalI = ty * W + tx,
     ok = (x, y) => ok0(x, y) || (free && x === tx && y === ty && passable(goalI));
   if (sx === tx && sy === ty) return [];
@@ -76,7 +83,7 @@ export function findPath(sx, sy, tx, ty, free) {
     }
     if (cls[c] === stamp) continue;
     cls[c] = stamp;
-    if (++exp > 40000) return null; // geef op bij heel lange of onmogelijke routes
+    if (++exp > maxSteps) return null; // geef op bij heel lange of onmogelijke routes
     const cx = c % W,
       cy = (c / W) | 0;
     for (let dy = -1; dy <= 1; dy++)

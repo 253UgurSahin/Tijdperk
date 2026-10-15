@@ -8,7 +8,8 @@ import { camDist } from './camera.js';
 import { WIND } from './nodes.js';
 import { S3, cam } from './scene.js';
 import { groundVersion } from './terrainlook.js';
-import { BIOME, TER, biome, bmap, ground, isUnl, node, road, ter } from '../world/world.js';
+import { BIOME, TER, biome, bmap, ground, node, road, ter } from '../world/world.js';
+import { settled } from '../game/rivals.js';
 
 // Een plukje gras: een paar smalle sprieten in een waaier, onderaan donker en bovenaan licht.
 // De normalen wijzen omhoog, zodat het gras even licht is als de grond eronder.
@@ -184,7 +185,7 @@ export function updateScatter() {
       if (!per) continue;
       // Rand van het gebied: kleiner, zodat er geen harde grens te zien is
       const edge = Math.min(1, (R - dist) / (R * 0.25)),
-        locked = !isUnl(x, y),
+        locked = !settled(x, y),
         busy = node[i] ? 0.5 : 1; // rond een boom of rots wat minder
       for (const kind of ['tuft', 'flower', 'pebble']) {
         let want = per[kind] * thin * busy;

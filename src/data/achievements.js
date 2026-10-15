@@ -38,6 +38,7 @@ export const emptyFacts = () => ({
   fullAge: -1, // hoogste tijdperk waarvan alle gebouwen tegelijk staan (-1 = geen)
   expansions: 0, // keren gebied uitgebreid
   meteors: 0, // meteorieten ingeslagen
+  rivalsBeaten: 0, // rivalen verslagen
 });
 
 /** Prestatie: win een spel met dit volk. */
@@ -174,6 +175,22 @@ export const ACHIEVEMENTS = [
     g: '⚑',
     d: 'Verover alle kampen op de kaart',
     when: f => f.camps > 0 && f.campsLeft === 0,
+  },
+  {
+    k: 'rival1',
+    n: 'Eén troon minder',
+    cat: 'war',
+    g: '♛',
+    d: 'Versla een rivaal: verwoest zijn stamhuis',
+    when: f => f.rivalsBeaten >= 1,
+  },
+  {
+    k: 'rivals3',
+    n: 'Alleenheerser',
+    cat: 'war',
+    g: '⚑',
+    d: 'Versla drie rivalen in één spel',
+    when: f => f.rivalsBeaten >= 3,
   },
   {
     k: 'raids3',
