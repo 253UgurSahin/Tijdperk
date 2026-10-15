@@ -13,7 +13,8 @@
 - De code is TypeScript (`strict`). `npm run build` controleert eerst de types (`tsc`) en bouwt dan.
 - Gedeelde types (gebouwen, dorpelingen, soldaten, de spelstand) staan in `src/types.ts`.
   Geen `any` en geen `@ts-ignore`; liever een duidelijk type of een korte uitleg waarom iets zeker bestaat (`!`).
-- Speldata in `src/data/` is puur (geen spelstand of DOM), zodat het te testen is.
+- Speldata in `src/data/` is puur (geen spelstand of DOM), zodat het te testen is. Het type van elke lijst
+  (zegeningen, gebeurtenissen, volken, ...) staat bij die lijst in hetzelfde bestand.
 - Gedeelde toestand die meerdere modules aanpassen staat in `src/core/store.ts` (met het type `Store`).
 - Controleer wijzigingen in de browser; in dev-modus staan hulpjes op `window.__tp`.
 - GitHub Actions draait bij elke push lint, tests, typecheck en build; `main` gaat daarna naar GitHub Pages.
