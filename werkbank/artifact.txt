@@ -8,9 +8,9 @@ transforming...
 rendering chunks...
 [plugin vite:singlefile] 
 
-[plugin vite:singlefile] Inlining: index-B6B5tcrL.js
+[plugin vite:singlefile] Inlining: index-CF1nHcK6.js
 [plugin vite:singlefile] Inlining: style-EF6z-msx.css
 computing gzip size...
 [2mdist-artifact/[22m[32mindex.html  [39m[1m[2m1,064.03 kB[22m[1m[22m[2m │ gzip: 326.51 kB[22m
-[32m✓ built in 2.08s[39m
+[32m✓ built in 2.70s[39m
 dist-artifact/tijdperken.html 1038 kB

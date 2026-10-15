@@ -1,32 +1,33 @@
 
 [1m[46m RUN [49m[22m [36mv3.2.7 [39m[90m/home/runner/work/Tijdperk/Tijdperk[39m
 
- [32m✓[39m tests/diplomacy.test.ts [2m([22m[2m34 tests[22m[2m)[22m[32m 58[2mms[22m[39m
- [32m✓[39m tests/events.test.ts [2m([22m[2m30 tests[22m[2m)[22m[32m 168[2mms[22m[39m
- [32m✓[39m tests/scenarios.test.ts [2m([22m[2m19 tests[22m[2m)[22m[32m 193[2mms[22m[39m
- [32m✓[39m tests/achievements.test.ts [2m([22m[2m28 tests[22m[2m)[22m[32m 26[2mms[22m[39m
- [32m✓[39m tests/wonders.test.ts [2m([22m[2m20 tests[22m[2m)[22m[32m 37[2mms[22m[39m
- [32m✓[39m tests/newgame.test.ts [2m([22m[2m18 tests[22m[2m)[22m[32m 51[2mms[22m[39m
- [32m✓[39m tests/peoples.test.ts [2m([22m[2m16 tests[22m[2m)[22m[32m 17[2mms[22m[39m
- [32m✓[39m tests/finale.test.ts [2m([22m[2m19 tests[22m[2m)[22m[33m 528[2mms[22m[39m
-   [33m[2m✓[22m[39m kampioenen: de beloning[2m > [22mna een kampioen liggen er geen kaarten die je bij de gewone keuze al zag, net zo voorspelbaar [33m 492[2mms[22m[39m
- [32m✓[39m tests/bonus.test.ts [2m([22m[2m17 tests[22m[2m)[22m[32m 14[2mms[22m[39m
- [32m✓[39m tests/blessings.test.ts [2m([22m[2m14 tests[22m[2m)[22m[32m 95[2mms[22m[39m
- [32m✓[39m tests/balance.test.ts [2m([22m[2m13 tests[22m[2m)[22m[32m 110[2mms[22m[39m
- [32m✓[39m tests/data.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 18[2mms[22m[39m
- [32m✓[39m tests/rivals.test.ts [2m([22m[2m20 tests[22m[2m)[22m[33m 2020[2mms[22m[39m
-   [33m[2m✓[22m[39m rivalen: getallen[2m > [22mtempo op Normaal: de bouwer gaat het snelst, en niemand is al na dag 3 in de IJzertijd [33m 501[2mms[22m[39m
-   [33m[2m✓[22m[39m rivalen: waar ze wonen[2m > [22mcontinent 42: drie plekken, ver weg, op bereikbaar land en zonder overlap [33m 381[2mms[22m[39m
-   [33m[2m✓[22m[39m rivalen: waar ze wonen[2m > [22mcontinent 98765: drie plekken, ver weg, op bereikbaar land en zonder overlap [33m 375[2mms[22m[39m
-   [33m[2m✓[22m[39m rivalen: waar ze wonen[2m > [22mislands 4242: drie plekken, ver weg, op bereikbaar land en zonder overlap [33m 336[2mms[22m[39m
-   [33m[2m✓[22m[39m rivalen: waar ze wonen[2m > [22mhighlands 7: drie plekken, ver weg, op bereikbaar land en zonder overlap [33m 381[2mms[22m[39m
- [32m✓[39m tests/succession.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 9[2mms[22m[39m
- [32m✓[39m tests/util.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 22[2mms[22m[39m
- [32m✓[39m tests/generate.test.ts [2m([22m[2m33 tests[22m[2m)[22m[33m 1436[2mms[22m[39m
-   [33m[2m✓[22m[39m wereldgenerator[2m > [22mzelfde seed en kaartsoort geeft dezelfde wereld, een andere kaartsoort een andere [33m 355[2mms[22m[39m
+ [32m✓[39m tests/diplomacy.test.ts [2m([22m[2m34 tests[22m[2m)[22m[32m 46[2mms[22m[39m
+ [32m✓[39m tests/events.test.ts [2m([22m[2m30 tests[22m[2m)[22m[32m 279[2mms[22m[39m
+ [32m✓[39m tests/scenarios.test.ts [2m([22m[2m19 tests[22m[2m)[22m[33m 342[2mms[22m[39m
+ [32m✓[39m tests/achievements.test.ts [2m([22m[2m28 tests[22m[2m)[22m[32m 47[2mms[22m[39m
+ [32m✓[39m tests/wonders.test.ts [2m([22m[2m20 tests[22m[2m)[22m[32m 64[2mms[22m[39m
+ [32m✓[39m tests/newgame.test.ts [2m([22m[2m18 tests[22m[2m)[22m[32m 83[2mms[22m[39m
+ [32m✓[39m tests/peoples.test.ts [2m([22m[2m16 tests[22m[2m)[22m[32m 25[2mms[22m[39m
+ [32m✓[39m tests/bonus.test.ts [2m([22m[2m17 tests[22m[2m)[22m[32m 25[2mms[22m[39m
+ [32m✓[39m tests/finale.test.ts [2m([22m[2m19 tests[22m[2m)[22m[33m 786[2mms[22m[39m
+   [33m[2m✓[22m[39m kampioenen: de beloning[2m > [22mna een kampioen liggen er geen kaarten die je bij de gewone keuze al zag, net zo voorspelbaar [33m 716[2mms[22m[39m
+ [32m✓[39m tests/blessings.test.ts [2m([22m[2m14 tests[22m[2m)[22m[32m 132[2mms[22m[39m
+ [32m✓[39m tests/balance.test.ts [2m([22m[2m13 tests[22m[2m)[22m[32m 116[2mms[22m[39m
+ [32m✓[39m tests/data.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 27[2mms[22m[39m
+ [32m✓[39m tests/rivals.test.ts [2m([22m[2m20 tests[22m[2m)[22m[33m 2898[2mms[22m[39m
+   [33m[2m✓[22m[39m rivalen: getallen[2m > [22mtempo op Normaal: de bouwer gaat het snelst, en niemand is al na dag 3 in de IJzertijd [33m 741[2mms[22m[39m
+   [33m[2m✓[22m[39m rivalen: waar ze wonen[2m > [22mcontinent 42: drie plekken, ver weg, op bereikbaar land en zonder overlap [33m 535[2mms[22m[39m
+   [33m[2m✓[22m[39m rivalen: waar ze wonen[2m > [22mcontinent 98765: drie plekken, ver weg, op bereikbaar land en zonder overlap [33m 679[2mms[22m[39m
+   [33m[2m✓[22m[39m rivalen: waar ze wonen[2m > [22mislands 4242: drie plekken, ver weg, op bereikbaar land en zonder overlap [33m 508[2mms[22m[39m
+   [33m[2m✓[22m[39m rivalen: waar ze wonen[2m > [22mhighlands 7: drie plekken, ver weg, op bereikbaar land en zonder overlap [33m 395[2mms[22m[39m
+ [32m✓[39m tests/succession.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 34[2mms[22m[39m
+ [32m✓[39m tests/util.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 33[2mms[22m[39m
+ [32m✓[39m tests/generate.test.ts [2m([22m[2m33 tests[22m[2m)[22m[33m 1949[2mms[22m[39m
+   [33m[2m✓[22m[39m wereldgenerator[2m > [22mzelfde seed en kaartsoort geeft dezelfde wereld, een andere kaartsoort een andere [33m 499[2mms[22m[39m
+   [33m[2m✓[22m[39m wereldgenerator[2m > [22meilanden hebben meer zee, bergland meer heuvels en bergen [33m 304[2mms[22m[39m
 
 [2m Test Files [22m [1m[32m16 passed[39m[22m[90m (16)[39m
 [2m      Tests [22m [1m[32m295 passed[39m[22m[90m (295)[39m
-[2m   Start at [22m 09:36:15
-[2m   Duration [22m 5.55s[2m (transform 791ms, setup 0ms, collect 2.95s, tests 4.80s, environment 4ms, prepare 1.41s)[22m
+[2m   Start at [22m 09:38:27
+[2m   Duration [22m 7.78s[2m (transform 995ms, setup 0ms, collect 4.07s, tests 6.89s, environment 6ms, prepare 1.98s)[22m
 
