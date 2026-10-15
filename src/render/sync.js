@@ -17,6 +17,7 @@ import { camDist } from './camera.js';
 import { S3, cam } from './scene.js';
 import { buildTerrain, flushTerrain, paintAll, pendingTiles, repaintTile } from './terrain.js';
 import { dirtyGround, node, road } from '../world/world.js';
+import { groundChanged } from './terrainlook.js';
 
 export const BG3 = new T3.Group(),
   EG3 = new T3.Group(),
@@ -179,6 +180,7 @@ export function syncBuildings() {
       bRec.set(b.id, r);
       if (justFinished) finishedBurst(g, s);
       store.mapVersion++;
+      groundChanged();
     }
     chimneySmoke(r, b, d, dt);
     const fl = b.flash || 0;
@@ -208,6 +210,7 @@ export function syncBuildings() {
       BG3.remove(r.g);
       bRec.delete(id);
       store.mapVersion++;
+      groundChanged();
     }
 }
 function entKey(e) {
@@ -415,6 +418,7 @@ function resetWorld3D() {
   store.nodeSnap = node.slice();
   store.nodeAge = G.age;
   lastG = G;
+  groundChanged();
 }
 export function checkWorld() {
   if (lastG !== G) {
@@ -435,6 +439,7 @@ export function checkWorld() {
     }
     rebuildNodes(false);
     store.nodeSnap = node.slice();
+    groundChanged();
   }
   for (const i of dirtyGround) repaintTile(i % W, (i / W) | 0);
   dirtyGround.clear();
@@ -442,17 +447,20 @@ export function checkWorld() {
     if (road[i] !== terrSnap[i]) {
       terrSnap[i] = road[i];
       repaintTile(i % W, (i / W) | 0);
+      groundChanged();
     }
   if (pendingTiles()) store.mapVersion++;
   flushTerrain();
-  let nc = G.age !== store.nodeAge || nodesNeedUpdate();
-  if (!nc)
+  // Echt iets veranderd (boom gekapt, nieuw tijdperk) of alleen de camera verschoven?
+  let changed = G.age !== store.nodeAge;
+  if (!changed)
     for (let i = 0; i < W * H; i++)
       if (node[i] !== store.nodeSnap[i]) {
-        nc = true;
+        changed = true;
         break;
       }
-  if (nc) {
+  if (changed) groundChanged();
+  if (changed || nodesNeedUpdate()) {
     store.mapVersion++;
     store.nodeSnap = node.slice();
     store.nodeAge = G.age;

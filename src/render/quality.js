@@ -4,7 +4,10 @@
 import { store } from '../core/store.js';
 import { SET, saveSet } from '../core/settings.js';
 import { configurePost } from './post.js';
-import { resize, sun } from './scene.js';
+import { requestResize, resize, sun } from './scene.js';
+import { setScatterDensity } from './scatter.js';
+import { setFineDetail } from './terrainlook.js';
+import { setNodeDetail } from './nodes.js';
 
 export const LEVELS = {
   low: {
@@ -17,6 +20,8 @@ export const LEVELS = {
     bloom: false,
     outline: false,
     particles: false,
+    scatter: 0, // geen grassprieten en steentjes
+    fine: false, // eenvoudiger grond, water, bomen en bergen
   },
   mid: {
     name: 'Middel',
@@ -27,6 +32,8 @@ export const LEVELS = {
     post: true,
     bloom: false,
     outline: true,
+    scatter: 0.5,
+    fine: true,
   },
   high: {
     name: 'Hoog',
@@ -37,6 +44,10 @@ export const LEVELS = {
     post: true,
     bloom: true,
     outline: true,
+    sharpen: 0.22,
+    hdr: true, // felle kleuren: alleen echte lichten gloeien
+    scatter: 1,
+    fine: true,
   },
 };
 const ORDER = ['low', 'mid', 'high'];
@@ -61,10 +72,16 @@ function customLevel() {
     bloom: !!g.bloom,
     outline: !!g.outline,
     particles: g.particles !== false,
+    sharpen: g.bloom ? 0.22 : 0,
+    hdr: !!g.bloom,
+    scatter: g.shadows ? 1 : 0.5,
+    fine: (g.scale || 1) >= 0.8,
   };
 }
 
-function apply(name) {
+// later = true: de nieuwe resolutie pas vlak vóór het volgende beeldje instellen. Een canvas
+// van grootte veranderen maakt het leeg; midden in een beeldje gaf dat een kort zwart beeld.
+function apply(name, later) {
   level = name;
   const L = name === 'custom' ? customLevel() : LEVELS[name];
   store.resScale = L.scale;
@@ -80,7 +97,11 @@ function apply(name) {
     }
   }
   configurePost(L);
-  resize();
+  setScatterDensity(L.scatter);
+  setFineDetail(L.fine);
+  setNodeDetail(L.fine);
+  if (later) requestResize();
+  else resize();
 }
 
 /** Kies de kwaliteit uit de instelling (bij opstarten en als de speler hem verandert). */
@@ -120,17 +141,17 @@ export function tickQuality(rdt) {
     slow = 0;
     if (store.resScale > L.scale - 0.2 + 0.01) {
       store.resScale = Math.max(0.5, store.resScale - 0.1);
-      resize();
-    } else if (ORDER.indexOf(level) > 0) apply(ORDER[ORDER.indexOf(level) - 1]);
+      requestResize();
+    } else if (ORDER.indexOf(level) > 0) apply(ORDER[ORDER.indexOf(level) - 1], true);
     else if (store.resScale > 0.5) {
       store.resScale = Math.max(0.5, store.resScale - 0.1);
-      resize();
+      requestResize();
     }
   } else if (fast >= 5) {
     fast = 0;
     if (store.resScale < L.scale - 0.01) {
       store.resScale = Math.min(L.scale, store.resScale + 0.1);
-      resize();
-    } else if (ORDER.indexOf(level) < ORDER.length - 1) apply(ORDER[ORDER.indexOf(level) + 1]);
+      requestResize();
+    } else if (ORDER.indexOf(level) < ORDER.length - 1) apply(ORDER[ORDER.indexOf(level) + 1], true);
   }
 }

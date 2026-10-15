@@ -10,6 +10,9 @@ import { GLASS, WIN } from './kit.js';
 import { FOL } from './nodes.js';
 import { PL, S3, cam, hemi, sun } from './scene.js';
 import { TMAT } from './terrain.js';
+import { SNOW_COVER } from './terrainlook.js';
+import { setBloomDarkness } from './post.js';
+import { setScatterSeason } from './scatter.js';
 import { dist } from '../util/math.js';
 
 const COLD = new T3.Color('#6f86c8'),
@@ -18,7 +21,8 @@ const COLD = new T3.Color('#6f86c8'),
   SKYD = new T3.Color('#e8f0ff'),
   SKYN = new T3.Color('#38466e'),
   FOGD = new T3.Color('#9fb3a6'),
-  FOGN = new T3.Color('#0c1220');
+  FOGN = new T3.Color('#0c1220'),
+  FOGDUSK = new T3.Color('#d9a07a');
 // Sfeer per tijdperk, heel subtiel: Gouden Eeuw warm, industrie wat heiiger, sterrentijd koeler.
 // [zonkleur, mistkleur, hoe sterk (0..1)]
 const AGE_MOOD = [
@@ -54,8 +58,11 @@ const AUT = { oak: '#c9772f', birch: '#d9a83a' },
   WINTER = { oak: '#8a8f86', birch: '#b5b9ad', pine: '#4d6a5a', pine2: '#5b7868', bush: '#6b7a62' };
 export function applySeason() {
   const sn = season().n;
+  // Sneeuw op de grond: langzaam erbij in de winter, langzaam weg in de lente
+  SNOW_COVER.value += ((sn === 'Winter' ? 1 : 0) - SNOW_COVER.value) * 0.004;
   if (sn === store.seasonSig) return;
   store.seasonSig = sn;
+  setScatterSeason(sn);
   for (const k in SUMMER)
     FOL[k].color.set(sn === 'Herfst' && AUT[k] ? AUT[k] : sn === 'Winter' ? WINTER[k] : SUMMER[k]);
   TMAT.color.set(
@@ -76,12 +83,20 @@ export function lighting(dk) {
     .lerp(WARM, dusk * 0.7)
     .lerp(COLD, dk);
   sun.intensity = 0.95 * (1 - dk) + 0.14 * dk;
-  hemi.color.copy(SKYD).lerp(SKYN, dk);
+  hemi.color
+    .copy(SKYD)
+    .lerp(WARM, dusk * 0.25)
+    .lerp(SKYN, dk);
   hemi.intensity = 0.55 * (1 - dk * 0.6) * (G.rain ? 0.85 : 1);
-  fogNow.copy(moodFog).lerp(FOGN, dk);
+  // Bij zonsopkomst en -ondergang kleurt de nevel aan de horizon warm
+  fogNow
+    .copy(moodFog)
+    .lerp(FOGDUSK, dusk * 0.45)
+    .lerp(FOGN, dk);
   S3.fog.color.copy(fogNow);
   S3.background.copy(fogNow);
   WIN.emissiveIntensity = GLASS.emissiveIntensity = dk * 1.3;
+  setBloomDarkness(dk);
   const all = lights.filter(L => dist(L.x, L.y, cam.x, cam.y) < camDist() * 1.2);
   let gi = 0;
   for (const L of all) {

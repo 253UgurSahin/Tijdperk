@@ -21,7 +21,10 @@ import { drawOverlay } from './overlay.js';
 import { bRec, cRec, checkWorld, eRec, syncBuildings, syncCamps, syncEntities } from './sync.js';
 import { inb } from '../world/world.js';
 import { outlinesOn, renderFrame, setOutlined } from './post.js';
-import { animateWater } from './terrain.js';
+import { applyPendingResize } from './scene.js';
+import { updateScatter } from './scatter.js';
+import { updateGroundShade } from './terrainlook.js';
+import { animateWater } from './water.js';
 import { WIND } from './nodes.js';
 import { entitiesInBox } from '../input/selection.js';
 
@@ -53,6 +56,7 @@ function updateOutlines() {
 }
 
 export function render() {
+  applyPendingResize();
   store.TM = performance.now() / 1000;
   animateWater(store.TM);
   WIND.value = store.TM;
@@ -64,6 +68,8 @@ export function render() {
   syncBuildings();
   syncEntities();
   syncCamps();
+  updateGroundShade(store.TM, b => bRec.get(b.id)?.h);
+  updateScatter();
   stepDying();
   drawFx();
   drawRain();
