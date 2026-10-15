@@ -6,10 +6,11 @@ import { canPlace, ghostPos, lineTiles } from '../game/placement';
 import { G } from '../game/state';
 import { drag, mouse } from '../input/input';
 import { quadAt, rangeAt } from './decals';
+import { isMesh } from './kit';
 import { makeBuilding } from './models';
 import { S3 } from './scene';
 
-const ghostCache = {};
+const ghostCache: Record<string, T3.Group> = {};
 const GHOK = new T3.MeshStandardMaterial({
     color: '#6fe08a',
     transparent: true,
@@ -28,7 +29,7 @@ function ghost(type: string): T3.Group {
   if (ghostCache[type]) return ghostCache[type];
   const g = makeBuilding(type, G.age, null);
   g.traverse(o => {
-    if (o.isMesh) {
+    if (isMesh(o)) {
       o.castShadow = false;
       o.renderOrder = 4;
     }
@@ -68,11 +69,11 @@ export function drawPlacement() {
     g.visible = true;
     g.position.set(gx + s / 2, 0, gy + s / 2);
     g.traverse(o => {
-      if (o.isMesh) o.material = err ? GHBAD : GHOK;
+      if (isMesh(o)) o.material = err ? GHBAD : GHOK;
     });
   }
   for (let dy = 0; dy < s; dy++)
     for (let dx = 0; dx < s; dx++)
       quadAt(gx + dx + 0.5, gy + dy + 0.5, 0.94, 0.94, err ? '#e5584a' : '#59d27a', 0.5);
-  if (d.def || d.light) rangeAt(gx + s / 2, gy + s / 2, d.def ? d.def.r : d.light, '#ffffff');
+  if (d.def || d.light) rangeAt(gx + s / 2, gy + s / 2, d.def ? d.def.r : d.light!, '#ffffff');
 }

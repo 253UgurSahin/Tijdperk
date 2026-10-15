@@ -33,8 +33,9 @@ export function updateCamera() {
   sun.position.set(cam.x - 28, 46, cam.y + 14);
   sun.target.position.set(cam.x, 0, cam.y);
   sun.target.updateMatrixWorld();
-  S3.fog.near = d * 1.15;
-  S3.fog.far = d * 2.9;
+  const fog = S3.fog as T3.Fog;
+  fog.near = d * 1.15;
+  fog.far = d * 2.9;
 }
 const RAY = new T3.Raycaster(),
   NDC = new T3.Vector2(),
@@ -82,7 +83,7 @@ export function clampCam() {
   cam.y = clamp(cam.y, 2, H - 2);
   if (cam.tx != null) {
     cam.tx = clamp(cam.tx, 2, W - 2);
-    cam.ty = clamp(cam.ty, 2, H - 2);
+    cam.ty = clamp(cam.ty!, 2, H - 2); // ty is altijd samen met tx gezet (zie centerOn)
   }
 }
 export function panScreen(dx: number, dy: number) {

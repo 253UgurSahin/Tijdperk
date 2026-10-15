@@ -11,21 +11,27 @@ import { $, isCompact } from '../util/dom';
 import { clamp } from '../util/math';
 import { bmap, ground, node, road } from '../world/world';
 
-const mini = $('#mini'),
-  mctx = mini.getContext('2d'),
+const mini = $<HTMLCanvasElement>('#mini'),
+  mctx = mini.getContext('2d')!,
   mbuf = document.createElement('canvas');
 mbuf.width = W;
 mbuf.height = H;
-const mbctx = mbuf.getContext('2d'),
+const mbctx = mbuf.getContext('2d')!,
   mimg = mbctx.createImageData(W, H);
-let MW = 200,
-  MH = 200;
-function miniXf() {
+let MW: number = 200,
+  MH: number = 200;
+/** De zes getallen voor setTransform: van kaarttegels naar pixels op de minikaart. */
+type Transform2D = [number, number, number, number, number, number];
+function miniXf(): Transform2D {
   const k = MW / (2 * W);
   return store.V2 ? [MW / W, 0, 0, MH / H, 0, 0] : [k, k, -k, k, MW / 2, 0];
 }
 // Vaste kleuren voor bronnen op de minikaart (één keer uitgerekend)
-const hex = (c: string): [number, number, number] => [parseInt(c.slice(1, 3), 16), parseInt(c.slice(3, 5), 16), parseInt(c.slice(5, 7), 16)];
+const hex = (c: string): [number, number, number] => [
+  parseInt(c.slice(1, 3), 16),
+  parseInt(c.slice(3, 5), 16),
+  parseInt(c.slice(5, 7), 16),
+];
 const NODE_RGB = NODES.map(n =>
   !n
     ? null
@@ -40,8 +46,8 @@ const NODE_RGB = NODES.map(n =>
 
 // De kaartafbeelding zelf wordt alleen opnieuw gemaakt als de wereld veranderd is
 // (store.mapVersion telt op bij nieuwe gebouwen, wegen, bronnen of gebied); anders tekenen we alleen de stippen.
-let drawnVersion = -1,
-  drawnAge = -1;
+let drawnVersion: number = -1,
+  drawnAge: number = -1;
 function paintMiniBase() {
   const d = mimg.data;
   for (let i = 0; i < W * H; i++) {
@@ -53,7 +59,7 @@ function paintMiniBase() {
       b = ground[i * 3 + 2];
     const nc = n && NODES[n].age <= G.age && NODE_RGB[n];
     if (nc) [r, g, b] = nc;
-    if (road[i] && !bmap[i]) [r, g, b] = RC[road[i]];
+    if (road[i] && !bmap[i]) [r, g, b] = RC[road[i]]!;
     if (bmap[i]) [r, g, b] = [74, 136, 232];
     if (!G.unl[(y >> 4) * CN + (x >> 4)]) {
       r *= 0.42;
@@ -114,7 +120,7 @@ function miniTo(e: PointerEvent) {
   const r = mini.getBoundingClientRect(),
     X = ((e.clientX - r.left) / r.width) * MW,
     Y = ((e.clientY - r.top) / r.height) * MH;
-  let x, y;
+  let x: number, y: number;
   if (store.V2) {
     x = X / (MW / W);
     y = Y / (MH / H);

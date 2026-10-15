@@ -1,4 +1,4 @@
-import type { Building, Camp, Mobile, Villager } from '../types';
+import type { Building, Camp, Mobile, Unit, Villager } from '../types';
 // Selecteren en opdrachten geven (lopen, aanvallen, verzamelen).
 import { store } from '../core/store';
 import { sfx } from '../audio/sound';
@@ -25,7 +25,7 @@ export const selUnits = () => G.us.filter(u => sel.us.has(u.id));
 export function resetV(v: Villager) {
   if (v.hidden) {
     v.hidden = false;
-    const b = bById.get(v.shelter);
+    const b = bById.get(v.shelter!);
     if (b) {
       v.x = b.x + 0.5;
       v.y = b.y + B[b.type].size + 0.2;
@@ -38,7 +38,8 @@ export function resetV(v: Villager) {
   v.prefSite = null;
   v.keep = null;
 }
-const LIFT = (e: Mobile): number => (e.kind === 'u' ? (UNITS[e.k].fly ? 1 : 0.35) : e.kind === 'f' ? (e.air ? 1 : 0.35) : 0.35);
+const LIFT = (e: Mobile): number =>
+  e.kind === 'u' ? (UNITS[e.k].fly ? 1 : 0.35) : e.kind === 'f' ? (e.air ? 1 : 0.35) : 0.35;
 export const villAt = (X: number, Y: number) => nearScreen(G.vs, X, Y, 16, LIFT);
 export const unitAt = (X: number, Y: number) => nearScreen(G.us, X, Y, 16, LIFT);
 export const foeAt = (X: number, Y: number) => nearScreen(G.foes, X, Y, 18, LIFT);
@@ -79,11 +80,11 @@ function command(X: number, Y: number, tx: number, ty: number) {
       c = campAt(X, Y);
     if (f || c) {
       for (const u of us) {
-        u.tgt = f || c;
+        u.tgt = f || c!;
         u.order = 'attack';
         u.path = null;
       }
-      fxRing(f ? f.x : c.x + 1, f ? f.y : c.y + 1, '#c0473b');
+      fxRing(f ? f.x : c!.x + 1, f ? f.y : c!.y + 1, '#c0473b');
       toast(`${us.length} ${us.length === 1 ? 'eenheid valt' : 'eenheden vallen'} aan.`);
       did = true;
     } else {
@@ -277,7 +278,7 @@ export function rightClick(sx: number, sy: number) {
   clearSel();
   store.uiDirty = true;
 }
-function issueOrder(mode: string, tx: number, ty: number) {
+function issueOrder(mode: 'amove' | 'patrol', tx: number, ty: number) {
   const us = selUnits(),
     n = us.length,
     cols = Math.ceil(Math.sqrt(n));
@@ -306,7 +307,7 @@ export function entitiesInBox(x0: number, y0: number, x1: number, y1: number) {
     b = Math.min(y0, y1),
     c = Math.max(x0, x1),
     d = Math.max(y0, y1);
-  const inBox = e => {
+  const inBox = (e: Unit | Villager) => {
     const [sx, sy] = proj(e.rx ?? e.x, 0.3, e.ry ?? e.y);
     return sx >= a && sx <= c && sy >= b && sy <= d;
   };
@@ -326,8 +327,8 @@ export function boxSelect(x0: number, y0: number, x1: number, y1: number, add?: 
 }
 
 /** Selecteer alles van hetzelfde soort dat nu in beeld is (dubbelklik of Ctrl-klik). */
-export function selectSameType(e: Mobile) {
-  const onScreen = o => {
+export function selectSameType(e: Unit | Villager) {
+  const onScreen = (o: Unit | Villager) => {
     const [sx, sy, sz] = proj(o.rx ?? o.x, 0.3, o.ry ?? o.y);
     return sz < 1 && sx >= 0 && sy >= 0 && sx <= VW && sy <= VH;
   };

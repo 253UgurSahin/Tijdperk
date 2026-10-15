@@ -39,8 +39,8 @@ export function ageUp() {
   onAgeChange();
   setTimeout(
     () =>
-      document.querySelectorAll('#resbar .res').forEach(el => {
-        if (RES[el.dataset.k].age === G.age) {
+      document.querySelectorAll<HTMLElement>('#resbar .res').forEach(el => {
+        if (RES[el.dataset.k!].age === G.age) {
           el.classList.add('new');
           setTimeout(() => el.classList.remove('new'), 3000);
         }
@@ -50,7 +50,7 @@ export function ageUp() {
 }
 export function onAgeChange() {
   store.curAge = G.age;
-  document.body.dataset.age = G.age;
+  document.body.dataset.age = String(G.age);
   const A = AGES[G.age];
   B.road.n = ROADS[roadTier()].n;
   B.road.cost = ROADS[roadTier()].cost;

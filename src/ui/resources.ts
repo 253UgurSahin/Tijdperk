@@ -15,9 +15,9 @@ import { clamp } from '../util/math';
 
 // Uitleg bij een grondstof als je eroverheen beweegt
 $('#resbar').addEventListener('pointerover', e => {
-  const r = e.target.closest('.res');
+  const r = (e.target as HTMLElement).closest<HTMLElement>('.res');
   if (!r || mouse.touch) return;
-  const k = r.dataset.k,
+  const k = r.dataset.k!,
     tip = $('#hovertip'),
     rr = r.getBoundingClientRect(),
     w = worldEl.getBoundingClientRect();
@@ -31,22 +31,23 @@ $('#resbar').addEventListener('pointerover', e => {
   tip.className = '';
   tip.innerHTML = `<b>${RES[k].n}</b><span>${fmt(G.res[k])} op voorraad · ${rt >= 0 ? '+' : '−'}${Math.abs(Math.round(rt))} per minuut</span>${GATHER.includes(k) ? `<span>${wr[k] || 0} dorpelingen verzamelen</span>` : ''}${makers.length ? `<span>Gemaakt in: ${makers.join(', ')}</span>` : ''}${users.length ? `<span>Verbruikt door: ${users.join(', ')}</span>` : ''}`;
   tip.hidden = false;
-  tip.dataset.res = 1;
+  tip.dataset.res = '1';
   tip.style.left = clamp(rr.right - w.left + 8, 8, VW - 280) + 'px';
   tip.style.top = clamp(rr.top - w.top, 8, VH - 120) + 'px';
 });
 $('#resbar').addEventListener('pointerout', e => {
-  if (!e.relatedTarget || !e.relatedTarget.closest || !e.relatedTarget.closest('.res')) {
+  const to = e.relatedTarget as HTMLElement | null;
+  if (!to || !to.closest || !to.closest('.res')) {
     const t = $('#hovertip');
     delete t.dataset.res;
     t.hidden = true;
   }
 });
 // Grondstoffenlijst (linksonder)
-export const rate = {};
+export const rate: Record<string, number> = {};
 function relevantRes() {
-  const out = [],
-    add = k => {
+  const out: string[] = [],
+    add = (k: string) => {
       if (k && RES[k] && RES[k].age <= G.age && !out.includes(k)) out.push(k);
     };
   if (store.placing) for (const k in B[store.placing].cost) add(k);
@@ -86,23 +87,24 @@ export function updateResPop() {
   setHTML(p, 'respop', ks.join(), () => ks.map(resItem).join(''));
 }
 $('#resbar').addEventListener('click', e => {
-  const m = e.target.closest('#resMore');
+  const m = (e.target as HTMLElement).closest('#resMore');
   if (m) {
     sfx('tick');
     const p = $('#resPop');
     p.hidden = !p.hidden;
     sigs.respop = null;
     updateResPop();
-    m.setAttribute('aria-expanded', !p.hidden);
+    m.setAttribute('aria-expanded', String(!p.hidden));
     store.uiDirty = true;
   }
 });
 addEventListener(
   'pointerdown',
   e => {
-    const p = $('#resPop');
-    if (!p.hidden && !e.target.closest('#resPop,#resMore')) p.hidden = true;
-    if (document.body.classList.contains('showmap') && !e.target.closest('#mapPanel,#modal,#sidebtns'))
+    const p = $('#resPop'),
+      t = e.target as HTMLElement;
+    if (!p.hidden && !t.closest('#resPop,#resMore')) p.hidden = true;
+    if (document.body.classList.contains('showmap') && !t.closest('#mapPanel,#modal,#sidebtns'))
       document.body.classList.remove('showmap');
   },
   true,

@@ -56,7 +56,7 @@ export function updateHover() {
     Y = mouse.Y,
     ix = Math.floor(mouse.tx),
     iy = Math.floor(mouse.ty);
-  let h = null;
+  let h: string | null = null;
   const f = foeAt(X, Y),
     u = unitAt(X, Y),
     v = villAt(X, Y),

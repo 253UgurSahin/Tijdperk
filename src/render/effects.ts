@@ -64,7 +64,8 @@ export function drawFx() {
     }
   }
   for (const e of G.fx) {
-    const k = e.life / e.max;
+    // Hoeveel er nog over is (1 = net begonnen, 0 = voorbij); alleen gebruikt bij effecten met een max
+    const k = e.life / (e as { max: number }).max;
     if (e.type === 'smoke') {
       const m = pool('smoke', sphM);
       m.material.color.set(e.col || '#e9ebe4');
@@ -108,7 +109,7 @@ export function drawFx() {
     }
   }
 }
-let RAIN = null;
+let RAIN: T3.LineSegments<T3.BufferGeometry, T3.LineBasicMaterial> | null = null;
 export function drawRain() {
   if (!G.rain) {
     if (RAIN) RAIN.visible = false;
@@ -127,7 +128,7 @@ export function drawRain() {
     S3.add(RAIN);
   }
   RAIN.visible = true;
-  const p = RAIN.geometry.attributes.position.array,
+  const p = (RAIN.geometry.attributes.position as T3.BufferAttribute).array as Float32Array,
     R = camDist() * 0.8;
   for (let i = 0; i < p.length / 6; i++) {
     const x = cam.x + (hash2(i, 1, 2) - 0.5) * R * 2,

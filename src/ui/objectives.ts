@@ -19,7 +19,7 @@ import { $, isCompact } from '../util/dom';
 
 export function renderChronicle() {
   const nx = AGE_UP[G.age + 1];
-  let rows = [],
+  let rows: string[] = [],
     allReq = true,
     fix = '';
   if (nx) {
@@ -58,7 +58,7 @@ export function renderChronicle() {
   $('#mission').classList.toggle('closed', !store.missionOpen);
 }
 $('#mission').addEventListener('click', e => {
-  const t = e.target.closest('button');
+  const t = (e.target as HTMLElement).closest('button');
   if (!t) return;
   if (t.id === 'ageBtn') ageUp();
   else if (t.id === 'fixBtn') {

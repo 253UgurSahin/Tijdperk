@@ -1,13 +1,14 @@
+import type { GeneratedWorld } from '../src/world/generate';
 import { describe, expect, it } from 'vitest';
 import { BIOME, MAX_START_DIST, TER, generateWorld, isPassable, startLimit } from '../src/world/generate';
 import { NI } from '../src/data/nodes';
 
 const W = 256,
   H = 256;
-const worlds = [11, 4242, 987654].map(seed => [seed, generateWorld(seed, W, H)]);
+const worlds: [number, GeneratedWorld][] = [11, 4242, 987654].map(seed => [seed, generateWorld(seed, W, H)]);
 
 // Alle tegels die je vanaf de start lopend kunt bereiken
-function reachable(w) {
+function reachable(w: GeneratedWorld) {
   const seen = new Uint8Array(W * H),
     q = [w.start.y * W + w.start.x];
   seen[q[0]] = 1;
@@ -79,7 +80,7 @@ describe('wereldgenerator', () => {
     });
 
     it(`seed ${seed}: de wereld is gevarieerd`, () => {
-      const count = {};
+      const count: Record<number, number> = {};
       for (const b of w.biome) count[b] = (count[b] || 0) + 1;
       for (const b of [BIOME.WATER, BIOME.GRASS, BIOME.FOREST, BIOME.HILLS])
         expect(count[b] || 0, String(b)).toBeGreaterThan(200);

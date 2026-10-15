@@ -74,7 +74,7 @@ function bDesc(k: string): string {
   const d = B[k];
   return (d.desc ? d.desc + ' ' : '') + bShort(k) + (d.power ? ` · verbruikt ${d.power} stroom` : '');
 }
-const CATKEY = { home: 'Z', eco: 'X', light: 'C', mil: 'B' };
+const CATKEY: Record<string, string> = { home: 'Z', eco: 'X', light: 'C', mil: 'B' };
 function renderCats() {
   const hc = store.coachTile && B[store.coachTile].cat;
   setHTML($('#cats'), 'cats', 'b' + store.tab + hc, () =>
@@ -93,10 +93,10 @@ export function setTab(k: string) {
   renderCmd();
 }
 $('#cats').addEventListener('click', e => {
-  const b = e.target.closest('button[data-t]');
+  const b = (e.target as HTMLElement).closest<HTMLElement>('button[data-t]');
   if (!b) return;
   sfx('tick');
-  setTab(b.dataset.t);
+  setTab(b.dataset.t!);
 });
 function renderBuilds() {
   const avail = BKEYS.filter(k => !B[k].nobuild && B[k].cat === store.tab && canMake(k, G.age)),
@@ -132,7 +132,7 @@ function renderBuilds() {
 export function renderCmd() {
   if (selCmds != null) {
     setHTML($('#cats'), 'cats', 'c' + selCtx, () => `<span class="ctx">${esc(selCtx)}</span>`);
-    setHTML($('#cmdgrid'), 'grid', 'c' + selCmds, () => selCmds);
+    setHTML($('#cmdgrid'), 'grid', 'c' + selCmds, () => selCmds!);
     return;
   }
   renderCats();
@@ -146,7 +146,7 @@ function buildTileClick(c: HTMLElement) {
     );
     return;
   }
-  const k = c.dataset.b;
+  const k = c.dataset.b!;
   store.placing = store.placing === k ? null : k;
   store.expandMode = false;
   const keepV = [...sel.vs];
@@ -159,7 +159,7 @@ function buildTileClick(c: HTMLElement) {
   store.uiDirty = true;
 }
 $('#cmdgrid').addEventListener('click', e => {
-  const c = e.target.closest('.gb');
+  const c = (e.target as HTMLElement).closest<HTMLElement>('.gb');
   if (c) {
     buildTileClick(c);
     return;
@@ -167,9 +167,9 @@ $('#cmdgrid').addEventListener('click', e => {
   insHandler(e);
 });
 $('#cmdgrid').addEventListener('pointerover', e => {
-  const c = e.target.closest('.gb');
+  const c = (e.target as HTMLElement).closest<HTMLElement>('.gb');
   if (!c || mouse.touch) return;
-  const k = c.dataset.b || c.dataset.locked,
+  const k = c.dataset.b || c.dataset.locked!,
     d = B[k],
     r = c.getBoundingClientRect(),
     tip = $('#hovertip'),
@@ -182,7 +182,8 @@ $('#cmdgrid').addEventListener('pointerover', e => {
   tip.style.top = Math.max(8, r.top - w.top - tip.offsetHeight - 10) + 'px';
 });
 $('#cmdgrid').addEventListener('pointerout', e => {
-  if (!e.relatedTarget || !e.relatedTarget.closest || !e.relatedTarget.closest('.gb')) hideTip();
+  const to = e.relatedTarget as Element | null;
+  if (!to || !to.closest || !to.closest('.gb')) hideTip();
 });
 function hideTip() {
   $('#hovertip').hidden = true;

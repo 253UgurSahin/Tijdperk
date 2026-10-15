@@ -4,7 +4,7 @@ import { B } from '../src/data/buildings';
 import { UNITS } from '../src/data/units';
 import { AGES } from '../src/data/ages';
 
-const def = k => B[k] || UNITS[k];
+const def = (k: string) => B[k] || UNITS[k];
 
 describe('opvolging per tijdperk', () => {
   it('opvolgers bestaan, zijn van dezelfde soort en komen later', () => {

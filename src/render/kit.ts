@@ -15,7 +15,10 @@ export interface MatOpts {
 /** Een kleur (gedeeld standaardmateriaal) of een kant-en-klaar materiaal. */
 export type Paint = string | T3.Material;
 const MC: Record<string, T3.MeshStandardMaterial | T3.MeshBasicMaterial> = {};
-export function mat(c: T3.ColorRepresentation, o: MatOpts = {}): T3.MeshStandardMaterial | T3.MeshBasicMaterial {
+export function mat(
+  c: T3.ColorRepresentation,
+  o: MatOpts = {},
+): T3.MeshStandardMaterial | T3.MeshBasicMaterial {
   const k =
     c +
     '|' +
@@ -41,15 +44,19 @@ export function mat(c: T3.ColorRepresentation, o: MatOpts = {}): T3.MeshStandard
   if (!o.b && !o.t && !o.e && !o.m && o.r == null) m.userData.vc = 1;
   return (MC[k] = m);
 }
+/** Is dit 3D-object een mesh (een vorm met een materiaal)? */
+export const isMesh = (o: T3.Object3D): o is T3.Mesh => (o as T3.Mesh).isMesh;
+/** Een onderdeel van een model met een gewoon materiaal (gemaakt met mat()). */
+type SolidMesh = T3.Mesh<T3.BufferGeometry, T3.MeshStandardMaterial>;
 const VCMAT = new T3.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 0.88 });
 // Voeg vaste delen met hetzelfde materiaal samen tot één mesh: veel sneller tekenen.
 export function mergeStatic(g: T3.Group): T3.Group {
-  const parts = g.children.filter(
+  const parts = (g.children as SolidMesh[]).filter(
     o => o.isMesh && o.material.userData && o.material.userData.vc && !o.userData.flag && !o.userData.lamp,
   );
   if (parts.length < 2) return g;
   let n = 0;
-  const gs = parts.map(o => {
+  const gs = parts.map((o): [T3.BufferGeometry, T3.Color] => {
     o.updateMatrix();
     const q = o.geometry.index ? o.geometry.toNonIndexed() : o.geometry.clone();
     q.applyMatrix4(o.matrix);
@@ -61,7 +68,7 @@ export function mergeStatic(g: T3.Group): T3.Group {
   let k = 0;
   for (const [q, c] of gs) {
     const cnt = q.attributes.position.count;
-    pos.set(q.attributes.position.array, k * 3);
+    pos.set((q.attributes.position as T3.BufferAttribute).array, k * 3);
     for (let i = 0; i < cnt; i++) {
       col[(k + i) * 3] = c.r;
       col[(k + i) * 3 + 1] = c.g;
@@ -109,7 +116,7 @@ export const TEAM = '#2f6fd6',
   FOE = '#b8352c';
 export const GB = new T3.BoxGeometry(1, 1, 1);
 GB.translate(0, 0.5, 0);
-const GC = {};
+const GC: Record<string, T3.BufferGeometry> = {};
 export function gCyl(rt: number, rb: number, s: number, th?: number): T3.BufferGeometry {
   const k = rt + '_' + rb + '_' + s + '_' + (th || 0);
   if (GC[k]) return GC[k];
@@ -122,23 +129,25 @@ export function gIco(d: number): T3.BufferGeometry {
   if (GC[k]) return GC[k];
   return (GC[k] = new T3.IcosahedronGeometry(1, d));
 }
-export function gDod() {
+export function gDod(): T3.BufferGeometry {
   return GC.dod || (GC.dod = new T3.DodecahedronGeometry(1, 0));
 }
-export function gOct() {
+export function gOct(): T3.BufferGeometry {
   return GC.oct || (GC.oct = new T3.OctahedronGeometry(1, 0));
 }
+/** Een hoekpunt in 3D: [x, y, z]. */
+type Vec3 = [number, number, number];
 const GPRISM = (() => {
   const g = new T3.BufferGeometry(),
-    v = [],
-    P = (x, y, z) => v.push(x, y, z);
-  const a = [-0.5, 0, -0.5],
-    b = [-0.5, 0, 0.5],
-    c = [-0.5, 1, 0],
-    d = [0.5, 0, -0.5],
-    e = [0.5, 0, 0.5],
-    f = [0.5, 1, 0];
-  const T = (p, q, r) => {
+    v: number[] = [],
+    P = (x: number, y: number, z: number) => v.push(x, y, z);
+  const a: Vec3 = [-0.5, 0, -0.5],
+    b: Vec3 = [-0.5, 0, 0.5],
+    c: Vec3 = [-0.5, 1, 0],
+    d: Vec3 = [0.5, 0, -0.5],
+    e: Vec3 = [0.5, 0, 0.5],
+    f: Vec3 = [0.5, 1, 0];
+  const T = (p: Vec3, q: Vec3, r: Vec3) => {
     P(...p);
     P(...q);
     P(...r);
@@ -161,7 +170,18 @@ const GPYR = (() => {
   g.translate(0, 0.5, 0);
   return g;
 })();
-export function mk(geo: T3.BufferGeometry, m: T3.Material, g: T3.Object3D, x: number, y: number, z: number, sx: number, sy: number, sz: number, ry?: number): T3.Mesh {
+export function mk(
+  geo: T3.BufferGeometry,
+  m: T3.Material,
+  g: T3.Object3D,
+  x: number,
+  y: number,
+  z: number,
+  sx: number,
+  sy: number,
+  sz: number,
+  ry?: number,
+): T3.Mesh {
   const o = new T3.Mesh(geo, m);
   o.position.set(x, y, z);
   o.scale.set(sx, sy, sz);
@@ -171,17 +191,39 @@ export function mk(geo: T3.BufferGeometry, m: T3.Material, g: T3.Object3D, x: nu
   g.add(o);
   return o;
 }
-export const bx = (g: T3.Object3D, w: number, h: number, d: number, c: Paint, x = 0, y = 0, z = 0, ry = 0) => mk(GB, M_(c), g, x, y, z, w, h, d, ry);
-export const cy = (g: T3.Object3D, r: number, h: number, c: Paint, x = 0, y = 0, z = 0, seg = 10, rt?: number) =>
-  mk(gCyl(rt ?? r, r, seg), M_(c), g, x, y, z, 1, h, 1);
+export const bx = (g: T3.Object3D, w: number, h: number, d: number, c: Paint, x = 0, y = 0, z = 0, ry = 0) =>
+  mk(GB, M_(c), g, x, y, z, w, h, d, ry);
+export const cy = (
+  g: T3.Object3D,
+  r: number,
+  h: number,
+  c: Paint,
+  x = 0,
+  y = 0,
+  z = 0,
+  seg = 10,
+  rt?: number,
+) => mk(gCyl(rt ?? r, r, seg), M_(c), g, x, y, z, 1, h, 1);
 export const cn = (g: T3.Object3D, r: number, h: number, c: Paint, x = 0, y = 0, z = 0, seg = 10) =>
   mk(gCyl(0, r, seg), M_(c), g, x, y, z, 1, h, 1);
 export const sp = (g: T3.Object3D, r: number, c: Paint, x = 0, y = 0, z = 0, d = 0, sy = 1) =>
   mk(gIco(d), M_(c), g, x, y, z, r, r * sy, r);
-export const gr = (g: T3.Object3D, w: number, h: number, d: number, c: Paint, x = 0, y = 0, z = 0, ry = 0) => mk(GPRISM, M_(c), g, x, y, z, w, h, d, ry);
-export const pr = (g: T3.Object3D, w: number, h: number, d: number, c: Paint, x = 0, y = 0, z = 0, ry = 0) => mk(GPYR, M_(c), g, x, y, z, w, h, d, ry);
+export const gr = (g: T3.Object3D, w: number, h: number, d: number, c: Paint, x = 0, y = 0, z = 0, ry = 0) =>
+  mk(GPRISM, M_(c), g, x, y, z, w, h, d, ry);
+export const pr = (g: T3.Object3D, w: number, h: number, d: number, c: Paint, x = 0, y = 0, z = 0, ry = 0) =>
+  mk(GPYR, M_(c), g, x, y, z, w, h, d, ry);
 // Ramen op de twee kanten die naar de camera wijzen
-export function wins(g: T3.Object3D, w: number, d: number, y: number, h: number, n: number, cx = 0, cz = 0, wd = .12) {
+export function wins(
+  g: T3.Object3D,
+  w: number,
+  d: number,
+  y: number,
+  h: number,
+  n: number,
+  cx = 0,
+  cz = 0,
+  wd = 0.12,
+) {
   for (let i = 0; i < n; i++) {
     const u = -w / 2 + (w * (i + 0.5)) / n;
     bx(g, wd, h, 0.02, WIN, cx + u, y, cz + d / 2 + 0.005);
@@ -189,10 +231,18 @@ export function wins(g: T3.Object3D, w: number, d: number, y: number, h: number,
     bx(g, 0.02, h, wd, WIN, cx + w / 2 + 0.005, y, cz + v);
   }
 }
-export function door(g: T3.Object3D, w: number, d: number, dw = .16, dh = .26, c: Paint = '#4a3523', x = 0) {
+export function door(
+  g: T3.Object3D,
+  _w: number,
+  d: number,
+  dw = 0.16,
+  dh = 0.26,
+  c: Paint = '#4a3523',
+  x = 0,
+) {
   bx(g, dw, dh, 0.03, c, x, 0, d / 2 + 0.01);
 }
-export function flagpole(g: T3.Object3D, x: number, y: number, z: number, h = .7, c: Paint = TEAM) {
+export function flagpole(g: T3.Object3D, x: number, y: number, z: number, h = 0.7, c: Paint = TEAM) {
   cy(g, 0.015, h, '#5d5348', x, y, z, 5);
   const f = bx(g, 0.26, 0.15, 0.015, c, x + 0.13, y + h - 0.17, z);
   f.userData.flag = 1;
@@ -207,7 +257,7 @@ export function crenel(g: T3.Object3D, w: number, d: number, y: number, c: Paint
     bx(g, 0.08, 0.12, (w / n) * 0.5, c, -w / 2 + 0.04, y, u);
   }
 }
-export function chim(g: T3.Object3D, x: number, y: number, z: number, h = .3, c: Paint = '#7b6a5a') {
+export function chim(g: T3.Object3D, x: number, y: number, z: number, h = 0.3, c: Paint = '#7b6a5a') {
   bx(g, 0.11, h, 0.11, c, x, y, z);
   bx(g, 0.14, 0.04, 0.14, '#4a403a', x, y + h, z);
 }

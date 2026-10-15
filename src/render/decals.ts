@@ -7,7 +7,7 @@ import { S3 } from './scene';
 function radialTex(r: number, g: number, b: number): T3.CanvasTexture {
   const c = document.createElement('canvas');
   c.width = c.height = 128;
-  const x = c.getContext('2d'),
+  const x = c.getContext('2d')!,
     gr = x.createRadialGradient(64, 64, 0, 64, 64, 64);
   gr.addColorStop(0, `rgb(${r},${g},${b})`);
   gr.addColorStop(0.45, `rgb(${(r * 0.55) | 0},${(g * 0.55) | 0},${(b * 0.55) | 0})`);
@@ -18,7 +18,7 @@ function radialTex(r: number, g: number, b: number): T3.CanvasTexture {
 }
 const GLOWTEX = radialTex(255, 180, 100),
   GLOWTEXC = radialTex(200, 225, 255);
-export const GLOWS = [];
+export const GLOWS: T3.Mesh<T3.CircleGeometry, T3.MeshBasicMaterial>[] = [];
 export function glow(i: number, warm: boolean) {
   let m = GLOWS[i];
   if (!m) {
@@ -43,15 +43,22 @@ export function glow(i: number, warm: boolean) {
 }
 export const RINGG = new T3.RingGeometry(0.86, 1, 40);
 RINGG.rotateX(-Math.PI / 2);
-const POOLS = {};
-export function pool(name: string, make: () => T3.Mesh): T3.Mesh {
+/** Een voorraad herbruikbare 3D-objecten van één soort; elk beeldje worden de eerste n gebruikt. */
+interface Pool {
+  list: T3.Object3D[];
+  n: number;
+  make: () => T3.Object3D;
+}
+const POOLS: Record<string, Pool> = {};
+// Een voorraad bevat alleen objecten die door zijn eigen make() gemaakt zijn, dus van type T
+export function pool<T extends T3.Object3D>(name: string, make: () => T): T {
   const P = POOLS[name] || (POOLS[name] = { list: [], n: 0, make });
   if (P.n >= P.list.length) {
     const o = make();
     S3.add(o);
     P.list.push(o);
   }
-  const o = P.list[P.n++];
+  const o = P.list[P.n++] as T;
   o.visible = true;
   return o;
 }
@@ -82,7 +89,7 @@ const quadMesh = () => {
   m.renderOrder = 2;
   return m;
 };
-export function ringAt(x: number, y: number, r: number, col: string, op = .9, h = .04) {
+export function ringAt(x: number, y: number, r: number, col: string, op = 0.9, h = 0.04) {
   const m = pool('ring', ringMesh);
   m.position.set(x, h, y);
   m.scale.set(r, 1, r);
@@ -90,7 +97,7 @@ export function ringAt(x: number, y: number, r: number, col: string, op = .9, h 
   m.material.opacity = op;
   return m;
 }
-export function quadAt(x: number, y: number, w: number, d: number, col: string, op = .4, h = .03) {
+export function quadAt(x: number, y: number, w: number, d: number, col: string, op = 0.4, h = 0.03) {
   const m = pool('quad', quadMesh);
   m.position.set(x, h, y);
   m.scale.set(w, 1, d);

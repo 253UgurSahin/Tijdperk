@@ -1,3 +1,4 @@
+import type { Cost } from '../src/types';
 import { describe, expect, it } from 'vitest';
 import { RES, RKEYS, GATHER } from '../src/data/resources';
 import { B } from '../src/data/buildings';
@@ -6,7 +7,7 @@ import { TECH } from '../src/data/tech';
 import { AGES, AGE_MAT, AGE_UP } from '../src/data/ages';
 import { NODES } from '../src/data/nodes';
 
-const costKeys = c => Object.keys(c || {});
+const costKeys = (c: Cost | undefined) => Object.keys(c || {});
 
 describe('speldata', () => {
   it('alle kosten gebruiken bestaande grondstoffen', () => {
@@ -35,7 +36,7 @@ describe('speldata', () => {
 
   it('elk tijdperk heeft een overgang met bestaande gebouwen', () => {
     expect(AGE_UP.length).toBe(AGES.length);
-    for (const a of AGE_UP.slice(1)) for (const k of a.need) expect(B[k], k).toBeTruthy();
+    for (const a of AGE_UP.slice(1)) for (const k of a!.need) expect(B[k], k).toBeTruthy();
   });
 
   it('elke verzamelbare grondstof heeft een bron op de kaart', () => {

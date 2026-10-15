@@ -1,5 +1,5 @@
-import type { Mobile } from '../types';
 // Houdt de 3D-wereld gelijk met de spelstand (nieuwe gebouwen, mensen die lopen).
+import type { GameState, Mobile } from '../types';
 import * as T3 from 'three';
 import { store } from '../core/store';
 import { CN, CS, H, TAU, W } from '../config';
@@ -7,24 +7,59 @@ import { B } from '../data/buildings';
 import { RES } from '../data/resources';
 import { G, sel } from '../game/state';
 import { RINGG, quadG } from './decals';
-import { bx, mat, mergeStatic } from './kit';
+import { bx, isMesh, mat, mergeStatic } from './kit';
 import { makeBuilding, makeCamp, wallMask } from './models';
 import { nodesNeedUpdate, rebuildNodes } from './nodes';
-import { FOEK, makeUnit, makeVillager } from './people';
+import { FOEK, makeUnit, makeVillager, type Limbs } from './people';
 import { S3 } from './scene';
 import { buildTerrain, flushTerrain, paintAll, pendingTiles, repaintTile } from './terrain';
 import { dirtyGround, node, road } from '../world/world';
+
+/** Wat er per gebouw in de 3D-wereld bewaard wordt: houder (g), model (m), hoogte en bewegende delen. */
+interface BuildingRec {
+  g: T3.Group;
+  m: T3.Group;
+  /** Verandert de sleutel (soort, tijdperk, klaar, muurvorm), dan wordt het model opnieuw gemaakt. */
+  key: string;
+  h: number;
+  fires: T3.Object3D[];
+  flags: T3.Object3D[];
+  pumps: T3.Object3D[];
+  lamps: T3.Object3D[];
+}
+/** Wat er per figuur (dorpeling, soldaat, vijand) in de 3D-wereld bewaard wordt. */
+interface EntityRec {
+  g: T3.Group;
+  body: T3.Group;
+  key: string;
+  /** Vorige getekende plek, kijkrichting en hoe hard hij beweegt. */
+  px: number;
+  py: number;
+  ang: number;
+  mv: number;
+  /** Selectiecirkel: wanneer hij verscheen en hoe groot hij is. */
+  selT: number;
+  ringSize: number;
+  ring: T3.Mesh<T3.RingGeometry, T3.MeshBasicMaterial>;
+  /** 1 als het figuur dit beeldje nog bestaat. */
+  seen: number;
+}
+/** Wat er per vijandelijk kamp in de 3D-wereld bewaard wordt. */
+interface CampRec {
+  g: T3.Group;
+  fires: T3.Object3D[];
+}
 
 export const BG3 = new T3.Group(),
   EG3 = new T3.Group(),
   CG3 = new T3.Group();
 S3.add(BG3, EG3, CG3);
-export const bRec = new Map(),
-  eRec = new Map(),
-  cRec = new Map();
-let lastG = null,
-  terrSnap = null,
-  unlSig = '';
+export const bRec = new Map<number, BuildingRec>(),
+  eRec = new Map<number, EntityRec>(),
+  cRec = new Map<number, CampRec>();
+let lastG: GameState | null = null,
+  terrSnap: Uint8Array | null = null,
+  unlSig: string = '';
 function scaffold(g: T3.Group, s: number, h: number) {
   const m = mat('#8a6a40');
   for (const [x, z] of [
@@ -38,7 +73,7 @@ function scaffold(g: T3.Group, s: number, h: number) {
   bx(g, 0.04, 0.04, s * 0.95, m, s * 0.46, h * 0.6, 0);
 }
 export function syncBuildings() {
-  const seen = new Set();
+  const seen = new Set<number>();
   for (const b of G.bs) {
     const d = B[b.type],
       s = d.size;
@@ -72,10 +107,10 @@ export function syncBuildings() {
         o.userData.bid = b.id;
       });
       BG3.add(g);
-      const fires = [],
-        flags = [],
-        pumps = [],
-        lamps = [];
+      const fires: T3.Object3D[] = [],
+        flags: T3.Object3D[] = [],
+        pumps: T3.Object3D[] = [],
+        lamps: T3.Object3D[] = [];
       g.traverse(o => {
         if (o.userData.fire) fires.push(o);
         if (o.userData.flag) flags.push(o);
@@ -111,14 +146,22 @@ function entKey(e: Mobile): string {
   return e.kind === 'v' ? 'v' + e.job : e.kind === 'u' ? 'u' + e.k : 'f' + e.type;
 }
 const BASEG = new T3.CircleGeometry(1, 20).rotateX(-Math.PI / 2);
+/** Iets dat beweegt en zijn plek bij de vorige speltik onthoudt (figuur of projectiel). */
+interface Moving {
+  x: number;
+  y: number;
+  prevX?: number;
+  prevY?: number;
+}
 /** Positie om te tekenen: tussen vorige en huidige speltik in. Bij een grote sprong (teleport) niet. */
-export function smoothPos(e: Mobile): [number, number] {
-  if (e.prevX == null || Math.abs(e.x - e.prevX) + Math.abs(e.y - e.prevY) > 2) return [e.x, e.y];
+export function smoothPos(e: Moving): [number, number] {
+  // prevX en prevY worden altijd samen gezet (zie update.ts)
+  if (e.prevX == null || Math.abs(e.x - e.prevX) + Math.abs(e.y - e.prevY!) > 2) return [e.x, e.y];
   const a = store.alpha;
-  return [e.prevX + (e.x - e.prevX) * a, e.prevY + (e.y - e.prevY) * a];
+  return [e.prevX + (e.x - e.prevX) * a, e.prevY! + (e.y - e.prevY!) * a];
 }
 
-function syncEnt(e: Mobile, make: () => T3.Group) {
+function syncEnt(e: Mobile, make: () => T3.Group): EntityRec {
   let r = eRec.get(e.id);
   const key = entKey(e);
   if (!r || r.key !== key) {
@@ -128,10 +171,11 @@ function syncEnt(e: Mobile, make: () => T3.Group) {
       g = new T3.Group();
     g.add(body);
     body.traverse(o => {
-      if (o.isMesh) o.castShadow = e.kind !== 'v' && !(e.kind === 'f' && e.camp);
+      if (isMesh(o)) o.castShadow = e.kind !== 'v' && !(e.kind === 'f' && e.camp);
     });
     EG3.add(g);
-    r = { g, body, key, px: e.x, py: e.y, ang: 0, mv: 0, selT: -9 };
+    // ringSize, ring en seen worden hieronder ingevuld
+    r = { g, body, key, px: e.x, py: e.y, ang: 0, mv: 0, selT: -9 } as EntityRec;
     const ring = new T3.Mesh(
       RINGG,
       new T3.MeshBasicMaterial({ color: '#9fe28a', transparent: true, opacity: 0.95, depthWrite: false }),
@@ -175,7 +219,8 @@ function syncEnt(e: Mobile, make: () => T3.Group) {
     sp = Math.hypot(dx, dy);
   r.mv = r.mv * 0.8 + sp * 60 * 0.2;
   if (sp > 0.002) r.ang = Math.atan2(dx, dy);
-  else if (e.tgt && e.tgt.x != null && !e.tgt.dead) {
+  // Stilstaan: kijk naar het doel (het doel van een dorpeling heeft geen plek, dus die niet)
+  else if (e.kind !== 'v' && e.tgt && e.tgt.x != null && !e.tgt.dead) {
     const tx = e.tgt.x + (e.tgt.kind === 'b' ? B[e.tgt.type].size / 2 : 0),
       ty = e.tgt.y + (e.tgt.kind === 'b' ? B[e.tgt.type].size / 2 : 0);
     if (Math.hypot(tx - ex, ty - ey) > 0.05) r.ang = Math.atan2(tx - ex, ty - ey);
@@ -187,8 +232,8 @@ function syncEnt(e: Mobile, make: () => T3.Group) {
   g.rotation.y += da * 0.25;
   return r;
 }
-function animPerson(g: T3.Object3D, walk: boolean, work: boolean, t: number) {
-  const L = g.userData.limbs;
+function animPerson(g: T3.Object3D, walk: boolean, work: boolean | null, t: number) {
+  const L = g.userData.limbs as Limbs | undefined;
   if (!L) return;
   const s = walk ? Math.sin(t * 11) * 0.6 : 0;
   L.lL.rotation.x = s;
@@ -197,7 +242,7 @@ function animPerson(g: T3.Object3D, walk: boolean, work: boolean, t: number) {
   L.aR.rotation.x = work ? -1.2 + Math.sin(t * 9) * 0.9 : s * 0.7;
 }
 // Selectiecirkel: verschijnt met een kort "plopje" (groter, dan terug naar normaal) en pulseert zacht
-function showRing(r, on) {
+function showRing(r: EntityRec, on: boolean) {
   if (on && !r.ring.visible) r.selT = store.TM;
   r.ring.visible = on;
   if (!on) return;
@@ -213,16 +258,17 @@ export function syncEntities() {
     const r = syncEnt(v, () => makeVillager(v.job));
     const work = v.state === 'gather' || v.state === 'build';
     animPerson(r.body, r.mv > 0.3, work, store.TM + v.id);
-    const c = r.body.userData.carry;
+    const c = r.body.userData.carry as T3.Mesh | undefined;
     if (c) {
       c.visible = v.carry.amt > 0;
-      if (c.visible) c.material = mat(RES[v.carry.res] ? RES[v.carry.res].c : '#8a6a44');
+      // Wie iets draagt, weet ook wat (carry.res)
+      if (c.visible) c.material = mat(RES[v.carry.res!] ? RES[v.carry.res!].c : '#8a6a44');
     }
     showRing(r, sel.vs.has(v.id));
   }
   for (const u of G.us) {
     const r = syncEnt(u, () => makeUnit(u.k, false));
-    const f = r.body.userData.fly;
+    const f = r.body.userData.fly as T3.Group | undefined;
     if (f) {
       f.position.y = 0.9 + Math.sin(store.TM * 3 + u.id) * 0.06;
       f.traverse(o => {
@@ -230,7 +276,7 @@ export function syncEntities() {
       });
     } else
       animPerson(
-        r.body.userData.rider || r.body,
+        (r.body.userData.rider as T3.Group | undefined) || r.body,
         r.mv > 0.3,
         u.cd > 0 && u.tgt && r.mv < 0.3,
         store.TM + u.id,
@@ -239,7 +285,7 @@ export function syncEntities() {
   }
   for (const f of G.foes) {
     const r = syncEnt(f, () => makeUnit(FOEK[f.type] || 'plunder', true));
-    const fl = r.body.userData.fly;
+    const fl = r.body.userData.fly as T3.Group | undefined;
     if (fl) {
       fl.position.y = 0.9 + Math.sin(store.TM * 3 + f.id) * 0.06;
       fl.traverse(o => {
@@ -256,7 +302,7 @@ export function syncEntities() {
     }
 }
 export function syncCamps() {
-  const seen = new Set();
+  const seen = new Set<number>();
   for (const c of G.camps) {
     if (!c.alive) continue;
     seen.add(c.id);
@@ -270,7 +316,7 @@ export function syncCamps() {
         o.userData.camp = c.id;
       });
       CG3.add(g);
-      const fires = [];
+      const fires: T3.Object3D[] = [];
       g.traverse(o => {
         if (o.userData.fire) fires.push(o);
       });
@@ -321,9 +367,10 @@ export function checkWorld() {
   }
   for (const i of dirtyGround) repaintTile(i % W, (i / W) | 0);
   dirtyGround.clear();
+  // terrSnap en store.nodeSnap zijn gezet door resetWorld3D (hierboven, bij een nieuw spel)
   for (let i = 0; i < W * H; i++)
-    if (road[i] !== terrSnap[i]) {
-      terrSnap[i] = road[i];
+    if (road[i] !== terrSnap![i]) {
+      terrSnap![i] = road[i];
       repaintTile(i % W, (i / W) | 0);
     }
   if (pendingTiles()) store.mapVersion++;
@@ -331,7 +378,7 @@ export function checkWorld() {
   let nc = G.age !== store.nodeAge || nodesNeedUpdate();
   if (!nc)
     for (let i = 0; i < W * H; i++)
-      if (node[i] !== store.nodeSnap[i]) {
+      if (node[i] !== store.nodeSnap![i]) {
         nc = true;
         break;
       }

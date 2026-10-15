@@ -139,8 +139,8 @@ function frame(now: number) {
   if (cam.tx != null) {
     const k = 1 - Math.pow(0.002, rdt);
     cam.x += (cam.tx - cam.x) * k;
-    cam.y += (cam.ty - cam.y) * k;
-    if (Math.abs(cam.tx - cam.x) < 0.02 && Math.abs(cam.ty - cam.y) < 0.02) cam.tx = null;
+    cam.y += (cam.ty! - cam.y) * k;
+    if (Math.abs(cam.tx - cam.x) < 0.02 && Math.abs(cam.ty! - cam.y) < 0.02) cam.tx = null;
   }
   // Vloeiend zoomen: elke beeldje een stukje dichter bij de gewenste zoom
   if (cam.tz != null) {
@@ -149,7 +149,7 @@ function frame(now: number) {
     if (Math.abs(cam.tz - cam.z) < 0.001) cam.z = cam.tz;
     updateCamera();
     if (before) {
-      const after = s2t(cam.anchor[0], cam.anchor[1]);
+      const after = s2t(cam.anchor![0], cam.anchor![1]);
       cam.x += before[0] - after[0];
       cam.y += before[1] - after[1];
       cam.tx = null;
@@ -243,7 +243,23 @@ try {
 } catch (e) {
   addEventListener('resize', measureHud);
 }
-function start(data?: { save?: string | null }) {
+/** Wat een nieuwe versie van de pagina meekrijgt van de vorige: de spelstand. */
+interface HotData {
+  save?: string | null;
+}
+/** Hot-reload van de claude.ai-artifactomgeving: een nieuwe versie speelt verder met de oude spelstand. */
+interface HotReload {
+  data?: HotData;
+  ready?: (start: (data?: HotData) => void) => void;
+  snapshot?: (take: () => HotData) => void;
+}
+// Alleen in de artifactomgeving van claude.ai staat er iets op window.claude.
+declare global {
+  interface Window {
+    claude?: { hot?: HotReload };
+  }
+}
+function start(data?: HotData) {
   initQuality(); // kiest de beeldkwaliteit en zet daarna de schermgrootte
   try {
     if (localStorage.getItem('tijdperken-view') === '2d') store.V2 = true;

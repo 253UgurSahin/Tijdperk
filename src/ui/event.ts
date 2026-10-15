@@ -19,7 +19,7 @@ export function renderEvent() {
     sigs.ev = null;
     return;
   }
-  const d = EVENTS.find(e => e.id === ev.id);
+  const d = EVENTS.find(e => e.id === ev.id)!;
   el.hidden = false;
   const sig = 'e' + ev.id + ev.until + (ev.ca ? has(ev.ca) : 1) + Math.floor((ev.until - G.t) / 3);
   setHTML(
@@ -27,13 +27,13 @@ export function renderEvent() {
     'ev',
     sig,
     () =>
-      `<div class="eh"><div class="ic">${d.g}</div><div><b>${d.t}</b><p>${esc(ev.text)}</p></div></div><div class="ch"><button class="primary" data-ev="a" ${ev.ca && !has(ev.ca) ? 'disabled' : ''}>${d.a.l}${ev.ca ? costHTML(ev.ca) : ''}</button><button data-ev="b">${d.b.l}<span class="cost">standaard na ${Math.ceil(ev.until - G.t)}s</span></button></div><div class="bar acc"><i style="width:${((ev.until - G.t) / 45) * 100}%"></i></div>`,
+      `<div class="eh"><div class="ic">${d.g}</div><div><b>${d.t}</b><p>${esc(ev.text!)}</p></div></div><div class="ch"><button class="primary" data-ev="a" ${ev.ca && !has(ev.ca) ? 'disabled' : ''}>${d.a.l}${ev.ca ? costHTML(ev.ca) : ''}</button><button data-ev="b">${d.b.l}<span class="cost">standaard na ${Math.ceil(ev.until - G.t)}s</span></button></div><div class="bar acc"><i style="width:${((ev.until - G.t) / 45) * 100}%"></i></div>`,
   );
 }
 $('#event').addEventListener('click', e => {
-  const t = e.target.closest('button');
+  const t = (e.target as HTMLElement).closest('button');
   if (!t || t.disabled) return;
-  resolveEvent(t.dataset.ev);
+  resolveEvent(t.dataset.ev!);
 });
 export function renderOffer() {
   const o = G.offer,
@@ -54,7 +54,7 @@ export function renderOffer() {
   );
 }
 $('#offer').addEventListener('click', e => {
-  const t = e.target.closest('button');
+  const t = (e.target as HTMLElement).closest('button');
   if (!t || t.disabled || !G.offer) return;
   const o = G.offer;
   if (t.dataset.o === 'ok') {

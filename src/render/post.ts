@@ -26,10 +26,11 @@ const GradeShader = {
     }`,
 };
 
-let composer = null,
-  bloom = null,
-  selectOutline = null,
-  hoverOutline = null;
+// Worden pas gemaakt als de nabewerking voor het eerst aan gaat (zie build), en dan alle vier tegelijk
+let composer: EffectComposer | null = null,
+  bloom: UnrealBloomPass | null = null,
+  selectOutline: OutlinePass | null = null,
+  hoverOutline: OutlinePass | null = null;
 const on = { post: false, bloom: false, outline: false };
 
 function build() {
@@ -56,15 +57,21 @@ function build() {
   composer.addPass(new ShaderPass(GradeShader));
 }
 
+/** Welke onderdelen van de nabewerking aan staan: alles, de gloed en de omlijning. */
+export interface PostSettings {
+  post: boolean;
+  bloom: boolean;
+  outline: boolean;
+}
 /** Zet onderdelen van de nabewerking aan of uit. */
-export function configurePost({ post, bloom: useBloom, outline }: { post: boolean; bloom: boolean; outline: boolean }) {
+export function configurePost({ post, bloom: useBloom, outline }: PostSettings) {
   on.post = post;
   on.bloom = useBloom;
   on.outline = outline;
   if (post && !composer) build();
   if (composer) {
-    bloom.enabled = useBloom;
-    selectOutline.enabled = hoverOutline.enabled = outline;
+    bloom!.enabled = useBloom;
+    selectOutline!.enabled = hoverOutline!.enabled = outline;
   }
 }
 
@@ -77,16 +84,17 @@ export function resizePost(w: number, h: number, dpr: number) {
 /** Welke 3D-objecten een omlijning krijgen: geselecteerd en aangewezen. */
 export function setOutlined(selected: T3.Object3D[], hovered: T3.Object3D[]) {
   if (!composer) return;
-  selectOutline.selectedObjects = selected;
-  hoverOutline.selectedObjects = hovered;
+  selectOutline!.selectedObjects = selected;
+  hoverOutline!.selectedObjects = hovered;
   // Lege lijst: de pas overslaan scheelt werk
-  selectOutline.enabled = on.outline && selected.length > 0;
-  hoverOutline.enabled = on.outline && hovered.length > 0;
+  selectOutline!.enabled = on.outline && selected.length > 0;
+  hoverOutline!.enabled = on.outline && hovered.length > 0;
 }
 
 export const outlinesOn = () => on.post && on.outline;
 
 export function renderFrame() {
-  if (on.post) composer.render();
+  // Staat on.post aan, dan is build() al gedaan en bestaat composer
+  if (on.post) composer!.render();
   else R3.render(S3, CAM3);
 }

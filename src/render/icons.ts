@@ -9,11 +9,12 @@ import { makeBuilding } from './models';
 import { FOEK, makeUnit, makeVillager } from './people';
 import { RC } from './terrain';
 
-let IR = null,
-  IS = null,
-  ICAM = null;
+let IR: T3.WebGLRenderer | null = null,
+  IS: T3.Scene | null = null,
+  ICAM: T3.OrthographicCamera | null = null;
 function snap(obj: T3.Object3D, size = 128, zoom = 1): string {
-  if (!IR) {
+  // De drie worden altijd samen gemaakt (bij het eerste pictogram)
+  if (!IR || !IS || !ICAM) {
     IR = new T3.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
     IR.setPixelRatio(1);
     IS = new T3.Scene();
@@ -42,29 +43,30 @@ function snap(obj: T3.Object3D, size = 128, zoom = 1): string {
   IS.remove(obj);
   return url;
 }
-const iconCache = {};
+const iconCache: Record<string, string> = {};
 export function iconFor(type: string): string {
   const key = type + (type === 'townhall' || type === 'road' ? G.age : '');
   if (iconCache[key]) return iconCache[key];
-  let g;
+  let g: T3.Group;
   if (B[type].road) {
     g = new T3.Group();
     const t = roadTier();
-    bx(g, 1, 0.04, 1, `rgb(${RC[t].join(',')})`);
+    bx(g, 1, 0.04, 1, `rgb(${RC[t]!.join(',')})`);
     bx(g, 1, 0.03, 0.08, '#5a7a3a', 0, 0, 0.55);
     bx(g, 1, 0.03, 0.08, '#5a7a3a', 0, 0, -0.55);
   } else g = makeBuilding(type, G.age, null);
   return (iconCache[key] = snap(g));
 }
-export function portrait(kind: string, key: string): string {
+/** Portret van een dorpeling (taak), soldaat (soort) of vijand (nummer van de vijandsoort). */
+export function portrait(kind: string, key: string | number): string {
   const ck = 'p' + kind + key;
   if (iconCache[ck]) return iconCache[ck];
   const g =
     kind === 'v'
-      ? makeVillager(key)
+      ? makeVillager(key as string)
       : kind === 'u'
-        ? makeUnit(key, false)
-        : makeUnit(FOEK[key] || 'plunder', true);
+        ? makeUnit(key as string, false)
+        : makeUnit(FOEK[key as number] || 'plunder', true);
   g.rotation.y = -0.5;
   return (iconCache[ck] = snap(g, 128, 1.25));
 }

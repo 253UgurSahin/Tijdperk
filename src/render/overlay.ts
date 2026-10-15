@@ -81,7 +81,7 @@ export function drawOverlay() {
     ...G.foes.filter(f => f.hp < f.mhp && !f.retreat),
   ];
   for (const e of ents) {
-    const fly = e.kind === 'u' ? UNITS[e.k].fly : e.air;
+    const fly = e.kind === 'u' ? UNITS[e.k].fly : e.kind === 'f' && e.air; // dorpelingen vliegen nooit
     const [sx, sy, sz] = proj(e.rx ?? e.x, fly ? 1.3 : 0.8, e.ry ?? e.y);
     if (sz > 1) continue;
     obar(sx, sy, 22, e.hp / e.mhp, e.kind === 'f' ? '#e3584a' : e.hp / e.mhp > 0.4 ? '#7fd36a' : '#e3a64a');

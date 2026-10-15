@@ -10,10 +10,10 @@ import { setHTML } from '../header';
 import { $ } from '../../util/dom';
 
 export function renderChart() {
-  const c = $('#chart');
-  if (!c || !G.hist.length || !document.querySelector('.pane[data-pane="log"]').classList.contains('on'))
+  const c = $<HTMLCanvasElement>('#chart');
+  if (!c || !G.hist.length || !document.querySelector('.pane[data-pane="log"]')!.classList.contains('on'))
     return;
-  const x = c.getContext('2d'),
+  const x = c.getContext('2d')!,
     Wc = c.width,
     Hc = c.height;
   x.clearRect(0, 0, Wc, Hc);
@@ -64,9 +64,9 @@ export function renderLog() {
 }
 for (const id of ['#log', '#feed'])
   $(id).addEventListener('click', e => {
-    const t = e.target.closest('.jump');
+    const t = (e.target as HTMLElement).closest<HTMLElement>('.jump');
     if (t) {
-      centerOn(+t.dataset.jx, +t.dataset.jy);
+      centerOn(+t.dataset.jx!, +t.dataset.jy!);
       sfx('tick');
     }
   });

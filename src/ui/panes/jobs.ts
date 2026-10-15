@@ -13,7 +13,7 @@ import { CB } from '../inspector';
 import { $ } from '../../util/dom';
 
 export function renderJobs() {
-  const counts = { auto: 0, build: 0 };
+  const counts: Record<string, number> = { auto: 0, build: 0 };
   for (const v of G.vs) counts[v.job] = (counts[v.job] || 0) + 1;
   const rows = ['build', ...GATHER.filter(r => RES[r].age <= G.age)],
     inside = G.vs.filter(v => v.hidden).length;
@@ -54,7 +54,7 @@ export function renderJobs() {
   );
 }
 $('#jobs').addEventListener('click', e => {
-  const t = e.target.closest('button');
+  const t = (e.target as HTMLElement).closest('button');
   if (!t) return;
   if (t.dataset.plus) {
     const v = G.vs

@@ -52,12 +52,14 @@ export function pulseRes(k: string) {
 export function setSpeed(s: number) {
   if (s) lastSpeed = s;
   G.speed = s;
-  document.querySelectorAll('#speed button').forEach(b => b.classList.toggle('on', +b.dataset.s === s));
+  document
+    .querySelectorAll<HTMLElement>('#speed button')
+    .forEach(b => b.classList.toggle('on', +b.dataset.s! === s));
   store.uiDirty = true;
 }
 $('#speed').addEventListener('click', e => {
-  const b = e.target.closest('button');
-  if (b) setSpeed(+b.dataset.s);
+  const b = (e.target as HTMLElement).closest('button');
+  if (b) setSpeed(+b.dataset.s!);
 });
 export function setExpand(on: boolean) {
   store.expandMode = on;
@@ -87,13 +89,13 @@ $('#coachBtn').onclick = () => {
   } else if (a.k === 'expand') setExpand(true);
   else if (a.k === 'age') ageUp();
   else if (a.k === 'alarm') {
-    const h = th(),
+    const h = th()!,
       f = G.foes
         .filter(f => !f.camp && !f.retreat)
         .sort((p, q) => dist(p.x, p.y, h.x, h.y) - dist(q.x, q.y, h.x, h.y))[0];
     if (f) centerOn(f.x, f.y);
   } else if (a.k === 'sel') {
-    const b = bById.get(a.id);
+    const b = bById.get(a.id!);
     if (b) {
       clearSel();
       sel.b = b.id;
@@ -112,7 +114,7 @@ $('#cancelBtn').onclick = () => {
 };
 // Op een telefoon: tik op de "volgende stap" om de uitleg en het tijdperk-doel te zien
 $('#step').addEventListener('click', e => {
-  if (isCompact() && !e.target.closest('button')) togglePanel('goal');
+  if (isCompact() && !(e.target as HTMLElement).closest('button')) togglePanel('goal');
 });
 // Snelknoppen naast het inwonertal
 export function renderQuick() {
@@ -133,7 +135,7 @@ export function renderQuick() {
   );
 }
 $('#quick').addEventListener('click', e => {
-  const t = e.target.closest('button');
+  const t = (e.target as HTMLElement).closest('button');
   if (!t) return;
   sfx('tick');
   if (t.dataset.q === 'idle') selectIdle();

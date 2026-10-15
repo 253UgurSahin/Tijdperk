@@ -1,5 +1,5 @@
-import type { Building } from '../types';
 // De 3D-modellen van alle gebouwen.
+import type { Building } from '../types';
 import * as T3 from 'three';
 import { TAU, W } from '../config';
 import { B } from '../data/buildings';
@@ -32,7 +32,9 @@ import {
 } from './kit';
 import { bmap } from '../world/world';
 
-const MODELS = {
+/** Bouwt het model van één soort gebouw in groep g (a = het tijdperk, voor het stadhuis). */
+type ModelFn = (g: T3.Group, a: number, b?: Building | null) => void;
+const MODELS: Record<string, ModelFn> = {
   townhall(g, a) {
     if (a === 0) {
       cy(g, 0.92, 0.18, '#7d6a4c', 0, 0, 0, 10);
@@ -224,11 +226,13 @@ const MODELS = {
   },
   market(g) {
     bx(g, 1.92, 0.03, 1.92, '#b7a27c');
-    [
+    // Drie kraampjes: kleur van het dak en plek
+    const stalls: [string, number, number][] = [
       ['#c0453a', -0.5, -0.45],
       ['#2f6fd6', 0.45, -0.45],
       ['#e0b240', -0.05, 0.45],
-    ].forEach(([c, x, z]) => {
+    ];
+    stalls.forEach(([c, x, z]) => {
       for (const [dx, dz] of [
         [-0.3, -0.22],
         [0.3, -0.22],
@@ -449,9 +453,10 @@ export function wallMask(b: Building): number {
   });
   return m;
 }
+// (makeWall wordt alleen aangeroepen voor de vier soorten muur hieronder)
 function makeWall(g: T3.Group, type: string, m: number) {
-  const col = { palisade: C.wood, gate: C.wood, stonewall: C.stone, concrete: C.concrete }[type],
-    h = { palisade: 0.55, gate: 0.6, stonewall: 0.6, concrete: 0.7 }[type],
+  const col = { palisade: C.wood, gate: C.wood, stonewall: C.stone, concrete: C.concrete }[type]!,
+    h = { palisade: 0.55, gate: 0.6, stonewall: 0.6, concrete: 0.7 }[type]!,
     t = type === 'palisade' ? 0.16 : 0.24;
   if (type === 'palisade') {
     const pts = [[0, 0]];
@@ -517,10 +522,11 @@ function banner(g: T3.Object3D, x: number, y: number, z: number) {
 
 // Ondergrond per soort gebouw, zodat je ze ook van ver uit elkaar houdt:
 // wonen = lichte klinkers, economie = aangestampte aarde, leger = grijze steen
-const PLATE = { home: '#c4ad84', eco: '#8a7454', mil: '#5f6672' };
+const PLATE: Record<string, string> = { home: '#c4ad84', eco: '#8a7454', mil: '#5f6672' };
 const NO_PLATE = new Set(['farm', 'oilpump', 'campfire', 'lantern', 'streetlamp', 'road', 'townhall']);
 
-export function makeBuilding(type: string, age: number, b?: Building): T3.Group {
+/** Maak het model van een gebouw; zonder b (null) voor een voorbeeld of pictogram. */
+export function makeBuilding(type: string, age: number, b?: Building | null): T3.Group {
   const g = new T3.Group(),
     d = B[type];
   if (d.wall) makeWall(g, type, b ? wallMask(b) : 0);

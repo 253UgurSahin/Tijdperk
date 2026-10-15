@@ -14,6 +14,9 @@ import { togglePanel } from './panel';
 import { $, isCompact } from '../util/dom';
 import { LEVELS, setQuality } from '../render/quality';
 
+/** De instellingen die je met een schakelaar aan- of uitzet. */
+type ToggleKey = 'edge' | 'hp' | 'shake' | 'dragSelect' | 'hudWide';
+
 let prevSpeed = 1;
 function openModal(html: string) {
   $('#sheet').innerHTML = html;
@@ -26,8 +29,8 @@ export function closeModal() {
   setSpeed($('#title').hidden ? prevSpeed : 0);
 }
 $('#modal').addEventListener('click', e => {
-  const t = e.target.closest('[data-m]');
-  if (e.target.id === 'modal' && !G.over) {
+  const t = (e.target as HTMLElement).closest<HTMLElement>('[data-m]');
+  if ((e.target as HTMLElement).id === 'modal' && !G.over) {
     closeModal();
     return;
   }
@@ -44,7 +47,7 @@ $('#modal').addEventListener('click', e => {
   } else if (m === 'new') {
     t.dataset.m = 'newok';
     t.querySelector('span')
-      ? (t.querySelector('span').textContent = 'Zeker? Klik nogmaals')
+      ? (t.querySelector('span')!.textContent = 'Zeker? Klik nogmaals')
       : (t.textContent = 'Zeker? Klik nogmaals');
   } else if (m === 'newok') {
     wipe();
@@ -78,7 +81,7 @@ $('#modal').addEventListener('click', e => {
     setQuality(t.dataset.q);
     showSettings();
   } else if (t.dataset.set) {
-    const k = t.dataset.set;
+    const k = t.dataset.set as ToggleKey;
     if (k === 'hudWide') setTimeout(applyLayoutSettings);
     SET[k] = !SET[k];
     saveSet();
@@ -87,16 +90,18 @@ $('#modal').addEventListener('click', e => {
   }
 });
 $('#modal').addEventListener('input', e => {
-  if (e.target.id === 'vol') {
-    SET.vol = +e.target.value / 100;
+  const input = e.target as HTMLInputElement;
+  if (input.id === 'vol') {
+    SET.vol = +input.value / 100;
     saveSet();
     if (MG) MG.gain.value = SET.vol;
     sfx('tick', 0.1);
   }
 });
 $('#modal').addEventListener('change', e => {
-  if (e.target.id === 'peace') {
-    G.peaceful = e.target.checked;
+  const input = e.target as HTMLInputElement;
+  if (input.id === 'peace') {
+    G.peaceful = input.checked;
     toast(G.peaceful ? 'Vredige modus aan: geen nachtelijke aanvallen.' : 'Aanvallen staan weer aan.');
     sigs.def = null;
   }
@@ -107,14 +112,14 @@ export function openPause() {
   <div class="mstack" style="margin-top:18px"><button class="mbtn primary" data-m="close"><span>Hervatten</span><small>terug naar het spel</small></button>${isCompact() ? `<button class="mbtn" data-m="pg"><span>Volgend tijdperk</span><small>wat er nog nodig is</small></button><button class="mbtn" data-m="pr"><span>Kaart</span><small>overzicht · uitbreiden</small></button><button class="mbtn" data-m="pl"><span>Volk en leger</span><small>dorpelingen · verdediging · onderzoek</small></button>` : ''}<button class="mbtn" data-m="save"><span>Opslaan</span><small>automatisch elke minuut</small></button><button class="mbtn" data-m="load"><span>Laden</span><small>laatste opslag</small></button><button class="mbtn" data-m="settings"><span>Instellingen</span><small>geluid · weergave</small></button><button class="mbtn" data-m="help"><span>Uitleg</span><small>besturing</small></button><button class="mbtn" data-m="title"><span>Hoofdmenu</span><small>slaat eerst op</small></button></div>`);
 }
 function showSettings() {
-  const tg = (k, l, d) =>
+  const tg = (k: ToggleKey, l: string, d: string) =>
     `<div class="setrow"><div><b>${l}</b><small>${d}</small></div><button class="tog ${SET[k] ? 'on' : ''}" data-set="${k}" aria-label="${l}"></button></div>`;
   openModal(`<button class="quiet x" data-m="pause" aria-label="Terug">×</button><div class="eyebrow">Instellingen</div><h1>Spel en camera</h1>
   <div class="setrow"><div><b>Volume</b><small>Effecten en signalen</small></div><input type="range" id="vol" min="0" max="100" value="${Math.round(SET.vol * 100)}" aria-label="Volume"></div>
   <div class="setrow"><div><b>Geluid</b><small>Effecten aan of uit</small></div><button class="tog ${sndOn ? 'on' : ''}" data-snd="1" aria-label="Geluid"></button></div>
   <div class="setrow"><div><b>Bovenaanzicht</b><small>Camera recht van boven in plaats van schuin</small></div><button class="tog ${store.V2 ? 'on' : ''}" data-view="1" aria-label="Bovenaanzicht"></button></div>
   ${tg('edge', 'Randscrollen', 'Kaart schuift als de muis de rand van het scherm raakt')}${tg('hp', 'Levensbalken altijd tonen', 'Ook bij gezonde eenheden en gebouwen')}${tg('shake', 'Schermschudden', 'Bij instortende gebouwen')}${tg('dragSelect', 'Slepen = selecteren', 'Uit: linkermuis slepen verschuift de kaart')}${innerWidth / innerHeight > 2.15 ? tg('hudWide', 'HUD over volle breedte', 'Ultrabreed scherm: panelen in de hoeken in plaats van in het midden') : ''}
-  <div class="setrow"><div><b>Beeldkwaliteit</b><small>${SET.quality === 'auto' ? `Automatisch past zich aan je apparaat aan (nu: ${LEVELS[store.quality].name.toLowerCase()})` : 'Vaste kwaliteit'}</small></div>
+  <div class="setrow"><div><b>Beeldkwaliteit</b><small>${SET.quality === 'auto' ? `Automatisch past zich aan je apparaat aan (nu: ${LEVELS[store.quality!].name.toLowerCase()})` : 'Vaste kwaliteit'}</small></div>
     <div class="seg">${[
       ['auto', 'Auto'],
       ['low', 'Laag'],
@@ -152,7 +157,7 @@ export function showTitle() {
   };
   draw();
   el.onclick = e => {
-    const t = e.target.closest('button');
+    const t = (e.target as HTMLElement).closest('button');
     if (!t) return;
     sfx('tick');
     if (t.dataset.d !== undefined) {

@@ -33,17 +33,17 @@ export function updateHeader() {
     sigs.resbar = null;
     buildResBar();
   }
-  const prod = {};
+  const prod: Record<string, number> = {};
   for (const b of G.bs) {
     const d = B[b.type];
     if (b.done && b.on && d.conv) for (const k in d.conv.out) prod[k] = (prod[k] || 0) + 1;
     if (b.done && d.pump) prod[d.pump.res] = (prod[d.pump.res] || 0) + 1;
   }
-  for (const el of document.querySelectorAll('#resbar .res,#resPop .res')) {
-    const k = el.dataset.k;
-    el.querySelector('b').textContent = fmt(G.res[k]);
+  for (const el of document.querySelectorAll<HTMLElement>('#resbar .res,#resPop .res')) {
+    const k = el.dataset.k!;
+    el.querySelector('b')!.textContent = fmt(G.res[k]);
     const r = rate[k],
-      em = el.querySelector('em');
+      em = el.querySelector('em')!;
     if (r !== undefined && Math.abs(r) >= 1) {
       em.textContent = (r > 0 ? '+' : '−') + Math.abs(Math.round(r)) + '/m';
       em.className = r > 0 ? '' : 'down';
@@ -98,7 +98,7 @@ export function updateWorldTop() {
     t.textContent = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')} · ${part}`;
     t.className = '';
   }
-  drawDial($('#dial'), 68);
+  drawDial($<HTMLCanvasElement>('#dial'), 68);
   const C = coach();
   store.coachAct = C.act || null;
   const prevTile = store.coachTile;
@@ -165,7 +165,7 @@ export function updateWorldTop() {
   }
   renderQuick();
   $('#expandBtn').classList.toggle('on', store.expandMode);
-  $('#expandBtn').firstElementChild.textContent = store.expandMode ? 'Klaar' : 'Uitbreiden';
+  $('#expandBtn').firstElementChild!.textContent = store.expandMode ? 'Klaar' : 'Uitbreiden';
   $('#expandBtn').title = `Gebied uitbreiden (E) · ${costText(chunkCost())}`;
   $('#raidflash').classList.toggle('on', raidNow);
   const dq = document.querySelector('#sidebtns [data-p="def"]'),
@@ -181,7 +181,7 @@ export function updateWorldTop() {
     );
 }
 function drawDial(c: HTMLCanvasElement, S: number) {
-  const x = c.getContext('2d');
+  const x = c.getContext('2d')!;
   x.setTransform(1, 0, 0, 1, 0, 0);
   x.clearRect(0, 0, S, S);
   x.translate(S / 2, S / 2);

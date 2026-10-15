@@ -1,12 +1,21 @@
 // Beeldkwaliteit. Vast (laag / middel / hoog) of automatisch: automatisch begint hoog en zet
 // zelf de resolutie en zware effecten lager als het spel hapert, en weer hoger als er ruimte is.
 // Zo blijft het op elk apparaat vloeiend.
+import type * as T3 from 'three';
 import { store } from '../core/store';
 import { SET, saveSet } from '../core/settings';
-import { configurePost } from './post';
+import { configurePost, type PostSettings } from './post';
 import { resize, sun } from './scene';
 
-export const LEVELS = {
+/** Eén kwaliteitsstand: naam, resolutie-factor, maximum aantal pixels, schaduwen en nabewerking. */
+interface QualityLevel extends PostSettings {
+  name: string;
+  scale: number;
+  pixels: number;
+  shadows: boolean;
+  shadowMap: number;
+}
+export const LEVELS: Record<string, QualityLevel> = {
   low: {
     name: 'Laag',
     scale: 0.7,
@@ -41,11 +50,11 @@ export const LEVELS = {
 const ORDER = ['low', 'mid', 'high'];
 const COARSE = matchMedia('(pointer:coarse)').matches; // telefoon/tablet: start een stapje lager
 
-let level = 'high',
-  frames = 0,
-  time = 0,
-  slow = 0,
-  fast = 0;
+let level: string = 'high',
+  frames: number = 0,
+  time: number = 0,
+  slow: number = 0,
+  fast: number = 0;
 
 function apply(name: string) {
   level = name;
@@ -58,7 +67,8 @@ function apply(name: string) {
     sun.shadow.mapSize.set(L.shadowMap, L.shadowMap);
     if (sun.shadow.map) {
       sun.shadow.map.dispose();
-      sun.shadow.map = null;
+      // Leeg maken: three.js maakt dan een nieuwe in het juiste formaat (de types kennen deze lege stand niet)
+      (sun.shadow as { map: T3.WebGLRenderTarget | null }).map = null;
     }
   }
   configurePost(L);
@@ -98,20 +108,21 @@ export function tickQuality(rdt: number) {
     slow = 0;
   } else slow = fast = 0;
   const L = LEVELS[level];
+  // store.resScale is gezet door apply() (via initQuality bij het opstarten)
   if (slow >= 2) {
     slow = 0;
-    if (store.resScale > L.scale - 0.2 + 0.01) {
-      store.resScale = Math.max(0.5, store.resScale - 0.1);
+    if (store.resScale! > L.scale - 0.2 + 0.01) {
+      store.resScale = Math.max(0.5, store.resScale! - 0.1);
       resize();
     } else if (ORDER.indexOf(level) > 0) apply(ORDER[ORDER.indexOf(level) - 1]);
-    else if (store.resScale > 0.5) {
-      store.resScale = Math.max(0.5, store.resScale - 0.1);
+    else if (store.resScale! > 0.5) {
+      store.resScale = Math.max(0.5, store.resScale! - 0.1);
       resize();
     }
   } else if (fast >= 5) {
     fast = 0;
-    if (store.resScale < L.scale - 0.01) {
-      store.resScale = Math.min(L.scale, store.resScale + 0.1);
+    if (store.resScale! < L.scale - 0.01) {
+      store.resScale = Math.min(L.scale, store.resScale! + 0.1);
       resize();
     } else if (ORDER.indexOf(level) < ORDER.length - 1) apply(ORDER[ORDER.indexOf(level) + 1]);
   }

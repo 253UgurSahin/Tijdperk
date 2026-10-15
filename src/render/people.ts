@@ -4,7 +4,7 @@ import { RES } from '../data/resources';
 import { C, CYANM, FOE, GB, TEAM, TEAMD, bx, cn, cy, gIco, mat, mk, sp } from './kit';
 
 const SKIN = ['#e2b48c', '#c99470', '#a8754f', '#f0c8a0'];
-const JOBCOL = {
+const JOBCOL: Record<string, string> = {
   auto: '#cdbf9c',
   build: '#d9773a',
   food: '#c9a14a',
@@ -17,11 +17,21 @@ interface PersonOpts {
   shirt: string;
   pants?: string;
   sash?: string;
+  /** Borststuk en pluim in de kleur van het leger (soldaten en vijanden). */
+  tabard?: string;
+  crest?: string | null;
   hat?: string;
   hatc?: string;
   skin?: number;
   tool?: string;
   shield?: string;
+}
+/** De armen en benen van een poppetje, om ze te laten bewegen (zie sync.ts). */
+export interface Limbs {
+  lL: T3.Group;
+  lR: T3.Group;
+  aL: T3.Group;
+  aR: T3.Group;
 }
 function person(g: T3.Group, o: PersonOpts) {
   const sk = SKIN[o.skin || 0];
@@ -79,7 +89,8 @@ function person(g: T3.Group, o: PersonOpts) {
   }
   if (o.shield) bx(aL, 0.02, 0.16, 0.12, o.shield, -0.03, -0.24, 0);
   g.add(lL, lR, aL, aR);
-  g.userData.limbs = { lL, lR, aL, aR };
+  const limbs: Limbs = { lL, lR, aL, aR };
+  g.userData.limbs = limbs;
   const cr = new T3.Mesh(GB, mat('#8a6a44'));
   cr.scale.set(0.12, 0.12, 0.08);
   cr.position.set(0, 0.22, -0.1);
@@ -88,7 +99,7 @@ function person(g: T3.Group, o: PersonOpts) {
   g.userData.carry = cr;
   return g;
 }
-const JOBTOOL = {
+const JOBTOOL: Record<string, string> = {
   wood: 'axe',
   stone: 'pick',
   copper: 'pick',
@@ -124,7 +135,7 @@ export function makeUnit(k: string, foe?: boolean): T3.Group {
     bx(g, 0.74, 0.1, 0.12, '#2e3236', 0, 0, 0.2);
     bx(g, 0.74, 0.1, 0.12, '#2e3236', 0, 0, -0.2);
     bx(g, 0.34, 0.16, 0.3, foe ? '#6a3a32' : '#6b7650', 0, 0.28, 0);
-    const b = bx(g, 0.5, 0.05, 0.05, '#3a3f33', 0.3, 0.34, 0);
+    bx(g, 0.5, 0.05, 0.05, '#3a3f33', 0.3, 0.34, 0);
     bx(g, 0.14, 0.04, 0.14, T, 0, 0.44, 0);
     return g;
   }

@@ -4,13 +4,27 @@ import { H, TAU, W } from '../config';
 import { NODES } from '../data/nodes';
 import { RES } from '../data/resources';
 import { G } from '../game/state';
-import { C, M_, gCyl, gDod, gIco, gOct, mat } from './kit';
+import { C, M_, gCyl, gDod, gIco, gOct, type Paint } from './kit';
 import { CAM3, S3, cam } from './scene';
 import { hash2 } from '../util/random';
 import { bmap, isUnl, node } from '../world/world';
 import { camDist } from './camera';
 
-function bakePart(geo: T3.BufferGeometry, m: T3.MeshStandardMaterial, x: number, y: number, z: number, sx: number, sy: number, sz: number) {
+/** Eén onderdeel van een boom of rots: een vorm (al op zijn plek gezet) en het materiaal. */
+interface NodePart {
+  geo: T3.BufferGeometry;
+  mat: T3.Material;
+}
+function bakePart(
+  geo: T3.BufferGeometry,
+  m: Paint,
+  x: number,
+  y: number,
+  z: number,
+  sx: number,
+  sy: number,
+  sz: number,
+): NodePart {
   const g = geo.clone();
   g.applyMatrix4(
     new T3.Matrix4().compose(new T3.Vector3(x, y, z), new T3.Quaternion(), new T3.Vector3(sx, sy, sz)),
@@ -42,14 +56,14 @@ function foliage(color: string): T3.MeshStandardMaterial {
   m.customProgramCacheKey = () => 'wind';
   return m;
 }
-export const FOL = {
+export const FOL: Record<string, T3.MeshStandardMaterial> = {
   pine: foliage('#3f6b3f'),
   pine2: foliage('#4a7a45'),
   birch: foliage('#8fbf5a'),
   oak: foliage('#4f8a3c'),
   bush: foliage('#4d7d38'),
 };
-const NVAR = {
+const NVAR: Record<string, NodePart[]> = {
   pine: [
     bakePart(gCyl(0.06, 0.07, 6), C.woodd, 0, 0, 0, 1, 0.4, 1),
     bakePart(gCyl(0, 0.42, 7), FOL.pine, 0, 0.28, 0, 1, 0.62, 1),
@@ -88,9 +102,8 @@ for (const k of ['copper', 'tin', 'iron', 'gold', 'lithium'])
   ];
 const NGROUP = new T3.Group();
 S3.add(NGROUP);
-let NI3 = {},
-  unlSnap = '';
-const nodeVar = (i: number): number => {
+let NI3: Record<string, T3.InstancedMesh[]> = {};
+const nodeVar = (i: number): string => {
   const k = NODES[node[i]].k;
   if (k !== 'tree') return k;
   const h = hash2(i % W, (i / W) | 0, 21);
@@ -111,7 +124,7 @@ export const nodesNeedUpdate = () =>
   Math.hypot(cam.x - drawn.x, cam.y - drawn.y) > drawn.r * 0.3 ||
   Math.abs(drawRadius() - drawn.r) > drawn.r * 0.25;
 
-export function rebuildNodes(full?: boolean) {
+export function rebuildNodes(full?: boolean): void {
   drawn.x = cam.x;
   drawn.y = cam.y;
   drawn.r = drawRadius();
@@ -122,7 +135,7 @@ export function rebuildNodes(full?: boolean) {
   if (full) {
     for (const k in NI3) for (const m of NI3[k]) NGROUP.remove(m);
     NI3 = {};
-    const cnt = {};
+    const cnt: Record<string, number> = {};
     for (let i = 0; i < W * H; i++)
       if (node[i]) {
         const v = nodeVar(i);
@@ -142,7 +155,7 @@ export function rebuildNodes(full?: boolean) {
       });
     }
   }
-  const n = {};
+  const n: Record<string, number> = {};
   for (const v in NI3) n[v] = 0;
   for (let yy = y0; yy <= y1; yy++)
     for (let xx = x0; xx <= x1; xx++) {

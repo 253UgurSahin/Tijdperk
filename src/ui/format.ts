@@ -11,7 +11,7 @@ export const fmt = (n: number): string => {
       ? (n / 1000).toFixed(1) + 'k'
       : n.toLocaleString('nl-NL');
 };
-const SHAPE = {
+const SHAPE: Record<string, string> = {
   food: 'circle(50%)',
   wood: 'polygon(50% 0,100% 88%,0 88%)',
   stone: 'polygon(25% 6%,75% 6%,100% 50%,75% 94%,25% 94%,0 50%)',
@@ -31,7 +31,8 @@ const SHAPE = {
   chips: 'polygon(0 0,100% 0,100% 100%,0 100%,0 62%,22% 62%,22% 38%,0 38%)',
   battery: 'polygon(38% 0,62% 0,62% 14%,86% 14%,86% 100%,14% 100%,14% 14%,38% 14%)',
 };
-export const gem = (k: string): string => `<i class="gem" style="--c:${RES[k].c};--clip:${SHAPE[k] || 'none'}"></i>`;
+export const gem = (k: string): string =>
+  `<i class="gem" style="--c:${RES[k].c};--clip:${SHAPE[k] || 'none'}"></i>`;
 export const hy = (s: string): string =>
   String(s).replace(
     /^(.{4,}?)(woning|menten|lantaarn|fabriek|batterij|centrum|gieterij|centrale|afweer|plaats|toren|koepel|schutter|drager|drone|hangar|punt|werker)$/i,
@@ -49,5 +50,6 @@ export function costHTML(c: Cost): string {
     '</span>'
   );
 }
-export const esc = (s: string | number): string =>
-  String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+// Tekens die in HTML iets betekenen, en hoe je ze veilig opschrijft.
+const HTML_ESC: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' };
+export const esc = (s: string | number): string => String(s).replace(/[&<>"]/g, c => HTML_ESC[c]);

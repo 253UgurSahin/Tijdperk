@@ -1,4 +1,4 @@
-import type { Building } from '../types';
+import type { Building, Stance, Villager } from '../types';
 // Selectiepaneel: info en knoppen voor wat je hebt aangeklikt.
 import { store } from '../core/store';
 import { sfx } from '../audio/sound';
@@ -54,7 +54,7 @@ interface CmdOpts {
 export const CB = (data: string, glyph: string, label: string, o: CmdOpts = {}): string =>
   `<button class="cb ${o.on ? 'on' : ''} ${o.danger ? 'danger' : ''}" ${data} ${o.dis ? 'disabled' : ''} title="${esc(o.tip || label)}">${o.img ? `<img src="${o.img}" alt="">` : `<span class="g">${glyph}</span>`}<span class="l">${hy(label)}</span>${o.cost ? `<span class="c">${o.cost}</span>` : ''}</button>`;
 // Selectiepaneel met de knoppen die bij de selectie horen
-export let selCmds = null,
+export let selCmds: string | null = null,
   selCtx = '';
 export function renderInspector() {
   const p = $('#inspector'),
@@ -63,10 +63,10 @@ export function renderInspector() {
     b = sel.b && bById.get(sel.b),
     camp = sel.camp && G.camps.find(c => c.id === sel.camp && c.alive);
   const X = `<button class="quiet x" data-x="1" aria-label="Sluiten">${TOUCH ? 'Sluiten' : '×'}</button>`;
-  const im = src => `<img src="${src}" alt="">`;
-  const head = (port, t, sub) =>
+  const im = (src: string) => `<img src="${src}" alt="">`;
+  const head = (port: string, t: string, sub: string) =>
     `${X}<div class="selh"><div class="port">${port}</div><div><div class="selt">${t}</div><div class="sels">${sub}</div></div></div>`;
-  const hpl = (f, txt, cls = '') =>
+  const hpl = (f: number, txt: string, cls = '') =>
     `<div class="hpline"><div class="bar ${cls}"><i style="width:${clamp(f, 0, 1) * 100}%"></i></div><span>${txt}</span></div>`;
   if (!vs.length && !us.length && !b && !camp && sel.node < 0) {
     document.body.classList.remove('insp');
@@ -83,7 +83,7 @@ export function renderInspector() {
   }
   document.body.classList.add('insp');
   if (us.length) {
-    const by = {};
+    const by: Record<string, number> = {};
     us.forEach(u => (by[u.k] = (by[u.k] || 0) + 1));
     const hp = us.reduce((a, u) => a + u.hp, 0),
       mhp = us.reduce((a, u) => a + u.mhp, 0),
@@ -138,13 +138,13 @@ export function renderInspector() {
       cur = new Set(vs.map(v => v.job));
     selCmds = null;
     selCtx = '';
-    const st = v =>
+    const st = (v: Villager) =>
       v.hidden
         ? v.state === 'sleep'
           ? 'Slaapt binnen'
           : 'Schuilt binnen'
         : v.state === 'gather'
-          ? 'Verzamelt ' + RES[v.res].n.toLowerCase()
+          ? 'Verzamelt ' + RES[v.res!].n.toLowerCase()
           : v.state === 'build'
             ? 'Bouwt'
             : v.state === 'walk'
@@ -162,7 +162,7 @@ export function renderInspector() {
       'v' +
         vs.map(v => v.id + v.job + st(v) + v.carry.amt + Math.round(v.hp)).join() +
         Object.keys(avail).join(),
-      () => `${head(im(portrait('v', one ? one.job : 'auto')), one ? esc(one.name) : vs.length + ' dorpelingen', one ? st(one) + (one.carry.amt ? ` · draagt ${one.carry.amt} ${RES[one.carry.res].n.toLowerCase()}` : '') : 'Groep geselecteerd')}
+      () => `${head(im(portrait('v', one ? one.job : 'auto')), one ? esc(one.name) : vs.length + ' dorpelingen', one ? st(one) + (one.carry.amt ? ` · draagt ${one.carry.amt} ${RES[one.carry.res!].n.toLowerCase()}` : '') : 'Groep geselecteerd')}
       ${one ? hpl(one.hp / one.mhp, `${Math.ceil(one.hp)}/${one.mhp}`) : ''}
       <div class="chips">${jobs
         .map(j => {
@@ -215,6 +215,8 @@ export function renderInspector() {
         `${X}<div class="selh"><div class="port">${gem(N.res)}</div><div><div class="selt">${N.n}</div><div class="sels"><b class="num">${fmt(amt[i])}</b> ${RES[N.res].n.toLowerCase()} · ${workers} aan het werk</div></div></div>${hpl(amt[i] / N.amt[1], 'voorraad', 'acc')}${isUnl(x, y) ? '' : '<p class="small" style="margin-top:8px">Dit ligt buiten je land. Breid eerst uit.</p>'}`,
     );
   }
+  // Hier is altijd een gebouw geselecteerd: al het andere is hierboven al afgehandeld.
+  if (!b) return;
   const d = B[b.type];
   selCtx = d.n;
   // Knoppen voor een geselecteerd gebouw
@@ -388,7 +390,7 @@ export function renderInspector() {
   });
 }
 export function insHandler(e: MouseEvent) {
-  const t = e.target.closest('button');
+  const t = (e.target as HTMLElement).closest('button');
   if (!t || t.disabled) return;
   sfx('tick');
   const b = sel.b && bById.get(sel.b);
@@ -407,7 +409,7 @@ export function insHandler(e: MouseEvent) {
       G.stance = G.stance === 'guard' ? 'hold' : G.stance === 'hold' ? 'aggr' : 'guard';
     } else
       selUnits().forEach(u => {
-        u.stance = t.dataset.st;
+        u.stance = t.dataset.st as Stance;
         if (u.stance === 'hold') {
           u.order = 'guard';
           u.gx = u.x;
@@ -457,7 +459,7 @@ export function insHandler(e: MouseEvent) {
     }
     computeCaches();
   } else if (t.dataset.u === 'home') {
-    const th = G.bs.find(x => x.type === 'townhall');
+    const th = G.bs.find(x => x.type === 'townhall')!;
     selUnits().forEach((u, k) => {
       u.tgt = null;
       u.order = 'move';
@@ -474,7 +476,7 @@ export function insHandler(e: MouseEvent) {
       u.gy = u.y;
     });
   else if (t.dataset.u === 'attackcamp') {
-    const c = G.camps.find(c => c.id === sel.camp);
+    const c = G.camps.find(c => c.id === sel.camp)!;
     G.us.forEach(u => {
       u.tgt = c;
       u.order = 'attack';
@@ -523,14 +525,14 @@ export function insHandler(e: MouseEvent) {
     }
   } else if (t.dataset.buy) {
     const r = t.dataset.buy,
-      c = Math.round(20 * (1 + RES[r].age * 0.5) * (1 - 0.1 * lvlOf(b)));
+      c = Math.round(20 * (1 + RES[r].age * 0.5) * (1 - 0.1 * lvlOf(b as Building)));
     if (G.res.gold >= c) {
       G.res.gold -= c;
       G.res[r] += 100;
     }
   } else if (t.dataset.sell) {
     const r = t.dataset.sell,
-      c = Math.round(8 * (1 + RES[r].age * 0.5) * (1 + 0.15 * lvlOf(b)));
+      c = Math.round(8 * (1 + RES[r].age * 0.5) * (1 + 0.15 * lvlOf(b as Building)));
     if (G.res[r] >= 100) {
       G.res[r] -= 100;
       G.res.gold += c;

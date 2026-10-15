@@ -25,16 +25,17 @@ import { entitiesInBox } from '../input/selection';
 // Omlijning: geselecteerde dingen (groen) en wat je aanwijst of in je selectiekader hebt (licht).
 // Alleen bij middel/hoog; op laag blijven alleen de cirkels op de grond.
 const MAX_OUTLINED = 120;
-function objectFor(kind: string, id: number) {
+function objectFor(kind: string, id: number): T3.Group | undefined {
   if (kind === 'b') return bRec.get(id)?.g;
   if (kind === 'c') return cRec.get(id)?.g;
   return eRec.get(id)?.body;
 }
 function updateOutlines() {
   if (!outlinesOn()) return;
-  const selected = [],
-    hovered = [];
-  const add = (list, o) => o && list.length < MAX_OUTLINED && list.push(o);
+  const selected: T3.Object3D[] = [],
+    hovered: T3.Object3D[] = [];
+  const add = (list: T3.Object3D[], o: T3.Object3D | undefined) =>
+    o && list.length < MAX_OUTLINED && list.push(o);
   if (sel.b) add(selected, objectFor('b', sel.b));
   if (sel.camp) add(selected, objectFor('c', sel.camp));
   for (const id of sel.us) add(selected, objectFor('u', id));
@@ -73,7 +74,7 @@ export function render() {
       cx = sb.x + s / 2,
       cz = sb.y + s / 2;
     quadAt(cx, cz, s + 0.15, s + 0.15, '#9fe28a', 0.28, 0.025);
-    for (const r of [d.def && d.def.r, d.light].filter(Boolean)) rangeAt(cx, cz, r, '#ffffff');
+    for (const r of [d.def && d.def.r, d.light].filter(Boolean)) rangeAt(cx, cz, r!, '#ffffff');
     if (sb.rally) {
       ringAt(sb.rally.x, sb.rally.y, 0.35, '#ffffff', 0.9);
       const f = pool('rally', () => {

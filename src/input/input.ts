@@ -1,3 +1,4 @@
+import type { Tile } from '../types';
 // Muis, touch en toetsenbord.
 import { store } from '../core/store';
 import { setSound, sfx, sndOn } from '../audio/sound';
@@ -29,10 +30,41 @@ import { clamp, dist } from '../util/math';
 import { SET } from '../core/settings';
 
 export const mouse = { sx: 0, sy: 0, X: 0, Y: 0, tx: 0, ty: 0, in: false, moved: true, touch: false };
-export let drag = null,
-  hoverChunk = null;
-export const ptrs = new Map(),
-  keys = new Set();
+/** Wat je met de muis of vinger aan het doen bent op de kaart. */
+export type Drag = PinchDrag | PressDrag | LineDrag;
+/** Knijpen met twee vingers om te zoomen: afstand tussen de vingers (d0) en zoom (z0) bij het begin. */
+interface PinchDrag {
+  mode: 'pinch';
+  d0: number;
+  z0: number;
+}
+/** Wat een klik of sleep met één knop of vinger bijhoudt: beginpunt (sx, sy) en laatste punt (lx, ly). */
+interface Press {
+  btn: number;
+  sx: number;
+  sy: number;
+  lx: number;
+  ly: number;
+  shift: boolean;
+  ctrl: boolean;
+  /** Hoeveel pixels er al gesleept is. */
+  moved: number;
+}
+/** Klikken (nog niet beslist), de kaart verschuiven of een selectiekader trekken; t0 = wanneer het begon. */
+interface PressDrag extends Press {
+  mode: 'pending' | 'pan' | 'box';
+  t0: number;
+}
+/** Een muur of weg trekken, van tegel t0 naar tegel t1. */
+interface LineDrag extends Press {
+  mode: 'line';
+  t0: Tile;
+  t1: Tile;
+}
+export let drag: Drag | null = null,
+  hoverChunk: [number, number] | null = null;
+export const ptrs = new Map<number, { x: number; y: number }>(),
+  keys = new Set<string>();
 function local(e: MouseEvent): [number, number] {
   const r = cv.getBoundingClientRect();
   return [e.clientX - r.left, e.clientY - r.top];
@@ -62,11 +94,11 @@ cv.addEventListener('pointerdown', e => {
   };
   if (e.button === 1) drag.mode = 'pan';
   if (e.button === 0 && e.shiftKey && !store.placing && !store.expandMode) drag.mode = 'box';
+  // Muur of weg trekken: t0 is dan de begintegel in plaats van de begintijd.
   if (e.button === 0 && store.placing && (B[store.placing].wall || B[store.placing].road)) {
-    const t = s2t(sx, sy);
-    drag.mode = 'line';
-    drag.t0 = [Math.floor(t[0]), Math.floor(t[1])];
-    drag.t1 = drag.t0;
+    const t = s2t(sx, sy),
+      t0: Tile = [Math.floor(t[0]), Math.floor(t[1])];
+    drag = { ...drag, mode: 'line', t0, t1: t0 };
   }
 });
 cv.addEventListener('pointermove', e => {
@@ -90,20 +122,23 @@ cv.addEventListener('pointermove', e => {
     drag.t1 = [Math.floor(mouse.tx), Math.floor(mouse.ty)];
     return;
   }
-  const dx = sx - drag.lx,
-    dy = sy - drag.ly;
-  drag.moved += Math.abs(dx) + Math.abs(dy);
+  // Vanaf hier: slepen met één knop of vinger. (Een knijpgebaar waarvan al een vinger los is,
+  // komt hier ook langs; daarmee gebeurt verder niets.)
+  const press = drag as PressDrag;
+  const dx = sx - press.lx,
+    dy = sy - press.ly;
+  press.moved += Math.abs(dx) + Math.abs(dy);
   // Slepen begint: wordt het een selectiekader of verschuiven we de kaart?
   // Muis: linkerknop = kader (tenzij uitgezet in de instellingen), rechter/middelste knop = schuiven.
   // Touch: gewoon slepen = schuiven, eerst even vasthouden en dan slepen = kader.
-  if (drag.mode === 'pending' && drag.moved > 7) {
-    const held = performance.now() - drag.t0 > 450;
-    const box = mouse.touch ? held : drag.btn === 0 && SET.dragSelect !== false;
-    drag.mode = box && !store.placing && !store.expandMode ? 'box' : 'pan';
-    if (drag.mode === 'pan') cv.style.cursor = 'grabbing';
+  if (press.mode === 'pending' && press.moved > 7) {
+    const held = performance.now() - press.t0 > 450;
+    const box = mouse.touch ? held : press.btn === 0 && SET.dragSelect !== false;
+    press.mode = box && !store.placing && !store.expandMode ? 'box' : 'pan';
+    if (press.mode === 'pan') cv.style.cursor = 'grabbing';
   }
-  if (drag.mode === 'pan') {
-    const a0 = s2t(drag.lx, drag.ly),
+  if (press.mode === 'pan') {
+    const a0 = s2t(press.lx, press.ly),
       b0 = s2t(sx, sy);
     cam.tx = null;
     cam.x += a0[0] - b0[0];
@@ -111,8 +146,8 @@ cv.addEventListener('pointermove', e => {
     clampCam();
     updateCamera();
   }
-  drag.lx = sx;
-  drag.ly = sy;
+  press.lx = sx;
+  press.ly = sy;
 });
 cv.addEventListener('pointerup', e => {
   ptrs.delete(e.pointerId);
@@ -164,9 +199,9 @@ export function setZoom(z: number) {
   cam.tz = null;
 }
 /** Vloeiend zoomen naar z. Met sx, sy blijft dat punt op het scherm op dezelfde plek in de wereld. */
-export function zoomTo(z: number, sx: number, sy: number) {
+export function zoomTo(z: number, sx?: number, sy?: number) {
   cam.tz = clamp(z, ZOOM_MIN, ZOOM_MAX);
-  cam.anchor = sx == null ? null : [sx, sy];
+  cam.anchor = sx == null ? null : [sx, sy!];
 }
 $('#zIn').onclick = () => zoomTo((cam.tz ?? cam.z) * 1.25);
 $('#zOut').onclick = () => zoomTo((cam.tz ?? cam.z) / 1.25);
@@ -184,7 +219,7 @@ export function setView(v2: boolean, quiet?: boolean) {
   store.uiDirty = true;
 }
 addEventListener('keydown', e => {
-  if (e.target.tagName === 'INPUT') return;
+  if ((e.target as HTMLElement).tagName === 'INPUT') return;
   const k = e.key.toLowerCase();
   if ((e.metaKey || e.ctrlKey) && !/^f[1-5]$/.test(k)) return;
   if (!$('#modal').hidden) {
@@ -274,7 +309,7 @@ addEventListener('keydown', e => {
     togglePanel('left');
   } else if (k === 'q') selectArmy();
   else if (/^[1-9]$/.test(k) && !e.ctrlKey) {
-    const tiles = [...document.querySelectorAll('#cmdgrid .gb[data-b]')],
+    const tiles = [...document.querySelectorAll<HTMLElement>('#cmdgrid .gb[data-b]')],
       t = tiles[+k - 1];
     if (t) {
       t.click();

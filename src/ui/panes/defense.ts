@@ -32,7 +32,7 @@ export function renderDefense() {
     hrs = hoursUntilRaid(),
     rc = repairCost();
   const secs = hrs == null ? null : (hrs * DAYLEN) / 24 / (G.speed || 1);
-  const army = {};
+  const army: Record<string, number> = {};
   G.us.forEach(u => (army[u.k] = (army[u.k] || 0) + 1));
   {
     const tw = G.bs.filter(b => b.done && b.type !== 'townhall' && B[b.type].def).length;
@@ -54,7 +54,7 @@ export function renderDefense() {
     'def',
     sig,
     () => `<div class="hlt"><span>Stamhuis${hp < 0.995 && !raidNow ? ' · herstelt vanzelf' : ''}</span><b>${Math.round(hp * 100)}%</b></div><div class="bar ${hp < 0.4 ? 'bad' : ''}"><i style="width:${hp * 100}%"></i></div>
-    <div class="raidcard ${raidNow ? 'now' : ''}"><canvas class="moon" width="60" height="60"></canvas><div><b>${raidNow ? `${raidNow} aanvallers in je land` : G.peaceful ? 'Vredige modus' : secs == null ? 'Geen aanval gepland' : hrs <= 0.01 ? 'Aanval begint' : `Aanval over ${Math.ceil(secs / 60)} min`}</b><small>${raidNow ? 'Dorpelingen schuilen' : G.peaceful ? 'Aanvallen staan uit' : `±${raidSize()} ${FOES[G.age].n.toLowerCase()}${G.speed ? '' : ' · gepauzeerd'}`}</small></div></div>
+    <div class="raidcard ${raidNow ? 'now' : ''}"><canvas class="moon" width="60" height="60"></canvas><div><b>${raidNow ? `${raidNow} aanvallers in je land` : G.peaceful ? 'Vredige modus' : secs == null ? 'Geen aanval gepland' : hrs! <= 0.01 ? 'Aanval begint' : `Aanval over ${Math.ceil(secs / 60)} min`}</b><small>${raidNow ? 'Dorpelingen schuilen' : G.peaceful ? 'Aanvallen staan uit' : `±${raidSize()} ${FOES[G.age].n.toLowerCase()}${G.speed ? '' : ' · gepauzeerd'}`}</small></div></div>
     <div class="cmd" style="margin-top:10px">${rc ? CB('data-act="repair"', '✚', 'Herstel', { dis: !has(rc), cost: costHTML(rc), tip: 'Herstel alle gebouwen' }) : ''}${CB('data-act="army"', '⚔', 'Kies leger', { dis: !G.us.length, tip: 'Selecteer het hele leger' })}${CB('data-act="rally"', '⌂', 'Naar huis', { dis: !G.us.length, tip: 'Leger terug naar het stamhuis' })}${CB('data-act="camps"', '◎', 'Vijandelijk kamp', { tip: 'Camera naar het dichtstbijzijnde vijandelijke kamp' })}</div>
     ${
       G.us.length
@@ -68,16 +68,16 @@ export function renderDefense() {
     }
     <div class="statline"><i class="dot"></i>${G.camps.filter(c => c.alive).length} vijandelijke kampen</div>`,
   );
-  const m = document.querySelector('#defense .moon');
+  const m = document.querySelector<HTMLCanvasElement>('#defense .moon');
   if (m) {
-    const x = m.getContext('2d');
+    const x = m.getContext('2d')!;
     x.clearRect(0, 0, 60, 60);
     circ(x, 30, 30, 22, raidNow ? '#d97c6e' : '#d7c69a');
     circ(x, 38, 24, 18, raidNow ? '#f6e3df' : '#f1ece0');
   }
 }
 $('#defense').addEventListener('click', e => {
-  const t = e.target.closest('button');
+  const t = (e.target as HTMLElement).closest('button');
   if (!t || t.disabled) return;
   if (t.dataset.act === 'repair') {
     const rc = repairCost();
@@ -98,7 +98,7 @@ $('#defense').addEventListener('click', e => {
       store.uiDirty = true;
     }
   } else if (t.dataset.act === 'rally') {
-    const th = G.bs.find(x => x.type === 'townhall');
+    const th = G.bs.find(x => x.type === 'townhall')!;
     G.us.forEach((u, k) => {
       u.tgt = null;
       u.order = 'move';

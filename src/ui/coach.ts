@@ -1,4 +1,4 @@
-import type { AgeUpDef } from '../types';
+import type { AgeUpDef, CoachAct } from '../types';
 // De "coach": kiest steeds één duidelijke volgende stap voor de speler.
 import { AGES, AGE_UP } from '../data/ages';
 import { B, BKEYS } from '../data/buildings';
@@ -18,7 +18,7 @@ function bestHouse() {
   )[0];
 }
 export function lackList(nx: AgeUpDef): string[] {
-  const out = [];
+  const out: string[] = [];
   for (const k in nx.cost)
     if (G.res[k] < nx.cost[k]) out.push(`${fmt(Math.ceil(nx.cost[k] - G.res[k]))} ${RES[k].n.toLowerCase()}`);
   for (const n of nx.need) if (!built(n)) out.push(`een ${B[n].n.toLowerCase()}`);
@@ -27,8 +27,15 @@ export function lackList(nx: AgeUpDef): string[] {
 }
 export const andJoin = (a: string[]): string =>
   a.length > 2 ? a.slice(0, 2).join(', ') + ' en meer' : a.length === 2 ? a[0] + ' en ' + a[1] : a[0] || '';
-const bAct = (k: string) => ({ l: 'Bouw ' + B[k].n.toLowerCase(), b: k });
-export function coach() {
+const bAct = (k: string): CoachAct => ({ l: 'Bouw ' + B[k].n.toLowerCase(), b: k });
+/** Eén stap van de coach: titel, uitleg, eventueel een gebouw om aan te wijzen en een knop. */
+interface CoachStep {
+  t: string;
+  h: string;
+  tile?: string;
+  act?: CoachAct;
+}
+export function coach(): CoachStep {
   const nx = AGE_UP[G.age + 1],
     NA = nx && AGES[G.age + 1].n.toLowerCase(),
     pn = popNow(),
@@ -159,7 +166,7 @@ export function coach() {
           act: bAct(mk),
         };
       if (mk) {
-        const inp = Object.keys(B[mk].conv.in).filter(r => G.res[r] < 5);
+        const inp = Object.keys(B[mk].conv!.in).filter(r => G.res[r] < 5);
         return {
           t: `Nog ${left} ${RES[k].n.toLowerCase()} nodig.`,
           h: inp.length

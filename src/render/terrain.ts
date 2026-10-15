@@ -11,23 +11,24 @@ const TS = 12, // pixels per tegel in de grondtextuur
   TCAN = document.createElement('canvas');
 TCAN.width = W * TS;
 TCAN.height = H * TS;
-export const tctx = TCAN.getContext('2d');
-export let timg = null;
+export const tctx = TCAN.getContext('2d')!;
+/** De pixels van de grondtextuur (gemaakt door paintAll bij een nieuw spel). */
+export let timg: ImageData | null = null;
 export const TTEX = new T3.CanvasTexture(TCAN);
 TTEX.magFilter = T3.LinearFilter;
 TTEX.minFilter = T3.LinearMipmapLinearFilter;
 TTEX.anisotropy = 4;
 export const TMAT = new T3.MeshStandardMaterial({ map: TTEX, roughness: 0.95, flatShading: false });
-let TMESH = null;
+let TMESH: T3.Mesh<T3.PlaneGeometry, T3.MeshStandardMaterial> | null = null;
 // Water: een golfpatroon (normal map) dat langzaam verschuift, zodat het water glinstert in de zon.
 // Het patroon is gemaakt van sinusgolven met hele getallen, zodat het naadloos herhaalt.
 function waveNormals(size = 128) {
   const c = document.createElement('canvas');
   c.width = c.height = size;
-  const x = c.getContext('2d'),
+  const x = c.getContext('2d')!,
     im = x.createImageData(size, size),
     T = (Math.PI * 2) / size;
-  const h = (i, j) =>
+  const h = (i: number, j: number) =>
     Math.sin(i * T * 3 + j * T * 2) * 0.5 +
     Math.sin(i * T * 7 - j * T * 5 + 1.3) * 0.3 +
     Math.sin(-i * T * 11 + j * T * 13 + 0.7) * 0.15;
@@ -62,12 +63,8 @@ const WMAT = new T3.MeshStandardMaterial({
 export function animateWater(t: number) {
   WNORM.offset.set(t * 0.012, t * 0.007);
 }
-export const RC = [null, [176, 152, 108], [168, 166, 156], [78, 82, 88]];
-/** Kleur van de grond op tegel (x, y), zoals de wereldgenerator die heeft bepaald. */
-export function tileRGB(x: number, y: number): [number, number, number] {
-  const i = (y * W + x) * 3;
-  return [ground[i], ground[i + 1], ground[i + 2]];
-}
+/** Kleur van de weg per soort (1 = pad, 2 = klinkerweg, 3 = asfaltweg); 0 = geen weg. */
+export const RC: ([number, number, number] | null)[] = [null, [176, 152, 108], [168, 166, 156], [78, 82, 88]];
 // Grondkleur op een willekeurig punt: de kleuren van de vier dichtstbijzijnde tegels lopen
 // zacht in elkaar over, zodat er geen harde blokken tussen gras, bos en zand zitten.
 const groundAt = (u: number, v: number, out: number[]) => {
@@ -91,11 +88,11 @@ export function paintTile(x: number, y: number) {
   const i = y * W + x,
     lk = !G.unl[(y >> 4) * CN + (x >> 4)],
     rd = road[i],
-    d = timg.data,
+    d = timg!.data,
     X0 = x * TS,
     Y0 = y * TS,
     WW = W * TS;
-  const nb = (dx, dy) => {
+  const nb = (dx: number, dy: number) => {
     const xx = x + dx,
       yy = y + dy;
     return xx < 0 || yy < 0 || xx >= W || yy >= H ? 0 : road[yy * W + xx];
@@ -128,7 +125,7 @@ export function paintTile(x: number, y: number) {
           (py < 2 && !nb(0, -1)) ||
           (py >= TS - 2 && !nb(0, 1));
         if (!ex) {
-          const c = RC[rd],
+          const c = RC[rd]!,
             k = 0.9 + h * 0.16;
           r = c[0] * k;
           g = c[1] * k;
@@ -159,8 +156,9 @@ export function paintTile(x: number, y: number) {
     }
   // Rand van je gebied
   if (!lk) {
-    const L = (xx, yy) => xx < 0 || yy < 0 || xx >= W || yy >= H || !G.unl[(yy >> 4) * CN + (xx >> 4)];
-    const put = (px, py) => {
+    const L = (xx: number, yy: number) =>
+      xx < 0 || yy < 0 || xx >= W || yy >= H || !G.unl[(yy >> 4) * CN + (xx >> 4)];
+    const put = (px: number, py: number) => {
       const o = ((Y0 + py) * WW + X0 + px) * 4;
       d[o] = 236;
       d[o + 1] = 214;
@@ -197,9 +195,9 @@ export function paintAll() {
 
 // Tegels die opnieuw geschilderd moeten worden. Alleen dat stukje gaat daarna naar de videokaart,
 // in plaats van de hele grondtextuur (die is 3072×3072 pixels: dat zou haperen).
-const pending = new Set();
+const pending = new Set<number>();
 const PATCH = document.createElement('canvas'),
-  pctx = PATCH.getContext('2d'),
+  pctx = PATCH.getContext('2d')!,
   PATCHTEX = new T3.CanvasTexture(PATCH),
   patchPos = new T3.Vector2();
 export const repaintTile = (x: number, y: number) => pending.add(y * W + x);
@@ -225,7 +223,7 @@ export function flushTerrain() {
     py = y0 * TS,
     pw = (x1 - x0 + 1) * TS,
     ph = (y1 - y0 + 1) * TS;
-  tctx.putImageData(timg, 0, 0, px, py, pw, ph);
+  tctx.putImageData(timg!, 0, 0, px, py, pw, ph);
   // Nog niet op de videokaart, of een heel groot stuk: dan gewoon alles in één keer
   if (!R3.properties.get(TTEX).__webglTexture || pw * ph > (TCAN.width * TCAN.height) / 4) {
     TTEX.needsUpdate = true;
@@ -246,7 +244,7 @@ export function buildTerrain() {
   const g = new T3.PlaneGeometry(W, H, W, H);
   g.rotateX(-Math.PI / 2);
   g.translate(W / 2, 0, H / 2);
-  const p = g.attributes.position;
+  const p = g.attributes.position as T3.BufferAttribute;
   for (let k = 0; k < p.count; k++) {
     const x = Math.round(p.getX(k)),
       z = Math.round(p.getZ(k));

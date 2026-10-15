@@ -19,9 +19,21 @@ const COLD = new T3.Color('#6f86c8'),
   SKYN = new T3.Color('#38466e'),
   FOGD = new T3.Color('#9fb3a6'),
   FOGN = new T3.Color('#0c1220');
-const AUT = { oak: '#c9772f', birch: '#d9a83a' },
-  SUMMER = { oak: '#4f8a3c', birch: '#8fbf5a', pine: '#3f6b3f', pine2: '#4a7a45', bush: '#4d7d38' },
-  WINTER = { oak: '#8a8f86', birch: '#b5b9ad', pine: '#4d6a5a', pine2: '#5b7868', bush: '#6b7a62' };
+const AUT: Record<string, string> = { oak: '#c9772f', birch: '#d9a83a' },
+  SUMMER: Record<string, string> = {
+    oak: '#4f8a3c',
+    birch: '#8fbf5a',
+    pine: '#3f6b3f',
+    pine2: '#4a7a45',
+    bush: '#4d7d38',
+  },
+  WINTER: Record<string, string> = {
+    oak: '#8a8f86',
+    birch: '#b5b9ad',
+    pine: '#4d6a5a',
+    pine2: '#5b7868',
+    bush: '#6b7a62',
+  };
 export function applySeason() {
   const sn = season().n;
   if (sn === store.seasonSig) return;
@@ -47,8 +59,8 @@ export function lighting(dk: number) {
   hemi.color.copy(SKYD).lerp(SKYN, dk);
   hemi.intensity = 0.55 * (1 - dk * 0.6) * (G.rain ? 0.85 : 1);
   const fc = FOGD.clone().lerp(FOGN, dk);
-  S3.fog.color.copy(fc);
-  S3.background.copy(fc);
+  S3.fog!.color.copy(fc);
+  (S3.background as T3.Color).copy(fc);
   WIN.emissiveIntensity = GLASS.emissiveIntensity = dk * 1.3;
   const all = lights.filter(L => dist(L.x, L.y, cam.x, cam.y) < camDist() * 1.2);
   let gi = 0;

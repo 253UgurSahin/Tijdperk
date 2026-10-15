@@ -5,14 +5,25 @@ import { $ } from '../util/dom';
 import { CX, CY } from '../config';
 import { resizePost } from './post';
 
-export const cv = $('#cv'),
-  ov = $('#ov'),
-  octx = ov.getContext('2d'),
+export const cv = $<HTMLCanvasElement>('#cv'),
+  ov = $<HTMLCanvasElement>('#ov'),
+  octx = ov.getContext('2d')!,
   worldEl = $('#world');
-export let DPR = 1,
-  VW = 1,
-  VH = 1;
-export const cam = { x: CX, y: CY, z: 1, tx: null, ty: null };
+export let DPR: number = 1,
+  VW: number = 1,
+  VH: number = 1;
+/** De camera: waar hij naar kijkt (x, y), hoe ver ingezoomd (z) en waar hij naartoe schuift (tx, ty). */
+export interface CamState {
+  x: number;
+  y: number;
+  z: number;
+  tx: number | null;
+  ty: number | null;
+  /** Gewenste zoom bij vloeiend zoomen, en het schermpunt dat daarbij op zijn plek blijft (zie input.ts). */
+  tz?: number | null;
+  anchor?: [number, number] | null;
+}
+export const cam: CamState = { x: CX, y: CY, z: 1, tx: null, ty: null };
 export const scrX = (x: number, y: number): number => (store.V2 ? x : x - y);
 const LOWQ = matchMedia('(pointer:coarse)').matches;
 export const R3 = new T3.WebGLRenderer({ canvas: cv, antialias: !LOWQ, powerPreference: 'high-performance' });
@@ -32,7 +43,7 @@ sun.shadow.bias = -0.0006;
 sun.shadow.normalBias = 0.02;
 S3.add(sun);
 S3.add(sun.target);
-export const PL = [];
+export const PL: T3.PointLight[] = [];
 for (let i = 0; i < 6; i++) {
   const p = new T3.PointLight(0xffa95a, 0, 8, 2);
   S3.add(p);
