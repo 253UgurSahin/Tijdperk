@@ -6,7 +6,7 @@ import { CS } from '../config';
 import { B } from '../data/buildings';
 import { placeLine } from '../game/placement';
 import { G, bById, sel } from '../game/state';
-import { canDemolish } from '../game/wonders';
+import { canDemolish, noDemolishText } from '../game/wonders';
 import { CUR } from './cursors';
 import {
   boxSelect,
@@ -359,8 +359,8 @@ addEventListener('keydown', e => {
   else if ((k === 'delete' || k === 'backspace') && sel.b) {
     e.preventDefault();
     const b = bById.get(sel.b);
-    // Het stamhuis en een af wereldwonder breek je niet af
-    if (b && !canDemolish(b)) toast(`${B[b.type].n} kun je niet afbreken.`);
+    // Het stamhuis, een af wereldwonder en een sterrenpoort die oplaadt breek je niet af
+    if (b && !canDemolish(b)) toast(noDemolishText(b));
     else if (b) {
       if (store.demolishArm === b.id) demolish(b);
       else {

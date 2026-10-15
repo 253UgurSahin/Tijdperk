@@ -2,6 +2,7 @@
 import type { NewGameOptions } from '../types';
 import { sfx } from '../audio/sound';
 import { H, W } from '../config';
+import { nextAttackDay, relText, relationLabel, startRel } from '../data/diplomacy';
 import { DIFFICULTIES, cleanDiff } from '../data/difficulty';
 import { MAP, MAPS, cleanMap } from '../data/maps';
 import { PLACES } from '../data/names';
@@ -173,18 +174,28 @@ function rivalsHTML(draft: NewGameDraft) {
     )
     .join('');
   const lineup = seed === null ? [] : rivalLineup(seed).slice(0, draft.rivals);
+  // De relatie waarmee ze beginnen: op de zware standen lager (zie startRel in data/diplomacy.ts)
+  const rel = p => startRel(p, draft.diff);
   // Per rivaal: vaandel, naam, karakter en in één zin wat dat karakter doet
   const who = lineup.map(
     ({ k, p }) =>
       `<span class="ngriv">${bannerHTML(RIVAL[k], 'xs')}<span>
-        <b>${RIVAL[k].n}</b> <i>${PERSONALITY[p].n.toLowerCase()}</i>
+        <b>${RIVAL[k].n}</b> <i>${PERSONALITY[p].n.toLowerCase()} · ${relationLabel(rel(p)).toLowerCase()} (${relText(rel(p))})</i>
         <small>${PERSONALITY[p].d}</small>
       </span></span>`,
   );
-  // De eerste aanval: de vroegste dag van wie er meedoet (nooit vóór dag 4, net als in het spel)
-  const firstDays = lineup.map(({ p }) => PERSONALITY[p].first);
+  // De eerste aanval: de vroegste dag van wie er meedoet, met de relatie waarmee ze beginnen (zie data/diplomacy.ts)
+  const firstDays = lineup.map(({ p }) =>
+    nextAttackDay({
+      first: PERSONALITY[p].first,
+      every: PERSONALITY[p].every,
+      attacks: 0,
+      lastAttack: 0,
+      rel: rel(p),
+    }),
+  );
   const firstAttack = Math.max(4, firstDays.length ? Math.min(...firstDays) : 4);
-  let hint = `Ze bouwen en groeien net als jij. De eerste aanval komt op zijn vroegst op dag ${firstAttack}. Hun stad staat als stip op de kaart.`;
+  let hint = `Ze bouwen en groeien net als jij. De eerste aanval komt op zijn vroegst op dag ${firstAttack}. Hun stad staat als stip op de kaart. Met Diplomatie (paneel Leger) maak je vrienden of vijanden.`;
   if (!draft.rivals) hint = 'Alleen jij en de wildernis.';
   else if (DIFFICULTIES[draft.diff].peaceful)
     hint = 'Ze bouwen en groeien net als jij, maar op Vredig vallen ze niet aan.';

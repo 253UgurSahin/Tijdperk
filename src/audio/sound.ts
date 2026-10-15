@@ -13,7 +13,7 @@ function out() {
 export let AC: AudioContext | null = null,
   sndOn = SET.sound !== false;
 // Welke geluiden bij "meldingen" horen en welke bij "klikjes" (zie de instellingen)
-const ALERTS = new Set(['alarm', 'raidend', 'meteor', 'bad']);
+const ALERTS = new Set(['alarm', 'raidend', 'meteor', 'bad', 'boss']);
 const UI_SOUNDS = new Set(['tick', 'select']);
 function ac() {
   if (!AC) {
@@ -167,6 +167,38 @@ export function sfx(k: string, minGap = 0.05) {
       break;
     case 'raidend':
       tone(392, 523, 0.3, 'triangle', 0.06);
+      break;
+    case 'finale':
+      // De sterrenpoort gaat opladen: twee zware trommelslagen, een donker akkoord dat oploopt, en een lange toon
+      for (const d of [0, 0.45]) {
+        noise(0.5, 0.1, 90, d);
+        tone(60, 40, 0.6, 'sine', 0.16, d);
+      }
+      [220, 262, 330, 440].forEach((f, i) => tone(f, 0, 1.2, 'triangle', 0.06, 0.8 + i * 0.16));
+      for (const f of [220, 330, 440]) tone(f, 0, 2.6, 'triangle', 0.035, 1.5);
+      tone(110, 0, 2.6, 'sawtooth', 0.02, 1.5);
+      break;
+    case 'boss':
+      // Een kampioen: een diepe oorlogshoorn met een trommel eronder
+      tone(110, 98, 1.2, 'sawtooth', 0.05);
+      tone(165, 147, 1.2, 'sawtooth', 0.03);
+      noise(0.4, 0.09, 120);
+      tone(147, 131, 1, 'sawtooth', 0.045, 1.1);
+      tone(220, 196, 1, 'sawtooth', 0.025, 1.1);
+      break;
+    case 'bossdown':
+      // Kampioen verslagen: een korte fanfare die eindigt op een heldere lange toon
+      [392, 523, 659].forEach((f, i) => tone(f, 0, 0.18, 'triangle', 0.07, i * 0.11));
+      tone(784, 0, 0.9, 'triangle', 0.08, 0.33);
+      tone(1046, 0, 0.9, 'sine', 0.04, 0.33);
+      noise(0.5, 0.015, 6000, 0.33);
+      break;
+    case 'charged':
+      // De poort gaat open: een stijgende zwiep en een groot, warm akkoord dat lang naklinkt
+      tone(200, 2400, 1.4, 'sine', 0.035);
+      noise(1.6, 0.02, 5000, 0.2);
+      [262, 330, 392, 523, 659].forEach((f, i) => tone(f, 0, 3.2, 'triangle', 0.05, 1.2 + i * 0.07));
+      tone(131, 0, 3.4, 'sine', 0.08, 1.2);
       break;
     case 'achieve':
       // Prestatie behaald: twee snelle klokjes omhoog, dan een heldere, lange toon met wat glinstering

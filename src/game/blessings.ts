@@ -1,6 +1,6 @@
 // Zegeningen in het spel: wanneer je mag kiezen, welke kaarten er liggen en wat een keuze doet.
 import type { BlessingSlot } from '../types';
-import { blessingOffer } from '../data/blessings';
+import { blessingOffer, bossOffer } from '../data/blessings';
 import type { BlessingDef } from '../data/blessings';
 import { applyBonusChange } from './bonus';
 import { spawnUnit, spawnVillager } from './entities';
@@ -12,6 +12,7 @@ import { G } from './state';
  * G.blessings: de sleutels van de zegeningen die je koos (de bonussen telt game/bonus.ts).
  * G.blessingQueue: keuzes die nog komen, als { age, at }. Vanaf speltijd `at` liggen de kaarten
  * van tijdperk `age` klaar. De interface (ui/blessings.ts) laat ze zien als het scherm vrij is.
+ * Met boss: true is het de beloning voor een verslagen kampioen (zie game/bosses.ts).
  */
 
 /** Een nieuw tijdperk: er komt een keuze bij. */
@@ -29,7 +30,10 @@ export function waitingBlessing(): BlessingSlot | null {
 export function blessingChoices(): BlessingDef[] {
   const next = waitingBlessing();
   if (!next) return [];
-  return blessingOffer(G.seed, next.age, G.blessings, { peaceful: G.peaceful, noArmy: hasRule('noArmy') });
+  const opts = { peaceful: G.peaceful, noArmy: hasRule('noArmy') };
+  // Na een verslagen kampioen: andere kaarten dan bij de gewone keuze (zie game/bosses.ts)
+  if (next.boss) return bossOffer(G.seed, next.age, G.blessings, opts);
+  return blessingOffer(G.seed, next.age, G.blessings, opts);
 }
 
 /** Kies zegening k uit de kaarten die nu klaarliggen. Geeft de zegening terug, of null. */

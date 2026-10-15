@@ -135,6 +135,12 @@ const PATHS: Record<string, string> = {
   // schotel met golven: een signaal
   '☊': '<path d="M4 10a10 10 0 0 0 10 10z"/><path d="M9 15l3.5-3.5"/><path d="M15 3.5a5.5 5.5 0 0 1 5.5 5.5M15 7a2 2 0 0 1 2 2"/>',
 
+  // Voor diplomatie
+  // pakje met een strik: een geschenk
+  '❖': '<rect x="4" y="9" width="16" height="11" rx="1.5"/><path d="M3 9h18M12 9v11"/><path d="M12 9C10.5 6 7 4.6 6.6 6.8S9.5 9 12 9c2.5 0 5-.1 5.4-2.2S13.5 6 12 9z"/>',
+  // twee ringen in elkaar: een bondgenootschap
+  '⚭': '<circle cx="9" cy="12" r="5.5"/><circle cx="15" cy="12" r="5.5"/>',
+
   // vraagteken: geheime prestatie
   '?': '<path d="M9 9a3 3 0 1 1 4.2 2.8c-.8.4-1.2 1-1.2 1.9V15"/><circle cx="12" cy="18.6" r=".6" fill="currentColor"/>',
 };

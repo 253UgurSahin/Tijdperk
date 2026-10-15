@@ -1,0 +1,288 @@
+/* Finale en kampioenen: de balken bovenaan het scherm, onder het tijdperkplaatje (boven de meldingen). */
+:root {
+  --star: #7356d0; /* paars van de sterrenpoort */
+  --star-hi: #b89cff;
+  --champ: #c39a2e; /* goud van een kampioen */
+}
+
+#topbars {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+  pointer-events: auto; /* #notes laat klikken door naar de wereld; deze balken zijn aan te klikken */
+}
+#topbars:empty {
+  display: none;
+}
+
+/* Eén balk: een HUD-kaartje met een gekleurde bovenrand. Links de knop om erheen te gaan,
+   bij de finale rechts nog de knop Herstel */
+.topbar {
+  --mark: var(--star);
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+  width: 100%;
+  background: var(--panel);
+  border: 1px solid var(--rule-2);
+  border-top: 4px solid var(--mark);
+  border-radius: var(--r);
+  box-shadow: var(--card-shadow);
+}
+/* De knop om erheen te gaan: de hele balk, zonder eigen rand of achtergrond */
+.topbar .tbgo {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 14px 10px 10px;
+  min-height: 0;
+  text-align: left;
+  background: none;
+  border: 0;
+  border-radius: var(--r);
+  box-shadow: none;
+}
+.topbar .tbgo:hover:not(:disabled) {
+  background: none;
+}
+.topbar .tbgo:active:not(:disabled) {
+  transform: translateY(1px);
+}
+.topbar .tbi {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  font-size: 19px;
+  color: #fff;
+  background: var(--mark);
+  rotate: -8deg;
+  box-shadow: 0 2px 0 color-mix(in srgb, var(--mark) 60%, #000);
+}
+.topbar .tbm {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 1px;
+}
+.topbar b {
+  font-family: var(--f-display);
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.15;
+  color: var(--ink);
+}
+.topbar small {
+  overflow: hidden;
+  font-size: 12px;
+  color: var(--ink-3);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.topbar .tbb {
+  display: block;
+  height: 9px;
+  margin-top: 5px;
+  border-radius: 99px;
+  background: rgba(43, 37, 32, 0.12);
+  box-shadow: inset 0 1px 1px rgba(43, 37, 32, 0.14);
+  overflow: hidden;
+}
+.topbar .tbb i {
+  display: block;
+  width: 0;
+  height: 100%;
+  border-radius: 99px;
+  background: var(--mark);
+  transition: width 0.35s;
+}
+
+/* De levens van de sterrenpoort: een dunne balk onder de lading, groen, en rood onder de helft */
+.topbar .tbb.hp {
+  height: 5px;
+  margin-top: 3px;
+}
+.topbar .tbb.hp[hidden] {
+  display: none;
+}
+.topbar .tbb.hp i {
+  background: var(--good);
+  animation: none;
+}
+.topbar .tbb.hp.low i {
+  background: var(--bad);
+}
+
+/* Herstel: een tegel zoals in het paneel, met de prijs eronder */
+.topbar .tbfix {
+  flex: none;
+  width: 76px;
+  height: auto;
+  margin: 6px 8px 7px 0;
+}
+.topbar .tbfix[hidden] {
+  display: none;
+}
+
+/* De sterrenpoort laadt op: een glanzende paarse balk en een stempel dat zacht uitstraalt */
+.topbar.finale .tbb:not(.hp) i {
+  background: linear-gradient(90deg, var(--star), var(--star-hi), var(--star));
+  background-size: 200% 100%;
+  animation: tb-shimmer 2.4s linear infinite;
+}
+.topbar.finale .tbi {
+  animation: tb-glow 2s ease-out infinite;
+}
+/* Verwoest: rood en stil, tot er een nieuwe poort staat */
+.topbar.finale.lost {
+  --mark: var(--bad);
+}
+.topbar.finale.lost .tbi,
+.topbar.finale.lost .tbb:not(.hp) i {
+  animation: none;
+}
+
+/* Een kampioen: goud, met een rode levensbalk */
+.topbar.boss {
+  --mark: var(--champ);
+}
+.topbar.boss .tbb i {
+  background: var(--bad);
+}
+
+@keyframes tb-shimmer {
+  to {
+    background-position: -200% 0;
+  }
+}
+@keyframes tb-glow {
+  from {
+    box-shadow:
+      0 2px 0 color-mix(in srgb, var(--mark) 60%, #000),
+      0 0 0 0 color-mix(in srgb, var(--star-hi) 70%, transparent);
+  }
+  to {
+    box-shadow:
+      0 2px 0 color-mix(in srgb, var(--mark) 60%, #000),
+      0 0 0 12px transparent;
+  }
+}
+
+/* De finale begint: de kaart in het midden (zie #banner in overlays.css), paars en langer in beeld */
+#banner .in.finale {
+  max-width: min(560px, calc(100vw - 32px));
+  padding: 20px 36px 22px;
+  border-top-color: var(--star);
+  animation-duration: 7.9s;
+}
+#banner .in.finale .t {
+  font-size: clamp(30px, 5vw, 54px);
+}
+#banner .rules {
+  display: grid;
+  gap: 6px;
+  margin: 14px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 15px;
+  line-height: 1.3;
+  color: var(--ink-2);
+}
+#banner .rules li::before {
+  content: '✹ ';
+  color: var(--star);
+}
+
+/* Telefoon of klein venster: kleinere balken, zodat er genoeg wereld overblijft */
+@media (max-width: 900px), (max-height: 560px) {
+  #topbars {
+    gap: 4px;
+  }
+  .topbar {
+    gap: 6px;
+    border-top-width: 3px;
+  }
+  .topbar .tbgo {
+    gap: 9px;
+    padding: 5px 10px 7px 7px;
+  }
+  .topbar .tbi {
+    width: 28px;
+    height: 28px;
+    font-size: 15px;
+  }
+  .topbar b {
+    font-size: 14px;
+  }
+  .topbar small {
+    font-size: 11px;
+  }
+  .topbar .tbb {
+    height: 7px;
+    margin-top: 3px;
+  }
+  .topbar .tbfix {
+    width: 66px;
+    margin: 4px 6px 5px 0;
+  }
+  /* Een gebeurtenis heeft alle ruimte nodig om haar keuzes te tonen: de balken wachten even */
+  #notes:has(#event:not([hidden])) #topbars {
+    display: none;
+  }
+}
+
+/* Weinig hoogte (een liggende telefoon): elke balk is één smalle rij, zonder de regel eronder */
+@media (max-height: 560px) {
+  .topbar .tbgo {
+    padding: 4px 10px 5px 6px;
+  }
+  .topbar .tbi {
+    width: 22px;
+    height: 22px;
+    font-size: 12px;
+  }
+  .topbar b {
+    font-size: 13px;
+  }
+  .topbar small {
+    display: none;
+  }
+  .topbar .tbb {
+    height: 5px;
+    margin-top: 2px;
+  }
+  .topbar .tbb.hp {
+    height: 4px;
+  }
+  /* Herstel: alleen het teken en de prijs, naast elkaar */
+  .topbar .tbfix {
+    flex-direction: row;
+    width: auto;
+    gap: 4px;
+    padding: 2px 8px;
+    margin: 3px 5px 4px 0;
+  }
+  .topbar .tbfix .l {
+    display: none;
+  }
+  .topbar .tbfix .g {
+    width: 16px;
+    height: 16px;
+  }
+  .topbar .tbfix .c {
+    margin-top: 0;
+  }
+  #banner .in.finale {
+    padding: 12px 22px 14px;
+  }
+  #banner .rules {
+    margin-top: 8px;
+    gap: 3px;
+    font-size: 13px;
+  }
+}

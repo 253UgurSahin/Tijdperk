@@ -9,6 +9,7 @@ import { bUpdate } from './buildings';
 import { computeAvail, computeCaches } from './caches';
 import { spawnFoe } from './entities';
 import { makeOffer, th, updateEvents } from './events';
+import { expireRivalOffer } from './diplomacy';
 import { fUpdate, isRaider, uUpdate, updateProj } from './military';
 import { updateRivals } from './rivals';
 import { G } from './state';
@@ -24,6 +25,8 @@ import { amt, bmap, node, nodeLists } from '../world/world';
 import { updateMeteors } from './meteors';
 import { checkAchievements } from './achievements';
 import { checkVictory } from './victory';
+import { makeBoss } from './bosses';
+import { updateFinale } from './finale';
 
 /** Onthoud waar alles stond vóór de volgende speltik, zodat de weergave ertussen kan tekenen. */
 export function rememberPositions() {
@@ -48,9 +51,13 @@ export function update(dt: number) {
     makeOffer();
   }
   if (G.offer && G.t > G.offer.until) {
-    G.offer = null;
-    sigs.offer = null;
-    note('De handelaar is verder getrokken.');
+    // Een bericht van een rivaal zonder antwoord telt als nee (zie game/diplomacy.ts)
+    if (G.offer.from) expireRivalOffer();
+    else {
+      G.offer = null;
+      sigs.offer = null;
+      note('De handelaar is verder getrokken.');
+    }
   }
   if (G.research) {
     G.research.t += dt;
@@ -112,11 +119,13 @@ export function update(dt: number) {
         // Bonussen kunnen aanvallers sterker of zwakker maken
         f.hp *= mul('raid.hp');
         f.mhp *= mul('raid.hp');
+        if (s.boss) makeBoss(f, s.boss); // de kampioen van deze aanval (zie game/bosses.ts)
       }
       G.spawnQ = G.spawnQ.filter(s => s.at > G.t);
     }
   }
   updateRivals(dt); // rivaliserende beschavingen: bouwen, trainen, aanvallen (zie game/rivals.ts)
+  updateFinale(dt); // de sterrenpoort laadt op (zie game/finale.ts)
   updateMeteors(dt);
   updateProj(dt);
   for (const e of G.fx) {
@@ -140,7 +149,8 @@ export function update(dt: number) {
     if (h && h.done && !G.over) {
       const mx = bMaxHp(h);
       // Herstellen zolang er geen aanvallers zijn (kampbewakers en rivalen thuis tellen alleen als ze dichtbij zijn)
-      const threat = (f: Foe) => !f.retreat && (isRaider(f) || dist(f.x, f.y, h.x + 1, h.y + 1) < 12);
+      // (helpers van een bondgenoot zijn geen gevaar)
+      const threat = f => !f.retreat && !f.helper && (isRaider(f) || dist(f.x, f.y, h.x + 1, h.y + 1) < 12);
       if (h.hp < mx && !G.foes.some(threat)) h.hp = Math.min(mx, h.hp + (mx * dt) / 240);
     }
   }

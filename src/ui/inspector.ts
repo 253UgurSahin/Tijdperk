@@ -48,7 +48,7 @@ import { $ } from '../util/dom';
 import { clamp, dist } from '../util/math';
 import { amt, bmap, isUnl, node, setBlk } from '../world/world';
 import { canMake, fitsPeople } from '../data/succession';
-import { canDemolish, ownerLine, refreshWonders, wonderStatus } from '../game/wonders';
+import { canDemolish, noDemolishText, ownerLine, refreshWonders, wonderStatus } from '../game/wonders';
 
 // Selectiepaneel
 /** Opties voor een opdrachttegel: aan, gevaarlijk, uitgeschakeld, uitleg, plaatje en kosten. */
@@ -348,7 +348,7 @@ export function renderInspector() {
         cost: costHTML(armsCost(), true),
         tip: '+15% schade en levenspunten voor het hele leger',
       });
-    // Het stamhuis en een wereldwonder breek je niet af
+    // Het stamhuis, een wereldwonder en een sterrenpoort die oplaadt breek je niet af (zie canDemolish)
     if (canDemolish(b))
       cmd += CB('data-b="demolish"', '✕', store.demolishArm ? 'Zeker?' : 'Afbreken', {
         danger: 1,
@@ -634,6 +634,11 @@ export function insHandler(e: MouseEvent) {
 }
 $('#inspector').addEventListener('click', insHandler);
 export function demolish(b: Building) {
+  // Nog een keer nakijken: een knop kan er nog staan van vlak voordat de poort begon op te laden
+  if (!canDemolish(b)) {
+    toast(noDemolishText(b));
+    return;
+  }
   setBlk(b, false);
   const d = B[b.type],
     f = b.done ? 0.5 : 0.75;

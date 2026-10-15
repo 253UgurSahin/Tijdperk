@@ -61,10 +61,12 @@ export function gameFacts(): AchievementFacts {
     expansions: G.bought,
     meteors: G.stats.meteors,
     rivalsBeaten: G.stats.rivals || 0,
+    alliances: G.stats.alliances || 0,
     wonders: myWonderCount(),
     wondersBuilt: G.stats.wondersBuilt || 0,
     wonderRaces: G.stats.wonderRaces || 0,
     wondersTaken: G.stats.wondersTaken || 0,
+    bosses: G.stats.bosses || 0,
   };
 }
 

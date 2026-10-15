@@ -10,6 +10,7 @@ import { drag, hoverChunk, mouse } from '../input/input';
 import { updateCamera } from './camera';
 import { pool, poolsBegin, poolsEnd, quadAt, rangeAt, ringAt } from './decals';
 import { drawFx, drawRain } from './effects';
+import { drawFinaleFx } from './finalefx';
 import { stepDying } from './animate';
 import { stepParticles } from './particles';
 import { drawAmbient } from './ambient';
@@ -78,6 +79,7 @@ export function render() {
   updateScatter();
   stepDying();
   drawFx();
+  drawFinaleFx(); // lichtzuil uit de sterrenpoort tijdens de finale
   drawRain();
   drawAmbient(dk);
   stepParticles(store.TM);

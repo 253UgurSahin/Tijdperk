@@ -1,0 +1,462 @@
+/* Diplomatie: de relatie als woord en balk, het venster met een kaart per rivaal, en berichten van rivalen. */
+
+/* Elke stand van een relatie heeft een eigen kleur: rood, oranje, inkt, groen, en blauw (jouw kant) */
+.lvl-vijandig,
+.lvl-oorlog {
+  --rel: var(--bad);
+}
+.lvl-koel {
+  --rel: var(--warn);
+}
+.lvl-neutraal {
+  --rel: var(--ink-3);
+}
+.lvl-vriendelijk {
+  --rel: var(--good);
+}
+.lvl-bondgenoot {
+  --rel: var(--team);
+}
+
+/* ---- klein: woord met getal en tekentjes (paneel Leger, selectie) ---- */
+.rivrel {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px;
+}
+.relchip {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 8px;
+  border-radius: 99px;
+  font: 600 11px var(--f-mono);
+  white-space: nowrap;
+  color: var(--rel);
+  background: color-mix(in srgb, var(--rel) 11%, transparent);
+  border: 1px solid color-mix(in srgb, var(--rel) 40%, transparent);
+}
+.pact {
+  display: inline-grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  font-size: 13px;
+}
+.pact.bad {
+  color: var(--bad);
+}
+.pact.good {
+  color: var(--good);
+}
+.pact.ally {
+  color: var(--team);
+}
+
+/* De knop naar het venster, rechts in de kop "Rivalen": zo zie je hem meteen */
+#rivSect {
+  justify-content: flex-start;
+  align-items: center;
+  gap: 8px;
+}
+.sectbtn {
+  margin-left: auto;
+  padding: 3px 11px;
+  border-radius: 99px;
+  font: 650 12.5px var(--f-body);
+  font-style: normal;
+  color: var(--acc-ink);
+}
+/* Een klik op de relatie in een rij opent het venster bij die rivaal */
+.rivrel {
+  cursor: pointer;
+}
+
+/* ---- het venster: één kaart per rivaal ---- */
+.sheet.diplosheet {
+  width: min(780px, 100%);
+}
+.dcard {
+  margin-top: 16px;
+  padding: 14px 16px 10px;
+  border: 1px solid var(--rule-2);
+  border-radius: 14px;
+  background: var(--paper-hi);
+  box-shadow:
+    inset 4px 0 0 var(--rel),
+    var(--tile-shadow);
+}
+.dcard.focus {
+  border-color: var(--acc-edge);
+}
+.dhead {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.dname {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.dname b {
+  font: 650 19px var(--f-display);
+}
+.dname small {
+  font-size: 12.5px;
+  color: var(--ink-3);
+}
+.dname .rivpow {
+  padding: 0 6px;
+}
+.drel {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  flex: none;
+  color: var(--rel);
+}
+.drel b {
+  font: 700 19px var(--f-display);
+}
+.drel span {
+  font: 600 13px var(--f-mono);
+}
+
+/* Relatiebalk van −100 tot 100: de vulling loopt vanaf het midden, een speld wijst de stand aan */
+.relbar {
+  position: relative;
+  height: 10px;
+  margin: 14px 4px 0;
+  border-radius: 99px;
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--bad) 22%, var(--well)),
+    var(--well) 50%,
+    color-mix(in srgb, var(--good) 22%, var(--well))
+  );
+  box-shadow: inset 0 1px 1px rgba(43, 37, 32, 0.16);
+}
+.relbar i {
+  position: absolute;
+  display: block;
+}
+.relbar .fill {
+  top: 0;
+  bottom: 0;
+  border-radius: 99px;
+  background: var(--rel);
+  opacity: 0.85;
+}
+.relbar .mid {
+  left: 50%;
+  top: -3px;
+  bottom: -3px;
+  width: 1.5px;
+  margin-left: -0.75px;
+  background: var(--ink-3);
+}
+.relbar .tick {
+  top: -4px;
+  bottom: -4px;
+  border-left: 1.5px dashed var(--ink-4);
+}
+/* Hier verklaren ze je de oorlog: een rode streep */
+.relbar .tick.war {
+  border-left: 2px solid var(--bad);
+}
+.relbar .pin {
+  top: 50%;
+  width: 16px;
+  height: 16px;
+  margin: -8px 0 0 -8px;
+  border-radius: 50%;
+  background: var(--paper-hi);
+  border: 3.5px solid var(--rel);
+  box-shadow: 0 1px 2px rgba(30, 20, 10, 0.3);
+}
+.relscale {
+  position: relative;
+  height: 16px;
+  margin: 4px 4px 0;
+  font-size: 11px;
+  color: var(--ink-4);
+}
+.relscale span {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+.relscale .war {
+  color: var(--bad);
+  font-weight: 600;
+}
+
+/* Wat er nu geldt: fiches */
+.dfacts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+.dchip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: 99px;
+  font-size: 12px;
+  color: var(--ink-2);
+  background: var(--well);
+}
+.dchip.bad {
+  color: var(--bad);
+  background: color-mix(in srgb, var(--bad) 12%, var(--paper));
+  font-weight: 600;
+}
+.dchip.good {
+  color: var(--good);
+  background: color-mix(in srgb, var(--good) 12%, var(--paper));
+}
+.dchip.ally {
+  color: var(--team);
+  background: color-mix(in srgb, var(--team) 12%, var(--paper));
+  font-weight: 600;
+}
+.dchip.soft {
+  color: var(--ink-3);
+  background: transparent;
+  border: 1px dashed var(--rule-2);
+}
+
+/* De uitkomst van je laatste actie */
+.dres {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  padding: 7px 10px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  animation: dresin 0.25s ease-out;
+}
+.dres.good {
+  color: var(--good);
+  background: color-mix(in srgb, var(--good) 12%, var(--paper));
+}
+.dres.bad {
+  color: var(--bad);
+  background: color-mix(in srgb, var(--bad) 12%, var(--paper));
+}
+@keyframes dresin {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+
+/* De acties als tegels: naam en kans bovenaan, dan kosten of ruil, dan wat er gebeurt */
+.dacts {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 8px;
+  margin-top: 12px;
+}
+.dact {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+  padding: 9px 11px 10px;
+  text-align: left;
+}
+.dat {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.dat .g {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  background: var(--acc-soft);
+  color: var(--acc-ink);
+}
+.dat .g .ico {
+  width: 16px;
+  height: 16px;
+}
+.dat b {
+  flex: 1;
+  min-width: 0;
+  font: 650 14.5px var(--f-display);
+}
+/* Kans dat het lukt: groen = grote kans, oranje = misschien, rood = kleine kans */
+.dch {
+  flex: none;
+  padding: 1px 7px;
+  border: 1px solid currentColor;
+  border-radius: 99px;
+  font: 700 12px var(--f-mono);
+}
+.dch.hi {
+  color: var(--good);
+}
+.dch.mid {
+  color: var(--warn);
+}
+.dch.lo {
+  color: var(--bad);
+}
+.dch.sure {
+  color: var(--ink-3);
+}
+.dline {
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--ink-2);
+}
+/* "Kost" met de grondstoffen erachter op één regel */
+.dline.dcost {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.dfx {
+  font-size: 12px;
+  line-height: 1.35;
+}
+.dfx.up {
+  color: var(--good);
+}
+.dfx.down {
+  color: var(--bad);
+}
+.dact .why {
+  font-size: 12px;
+  font-style: italic;
+  color: var(--ink-3);
+}
+/* Kan nu niet: plat, maar de reden blijft goed leesbaar */
+.dact:disabled {
+  opacity: 1;
+  background: var(--paper);
+  box-shadow: none;
+}
+.dact:disabled .dat,
+.dact:disabled .dline {
+  opacity: 0.55;
+}
+.dact.danger .g {
+  color: var(--bad);
+  background: color-mix(in srgb, var(--bad) 14%, var(--paper));
+}
+.dact.danger b {
+  color: var(--bad);
+}
+/* Oorlog verklaren na de eerste klik: nog één keer klikken */
+.dact.armed {
+  border-color: var(--bad);
+  background: color-mix(in srgb, var(--bad) 10%, var(--paper-hi));
+  box-shadow: 0 2px 0 var(--bad);
+}
+/* "Toon acties" bestaat alleen op een smal scherm (zie hieronder) */
+.dopen {
+  display: none;
+}
+.dlook {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  padding: 4px 8px;
+  font-size: 12.5px;
+}
+.dbeaten {
+  font-size: 12.5px;
+}
+.dbeaten .banner {
+  display: inline-grid;
+  vertical-align: -2px;
+  margin-right: 5px;
+}
+
+/* ---- een bericht van een rivaal, in het kaartje bovenaan ---- */
+#offer .ic.riv {
+  background: transparent;
+}
+#offer .offx {
+  display: block;
+  margin-top: 2px;
+  font-size: 11.5px;
+  color: var(--ink-3);
+}
+#offer .offx .gem {
+  width: 9px;
+  height: 9px;
+}
+#offer .offx .no {
+  color: var(--bad);
+  font-weight: 600;
+}
+/* Weigeren met een echte knop (bij een eis, een vraag om hulp of een verbond) */
+#offer button {
+  flex: none;
+}
+#offer .offno {
+  padding: 6px 10px;
+  font-size: 12.5px;
+}
+
+/* Op een smal scherm: één actie per rij */
+@media (max-width: 560px) {
+  .dacts {
+    grid-template-columns: 1fr;
+  }
+  /* De balk is smal: de 0 zou over "Handel" heen vallen (de streep in het midden zegt het al) */
+  .relscale .zero {
+    display: none;
+  }
+  .drel b {
+    font-size: 16px;
+  }
+  /* Alleen de gekozen rivaal laat zijn acties zien; de anderen tonen kop, balk en fiches */
+  .dcard.fold .dacts,
+  .dcard.fold .dres {
+    display: none;
+  }
+  .dcard.fold .dopen {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin: 10px 8px 0 0;
+    padding: 6px 12px;
+    font-size: 13px;
+    font-weight: 650;
+  }
+  /* Wat nu niet kan, past op één regel: naam en reden (de rest staat op een groter scherm) */
+  .dact:disabled {
+    flex-direction: row;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 2px 8px;
+    padding: 6px 10px;
+  }
+  .dact:disabled .dline {
+    display: none;
+  }
+  .dact:disabled .dat .g {
+    width: 22px;
+    height: 22px;
+  }
+  .dact:disabled .dat b {
+    font-size: 13px;
+  }
+}

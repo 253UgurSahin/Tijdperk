@@ -4,13 +4,17 @@ import { store } from '../../core/store';
 import { CX, CY, DAYLEN } from '../../config';
 import { B } from '../../data/buildings';
 import { FOES, UNITS } from '../../data/units';
-import { has, pay } from '../../game/economy';
+import { bossForAge, bossName } from '../../data/bosses';
+import { FINALE_SIDES } from '../../data/finale';
+import { liveBoss, pendingBoss } from '../../game/bosses';
+import { isCharging } from '../../game/finale';
+import { has } from '../../game/economy';
 import { isMarching, isRaider, raidSize } from '../../game/military';
 import { dayPace } from '../../game/mods';
+import { repairBuildings, repairCost } from '../../game/repair';
 import { arrivalHour, clockText } from '../../game/rivals';
 import { G, sel } from '../../game/state';
 import { hoursUntilRaid } from '../../game/time';
-import { bMaxHp } from '../../game/upgrades';
 import { selectArmy } from '../../input/input';
 import { clearSel } from '../../input/selection';
 import { centerOn } from '../../render/camera';
@@ -22,14 +26,14 @@ import { CB } from '../inspector';
 import { $ } from '../../util/dom';
 import { dist } from '../../util/math';
 
-function repairCost() {
-  let miss = 0;
-  for (const b of G.bs) if (b.done) miss += bMaxHp(b) - b.hp;
-  miss = Math.ceil(miss);
-  return miss < 1 ? null : { wood: Math.ceil(miss * 0.08), stone: Math.ceil(miss * 0.05) };
-}
 // Wat de aanvalskaart zegt: een aanval in je land, rivalen onderweg, of wanneer de volgende nachtelijke aanval komt
 function raidCardText(raidNow: number, marching: Foe[], hrs: number | null, secs: number | null) {
+  const live = liveBoss();
+  if (raidNow && live)
+    return {
+      title: `${raidNow} aanvallers in je land`,
+      sub: `Geleid door ${bossName(bossForAge(live.boss))}`,
+    };
   if (raidNow) return { title: `${raidNow} aanvallers in je land`, sub: 'Dorpelingen schuilen' };
   if (marching.length) {
     const n = marching.length;
@@ -44,7 +48,11 @@ function raidCardText(raidNow: number, marching: Foe[], hrs: number | null, secs
   if (secs == null) title = 'Geen aanval gepland';
   // secs is alleen leeg als hrs leeg is, dus hier is hrs er zeker
   else if (hrs! <= 0.01) title = 'Aanval begint';
-  const sub = `±${raidSize()} ${FOES[G.age].n.toLowerCase()}${G.speed ? '' : ' · gepauzeerd'}`;
+  // Komt er een kampioen mee, of komen ze tijdens de finale uit drie richtingen? Dan staat dat erbij.
+  const boss = pendingBoss();
+  const extra =
+    (boss && !live ? ` · met ${boss.n}` : '') + (isCharging() ? ` · uit ${FINALE_SIDES} richtingen` : '');
+  const sub = `±${raidSize()} ${FOES[G.age].n.toLowerCase()}${extra}${G.speed ? '' : ' · gepauzeerd'}`;
   return { title, sub };
 }
 
@@ -108,14 +116,7 @@ $('#defense').addEventListener('click', e => {
   const t = (e.target as HTMLElement).closest('button');
   if (!t || t.disabled) return;
   if (t.dataset.act === 'repair') {
-    const rc = repairCost();
-    if (rc && has(rc)) {
-      pay(rc);
-      G.bs.forEach(b => {
-        if (b.done) b.hp = bMaxHp(b);
-      });
-      toast('Alle gebouwen hersteld.', 'good');
-    }
+    if (repairBuildings()) toast('Alle gebouwen hersteld.', 'good');
   } else if (t.dataset.act === 'army') selectArmy();
   else if (t.dataset.act === 'camps') {
     const c = G.camps.filter(c => c.alive).sort((a, b) => dist(a.x, a.y, CX, CY) - dist(b.x, b.y, CX, CY))[0];

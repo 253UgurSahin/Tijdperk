@@ -111,6 +111,10 @@ export function baseState(seed: number): GameState {
       wondersBuilt: 0, // wereldwonderen die jij afmaakte
       wonderRaces: 0, // wonderen die je afmaakte terwijl een rivaal hetzelfde wonder bouwde
       wondersTaken: 0, // wonderen die je veroverde door een rivaal te verslaan
+      bosses: 0, // kampioenen verslagen (zie game/bosses.ts)
+      alliances: 0, // bondgenootschappen gesloten (zie game/diplomacy.ts)
+      treaties: 0, // handelsverdragen gesloten
+      traded: 0, // grondstoffen ontvangen via handelsverdragen
       lost: 0, // dorpelingen en gebouwen (geen muren) die je kwijtraakte, voor de medailles van uitdagingen
       peaceUsed: false, // stond de vredige modus ooit aan in dit spel? (dan telt de score half)
     },
@@ -123,6 +127,8 @@ export function baseState(seed: number): GameState {
     rivals: [], // rivaliserende beschavingen (zie game/rivals.ts)
     wonders: {}, // wie welk wereldwonder heeft: { pyramid: { by: 'you', day: 12 } } (zie data/wonders.ts)
     traderDay: 0, // de dag waarop de handelaar van het Oost-Indisch Huis voor het laatst kwam
+    finale: null, // de sterrenpoort die oplaadt, of null zolang hij nog nooit af was (zie data/finale.ts)
+    boss: null, // de kampioen die de volgende aanval leidt: { age }, of null (zie game/bosses.ts)
   };
   RKEYS.forEach(k => (g.res[k] = 0));
   return g;

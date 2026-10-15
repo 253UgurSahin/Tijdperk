@@ -16,6 +16,7 @@ import {
 } from '../data/events';
 import { RES } from '../data/resources';
 import { has, pay } from '../game/economy';
+import { answerRivalOffer } from '../game/diplomacy';
 import { dayLength, eventRules, haveNow, resolveEvent } from '../game/events';
 import { G } from '../game/state';
 import { costHTML, esc, fmt, gem } from './format';
@@ -23,6 +24,7 @@ import { setHTML, sigs } from './header';
 import { note, pulseRes, toast } from './hud';
 import { $ } from '../util/dom';
 import { ico } from './glyphs';
+import { rivalOfferHTML } from './diplomacy';
 
 /** Het gebeurteniskaartje en het rijtje tijdelijke bonussen eronder. */
 export function renderEvent() {
@@ -187,8 +189,13 @@ export function renderOffer() {
     return;
   }
   el.hidden = false;
-  const canPay = has({ [o.give]: o.price });
-  const sig = 'o' + o.until + canPay + Math.floor((o.until - G.t) / 5);
+  const canPay = !o.give || has({ [o.give]: o.price });
+  const sig = 'o' + o.until + canPay + Math.floor((o.until - G.t) / 5) + (o.from || '');
+  // Een bericht van een rivaal heeft een eigen kaartje (zie ui/diplomacy.ts)
+  if (o.from) {
+    setHTML(el, 'offer', sig, () => rivalOfferHTML(o));
+    return;
+  }
   setHTML(el, 'offer', sig, () => {
     const deal = `${gem(o.want)} ${o.amt} ${RES[o.want].n} voor ${gem(o.give)} ${o.price} ${RES[o.give].n}`;
     const timeBar = `<div class="bar acc"><i style="width:${((o.until - G.t) / 70) * 100}%"></i></div>`;
@@ -204,6 +211,11 @@ $('#offer').addEventListener('click', e => {
   const t = (e.target as HTMLElement).closest('button');
   if (!t || t.disabled || !G.offer) return;
   const o = G.offer;
+  // Een bericht van een rivaal: ja of nee (zie game/diplomacy.ts)
+  if (o.from) {
+    answerRivalOffer(t.dataset.o === 'ok');
+    return;
+  }
   if (t.dataset.o === 'ok') {
     pay({ [o.give]: o.price });
     G.res[o.want] += o.amt;

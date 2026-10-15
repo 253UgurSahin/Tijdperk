@@ -66,6 +66,8 @@ export const emptyFacts = () => ({
   wondersBuilt: 0, // wereldwonderen die je zelf afmaakte
   wonderRaces: 0, // wonderen afgemaakt terwijl een rivaal hetzelfde wonder bouwde
   wondersTaken: 0, // wonderen veroverd door een rivaal te verslaan
+  bosses: 0, // kampioenen verslagen (zie data/bosses.ts)
+  alliances: 0, // bondgenootschappen gesloten (zie data/diplomacy.ts)
 });
 
 /** Prestatie: win een spel met dit volk. */
@@ -125,7 +127,7 @@ export const ACHIEVEMENTS: AchievementDef[] = [
     n: 'Naar de sterren',
     cat: 'win',
     g: '★',
-    d: 'Win een spel: bouw de Sterrenpoort',
+    d: 'Win een spel: bouw de Sterrenpoort en laad hem op',
     when: f => f.won,
   },
   {
@@ -220,12 +222,36 @@ export const ACHIEVEMENTS: AchievementDef[] = [
     when: f => f.rivalsBeaten >= 3,
   },
   {
+    k: 'ally1',
+    n: 'Verbonden',
+    cat: 'war',
+    g: '⚭',
+    d: 'Sluit een bondgenootschap met een rivaal (Diplomatie in het paneel Leger)',
+    when: f => f.alliances >= 1,
+  },
+  {
     k: 'wonder_taken',
     n: 'Buitgemaakt',
     cat: 'war',
     g: '★',
     d: 'Verover een wereldwonder: versla een rivaal die er een heeft',
     when: f => f.wondersTaken >= 1,
+  },
+  {
+    k: 'boss1',
+    n: 'Kampioenendoder',
+    cat: 'war',
+    g: '♛',
+    d: 'Versla een kampioen: de aanvoerder van de eerste aanval na een nieuw tijdperk',
+    when: f => f.bosses >= 1,
+  },
+  {
+    k: 'bosses4',
+    n: 'Heldendicht',
+    cat: 'war',
+    g: '♛',
+    d: 'Versla 4 kampioenen in één spel',
+    when: f => f.bosses >= 4,
   },
   {
     k: 'raids3',

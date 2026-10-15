@@ -3,6 +3,8 @@ import * as T3 from 'three';
 import { store } from '../core/store';
 import { lights } from '../game/caches';
 import { G } from '../game/state';
+import { chargeFrac } from '../data/finale';
+import { isCharging } from '../game/finale';
 import { season } from '../game/time';
 import { camDist } from './camera';
 import { GLOWS, glow } from './decals';
@@ -83,6 +85,22 @@ export function applySeason() {
     sn === 'Winter' ? '#e4ecf0' : sn === 'Herfst' ? '#f2e6cc' : sn === 'Zomer' ? '#fff6dc' : '#ffffff',
   );
 }
+// Tijdens de finale kleurt de lucht paars, sterker naarmate de sterrenpoort voller is.
+// Bij het begin en bij het opengaan is er even een felle lichtflits (store.finaleFlash).
+const VIOLET = new T3.Color('#a98bff'),
+  VIOLET_FOG = new T3.Color('#4a3a7a');
+function finaleSky() {
+  if (isCharging()) {
+    const k = 0.1 + chargeFrac(G.finale) * 0.3 + Math.sin(store.TM * 1.6) * 0.04;
+    hemi.color.lerp(VIOLET, k);
+    fogNow.lerp(VIOLET_FOG, k * 0.7);
+  }
+  const flash = store.finaleFlash ? 1 - (performance.now() - store.finaleFlash) / 1600 : 0;
+  if (flash > 0) {
+    hemi.intensity += flash * 1.2;
+    sun.intensity += flash * 0.6;
+  }
+}
 export function lighting(dk: number) {
   const dusk =
     G.clock >= 16.5 && G.clock < 20.5
@@ -107,6 +125,7 @@ export function lighting(dk: number) {
     .copy(moodFog)
     .lerp(FOGDUSK, dusk * 0.45)
     .lerp(FOGN, dk);
+  finaleSky();
   // (mist en achtergrondkleur zijn gezet in scene.ts)
   S3.fog!.color.copy(fogNow);
   (S3.background as T3.Color).copy(fogNow);

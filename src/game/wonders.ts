@@ -20,6 +20,7 @@ import { floater, fxRing } from './fx';
 import { buildCost } from './placement';
 import { cancelRivalWonder, rivalWonderSaving } from './rivals';
 import { G, bById, sel } from './state';
+import { isCharging } from './finale';
 import { checkVictory } from './victory';
 import { toast } from '../ui/hud';
 import { bmap, setBlk } from '../world/world';
@@ -238,8 +239,19 @@ export function wonderDestroyed(b: Building | RivalBuilding): void {
   }
 }
 
-/** Breek je dit gebouw af? Het stamhuis en een af wereldwonder niet. */
-export const canDemolish = (b: Building): boolean => b.type !== 'townhall' && !(B[b.type].wonder && b.done);
+/** Breek je dit gebouw af? Het stamhuis en een af wereldwonder niet, en de sterrenpoort niet terwijl hij oplaadt. */
+export function canDemolish(b) {
+  if (b.type === 'townhall') return false;
+  if (B[b.type].wonder && b.done) return false;
+  if (B[b.type].win && b.done && isCharging()) return false;
+  return true;
+}
+
+/** Waarom je dit gebouw niet kunt afbreken, in één zin (zie canDemolish). */
+export function noDemolishText(b) {
+  if (B[b.type].win && isCharging()) return 'De sterrenpoort laadt op: die kun je nu niet afbreken.';
+  return `${B[b.type].n} kun je niet afbreken.`;
+}
 
 /** Wie heeft het wonder, in een paar woorden (voor het selectiepaneel). */
 export function ownerLine(k: string): string {

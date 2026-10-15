@@ -48,6 +48,7 @@ export const verb = (rival: RivalDef, one: string, many: string): string => (riv
  * Karakters. Elk getal is een keer-factor of een aantal dagen.
  * - econ: inkomen keer dit · war: dit deel van het inkomen gaat naar het leger
  * - army: hun aanvallen zijn zo groot (keer) · every: dagen tussen twee aanvallen · first: eerste aanval op deze dag
+ *   (every en first gelden in oorlog; met een betere relatie wachten ze langer, zie data/diplomacy.ts)
  * - grow: elke zoveel dagen een nieuw gebied · gifts: stuurt af en toe een geschenk
  * - extra: wat ze per tijdperk extra bouwen (home = woning, tower = toren, eco = werkplaats)
  * - wonders: dit deel van hun inkomen sparen ze daarbovenop voor wereldwonderen (0 = bouwt geen wonderen)
@@ -75,7 +76,7 @@ export const PERSONALITIES: PersonalityDef[] = [
   {
     k: 'bouwer',
     n: 'Bouwer',
-    d: 'Bouwt veel, gaat sneller door de tijdperken en bouwt wereldwonderen. Valt om de 4 dagen aan.',
+    d: 'Bouwt veel, gaat sneller door de tijdperken en bouwt wereldwonderen. Als vijand valt hij om de 4 dagen aan.',
     econ: 1.25,
     war: 0.25,
     army: 0.9,
@@ -89,7 +90,7 @@ export const PERSONALITIES: PersonalityDef[] = [
   {
     k: 'krijger',
     n: 'Krijger',
-    d: 'Valt om de 2 dagen aan, met 40% grotere legers.',
+    d: 'Als vijand valt hij om de 2 dagen aan, met 40% grotere legers. Sluit zelden een verbond.',
     econ: 1.2,
     war: 0.4,
     army: 1.4,
@@ -103,7 +104,7 @@ export const PERSONALITIES: PersonalityDef[] = [
   {
     k: 'handelaar',
     n: 'Handelaar',
-    d: 'Zwak leger en vriendelijk: valt om de 5 dagen aan en stuurt soms een geschenk.',
+    d: 'Handelt graag en stuurt soms een geschenk. Zwak leger: als vijand valt hij om de 5 dagen aan.',
     econ: 1.1,
     war: 0.2,
     army: 0.7,

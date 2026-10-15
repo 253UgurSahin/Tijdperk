@@ -16,11 +16,12 @@ import { proj, s2iso, s2t } from '../render/camera';
 import { nearScreen, pickGroup } from '../render/picking';
 import { BG3, CG3 } from '../render/sync';
 import { RG3 } from '../render/rivals3d';
-import { landOwner, orderRivalAttack, rbById } from '../game/rivals';
+import { landOwner, orderRivalAttack, rbById, rivalById } from '../game/rivals';
+import { confirmSurprise, surpriseTarget } from '../game/diplomacy';
 import { RIVAL } from '../data/rivals';
 import { setExpand, toast } from '../ui/hud';
 import { demolish } from '../ui/inspector';
-import { canDemolish } from '../game/wonders';
+import { canDemolish, noDemolishText } from '../game/wonders';
 import { bmap, inb, isUnl, node, nodeVis, road, walkable } from '../world/world';
 import { VH, VW } from '../render/scene';
 
@@ -99,6 +100,14 @@ function command(X: number, Y: number, tx: number, ty: number) {
     if (f || c || rb) {
       // Een van de drie is er zeker (zie de regel hierboven)
       const target = (f || c || rb) as Foe | Camp | RivalBuilding;
+      // Soldaten van een bondgenoot die jou helpen, val je niet aan
+      if (f && f.helper) {
+        toast(`Deze soldaten van ${RIVAL[rivalById(f.rival)?.k]?.n || 'je bondgenoot'} helpen jou.`);
+        return true;
+      }
+      // Zonder oorlog is dit een verrassingsaanval: eerst een waarschuwing, pas de tweede klik valt aan
+      const rival = surpriseTarget(target);
+      if (rival && !confirmSurprise(rival)) return true;
       // Een gebouw van een rivaal: ze blijven daarna in hun stad (zie game/rivals.ts)
       if (rb) orderRivalAttack(us, rb);
       else
@@ -190,7 +199,7 @@ export function leftClick(sx: number, sy: number, shift: boolean, ctrl?: boolean
   }
   if (store.demoMode) {
     const b = bAtScreen(X, Y);
-    // Het stamhuis en een af wereldwonder breek je niet af (zie canDemolish)
+    // Het stamhuis, een af wereldwonder en een sterrenpoort die oplaadt breek je niet af (zie canDemolish)
     if (b && canDemolish(b)) {
       demolish(b);
       sfx('boom');
@@ -198,7 +207,7 @@ export function leftClick(sx: number, sy: number, shift: boolean, ctrl?: boolean
       road[iy * W + ix] = 0;
       burst(ix + 0.5, iy + 0.5, '#8a7a62');
       sfx('tick');
-    } else if (b) toast(`${B[b.type].n} kun je niet afbreken.`, 'bad');
+    } else if (b) toast(noDemolishText(b), 'bad');
     return;
   }
   if (store.cmdMode && sel.us.size) {

@@ -33,6 +33,8 @@ export interface BlessingDef {
 export interface BlessingRules {
   peaceful?: boolean;
   noArmy?: boolean;
+  /** Ronde 1 is de extra keuze na een verslagen kampioen: die schudt anders. */
+  round?: number;
 }
 
 export const BLESSINGS: BlessingDef[] = [
@@ -405,11 +407,12 @@ export function blessingOffer(
   seed: number,
   age: number,
   taken: string[] = [],
-  { peaceful = false, noArmy = false }: BlessingRules = {},
+  { peaceful = false, noArmy = false, round = 0 }: BlessingRules = {},
 ): BlessingDef[] {
-  // De volgorde hangt alleen af van seed en tijdperk; wat je al koos, valt er daarna pas uit.
+  // De volgorde hangt alleen af van seed, tijdperk en ronde; wat je al koos, valt er daarna pas uit.
+  // Ronde 1 is de extra keuze na een verslagen kampioen: die schudt anders, zodat er nieuwe kaarten liggen.
   // Zonder leger (spelregel van een uitdaging) hebben legerkaarten geen zin.
-  const random = mulberry32((seed | 0) + (age + 1) * 7919);
+  const random = mulberry32((seed | 0) + (age + 1) * 7919 + round * 104729);
   const pool = shuffled(BLESSINGS, random).filter(
     b =>
       (b.minAge || 0) <= age &&
@@ -438,4 +441,22 @@ export function blessingOffer(
     if (other) picks[picks.length - 1] = other;
   }
   return picks;
+}
+
+/**
+ * De extra keuze na een verslagen kampioen: andere kaarten dan die je bij de gewone keuze van dit
+ * tijdperk zag. `history`: de zegeningen die je koos, in volgorde. De gewone keuze was een van je
+ * laatste keuzes; welke kaarten er toen lagen, hangt af van wat je daarvóór al had. Die laten we weg.
+ */
+export function bossOffer(seed, age, history = [], opts = {}) {
+  const seen = new Set();
+  // Zoals de gewone keuze er nu, één keuze geleden en twee keuzes geleden uit zou zien
+  for (let back = 0; back <= Math.min(2, history.length); back++) {
+    const before = history.slice(0, history.length - back);
+    for (const card of blessingOffer(seed, age, before, opts)) seen.add(card.k);
+  }
+  const fresh = blessingOffer(seed, age, [...history, ...seen], { ...opts, round: 1 });
+  if (fresh.length === OFFER_SIZE) return fresh;
+  // Bijna alle kaarten al gezien? Dan mag een eerder getoonde kaart toch terugkomen
+  return blessingOffer(seed, age, history, { ...opts, round: 1 });
 }

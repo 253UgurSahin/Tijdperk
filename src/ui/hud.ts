@@ -45,6 +45,15 @@ export function toast(msg: string, kind = '') {
   toastTimer = setTimeout(() => (t.className = kind), kind === 'bad' ? 5200 : 3400);
   note(msg, kind);
 }
+let bannerTimer = 0;
+/** Een grote kaart midden in beeld (een nieuw tijdperk, de finale). Na `ms` milliseconden is hij weer weg. */
+export function showBanner(html, ms = 4500) {
+  const banner = $('#banner');
+  banner.innerHTML = html;
+  banner.hidden = false;
+  clearTimeout(bannerTimer);
+  bannerTimer = setTimeout(() => (banner.hidden = true), ms);
+}
 export function pulseRes(k: string) {
   const el = document.querySelector(`#resbar .res[data-k="${k}"]`);
   if (el) {

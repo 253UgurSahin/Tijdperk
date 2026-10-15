@@ -27,6 +27,7 @@ import { wonderBlockedNote, wonderStatus, type WonderInfo } from '../game/wonder
 import { RIVAL } from '../data/rivals';
 import { WONDER_CREW, rivalWonderTime, winBackText, wonderBuildTime } from '../data/wonders';
 import { ico } from './glyphs';
+import { CHARGE_NIGHTS } from '../data/finale';
 
 export const costText = (c: Cost): string =>
   Object.keys(c)
@@ -83,7 +84,7 @@ export function bShort(k: string): string {
   if (d.win && G.scenario) return 'In deze uitdaging win je met het doel van de uitdaging';
   if (d.win)
     return G.opts.victories.includes('stargate')
-      ? 'Hiermee win je'
+      ? `Laadt ${CHARGE_NIGHTS} nachten op; blijft hij heel, dan win je`
       : 'Winnen hiermee staat uit in deze wereld';
   return '';
 }

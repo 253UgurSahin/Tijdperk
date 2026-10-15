@@ -37,6 +37,18 @@ Een real-time strategiespel in de browser: leid je stam van de **steentijd** naa
   je al als hij ervoor spaart, en daarna de race; sloop zijn bouwplaats of wees sneller. Is hij eerder klaar,
   dan is het wonder bezet tot je het verwoest of hem verslaat: dan wordt het van jou. Met vier wonderen tegelijk
   kun je winnen (kies Wonderen bij een nieuwe wereld); elk wonder telt 500 punten
+- Diplomatie: elke rivaal heeft een relatie van −100 tot +100 (Vijandig, Koel, Neutraal, Vriendelijk of
+  Bondgenoot). Een Handelaar begint op +20, een Bouwer op 0 en een Krijger op −30 (op Zwaar 15 lager, op
+  Meedogenloos 30 lager). De relatie schuift elke dag 4 punten terug naar dat beginpunt; een verdrag of verbond
+  houdt haar hoger. In het paneel Leger opent **Diplomatie ›** (in de kop Rivalen) een venster (het spel staat dan
+  stil) met per rivaal: een geschenk, een handelsverdrag (vanaf +20, elke minuut je overschot voor wat je
+  tekortkomt; je laatste voorraad houd je zelf), schatting eisen (alleen als je veel sterker bent), een
+  bondgenootschap (vanaf +60) en oorlog verklaren of vrede voorstellen. Bij elke actie staan vooraf de kans, de
+  kosten en wat er gebeurt. Vrienden vallen zelden aan, bondgenoten nooit; die sturen soms soldaten als je wordt
+  aangevallen. Val je iemand aan zonder oorlogsverklaring, dan vraagt het spel eerst om een tweede klik: daarna is
+  het oorlog en vertrouwen de anderen je minder (sla je terug na hun aanval, dan niet). Een kamp of kampioen
+  verslaan maakt ze juist blij. Rivalen sturen ook zelf berichten: een ruil, een vraag om hulp, een eis (betaal je,
+  dan laten ze je een paar dagen met rust) of een voorstel
 - Prestaties en profiel: ruim 40 prestaties (elk tijdperk, winnen op Zwaar of hoger, winnen met elk volk,
   kampen veroveren, aanvallen doorstaan, en een paar geheime). Je haalt ze in het spel met een eigen geluid en
   kaartje; op het titelscherm zie je onder **Prestaties** wat je hebt, je beste scores en je laatste spellen. Het

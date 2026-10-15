@@ -5,6 +5,7 @@ import { sfx } from '../audio/sound';
 import { CN, CS, DAYLEN, H, W } from '../config';
 import { AGES } from '../data/ages';
 import { B } from '../data/buildings';
+import { cleanDiplomacy, diplomacyStart } from '../data/diplomacy';
 import { RES } from '../data/resources';
 import {
   PERSONALITY,
@@ -43,6 +44,15 @@ import { th } from './events';
 import { burst, floater, fxRing } from './fx';
 import { compass, fire, foeTarget, isDead, moveToward } from './military';
 import { dayPace } from './mods';
+import {
+  allyHelp,
+  diplomacySecond,
+  helperThink,
+  rivalAttackDay,
+  rivalConquered,
+  strikesBack,
+  youAttacked,
+} from './diplomacy';
 import { G, sel } from './state';
 import { checkVictory } from './victory';
 import { refreshWonders, rivalWonderDone, wonderDestroyed } from './wonders';
@@ -107,8 +117,8 @@ export const rivalColour = (id: number | null | undefined): string => {
 };
 /** Het stamhuis van een rivaal, of null als het er niet meer staat. */
 export const rivalHall = (r: Rival): RivalBuilding | null => r.bs.find(b => b.type === 'townhall') || null;
-/** Alle soldaten van een rivaal die nog meedoen. */
-export const rivalArmy = (r: Rival): Foe[] => G.foes.filter(f => f.rival === r.id && !f.retreat && !f.dead);
+/** Alle soldaten van een rivaal die nog meedoen (zonder de helpers die hij jou stuurt: die horen niet bij zijn leger). */
+export const rivalArmy = r => G.foes.filter(f => f.rival === r.id && !f.retreat && !f.dead && !f.helper);
 /** "de IJzertijd" of "het Dronetijdperk": het tijdperk met het goede lidwoord. */
 export const ageWithArticle = (age: number): string =>
   (AGES[age].n.endsWith('tijdperk') ? 'het ' : 'de ') + AGES[age].n;
@@ -179,7 +189,6 @@ function newRival(id: number, pick: { k: string; p: string }, site: RivalSite): 
     chunks: site.chunks.slice(),
     bs: [], // hun gebouwen (zie addBuilding)
     attacks: 0,
-    nextAttack: PERSONALITY[pick.p].first, // dag van de volgende aanval
     grewDay: 1, // dag waarop ze voor het laatst gebied erbij namen
     giftDay: 0,
     angry: -1e9, // speltijd van de laatste keer dat jij hen aanviel
@@ -189,6 +198,8 @@ function newRival(id: number, pick: { k: string; p: string }, site: RivalSite): 
     wonderWait: 0, // seconden niet proberen een wonder neer te zetten (er was geen plek)
     dead: false,
     deadDay: 0,
+    // Relatie, verdragen, oorlog en berichten (zie data/diplomacy.ts en game/diplomacy.ts)
+    ...diplomacyStart(pick.p, G.diff),
   };
 }
 
@@ -296,12 +307,19 @@ export function rivalBuildingDestroyed(b: RivalBuilding): void {
 /** Iets van een rivaal wordt geraakt: ze onthouden dat (minder geschenken) en hun wachters komen kijken. */
 export function rivalHurt(target: Foe | RivalBuilding): void {
   const r = rivalById(target.rival);
-  if (!r) return;
+  // Helpers van een bondgenoot horen niet bij hun leger of stad: een treffer op hen telt nooit
+  if (!r || target.helper) return;
   // Jezelf verdedigen telt niet als aanvallen: alleen treffers op hun gebouwen of op hun eigen land
   const onTheirSide = target.kind === 'rb' || ownerAt(target.x, target.y) === r.id;
   if (!onTheirSide) return;
+  // Soldaten die jou aanvallen (of net aanvielen en naar huis gaan) mag je altijd terugslaan
+  const defending = strikesBack(target);
+  // Een nieuwe aanval in een oorlog (niet nog een treffer van dezelfde) kost een beetje relatie.
+  // Zonder oorlog wordt elke andere treffer meteen oorlog, ook vlak na een vrede.
+  const newIncident = G.t - r.angry > 20;
   r.angry = G.t;
   if (target.kind === 'rb') r.alarm = G.t;
+  if (!defending && (!r.atWar || newIncident)) youAttacked(r);
 }
 
 // Hoeveel gebouwen van elke soort een rivaal heeft (af of in aanbouw)
@@ -415,6 +433,7 @@ export function rivalThink(f: Foe, dt: number): boolean {
   // Veel te lang onderweg (de route liep vast)? Dan gaan ze terug naar huis.
   // (Een soldaat van een rivaal heeft altijd een eindtijd `until`, zie spawnRivalUnit.)
   if (f.mode === 'march' && G.t > f.until!) startReturn(f);
+  if (f.mode === 'help') return helperThink(f, dt); // een bondgenoot die jou helpt (zie game/diplomacy.ts)
   if (f.mode === 'home') return guardHome(f, r, dt);
   if (f.mode === 'march' || f.mode === 'return') {
     walkRoute(f, r, dt);
@@ -453,6 +472,8 @@ function guardHome(f: Foe, r: Rival, dt: number): boolean {
 
 // Wie van jou is dicht bij hun stad? Wordt hun stad beschoten, dan kijken ze verder om zich heen.
 function homeTarget(f: Foe, r: Rival): Unit | Villager | null {
+  // Zonder oorlog laten ze je mensen met rust
+  if (!r.atWar) return null;
   const alarm = G.t - r.alarm < 6;
   const cx = r.x + 1,
     cy = r.y + 1,
@@ -569,6 +590,7 @@ function rivalSecond(r: Rival): void {
   grow(r);
   if (!G.peaceful && !G.over) maybeAttack(r, army);
   if (P.gifts) maybeGift(r);
+  diplomacySecond(r); // relatie, handel en berichten (zie game/diplomacy.ts)
 }
 
 function train(r: Rival): void {
@@ -779,8 +801,8 @@ export function cancelRivalWonder(r: Rival, b: RivalBuilding): void {
 // ---- Aanvallen ----
 
 function maybeAttack(r: Rival, army: Foe[]): void {
-  const P = PERSONALITY[r.p];
-  if (G.day < Math.max(4, P.first) || G.day < r.nextAttack) return;
+  // Wanneer ze weer aanvallen, hangt af van de relatie: in oorlog vaak, vrienden zelden, bondgenoten nooit
+  if (G.day < rivalAttackDay(r)) return;
   // Ze vertrekken 's ochtends, zodat ze er overdag zijn (de nachtelijke aanvallen komen 's avonds)
   if (G.clock < 7 || G.clock > 13) return;
   const home = army.filter(f => f.mode === 'home');
@@ -810,7 +832,9 @@ export function launchAttack(r: Rival, group: Foe[]): void {
     f.until = G.t + marchSeconds(f) + RAID_TIME + k * 1.5;
   });
   r.attacks++;
-  r.nextAttack = G.day + PERSONALITY[r.p].every;
+  r.lastAttack = G.day;
+  r.raidDay = G.day; // terugslaan is de komende dagen geen verraad (zie youAttacked)
+  r.threatDay = 0;
   const n = group.length;
   const who = `${RIVAL[r.k].n} ${verb(RIVAL[r.k], 'valt', 'vallen')} aan!`;
   const when = `Ze zijn er rond ${clockText(arrivalHour(group))}.`;
@@ -819,6 +843,12 @@ export function launchAttack(r: Rival, group: Foe[]): void {
   sfx('alarm');
   store.raidPing = { x: r.x + 1, y: r.y + 1, t: 8 };
   store.uiDirty = true;
+  allyHelp(r.id); // bondgenoten sturen misschien hulp (zie game/diplomacy.ts)
+}
+
+/** Iedereen van deze rivaal die onderweg is of aanvalt, gaat naar huis (na vrede of een verbond). */
+export function recallArmy(r) {
+  for (const f of rivalArmy(r)) if (f.mode === 'march' || f.mode === 'raid') startReturn(f);
 }
 
 // Hoeveel speltijd (seconden) een soldaat nog nodig heeft tot je stad: de rest van zijn route, op zijn marstempo
@@ -840,7 +870,8 @@ export const clockText = (hour: number): string => `${String(hour).padStart(2, '
 // Een vriendelijke rivaal (Handelaar) stuurt om de paar dagen een geschenk, als je hem met rust laat
 function maybeGift(r: Rival): void {
   if (G.day < 3 || G.day - r.giftDay < 3 || G.clock < 10 || G.clock > 11) return;
-  if (G.t - r.angry < DAYLEN * 2) return;
+  // Alleen als je hen met rust laat en de relatie niet slecht is
+  if (G.t - r.angry < DAYLEN * 2 || r.atWar || r.rel < 0) return;
   r.giftDay = G.day;
   const gift = giftFor(r.age);
   gain(gift);
@@ -879,6 +910,7 @@ export function rivalDefeated(r: Rival): void {
   for (const k in loot) loot[k] = Math.round(loot[k] * mul('loot'));
   gain(loot);
   G.stats.rivals = (G.stats.rivals || 0) + 1;
+  rivalConquered(r); // wat de andere rivalen daarvan vinden (zie game/diplomacy.ts)
   for (let k = 0; k < 10; k++) burst(r.x + Math.random() * 2, r.y + Math.random() * 2, '#b9822f');
   fxRing(r.x + 1, r.y + 1, '#e2b92c');
   floater(r.x + 1, r.y + 1, 'VERSLAGEN', '#e2b92c');
@@ -906,7 +938,7 @@ export function rivalDefeated(r: Rival): void {
 
 function rivalTowers(dt: number): void {
   for (const r of G.rivals) {
-    if (r.dead) continue;
+    if (r.dead || !r.atWar) continue; // zonder oorlog schieten hun torens niet
     for (const b of r.bs) {
       const d = B[b.type];
       if (!d.def || !b.done) continue;
@@ -961,13 +993,14 @@ function nearestOfYours(x: number, y: number, range: number, air?: boolean | 1):
 
 /**
  * Het dichtstbijzijnde gebouw van een rivaal binnen r tegels (voor je soldaten in een aanvalsmars).
- * Met `rivalId` alleen gebouwen van die ene rivaal.
+ * Met `rivalId` alleen gebouwen van die ene rivaal; met `warOnly` alleen van rivalen waarmee het oorlog is.
  */
-export function nearestRivalBuilding(x: number, y: number, r: number, rivalId = 0): RivalBuilding | null {
+export function nearestRivalBuilding(x, y, r, rivalId = 0, warOnly = false) {
   let best: RivalBuilding | null = null,
     bd = r;
   for (const b of rbById.values()) {
     if (rivalId && b.rival !== rivalId) continue;
+    if (warOnly && !rivalById(b.rival)?.atWar) continue;
     const s = B[b.type].size / 2;
     const d = dist(x, y, b.x + s, b.y + s) - s;
     if (d < bd) {
@@ -1044,6 +1077,9 @@ export function loadRivals(list: SavedRival[] | undefined): void {
   valid.forEach((o, i) => {
     const r = { ...newRival(i + 1, o, o), ...o, id: i + 1, bs: [] };
     delete r.units; // de soldaten komen hieronder terug in G.foes
+    delete r.nextAttack; // oude opslag: wordt hieronder de dag van de laatste aanval
+    // Diplomatie: opslag van daarvóór begint met de relatie die bij het karakter hoort
+    Object.assign(r, cleanDiplomacy(o, o.p, PERSONALITY[o.p].every, G.diff));
     r.chunks = Array.isArray(o.chunks) ? o.chunks.filter(c => Number.isInteger(c)) : [];
     G.rivals.push(r);
     if (r.dead) return;

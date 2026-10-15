@@ -16,6 +16,10 @@ import { fmt } from './format';
 import { VICTORY } from '../data/victories';
 import { victoryGoals } from '../game/victory';
 import { canMake } from '../data/succession';
+import { bossForAge, bossName } from '../data/bosses';
+import { chargeFrac, chargePercent, nightsLeft } from '../data/finale';
+import { liveBoss } from '../game/bosses';
+import { finishedGate, gateHealth, isCharging } from '../game/finale';
 
 export const placed = (k: string): boolean => G.bs.some(b => b.type === k);
 function bestHouse() {
@@ -103,12 +107,34 @@ function sourceStep(k: string, left: string, goal: string, depth = 0): CoachStep
       : `De ${B[mk].n.toLowerCase()} maakt het vanzelf. Een tweede ${B[mk].n.toLowerCase()} gaat twee keer zo snel.`,
   };
 }
+// Een aanval tijdens de finale: de poort moet heel blijven, dus laat zien hoe hij ervoor staat
+function finaleRaidStep(raid, boss) {
+  const gate = finishedGate(),
+    health = gateHealth();
+  const led = boss ? `, geleid door ${bossName(bossForAge(boss.boss))},` : '';
+  const left = health ? ` De poort is nog ${Math.round((health.hp / health.max) * 100)}% heel.` : '';
+  return {
+    t: 'Verdedig de sterrenpoort!',
+    h: `${raid} vijanden${led} vallen aan.${left} Herstel hem op tijd met de knop op de balk bovenaan.`,
+    act: gate ? { l: 'Bekijk de poort', k: 'sel', id: gate.id } : { l: 'Bekijk de aanval', k: 'alarm' },
+    alarm: true,
+  };
+}
 export function coach(): CoachStep {
   const nx = AGE_UP[G.age + 1],
     NA = nx && AGES[G.age + 1].n.toLowerCase(),
     pn = popNow(),
     cap = popCap();
   const raid = G.foes.filter(isRaider).length;
+  const boss = liveBoss();
+  if (raid && isCharging()) return finaleRaidStep(raid, boss);
+  if (raid && boss)
+    return {
+      t: `Aanval, geleid door ${bossName(bossForAge(boss.boss))}!`,
+      h: `${raid} vijanden in je land. Versla de kampioen met je hele leger: dat levert een extra zegening op.`,
+      act: { l: 'Bekijk de aanval', k: 'alarm' },
+      alarm: true,
+    };
   if (raid)
     return {
       t: 'Aanval!',
@@ -271,6 +297,28 @@ function lastAgeStep(): CoachStep {
     return {
       t: goal ? `${goal.v.d}.` : 'Bouw gerust verder.',
       h: `${goal ? `Nu: ${goal.text}. ` : ''}Winnen met de sterrenpoort staat uit in deze wereld.`,
+    };
+  }
+  if (isCharging()) {
+    // De finale: de poort laadt op en moet heel blijven tot de zon opkomt
+    const gate = finishedGate();
+    const act = gate ? { l: 'Bekijk de poort', k: 'sel', id: gate.id } : null;
+    const percent = chargePercent(chargeFrac(G.finale));
+    const nights = nightsLeft(G.clock, G.finale.need - G.finale.hours, G.finale.hours);
+    // In de vredige modus komen er geen aanvallen: dan is er niets te verdedigen
+    if (G.peaceful) {
+      const when = nights > 1 ? `Bij zonsopgang na ${nights} nachten` : 'Bij de volgende zonsopgang';
+      return {
+        t: `De sterrenpoort laadt op: ${percent}%`,
+        h: `${when} gaat hij open. Bouw gerust verder.`,
+        act,
+      };
+    }
+    const hold = nights > 1 ? `Houd nog ${nights} nachten stand.` : 'Houd stand tot zonsopgang.';
+    return {
+      t: `Verdedig de sterrenpoort: ${percent}% opgeladen.`,
+      h: `${hold} Wordt hij verwoest, dan begint het opladen opnieuw. Herstel hem op tijd met de knop op de balk bovenaan.`,
+      act,
     };
   }
   if (built('stargate')) return { t: 'De sterrenpoort staat.', h: 'Bouw gerust verder.' };

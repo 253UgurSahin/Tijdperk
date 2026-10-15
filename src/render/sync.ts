@@ -7,7 +7,8 @@ import { B } from '../data/buildings';
 import { RES } from '../data/resources';
 import { G, sel } from '../game/state';
 import { RINGG, quadG } from './decals';
-import { bx, isMesh, mat, mergeStatic } from './kit';
+import { bx, gOct, gTorus, mat, mergeStatic, mk } from './kit';
+import { BOSS_SCALE } from '../data/bosses';
 import { makeBuilding, makeCamp, wallMask } from './models';
 import { nodesNeedUpdate, rebuildNodes } from './nodes';
 import { FOEK, makeUnit, makeVillager } from './people';
@@ -297,7 +298,33 @@ export function syncBuildings() {
 }
 function entKey(e: Figure): string {
   if (e.rival) return 'r' + e.rival + e.uk; // soldaat van een rivaal
+  if (e.boss) return 'boss' + e.type; // een kampioen ziet er anders uit (zie bossLook)
   return e.kind === 'v' ? 'v' + e.job : e.kind === 'u' ? 'u' + e.k : 'f' + e.type;
+}
+// Een kampioen: veel groter, met een gouden kroon boven zijn hoofd en een gouden schijf eronder
+const GOLD = mat('#e2b92c', { m: 0.6, r: 0.35 });
+function bossLook(r, e) {
+  r.bossLook = true;
+  // De kroon hangt aan het figuur (zodat hij meebeweegt en mee omvalt), maar het figuur zelf is al
+  // vergroot: daarom delen we hoogte en maat door die vergroting
+  const top = new T3.Box3().setFromObject(r.body).max.y,
+    s = r.body.scale.x || 1;
+  const crown = new T3.Group();
+  crown.position.y = (top + 0.1) / s;
+  crown.scale.setScalar(1 / s);
+  mk(gTorus(0.09, 0.025, 4, 16), GOLD, crown, 0, 0, 0, 1, 1, 1).rotation.x = Math.PI / 2;
+  for (let k = 0; k < 5; k++) {
+    const a = (k / 5) * TAU;
+    mk(gOct(), GOLD, crown, Math.cos(a) * 0.09, 0.05, Math.sin(a) * 0.09, 0.025, 0.06, 0.025);
+  }
+  crown.traverse(o => (o.userData.eid = e.id)); // ook de kroon is aan te klikken
+  r.body.add(crown);
+  r.crown = crown;
+  r.crownY = crown.position.y;
+  r.g.scale.setScalar(BOSS_SCALE);
+  r.bossTop = (top + 0.25) * BOSS_SCALE; // net boven de kroon: daar komen naam en levensbalk (zie overlay.ts)
+  r.base.material.color.set('#e2b92c');
+  r.base.material.opacity = 0.75;
 }
 const BASEG = new T3.CircleGeometry(1, 20).rotateX(-Math.PI / 2);
 /** Iets dat beweegt en zijn plek bij de vorige speltik onthoudt (figuur of projectiel). */
@@ -466,6 +493,12 @@ export function syncEntities() {
     const make = () =>
       f.rival ? makeUnit(f.uk!, false, rivalColour(f.rival)) : makeUnit(FOEK[f.type] || 'plunder', true);
     const r = syncEnt(f, make);
+    if (f.boss && !r.bossLook) bossLook(r, f);
+    // De kroon draait langzaam rond en zweeft een beetje
+    if (r.crown) {
+      r.crown.rotation.y = store.TM * 1.5;
+      r.crown.position.y = r.crownY + Math.sin(store.TM * 2.4) * 0.02;
+    }
     const fl = r.body.userData.fly as T3.Group | undefined;
     if (fl) {
       fl.position.y = 0.9 + Math.sin(store.TM * 3 + f.id) * 0.06;

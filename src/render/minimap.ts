@@ -131,6 +131,14 @@ export function renderMini() {
     mctx.fillStyle = RIVAL[rivalById(f.rival)?.k as string]?.c || '#ffffff';
     mctx.fillRect(f.x - 1, f.y - 1, 2.5, 2.5);
   }
+  // Een kampioen: een grote gouden stip met een donkere rand
+  for (const f of G.foes) {
+    if (!f.boss || f.retreat) continue;
+    mctx.fillStyle = '#1d1712';
+    mctx.fillRect(f.x - 3, f.y - 3, 6, 6);
+    mctx.fillStyle = '#e2b92c';
+    mctx.fillRect(f.x - 2.2, f.y - 2.2, 4.4, 4.4);
+  }
   mctx.fillStyle = '#9fd0ff';
   for (const u of G.us) mctx.fillRect(u.x - 0.8, u.y - 0.8, 2, 2);
   const pts = [s2t(0, 0), s2t(VW, 0), s2t(VW, VH), s2t(0, VH)].map(p => [

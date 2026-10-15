@@ -218,3 +218,40 @@ window.__tp.rivalWonder = (i = G.rivals.findIndex(r => r.p === 'bouwer')) => {
   return r;
 };
 window.__tp.myWonder = (k, x, y) => placeBuilding(k, x, y, true);
+// Finale en kampioenen: zet meteen een afgebouwde sterrenpoort neer (de finale begint), zet de lading
+// (__tp.charge(0.9) = 90%), of laat nu een aanval komen met de kampioen van dit tijdperk (__tp.bossRaid())
+import { spawnRaid } from './game/military';
+import * as finale from './game/finale';
+import * as bosses from './game/bosses';
+window.__tp.finale = finale;
+window.__tp.bosses = bosses;
+window.__tp.gate = (x = G.bs[0].x + 5, y = G.bs[0].y - 3) => placeBuilding('stargate', x, y, true);
+window.__tp.charge = frac => {
+  if (G.finale && G.finale.need > 0) G.finale.hours = G.finale.need * frac;
+};
+window.__tp.bossRaid = (age = Math.max(1, G.age)) => {
+  G.boss = { age };
+  spawnRaid();
+};
+// Diplomatie: zet een relatie (__tp.rel(0, 70)), laat een rivaal een bericht sturen (__tp.rivalOffer(0, 'ask')),
+// open het venster (__tp.diplo()), of laat een bondgenoot meteen helpen (__tp.allyHelp(0))
+import * as diplomacy from './game/diplomacy';
+import { showDiplomacy } from './ui/diplomacy';
+window.__tp.diplomacy = diplomacy;
+window.__tp.rel = (i = 0, value = 0) => {
+  const r = G.rivals[i];
+  if (r) diplomacy.changeRelation(r, value - r.rel);
+  return r;
+};
+window.__tp.rivalOffer = (i = 0, kind = 'trade') => {
+  G.offer = null;
+  return diplomacy.makeRivalOffer(G.rivals[i], kind);
+};
+window.__tp.diplo = (i = -1) => showDiplomacy(G.rivals[i]?.id || 0);
+window.__tp.allyHelp = (i = 0) => {
+  const r = G.rivals[i];
+  if (!r) return;
+  r.ally = true;
+  r.atWar = false;
+  diplomacy.sendHelpers(r);
+};

@@ -31,6 +31,10 @@ import {
 } from './rivals';
 import { bmap, foeWalk, freeWalk, isUnl, nearestWall, setBlk, walkable } from '../world/world';
 import { wonderDestroyed } from './wonders';
+import { bossDefeated, bossForRaid } from './bosses';
+import { gateDestroyed, gateHurt, isCharging, raidBoost } from './finale';
+import { allyHelp, atWarWith, commonEnemyBeaten, fairTarget, helpersNear } from './diplomacy';
+import { spreadOut } from '../data/finale';
 
 /** Een schot: schade, spatschade, laser, kleur, groot projectiel, beginhoogte, van een vijand, geluid. */
 interface FireOpts {
@@ -57,11 +61,13 @@ export const isDead = (t: Target | null | undefined): boolean | undefined =>
   !t || t.dead || t.hidden || (t.kind === 'c' && !t.alive) || (t.kind === 'f' && t.retreat);
 function hit(t: Target, dmg: number) {
   if (isDead(t)) return;
+  const hpBefore = t.hp;
   t.hp -= dmg;
   t.flash = 0.12;
   if (t.kind === 'b' || t.kind === 'c' || t.kind === 'rb') sfx('hit', 0.15);
   else sfx('hit', 0.3);
   if ('rival' in t && t.rival) rivalHurt(t); // een rivaal merkt dat je hem aanvalt
+  if (t.kind === 'b' && t.type === 'stargate') gateHurt(t, hpBefore); // waarschuwing tijdens de finale
   if (t.hp > 0) return;
   t.dead = true;
   if (t.kind === 'b') destroyBuilding(t);
@@ -77,9 +83,15 @@ function hit(t: Target, dmg: number) {
     G.us = G.us.filter(x => x !== t);
     sel.us.delete(t.id);
     burst(t.x, t.y, '#b0463a');
+  } else if (t.kind === 'f' && t.helper) {
+    burst(t.x, t.y, '#7a3a30'); // een helper van een bondgenoot sneuvelt: geen vijand van jou
   } else if (t.kind === 'f') {
     G.stats.killed++;
     burst(t.x, t.y, '#7a3a30');
+    if (t.boss) {
+      bossDefeated(t); // een kampioen: extra zegening (zie game/bosses.ts)
+      commonEnemyBeaten('boss'); // rivalen waarmee het vrede is, vinden dat goed (zie game/diplomacy.ts)
+    }
     if (Math.random() < 0.35) {
       const n = 5 + G.age * 3;
       G.res.food += n;
@@ -105,6 +117,8 @@ function destroyBuilding(b: Building) {
     endGame(false, 900);
   } else if (d.wonder) {
     wonderDestroyed(b); // het wonder is weer vrij (zie game/wonders.ts)
+  } else if (d.win) {
+    gateDestroyed(); // de sterrenpoort: de lading is weg (zie game/finale.ts)
   } else if (d.wall) {
     note(`${d.n} doorbroken.`, 'bad');
   } else {
@@ -150,6 +164,7 @@ function campDestroyed(c: Camp) {
   for (let k = 0; k < 10; k++) burst(c.x + Math.random() * 2, c.y + Math.random() * 2, '#b9822f');
   store.notePos = [c.x + 1, c.y + 1];
   toast(`Vijandelijk kamp veroverd! Buit binnengehaald.${extra}`, 'good');
+  commonEnemyBeaten('camp'); // een gezamenlijke vijand minder: rivalen vinden dat goed (zie game/diplomacy.ts)
   sfx('age');
   floater(c.x + 1, c.y + 1, 'BUIT', '#e2b92c');
   if (sel.camp === c.id) sel.camp = null;
@@ -176,6 +191,8 @@ export function fire(_from: Target, x: number, y: number, t: Target, o: FireOpts
     spd: o.big ? 11 : 15,
     col: o.col || '#fff3c4',
     foe: !!o.foe,
+    ally: !!o.ally, // geschoten door een helper van een bondgenoot
+    allyOf: o.allyOf || 0, // van welke rivaal die helper is (zijn eigen volk raakt hij niet)
     big: !!o.big,
     h0: o.h0 || 14,
   });
@@ -194,14 +211,17 @@ export function updateProj(dt: number) {
     if (d <= st + 0.15) {
       p.done = true;
       if (p.splash) {
-        const list = p.foe ? [...G.vs, ...G.us] : G.foes;
-        for (const e of list) if (!e.hidden && dist(e.x, e.y, p.lx, p.ly) <= p.splash) hit(e, p.dmg);
+        // Wie in de ontploffing staat: bij een vijandelijk schot jouw mensen, anders vijanden
+        for (const e of splashVictims(p))
+          if (!e.hidden && dist(e.x, e.y, p.lx, p.ly) <= p.splash) hit(e, p.dmg);
         if (p.foe && !isDead(p.t) && p.t.kind === 'b') hit(p.t, p.dmg);
-        if (!p.foe) {
+        if (!p.foe && !p.ally) {
           for (const c of G.camps)
             if (c.alive && dist(c.x + 1, c.y + 1, p.lx, p.ly) <= p.splash + 1) hit(c, p.dmg);
-          // Gebouwen van rivalen in de ontploffing (een kopie van de lijst: er kan er een instorten)
+          // Gebouwen van rivalen in de ontploffing (een kopie van de lijst: er kan er een instorten).
+          // Alleen van wie je in oorlog bent, of het gebouw waar je op mikte: zo begint geen oorlog per ongeluk.
           for (const b of [...rbById.values()]) {
+            if (b !== p.t && !atWarWith(b.rival)) continue;
             const s = B[b.type].size / 2;
             if (dist(b.x + s, b.y + s, p.lx, p.ly) <= p.splash + s) hit(b, p.dmg);
           }
@@ -215,12 +235,26 @@ export function updateProj(dt: number) {
   }
   G.proj = G.proj.filter(p => !p.done);
 }
+/**
+ * Wie een ontploffing kan raken. Een vijandelijk schot: jouw mensen. Een schot van een helper van een
+ * bondgenoot: jouw aanvallers (niet zijn eigen volk, niet de andere helpers). Jouw schot: vijanden, maar
+ * geen helpers en geen soldaten van een rivaal waarmee het vrede is (behalve waar je op mikte).
+ */
+function splashVictims(p) {
+  if (p.foe) return [...G.vs, ...G.us];
+  if (p.ally)
+    return G.foes.filter(
+      e => !e.helper && e.rival !== p.allyOf && (!e.rival || isRaider(e) || isMarching(e)),
+    );
+  return G.foes.filter(e => !e.helper && (e === p.t || fairTarget(e)));
+}
 export function nearestFoe(x: number, y: number, r: number, air?: boolean | 1): Foe | null {
   let best = null,
     bd = r;
   for (const f of G.foes) {
     if (f.retreat || f.dead) continue;
     if (f.air && !air) continue;
+    if (!fairTarget(f)) continue; // niet de soldaten van een rivaal waarmee het vrede is (zie game/diplomacy.ts)
     const d = dist(x, y, f.x, f.y);
     if (d < bd) {
       bd = d;
@@ -264,7 +298,9 @@ export function uUpdate(u: Unit, dt: number) {
         leash = am ? 8 : st === 'hold' ? U.r + 0.3 : st === 'aggr' ? 11 : u.order === 'move' ? 4.5 : 7;
       const f = nearestFoe(u.x, u.y, leash, U.air);
       // In een aanvalsmars of op aanvallen: ook gebouwen van rivalen in de buurt aanvallen
-      const rb = !f && !u.tgt && (am || st === 'aggr') ? nearestRivalBuilding(u.x, u.y, leash) : null;
+      // (alleen van rivalen waarmee het oorlog is: zo begin je niet per ongeluk een oorlog)
+      const rb =
+        !f && !u.tgt && (am || st === 'aggr') ? nearestRivalBuilding(u.x, u.y, leash, 0, true) : null;
       if (rb) u.tgt = rb;
       else if (
         f &&
@@ -338,7 +374,8 @@ function chase(e: Unit | Foe, p: { x: number; y: number }, dt: number, spd: numb
     return;
   }
   e.pt -= dt;
-  const foe = e.kind === 'f',
+  // Vijanden lopen niet door jouw muren; helpers van een bondgenoot lopen zoals jouw eigen mensen
+  const foe = e.kind === 'f' && !e.helper,
     mode = foe ? 2 : true;
   if (!e.path || !e.path.length || e.pt <= 0) {
     e.pt = 1.5;
@@ -395,7 +432,7 @@ export function moveToward(
     return false;
   }
   if (!e.path) {
-    e.path = findPath(e.x | 0, e.y | 0, x | 0, y | 0, e.kind === 'f' ? 2 : true);
+    e.path = findPath(e.x | 0, e.y | 0, x | 0, y | 0, e.kind === 'f' && !e.helper ? 2 : true);
     if (!e.path) {
       if (e.kind === 'u') {
         e.gx = e.x;
@@ -432,11 +469,22 @@ export function foeTarget(f: Foe): Unit | Villager | Building | null {
       best = v;
     }
   }
+  // Helpers van een bondgenoot vechten mee, dus vallen aanvallers ook hen aan
+  for (const h of helpersNear(f.x, f.y, bd)) {
+    if (h.rival === f.rival) continue;
+    const d = dist(f.x, f.y, h.x, h.y);
+    if (d < bd) {
+      bd = d;
+      best = h;
+    }
+  }
   if (best || f.camp) return best;
   bd = 1e9;
+  // Tijdens de finale gaan aanvallers liever op de sterrenpoort af (alsof hij 15 tegels dichterbij staat)
+  const gateBias = isCharging() ? 15 : 0;
   for (const b of G.bs) {
     const p = tpos(b);
-    const d = dist(f.x, f.y, p.x, p.y) - (B[b.type].def ? 3 : 0);
+    const d = dist(f.x, f.y, p.x, p.y) - (B[b.type].def ? 3 : 0) - (b.type === 'stargate' ? gateBias : 0);
     if (d < bd) {
       bd = d;
       best = b;
@@ -514,7 +562,9 @@ export function fUpdate(f: Foe, dt: number) {
       if (f.proj)
         fire(f, f.x, f.y, f.tgt!, {
           dmg: f.dmg,
-          foe: 1,
+          foe: f.helper ? 0 : 1, // een helper van een bondgenoot schiet op jouw vijanden
+          ally: !!f.helper,
+          allyOf: f.helper ? f.rival : 0,
           col: f.air ? '#ff6a5a' : '#ff9b6b',
           big: f.big,
           splash: f.splash ?? (f.big ? 1 : 0),
@@ -525,6 +575,12 @@ export function fUpdate(f: Foe, dt: number) {
     }
   } else chase(f, p, dt, f.spd, f.air);
 }
+// Tijdens de finale: zoveel seconden speltijd tussen de groepen uit verschillende richtingen
+const WAVE_GAP = 20;
+// "noorden", "noorden en westen", "noorden, oosten en zuiden"
+const joinWords = list =>
+  list.length > 1 ? `${list.slice(0, -1).join(', ')} en ${list[list.length - 1]}` : list[0];
+
 export function spawnRaid(): void {
   G.raids++;
   const a = G.age,
@@ -539,25 +595,44 @@ export function spawnRaid(): void {
     }
   if (!edge.length) return;
   G.stats.raidDay = G.day; // voor de prestaties "doorsta ... aanvallen" (zie game/time.ts)
-  const anchor = edge[(Math.random() * edge.length) | 0],
-    near = edge.filter(e => dist(e[0], e[1], anchor[0], anchor[1]) < 7);
+  // Meestal één groep; tijdens de finale drie groepen uit richtingen ver uit elkaar (zie game/finale.ts)
+  const anchors = spreadOut(edge, raidBoost().sides, (Math.random() * edge.length) | 0),
+    nearby = anchors.map(an => edge.filter(e => dist(e[0], e[1], an[0], an[1]) < 7));
   for (let k = 0; k < n; k++) {
     // Meestal vijanden van jouw tijdperk, met wat oudere ertussen; drones komen met pantserwagens
     const type = a === 7 ? (k % 2 ? 7 : 6) : k % 3 === 0 && a > 0 ? a - 1 : a;
-    const e = near[(Math.random() * near.length) | 0];
-    G.spawnQ.push({ type, x: e[0] + 0.5, y: e[1] + 0.5, scale, at: G.t + k * 0.7 });
+    const near = nearby[k % anchors.length],
+      e = near[(Math.random() * near.length) | 0];
+    G.spawnQ.push({
+      type,
+      x: e[0] + 0.5,
+      y: e[1] + 0.5,
+      scale,
+      // Meerdere groepen komen na elkaar, met WAVE_GAP seconden ertussen: zo blijft het te verdedigen
+      at: G.t + Math.floor(k / anchors.length) * 0.7 + (k % anchors.length) * WAVE_GAP,
+    });
   }
+  // Na een nieuw tijdperk leidt een kampioen de aanval: hij komt mee met de eerste groep
+  const boss = bossForRaid();
+  if (boss) {
+    const e = nearby[0][(Math.random() * nearby[0].length) | 0];
+    G.spawnQ.push({ type: boss.foe, x: e[0] + 0.5, y: e[1] + 0.5, scale, at: G.t + 2.5, boss: boss.age });
+  }
+  const anchor = anchors[0];
+  const from = [...new Set(anchors.map(an => compass(an[0], an[1])))];
   store.notePos = [anchor[0], anchor[1]];
-  toast(`Aanval! ${n} × ${FOES[a].n.toLowerCase()} uit het ${compass(anchor[0], anchor[1])}.`, 'bad');
+  toast(`Aanval! ${n} × ${FOES[a].n.toLowerCase()} uit het ${joinWords(from)}.`, 'bad');
   sfx('alarm');
-  store.raidPing = { x: anchor[0], y: anchor[1], t: 8 };
+  store.raidPing = { x: anchor[0], y: anchor[1], t: 8, more: anchors.slice(1) };
+  allyHelp(); // bondgenoten sturen misschien soldaten (zie game/diplomacy.ts)
 }
 // Hoe groot de volgende aanval is: groeit met elke aanval en elk tijdperk, maar blijft te overzien.
 // (Latere vijanden zijn per stuk al veel sterker, dus het aantal groeit rustig.)
+// Tijdens de finale komt daar nog eens keer twee bij, boven op het gewone maximum.
 export function raidSize(): number {
   const diff = difficulty(G.diff); // Zwaar en Meedogenloos sturen grotere groepen
   const base = 2 + Math.floor((G.raids + 1) * 0.9) + G.age;
-  return Math.min(diff.raidMax, Math.round(base * diff.raidSize * mul('raid.size')));
+  return Math.min(diff.raidMax, Math.round(base * diff.raidSize * mul('raid.size'))) * raidBoost().size;
 }
 export function compass(x: number, y: number): string {
   const a = (Math.atan2(y - CY, x - CX) * 180) / Math.PI;

@@ -3,6 +3,7 @@ import { store } from '../core/store';
 import { CN, CS, TAU } from '../config';
 import { SET } from '../core/settings';
 import { B } from '../data/buildings';
+import { bossForAge, bossName } from '../data/bosses';
 import { RES } from '../data/resources';
 import { UNITS } from '../data/units';
 import { has } from '../game/economy';
@@ -14,7 +15,7 @@ import { drag } from '../input/input';
 import { proj, pxu, t2s } from './camera';
 import { rbRec } from './rivals3d';
 import { DPR, VH, VW, octx } from './scene';
-import { bRec } from './sync';
+import { bRec, eRec } from './sync';
 import { clamp } from '../util/math';
 
 function obar(x: number, y: number, w: number, f: number, col: string) {
@@ -35,6 +36,20 @@ function otext(x: number, y: number, t: string, col: string, size = 12, a = 1) {
   c.fillStyle = col;
   c.fillText(t, x, y);
   c.globalAlpha = 1;
+}
+// Een kampioen: zijn naam en een brede levensbalk boven zijn hoofd, in goud omrand
+function bossLabel(f) {
+  const boss = bossForAge(f.boss);
+  if (!boss) return;
+  const top = eRec.get(f.id)?.bossTop ?? 2;
+  const [sx, sy, sz] = proj(f.rx ?? f.x, top + 0.15, f.ry ?? f.y);
+  if (sz > 1 || sx < -100 || sy < -60 || sx > VW + 100 || sy > VH + 60) return;
+  const c = octx,
+    w = 84;
+  c.fillStyle = '#e2b92c';
+  c.fillRect(sx - w / 2 - 2, sy - 2, w + 4, 8);
+  obar(sx, sy, w, f.hp / f.mhp, '#e3584a');
+  otext(sx, sy - 7, bossName(boss), '#ffe7a0', 13);
 }
 export function drawOverlay() {
   const c = octx;
@@ -89,7 +104,7 @@ export function drawOverlay() {
   const ents = [
     ...G.vs.filter(v => !v.hidden && (v.hp < v.mhp || sel.vs.has(v.id))),
     ...G.us.filter(u => u.hp < u.mhp || sel.us.has(u.id) || SET.hp),
-    ...G.foes.filter(f => f.hp < f.mhp && !f.retreat),
+    ...G.foes.filter(f => f.hp < f.mhp && !f.retreat && !f.boss),
   ];
   for (const e of ents) {
     const fly = e.kind === 'u' ? UNITS[e.k].fly : e.kind === 'f' && e.air; // dorpelingen vliegen nooit
@@ -97,6 +112,7 @@ export function drawOverlay() {
     if (sz > 1) continue;
     obar(sx, sy, 22, e.hp / e.mhp, e.kind === 'f' ? '#e3584a' : e.hp / e.mhp > 0.4 ? '#7fd36a' : '#e3a64a');
   }
+  for (const f of G.foes) if (f.boss && !f.retreat) bossLabel(f);
   for (const e of G.fx)
     if (e.type === 'float') {
       const [sx, sy, sz] = proj(e.x, 0.9 + (e.z || 0) / 40, e.y);
@@ -123,14 +139,18 @@ export function drawOverlay() {
       }
   }
   if (store.raidPing) {
-    const [sx, sy] = t2s(store.raidPing.x, store.raidPing.y);
+    // Waar de aanval begint; tijdens de finale ook waar de groepen uit de andere richtingen komen (raidPing.more)
+    const spots = [[store.raidPing.x, store.raidPing.y], ...(store.raidPing.more || [])];
     c.globalAlpha = Math.min(1, store.raidPing.t / 2);
     c.strokeStyle = '#e3584a';
     c.lineWidth = 2.5;
-    for (let k = 0; k < 2; k++) {
-      c.beginPath();
-      c.arc(sx, sy, 20 + ((store.TM * 40 + k * 30) % 60), 0, TAU);
-      c.stroke();
+    for (const [x, y] of spots) {
+      const [sx, sy] = t2s(x, y);
+      for (let k = 0; k < 2; k++) {
+        c.beginPath();
+        c.arc(sx, sy, 20 + ((store.TM * 40 + k * 30) % 60), 0, TAU);
+        c.stroke();
+      }
     }
     c.globalAlpha = 1;
   }

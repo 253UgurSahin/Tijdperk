@@ -6,7 +6,9 @@ import { ACHIEVEMENT } from '../data/achievements';
 import { BLESSING } from '../data/blessings';
 import { B } from '../data/buildings';
 import { cleanDiff } from '../data/difficulty';
+import { cleanPendingBoss } from '../data/bosses';
 import { cleanActiveEvent, cleanBuffs, cleanEventsSeen, cleanFollowups } from '../data/events';
+import { cleanFinale, resetCharge } from '../data/finale';
 import { cleanMods } from '../data/modifiers';
 import { DEFAULT_PEOPLE, PEOPLE } from '../data/peoples';
 import { RKEYS } from '../data/resources';
@@ -94,6 +96,8 @@ export function serialize(): string {
     'mods',
     'wonders',
     'traderDay',
+    'finale',
+    'boss',
   ] as const)
     g[k] = G[k];
   return JSON.stringify({
@@ -213,6 +217,10 @@ export function deserialize(str: string): boolean {
   G.wonders = cleanWonders(s.g.wonders);
   // Number.isInteger geeft alleen true bij een heel getal: dan is traderDay er zeker
   G.traderDay = Number.isInteger(s.g.traderDay) ? s.g.traderDay! : 0;
+  // De finale en de kampioen die nog komt. Opslag van daarvóór: geen finale en geen kampioen.
+  // (Een kampioen die in het veld stond, komt terug met de volgende aanval: aanvallers worden niet bewaard.)
+  G.finale = cleanFinale(s.g.finale);
+  G.boss = cleanPendingBoss(s.g.boss);
   // Volk: opslag van vóór de volken (of met een volk dat niet meer bestaat) speelt als Friezen
   if (!PEOPLE[G.people]) G.people = DEFAULT_PEOPLE;
   if (!Array.isArray(G.blessingQueue)) G.blessingQueue = [];
@@ -285,6 +293,9 @@ export function deserialize(str: string): boolean {
   G.opts.rivals = G.rivals.length;
   // Wereldwonderen: wie welk wonder heeft, volgt uit de gebouwen die er nu weer staan
   refreshWonders();
+  // Laadde de poort op, maar staat hij er niet meer? Dan is die lading weg (zoals bij een verwoeste poort)
+  const gateStands = G.bs.some(b => b.type === 'stargate' && b.done);
+  if (G.finale && !G.finale.done && !gateStands) resetCharge(G.finale);
   if (s.cam) {
     let x = s.cam.x,
       y = s.cam.y;
