@@ -4,13 +4,13 @@
 
 [36mvite v7.3.7 [32mbuilding client environment for production...[36m[39m
 transforming...
-[32m✓[39m 141 modules transformed.
+[32m✓[39m 145 modules transformed.
 rendering chunks...
 [plugin vite:singlefile] 
 
-[plugin vite:singlefile] Inlining: index-CF1nHcK6.js
-[plugin vite:singlefile] Inlining: style-EF6z-msx.css
+[plugin vite:singlefile] Inlining: index-CxcaZsui.js
+[plugin vite:singlefile] Inlining: style-DCrJAZ6B.css
 computing gzip size...
-[2mdist-artifact/[22m[32mindex.html  [39m[1m[2m1,064.03 kB[22m[1m[22m[2m │ gzip: 326.51 kB[22m
-[32m✓ built in 2.70s[39m
-dist-artifact/tijdperken.html 1038 kB
+[2mdist-artifact/[22m[32mindex.html  [39m[1m[2m1,078.89 kB[22m[1m[22m[2m │ gzip: 332.15 kB[22m
+[32m✓ built in 1.91s[39m
+dist-artifact/tijdperken.html 1052 kB
