@@ -16,7 +16,7 @@ import { add, mul } from './bonus.js';
 import { armsMul } from './upgrades.js';
 import { unhide } from './villagers.js';
 import { scrX } from '../render/scene.js';
-import { note, toast } from '../ui/hud.js';
+import { hallHit, note, toast } from '../ui/hud.js';
 import { dist } from '../util/math.js';
 import { findPath, follow } from '../world/pathfinding.js';
 import {
@@ -57,6 +57,7 @@ function hit(t, dmg, by) {
   else sfx('hit', 0.3);
   if (t.rival) rivalHurt(t); // een rivaal merkt dat je hem aanvalt
   if (t.kind === 'b' && t.type === 'stargate') gateHurt(t, hpBefore); // waarschuwing tijdens de finale
+  if (t.kind === 'b' && t.type === 'townhall') hallHit(); // rode flits aan de rand van het scherm
   if (t.hp > 0) return;
   t.dead = true;
   if (t.kind === 'b') destroyBuilding(t);

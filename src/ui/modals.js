@@ -7,7 +7,8 @@ import { MAP } from '../data/maps.js';
 import { DEFAULT_PEOPLE, isPeopleUnlocked } from '../data/peoples.js';
 import { DIFF_NAMES } from '../data/score.js';
 import { DAILY, SCENARIOS, goalText } from '../data/scenarios.js';
-import { SKEY, load, save, wipe } from '../game/save.js';
+import { filledCount, latestSlot, replaceWarningText, savedAtText, slotTitle } from '../data/saveslots.js';
+import { currentMeta, isLiveGame, liveGameAtRisk, listSlots, loadSlot, save, wipe } from '../game/save.js';
 import { currentChallenge } from '../game/scenario.js';
 import { G, newGame, placeName } from '../game/state.js';
 import { setView } from '../input/input.js';
@@ -21,6 +22,7 @@ import { togglePanel } from './panel.js';
 import { newGameDraft, showNewGame } from './newgame.js';
 import { peopleBarHTML, playerProfile } from './peoples.js';
 import { achievementCount, showProfile } from './profile.js';
+import { showLoadScreen, showSaveScreen } from './saveslots.js';
 import { $, isCompact } from '../util/dom.js';
 import { LEVELS, setQuality } from '../render/quality.js';
 
@@ -43,6 +45,11 @@ export function openModal(html, { locked = false, cls = '', onClose = null } = {
   // (Pas na het tonen: in een verborgen venster telt de scrollpositie niet.)
   $('#sheet').scrollTop = 0;
   setSpeed(0);
+}
+/** Venster dicht en het spel op gewone snelheid verder (na het laden van een opslag). */
+export function closeModalAndPlay() {
+  prevSpeed = 1;
+  closeModal();
 }
 export function closeModal() {
   $('#modal').hidden = true;
@@ -75,14 +82,9 @@ $('#modal').addEventListener('click', e => {
   if (!t) return;
   const m = t.dataset.m;
   if (m === 'close') closeModal();
-  else if (m === 'save') save(true);
-  else if (m === 'load') {
-    if (load()) {
-      prevSpeed = 1;
-      closeModal();
-      toast('Spel geladen.');
-    } else toast('Geen opgeslagen spel gevonden.', 'bad');
-  } else if (m === 'new') {
+  else if (m === 'save') showSaveScreen();
+  else if (m === 'load') showLoadScreen();
+  else if (m === 'new') {
     t.dataset.m = 'newok';
     t.querySelector('span')
       ? (t.querySelector('span').textContent = 'Zeker? Klik nogmaals')
@@ -154,6 +156,12 @@ function setPeaceful(on) {
   );
   sigs.def = null;
 }
+/** Korte regel voor de knop Laden, zoals "laatste: vandaag 14:32". */
+function lastSaveLine() {
+  const slots = listSlots(),
+    latest = latestSlot(slots);
+  return latest ? `laatste: ${savedAtText(slots[latest].at)}` : 'nog niets opgeslagen';
+}
 /** Korte regel voor de knop Prestaties, zoals "12 van 40 gehaald". */
 function achievementsLine() {
   const { got, total } = achievementCount();
@@ -191,8 +199,8 @@ export function openPause() {
     <button class="mbtn primary" data-m="close"><span>Hervatten</span><small>terug naar het spel</small></button>
     ${panelButtons}
     <div class="mpair">
-      <button class="mbtn" data-m="save"><span>Opslaan</span><small>automatisch elke minuut</small></button>
-      <button class="mbtn" data-m="load"><span>Laden</span><small>laatste opslag</small></button>
+      <button class="mbtn" data-m="save"><span>Opslaan</span><small>kies uit 3 plekken</small></button>
+      <button class="mbtn" data-m="load"><span>Laden</span><small>${lastSaveLine()}</small></button>
     </div>
     <div class="mpair">
       <button class="mbtn" data-m="profile"><span>Prestaties</span><small>${achievementsLine()}</small></button>
@@ -297,7 +305,11 @@ function showSettings() {
         : '') +
       tog('V2', 'Bovenaanzicht', 'Camera recht van boven in plaats van schuin', store.V2) +
       tog('shake', 'Schermschudden', 'Bij inslagen en instortende gebouwen') +
-      tog('motion', 'Animaties in menu’s', 'Uit: rustiger, zonder bewegende knoppen') +
+      tog(
+        'motion',
+        'Animaties',
+        'Uit: rustiger. Geen bewegende knoppen, geen camerazwaai bij een nieuw tijdperk, getallen springen meteen',
+      ) +
       seg('uiScale', 'Grootte interface', 'Maakt panelen en tekst groter of kleiner', [
         [0.9, 'S'],
         [1, 'M'],
@@ -369,13 +381,8 @@ function changeSetting(k, v) {
  * uitdagingen (zie ui/challenges.js); `focus` is dan de uitdaging die open staat.
  */
 export function showTitle({ setup = false, challenges = false, focus = null } = {}) {
-  const has_ = (() => {
-    try {
-      return !!localStorage.getItem(SKEY);
-    } catch (e) {
-      return false;
-    }
-  })();
+  // Is er iets om mee verder te spelen: het spel dat nu draait (na Hoofdmenu), of een opslag?
+  const has_ = isLiveGame() || !!latestSlot(listSlots());
   // Zonder opslag ligt er al een verse wereld achter het titelscherm: die zaadcode bieden we als eerste aan
   const fresh = !has_ && G && G.t <= 5;
   const draft = newGameDraft(fresh);
@@ -389,25 +396,34 @@ export function showTitle({ setup = false, challenges = false, focus = null } = 
     setSpeed(1);
   };
   const drawHome = () => {
-    // Bij een uitdaging staat haar naam erbij, anders de naam van je stad
-    const where = currentChallenge() ? currentChallenge().n : placeName();
-    const continueButton = has_
-      ? `<button class="mbtn primary" data-t="cont"><span>Verder spelen</span><small>${where} · dag&nbsp;${G.day} · ${AGES[G.age].n}</small></button>`
+    // "Verder spelen": het spel dat nu draait, anders de nieuwste opslag. Bij een uitdaging staat haar naam
+    // erbij, anders de naam van je stad.
+    const slots = listSlots();
+    const newest = latestSlot(slots);
+    const next = isLiveGame() ? currentMeta() : newest && slots[newest];
+    const continueButton = next
+      ? `<button class="mbtn primary" data-t="cont"><span>Verder spelen</span><small>${slotTitle(next)} · dag&nbsp;${next.day} · ${AGES[next.age].n}</small></button>`
       : '';
+    // Laden staat naast Prestaties als er iets opgeslagen is
+    const saved = filledCount(slots);
+    const profileButton = `<button class="mbtn" data-t="profile"><span>Prestaties</span><small>${achievementsLine()}</small></button>`;
+    const profileRow = saved
+      ? `<div class="mpair"><button class="mbtn" data-t="load"><span>Laden</span><small class="whole">${saved} ${saved === 1 ? 'opslag' : 'opslagen'}</small></button>${profileButton}</div>`
+      : profileButton;
     el.innerHTML = `<div class="tw">
     <div class="tag">Van vuursteen tot sterrenpoort</div>
     <div class="logo">Tijdperken</div>
-    <div class="agesrow">${ageTimeline(has_ ? G.age : 0, true)}<div class="tlends"><span>vuursteen</span><span>sterrenpoort</span></div></div>
+    <div class="agesrow">${ageTimeline(next ? next.age : 0, true)}<div class="tlends"><span>vuursteen</span><span>sterrenpoort</span></div></div>
     <div class="mstack">
       ${continueButton}
-      <button class="mbtn ${has_ ? '' : 'primary'}" data-t="new"><span>Nieuwe wereld</span><small class="whole">volk · kaart · doel</small></button>
+      <button class="mbtn ${next ? '' : 'primary'}" data-t="new"><span>Nieuwe wereld</span><small class="whole">volk · kaart · doel</small></button>
       <div class="mpair">
         <button class="mbtn" data-t="challenges"><span>Uitdagingen</span><small class="whole">${medalCount()}/${SCENARIOS.length} medailles</small></button>
         <button class="mbtn" data-t="daily"><span>Wereld van de dag</span><small class="whole">${dailyLine()}</small></button>
       </div>
     </div>
     <div class="mstack">
-      <button class="mbtn" data-t="profile"><span>Prestaties</span><small>${achievementsLine()}</small></button>
+      ${profileRow}
       <div class="mpair">
         <button class="mbtn" data-t="help"><span>Uitleg</span><small>besturing</small></button>
         <button class="mbtn" data-t="settings"><span>Instellingen</span><small>geluid · camera</small></button>
@@ -418,17 +434,20 @@ export function showTitle({ setup = false, challenges = false, focus = null } = 
     el.onclick = onHomeClick;
     el.oninput = el.onchange = el.onkeydown = null;
   };
-  // Een nieuwe wereld of uitdaging beginnen: oude opslag weg, nieuwe wereld, titelscherm dicht
+  // Een nieuwe wereld of uitdaging beginnen: nieuwe wereld, meteen bewaren, titelscherm dicht
   const startGame = opts => {
     // Voor de zekerheid: nooit beginnen met een volk dat (weer) op slot zit
     if (opts.people && !isPeopleUnlocked(opts.people, playerProfile())) opts.people = DEFAULT_PEOPLE;
-    wipe();
     newGame(opts);
+    save(); // de nieuwe wereld meteen bewaren: hij komt op de automatische plek, in plaats van het vorige spel
     leaveTitle();
   };
-  const openSetup = () => showNewGame(el, draft, { onBack: drawHome, onStart: startGame });
+  // Staat je spel van nu alleen op de automatische plek? Dan zegt een zin onder Begin dat het daarna weg is.
+  const replaceWarning = () => (liveGameAtRisk() ? replaceWarningText(currentMeta()) : '');
+  const openSetup = () =>
+    showNewGame(el, draft, { warning: replaceWarning(), onBack: drawHome, onStart: startGame });
   const openChallenges = (focusOn = null) =>
-    showChallenges(el, { focus: focusOn, hasSave: has_, onBack: drawHome, onStart: startGame });
+    showChallenges(el, { focus: focusOn, warning: replaceWarning(), onBack: drawHome, onStart: startGame });
   const onHomeClick = e => {
     const t = e.target.closest('button');
     if (!t) return;
@@ -440,7 +459,22 @@ export function showTitle({ setup = false, challenges = false, focus = null } = 
     else if (t.dataset.t === 'new') openSetup();
     else if (t.dataset.t === 'challenges') openChallenges();
     else if (t.dataset.t === 'daily') openChallenges(DAILY);
-    else if (t.dataset.t === 'cont') leaveTitle();
+    else if (t.dataset.t === 'load') showLoadScreen({ onLoaded: leaveTitle, onClose: drawHome });
+    else if (t.dataset.t === 'cont') continueGame();
+  };
+  // Verder met het spel dat nu draait, of de nieuwste opslag laden (bijv. na een verloren spel).
+  // Lukt laden niet, dan meteen het laadscherm met de melding erin: een gewone melding valt achter het titelscherm.
+  const continueGame = () => {
+    const newest = latestSlot(listSlots());
+    if (!isLiveGame() && !(newest && loadSlot(newest))) {
+      showLoadScreen({
+        onLoaded: leaveTitle,
+        onClose: drawHome,
+        message: 'Deze opslag kon niet geladen worden. Kies een andere plek.',
+      });
+      return;
+    }
+    leaveTitle();
   };
   if (setup) openSetup();
   else if (challenges) openChallenges(focus);
@@ -462,6 +496,7 @@ export function showHelp() {
   <p>Elk tijdperk heeft één <b>wereldwonder</b>, zoals het Hunebed of de Eiffeltoren (bouwcategorie <b>Wonderen</b>). Elk wonder bestaat maar één keer per wereld en geeft een sterke bonus. Een rivaal met het karakter Bouwer bouwt ook wonderen. Op de doelenkaart zie je als hij ervoor spaart of eraan bouwt: sloop zijn bouwplaats of wees sneller. Is hij eerder klaar, dan is het wonder bezet tot je het verwoest of hem verslaat. Met vier wonderen tegelijk kun je winnen.</p>
   <p>Elk <b>volk</b> heeft eigen voordelen; je ziet ze onder <b>Menu</b>, en in het overzicht onderin als je niets hebt geselecteerd.</p>
   <p>Onderweg haal je <b>prestaties</b>, zoals een nieuw tijdperk of een veroverd kamp. Sommige spelen een nieuw volk vrij. Aan het eind krijg je een <b>score</b> en misschien een medaille. Alles staat onder <b>Prestaties</b> in het menu.</p>
+  <p><b>Opslaan</b> gaat vanzelf, elke minuut. Wil je een moment bewaren, kies dan onder <b>Menu → Opslaan</b> een van drie plekken; onder <b>Laden</b> ga je daar weer naartoe.</p>
   <p>Na je eerste minuut en bij elk nieuw tijdperk kies je een <b>zegening</b>: één van drie kaarten met een voordeel voor de rest van het spel. Sommige hebben ook een nadeel. Je zegeningen staan bovenaan <b>Verbeteren</b>.</p>
   <div class="keys"><kbd>Slepen</kbd><span>Selectiekader (met Shift: erbij)</span><kbd>Rechts slepen · WASD</kbd><span>Kaart verschuiven · scroll om te zoomen</span><kbd>Klik</kbd><span>Bekijken en selecteren</span><kbd>Dubbelklik · Ctrl-klik</kbd><span>Alles van dat soort in beeld</span><kbd>Rechtsklik</kbd><span>Opdracht: lopen, aanvallen, verzamelen</span><kbd>Q · I</kbd><span>Hele leger · stilstaande dorpelingen</span><kbd>E</kbd><span>Gebied uitbreiden</span><kbd>V</kbd><span>Bovenaanzicht aan of uit</span><kbd>Spatie · [ ]</kbd><span>Pauze · langzamer / sneller</span><kbd>1 – 9</kbd><span>Gebouw uit de bouwbalk kiezen</span><kbd>Ctrl+Shift+F1 – F5 · F1 – F5</kbd><span>Groep maken · groep kiezen (twee keer: ernaartoe). Of met de knoppen rechts boven de onderbalk</span><kbd>S · F · R</kbd><span>Leger: stop · aanvalsmars · patrouille</span><kbd>Shift-klik trainen</kbd><span>Vijf eenheden tegelijk in de wachtrij</span><kbd>Slepen bij muur of weg</kbd><span>Hele lijn in één keer bouwen</span><kbd>Delete</kbd><span>Sloopmodus (of: geselecteerd gebouw afbreken)</span><kbd>Z X C B N</kbd><span>Bouwcategorie wisselen (N: wereldwonderen)</span><kbd>P · M</kbd><span>Paneel · geluid</span><kbd>Esc</kbd><span>Annuleren</span></div>
   <div class="row"><button class="primary" data-m="close">Op avontuur →</button></div>`);

@@ -190,7 +190,7 @@ function rivalsHTML(draft) {
     <p class="nghint">${hint}</p></section>`;
 }
 
-function setupHTML(draft) {
+function setupHTML(draft, warning) {
   const ok = seedFromCode(draft.code) !== null;
   // Met komma's: op een telefoon loopt dit door op een tweede regel, zonder los puntje aan het eind
   const foes = draft.rivals ? `, ${draft.rivals} ${draft.rivals === 1 ? 'rivaal' : 'rivalen'}` : '';
@@ -214,6 +214,7 @@ function setupHTML(draft) {
       </div>
     </div>
     <button class="mbtn primary ngstart" data-ng="start" ${ok ? '' : 'disabled'}><span>Begin</span><small>${summary}</small></button>
+    ${warning ? `<p class="nghint warn">${warning}</p>` : ''}
   </div>`;
 }
 
@@ -313,10 +314,11 @@ function paintPreview(el, draft) {
 /**
  * Laat het nieuw-spelscherm zien in het titelscherm `el`. `draft` zijn de keuzes (zie newGameDraft).
  * `onBack()`: terug naar het hoofdmenu. `onStart(opts)`: begin de wereld met deze keuzes.
+ * `warning`: een zin onder Begin als je spel van nu daarna weg is (zie replaceWarningText), of leeg.
  */
-export function showNewGame(el, draft, { onBack, onStart }) {
+export function showNewGame(el, draft, { warning = '', onBack, onStart }) {
   const draw = () => {
-    el.innerHTML = setupHTML(draft);
+    el.innerHTML = setupHTML(draft, warning);
     paintPreview(el, draft);
   };
   // Na het typen: Begin aan of uit, en de tekst eronder bijwerken (zonder alles opnieuw te tekenen)

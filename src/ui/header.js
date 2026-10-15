@@ -14,7 +14,7 @@ import { isNight, raidNight, season } from '../game/time.js';
 import { armsCost, armsUseful, canUpg, hasT, toolCost, upgCost } from '../game/upgrades.js';
 import { costText } from './buildmenu.js';
 import { coach } from './coach.js';
-import { TOUCH, fmt } from './format.js';
+import { TOUCH } from './format.js';
 import { renderQuick } from './hud.js';
 import { updateTabs } from './panel.js';
 import { buildResBar, rate, updateResPop } from './resources.js';
@@ -50,15 +50,13 @@ export function updateHeader() {
   const need = store.placing ? buildCost(store.placing) : null;
   for (const el of document.querySelectorAll('#resbar .res,#resPop .res')) {
     const k = el.dataset.k,
-      num = el.querySelector('b'),
-      txt = fmt(G.res[k]);
-    if (num.textContent !== txt) {
-      // Een klein tikje als het getal verandert: groen omhoog, rood omlaag
-      const up = G.res[k] > (+el.dataset.v || 0);
-      if (num.textContent) tick(num, up ? 'tick-up' : 'tick-down');
-      num.textContent = txt;
-    }
-    el.dataset.v = Math.floor(G.res[k]);
+      now = Math.floor(G.res[k]),
+      before = el.dataset.v;
+    // Een klein tikje als de voorraad verandert: groen omhoog, rood omlaag. Het getal zelf telt
+    // vloeiend mee (zie tickResourceNumbers in ui/resources.js).
+    if (before !== undefined && +before !== now)
+      tick(el.querySelector('b'), now > +before ? 'tick-up' : 'tick-down');
+    el.dataset.v = now;
     el.classList.toggle('short', !!(need && need[k] > G.res[k]));
     const r = rate[k],
       em = el.querySelector('em');

@@ -199,3 +199,15 @@ window.__tp.kills = (u, n = 3) => {
   for (let k = 0; k < n; k++) army.creditKill(u);
   return u;
 };
+// Juice en opslagplekken: het filmische moment van een nieuw tijdperk zonder echt een tijdperk verder te gaan
+// (__tp.cine()), vuurwerk (__tp.fireworks()), een treffer op het stamhuis (__tp.hallHit()), of de plekken bekijken
+// (__tp.saves.listSlots()) en opslaan op een plek (__tp.saves.saveToSlot('2'))
+import * as cinematic from './render/cinematic.js';
+import { startFireworks } from './render/fireworks.js';
+import { hallHit } from './ui/hud.js';
+window.__tp.cinematic = cinematic;
+window.__tp.cine = () => cinematic.startAgeCinematic();
+window.__tp.fireworks = () => startFireworks();
+window.__tp.hallHit = () => hallHit();
+import { bRec } from './render/sync.js';
+window.__tp.bRec = bRec; // 3D-gegevens per gebouw, bijv. __tp.bRec.get(id).m.scale (het opveren bij opleveren)

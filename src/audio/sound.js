@@ -63,6 +63,31 @@ function noise(dur, vol, hp = 800, delay = 0) {
   g.connect(out());
   src.start(a.currentTime + delay);
 }
+// Een aangehouden toon, zoals een hoorn: zacht aanzwellen, vasthouden en uitsterven.
+// Twee golven samen (zaagtand en driehoek) door een filter, zodat het warm klinkt en niet schel.
+function horn(f, dur, vol, delay = 0) {
+  const a = ac();
+  if (!a) return;
+  const t = a.currentTime + delay,
+    soft = a.createBiquadFilter(),
+    g = a.createGain();
+  soft.type = 'lowpass';
+  soft.frequency.value = 2200;
+  g.gain.setValueAtTime(0, t);
+  g.gain.linearRampToValueAtTime(vol, t + 0.05);
+  g.gain.setValueAtTime(vol, t + dur * 0.55);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  soft.connect(g);
+  g.connect(out());
+  for (const type of ['sawtooth', 'triangle']) {
+    const o = a.createOscillator();
+    o.type = type;
+    o.frequency.setValueAtTime(f, t);
+    o.connect(soft);
+    o.start(t);
+    o.stop(t + dur + 0.02);
+  }
+}
 export function sfx(k, minGap = 0.05) {
   if (!sndOn || (!SET.alerts && ALERTS.has(k)) || (!SET.uiSounds && UI_SOUNDS.has(k))) return;
   if (!AC && !ac()) return;
@@ -78,6 +103,7 @@ export function sfx(k, minGap = 0.05) {
       noise(0.08, 0.05, 1500);
       break;
     case 'done':
+      tone(160, 90, 0.12, 'sine', 0.07); // een zachte plof als het gebouw neerkomt
       tone(520, 0, 0.1, 'triangle', 0.07);
       tone(780, 0, 0.14, 'triangle', 0.07, 0.09);
       break;
@@ -142,6 +168,35 @@ export function sfx(k, minGap = 0.05) {
       break;
     case 'age':
       [523, 659, 784, 1046].forEach((f, i) => tone(f, 0, 0.5, 'triangle', 0.07, i * 0.12));
+      break;
+    case 'ageup':
+      // Fanfare voor een nieuw tijdperk: twee korte stoten, dan een vol akkoord met een pauk eronder
+      horn(392, 0.16, 0.05);
+      horn(392, 0.16, 0.05, 0.18);
+      for (const f of [523, 659, 784]) horn(f, 1.6, 0.04, 0.38);
+      horn(1046, 1.3, 0.025, 0.5);
+      noise(0.4, 0.08, 70, 0.38);
+      tone(65, 45, 0.6, 'sine', 0.14, 0.38);
+      break;
+    case 'win':
+      // Gewonnen: een stijgende fanfare en een groot, lang akkoord met bekkens
+      [392, 523, 659, 784].forEach((f, i) => horn(f, 0.22, 0.045, i * 0.14));
+      for (const f of [523, 659, 784, 1046]) horn(f, 2.4, 0.035, 0.6);
+      horn(262, 2.4, 0.04, 0.6);
+      noise(1.6, 0.03, 5000, 0.6);
+      noise(0.5, 0.1, 70, 0.6);
+      tone(65, 40, 0.8, 'sine', 0.15, 0.6);
+      break;
+    case 'launch':
+      // Een vuurpijl gaat omhoog: een zacht fluitje
+      tone(500, 1500, 0.5, 'sine', 0.012);
+      noise(0.3, 0.012, 3000);
+      break;
+    case 'firework':
+      // Een vuurpijl spat uiteen: een doffe knal en wat geknetter na
+      noise(0.25, 0.07, 150);
+      tone(110, 50, 0.3, 'sine', 0.06);
+      for (let i = 0; i < 4; i++) noise(0.04, 0.025, 4500, 0.15 + i * 0.09 + Math.random() * 0.05);
       break;
     case 'upgrade':
       tone(660, 990, 0.16, 'triangle', 0.06);

@@ -14,12 +14,13 @@ import { G } from '../game/state.js';
 import { checkVictory } from '../game/victory.js';
 import { canUpg, roadTier } from '../game/upgrades.js';
 import { sigs } from './header.js';
-import { showBanner, toast } from './hud.js';
+import { screenEffect, showBanner, toast } from './hud.js';
 import { buildResBar } from './resources.js';
 import { ageTimeline } from './format.js';
 import { $ } from '../util/dom.js';
 import { retiredIn } from '../data/succession.js';
 import { UNITS } from '../data/units.js';
+import { startAgeCinematic } from '../render/cinematic.js';
 
 // Naar het volgende tijdperk, als je alles hebt wat ervoor nodig is
 export function ageUp() {
@@ -29,14 +30,19 @@ export function ageUp() {
   enterNextAge();
 }
 
-/** Het volgende tijdperk begint: banner, melding, en na de banner een nieuwe zegening. */
+/**
+ * Het volgende tijdperk begint: banner, fanfare, de camera zweeft even uit boven je stad (zie render/cinematic.js),
+ * een melding, en na de banner een nieuwe zegening.
+ */
 export function enterNextAge() {
+  const wonBefore = G.won;
   G.age++;
   showBanner(
     `<div class="in"><div class="eyebrow">Hoofdstuk ${AGES[G.age].r}</div><div class="t">${AGES[G.age].n}</div><div class="y">${AGES[G.age].y} · ${CHAPTERS[G.age].t}</div></div>`,
   );
   const nr = RKEYS.filter(k => RES[k].age === G.age && !RES[k].cr).map(k => RES[k].n.toLowerCase());
-  sfx('age');
+  startAgeCinematic();
+  screenEffect('age'); // een zachte gloed in de kleur van het nieuwe tijdperk rond de rand van het scherm
   const nu = G.bs.filter(canUpg).length;
   const old = retiredIn(G.age, G.people).map(k => (B[k] || UNITS[k]).n.toLowerCase());
   toast(
@@ -48,6 +54,9 @@ export function enterNextAge() {
   earnBlessing(); // het kiesvenster komt pas als de banner weg is (zie ui/blessings.js)
   bossAfterAgeUp(); // de volgende aanval wordt geleid door een kampioen (zie game/bosses.js)
   checkVictory(); // was dit tijdperk je doel (kort spel)? Dan meteen winnen
+  // Win je hiermee, dan speelt alleen de overwinningsfanfare (zie celebrateWin): niet twee fanfares door elkaar
+  const justWon = G.won && !wonBefore;
+  if (!justWon) sfx('ageup');
   setTimeout(
     () =>
       document.querySelectorAll('#resbar .res').forEach(el => {

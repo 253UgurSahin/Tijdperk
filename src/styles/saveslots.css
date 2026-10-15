@@ -1,0 +1,226 @@
+/* Opslaan en laden: elke plek is een kaartje met een nummer, je stad, een tijdlijn en wanneer je opsloeg. */
+.slots {
+  display: grid;
+  gap: 10px;
+  margin-top: 18px;
+}
+.slot {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 6px;
+}
+/* De grote knop van een plek: nummer · stad en tijdlijn · tijd */
+.slot .slotmain {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  min-width: 0;
+  padding: 12px 16px;
+  text-align: left;
+  border-radius: var(--r);
+  box-shadow: 0 3px 0 var(--paper-edge);
+}
+.slot button.slotmain:active:not(:disabled) {
+  transform: translateY(3px);
+  box-shadow: 0 0 0 var(--paper-edge);
+}
+.slotnum {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--acc-soft);
+  border: 1.5px solid var(--acc-edge);
+  font: 800 20px/1 var(--f-display);
+  color: var(--acc-ink);
+}
+.slotnum .ico {
+  width: 20px;
+  height: 20px;
+}
+.slotbody {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.slotbody b {
+  font: 650 18px/1.2 var(--f-display);
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.slotbody small {
+  font-size: 12.5px;
+  color: var(--ink-3);
+}
+.slotbody .tl {
+  margin-top: 8px;
+  max-width: 210px;
+}
+.slottime {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 3px;
+  text-align: right;
+}
+.slottime b {
+  font: 500 12.5px/1.2 var(--f-mono);
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+.slottime small {
+  font: 400 11px/1.2 var(--f-mono);
+  color: var(--ink-4);
+}
+/* Al gewonnen: een klein groen labeltje achter de naam */
+.slotwon {
+  margin-left: 6px;
+  padding: 1px 7px;
+  border-radius: 99px;
+  vertical-align: 3px;
+  font: italic 600 11px/1.5 var(--f-body);
+  color: #fff;
+  background: var(--good);
+}
+.slotdel {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  padding: 0;
+}
+.slotdel .ico {
+  width: 16px;
+  height: 16px;
+}
+/* Een lege plek: alleen een gestippelde rand */
+.slot.empty .slotmain {
+  grid-template-columns: auto 1fr;
+  grid-column: 1 / -1;
+  background: transparent;
+  border: 1.5px dashed var(--rule-2);
+  box-shadow: none;
+}
+.slot.empty button.slotmain:hover {
+  border-color: var(--acc-edge);
+  background: var(--acc-soft);
+}
+.slot.empty .slotnum {
+  background: transparent;
+  border-style: dashed;
+  border-color: var(--ink-4);
+  color: var(--ink-4);
+}
+.slot.empty .slotbody b {
+  color: var(--ink-3);
+  font-style: italic;
+}
+/* Zeker weten? De plek kleurt mee en krijgt twee knoppen */
+.slot.ask {
+  grid-template-columns: auto 1fr auto;
+  gap: 14px;
+  padding: 12px 16px;
+  border-radius: var(--r);
+  background: var(--acc-soft);
+  border: 1.5px solid var(--acc-edge);
+  box-shadow: 0 3px 0 var(--acc-edge);
+}
+.slot.ask .slotbody b {
+  white-space: normal;
+}
+.slotask {
+  display: flex;
+  gap: 6px;
+}
+/* Net opgeslagen: de plek licht even op */
+.slot.fresh .slotmain {
+  animation: slotfresh 1.4s ease-out;
+}
+@keyframes slotfresh {
+  0%,
+  30% {
+    background: var(--acc-soft);
+    border-color: var(--acc-edge);
+    box-shadow:
+      0 3px 0 var(--acc-edge),
+      0 0 0 4px color-mix(in srgb, var(--acc) 35%, transparent);
+  }
+}
+.calm .slot.fresh .slotmain {
+  animation: none;
+  background: var(--acc-soft);
+}
+.sheet p.slotintro {
+  margin-top: 10px;
+}
+/* Melding in het venster: gelukt (groen), mislukt (rood) of gewoon */
+.sheet p.slotmsg {
+  margin-top: 12px;
+  padding: 8px 12px;
+  border-radius: var(--r-sm);
+  font-size: 13px;
+  line-height: 1.45;
+  background: var(--well);
+  color: var(--ink-2);
+}
+.sheet p.slotmsg.good {
+  background: color-mix(in srgb, var(--good) 14%, var(--paper));
+  color: color-mix(in srgb, var(--good) 75%, var(--ink));
+}
+.sheet p.slotmsg.bad {
+  background: color-mix(in srgb, var(--bad) 12%, var(--paper));
+  border: 1px solid color-mix(in srgb, var(--bad) 40%, transparent);
+  color: color-mix(in srgb, var(--bad) 80%, var(--ink));
+  font-weight: 600;
+}
+/* Onder het opslaanscherm: wanneer het spel zelf opsloeg */
+.sheet .slotauto {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--rule-2);
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--ink-3);
+}
+.slotauto .ico {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  margin-top: 2px;
+}
+
+/* Telefoon: de tijd onder de naam, zonder tijdlijn, en de knoppen van "zeker weten?" eronder */
+@media (max-width: 560px) {
+  .slot .slotmain {
+    grid-template-columns: auto 1fr;
+    gap: 10px;
+    padding: 10px 12px;
+  }
+  .slottime {
+    grid-column: 2;
+    flex-direction: row;
+    align-items: baseline;
+    gap: 8px;
+    text-align: left;
+  }
+  .slotbody .tl {
+    display: none;
+  }
+  .slot.ask {
+    grid-template-columns: auto 1fr;
+    padding: 10px 12px;
+  }
+  .slotask {
+    grid-column: 1 / -1;
+  }
+}

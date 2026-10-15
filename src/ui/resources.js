@@ -1,5 +1,6 @@
 // Grondstoffenstrook bovenaan en de uitleg als je eroverheen beweegt.
 import { store } from '../core/store.js';
+import { SET } from '../core/settings.js';
 import { sfx } from '../audio/sound.js';
 import { AGE_UP } from '../data/ages.js';
 import { B, BKEYS } from '../data/buildings.js';
@@ -64,8 +65,14 @@ function relevantRes() {
   RKEYS.filter(k => RES[k].age === G.age).forEach(add);
   return out;
 }
+// Getallen in de strook tellen vloeiend op of af naar de echte voorraad (zie tickResourceNumbers hieronder)
+const shown = {};
+let shownFor = null; // het spel waar deze getallen bij horen: bij een ander spel beginnen ze opnieuw
+const shownValue = k => shown[k] ?? G.res[k];
+// De getallen in beeld (strook en lijst +N), per grondstof. Eén keer opgezocht na het tekenen, niet elk beeldje.
+let numbers = null;
 const resItem = k =>
-  `<div class="res" data-k="${k}">${gem(k)}<div><b>${fmt(G.res[k])}</b><small>${RES[k].n}</small><em></em></div><span class="wk zero" title="${GATHER.includes(k) ? 'Dorpelingen op deze grondstof' : 'Gebouwen die dit maken'}">${ico(GATHER.includes(k) ? '☺' : '⚙')}<span>0</span></span></div>`;
+  `<div class="res" data-k="${k}">${gem(k)}<div><b>${fmt(shownValue(k))}</b><small>${RES[k].n}</small><em></em></div><span class="wk zero" title="${GATHER.includes(k) ? 'Dorpelingen op deze grondstof' : 'Gebouwen die dit maken'}">${ico(GATHER.includes(k) ? '☺' : '⚙')}<span>0</span></span></div>`;
 export function buildResBar(force) {
   const all = relevantRes(),
     lim = isNarrow() ? 3 : isCompact() ? 4 : 14, // computer: strook bovenaan, zoveel als past
@@ -80,13 +87,54 @@ export function buildResBar(force) {
     (rest > 0
       ? `<button class="quiet" id="resMore" aria-expanded="${!$('#resPop').hidden}" title="Alle grondstoffen">+${rest}</button>`
       : '');
+  numbers = null; // opnieuw getekend: de getallen straks opnieuw opzoeken
   updateResPop();
+}
+/** Zoek de getallen in beeld op: per grondstof alle plekken waar hij staat (strook én lijst +N kan). */
+function findNumbers() {
+  const byKey = new Map();
+  for (const el of document.querySelectorAll('#resbar .res, #resPop .res')) {
+    const k = el.dataset.k;
+    if (!byKey.has(k)) byKey.set(k, { k, els: [], value: null });
+    byKey.get(k).els.push(el.querySelector('b'));
+  }
+  // Wat niet meer in beeld staat, begint later gewoon bij de echte voorraad
+  for (const k in shown) if (!byKey.has(k)) delete shown[k];
+  return [...byKey.values()];
+}
+/**
+ * Elk beeldje: elk getal schuift een stukje op naar de echte voorraad, zodat je een grote buit ziet binnenkomen.
+ * Met "Animaties" uit (instellingen) springt het getal meteen.
+ */
+export function tickResourceNumbers(rdt) {
+  if (!G) return;
+  if (shownFor !== G) {
+    shownFor = G;
+    for (const k in shown) delete shown[k];
+  }
+  if (!numbers) numbers = findNumbers();
+  const step = SET.motion ? 1 - Math.exp(-rdt * 7) : 1;
+  for (const n of numbers) {
+    const target = G.res[n.k];
+    let value = shown[n.k] ?? target;
+    // Staat het goede getal er al? Dan niets te doen (zo is het meestal)
+    if (value === target && n.value === target) continue;
+    value += (target - value) * step;
+    if (Math.abs(target - value) < 0.5) value = target;
+    shown[n.k] = value;
+    if (n.value === value) continue;
+    n.value = value;
+    const text = fmt(value);
+    for (const b of n.els) if (b.textContent !== text) b.textContent = text;
+  }
 }
 export function updateResPop() {
   const p = $('#resPop');
   if (p.hidden) return;
   const ks = RKEYS.filter(k => RES[k].age <= G.age);
+  const before = sigs.respop;
   setHTML(p, 'respop', ks.join(), () => ks.map(resItem).join(''));
+  if (sigs.respop !== before) numbers = null; // opnieuw getekend: de getallen straks opnieuw opzoeken
 }
 $('#resbar').addEventListener('click', e => {
   const m = e.target.closest('#resMore');

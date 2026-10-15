@@ -19,7 +19,9 @@ import { G } from './state.js';
 import { myWonderCount } from './wonders.js';
 import { showAchievement } from '../ui/achievements.js';
 import { showEndScreen } from '../ui/endscreen.js';
-import { note } from '../ui/hud.js';
+import { note, screenEffect } from '../ui/hud.js';
+import { sfx } from '../audio/sound.js';
+import { startFireworks } from '../render/fireworks.js';
 
 /** Stond de vredige modus in dit spel ooit aan? Dan telt de score als Vredig, ook als hij nu uit staat. */
 const peaceUsed = () => G.peaceful || G.stats.peaceUsed;
@@ -161,10 +163,20 @@ export function finishGame() {
   return G.result;
 }
 
+// Na een overwinning komt het eindscherm pas na zoveel milliseconden: eerst even het vuurwerk zien
+const WIN_SCREEN_DELAY = 2200;
+/** Gewonnen: vuurwerk boven je stad, een fanfare en een gouden gloed. */
+function celebrateWin() {
+  startFireworks();
+  sfx('win');
+  screenEffect('win');
+}
+
 /** Het spel is gewonnen of verloren: score bewaren en na een korte pauze het eindscherm tonen. */
 export function endGame(won, delay = 800) {
   finishGame();
-  setTimeout(() => showEndScreen(won), delay);
+  if (won) celebrateWin();
+  setTimeout(() => showEndScreen(won), won ? Math.max(delay, WIN_SCREEN_DELAY) : delay);
 }
 
 /**
@@ -184,5 +196,6 @@ export function upgradeWin(wonBy, delay = 800) {
   const record = replaceResult(getProfile(), before.at, game);
   saveProfile();
   G.result = resultOf(score, game, before.at, record);
-  setTimeout(() => showEndScreen(true), delay);
+  celebrateWin();
+  setTimeout(() => showEndScreen(true), Math.max(delay, WIN_SCREEN_DELAY));
 }

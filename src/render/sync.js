@@ -5,7 +5,7 @@ import { CN, CS, H, TAU, W } from '../config.js';
 import { B } from '../data/buildings.js';
 import { RES } from '../data/resources.js';
 import { G, sel } from '../game/state.js';
-import { RINGG, quadG } from './decals.js';
+import { RINGG, quadG, ringAt } from './decals.js';
 import { bx, gOct, gTorus, mat, mergeStatic, mk } from './kit.js';
 import { BOSS_SCALE } from '../data/bosses.js';
 import { makeBuilding, makeCamp, wallMask } from './models.js';
@@ -93,25 +93,46 @@ function buildDust(r, b, s, dt) {
   r.prevProg = b.prog;
 }
 function finishedBurst(g, s) {
-  const p = g.position;
-  for (let k = 0; k < 18; k++) {
-    const a = (k / 18) * Math.PI * 2;
+  const p = g.position,
+    n = 14 + s * 6, // grotere gebouwen: meer stof
+    speed = 1.2 + s * 0.3;
+  // Stof dat in een ring over de grond wegrolt
+  for (let k = 0; k < n; k++) {
+    const a = (k / n) * Math.PI * 2;
     emit(
       LAYER.soft,
       p.x + Math.sin(a) * s * 0.5,
       0.08,
       p.z + Math.cos(a) * s * 0.5,
-      Math.sin(a) * 1.2,
+      Math.sin(a) * speed,
       0.15,
-      Math.cos(a) * 1.2,
-      1.1,
+      Math.cos(a) * speed,
+      1.2,
       0.08,
-      0.3,
+      0.3 + s * 0.05,
       0xd2c09a,
       0.6,
     );
   }
-  puff(LAYER.glow, 10, p.x, 0.6, p.z, 0.8, 1.5, 0.9, 0.04, 0.01, 0xffe6a0, 0.9, -1.5);
+  // Wat stof dat opwaait, en glinstering die omhoog spat en weer valt
+  puff(LAYER.soft, 4 + s * 2, p.x, 0.3, p.z, 0.6, 0.8, 1.4, 0.15, 0.5, 0xe0d0a8, 0.4);
+  puff(LAYER.glow, 10 + s * 3, p.x, 0.6, p.z, 0.8, 1.5, 0.9, 0.04, 0.01, 0xffe6a0, 0.9, -1.5);
+}
+// Opveren na het opleveren (of na een verbetering): eerst platter en breder, dan hoger en smaller,
+// en zo uitdempen, als een veer. Intussen dijt een ring van stof uit over de grond.
+const POP_TIME = 0.8; // seconden
+function popBounce(r, s) {
+  const a = store.TM - r.popAt;
+  if (a >= POP_TIME) {
+    if (r.popping) r.m.scale.set(1, 1, 1);
+    r.popping = false;
+    return;
+  }
+  r.popping = true;
+  const spring = Math.exp(-a * 5) * Math.cos(a * 18);
+  r.m.scale.set(1 + spring * 0.1, 1 - spring * 0.22, 1 + spring * 0.1);
+  const p = r.g.position;
+  ringAt(p.x, p.z, s * 0.55 + a * 2.4, '#f1dfb8', 0.75 * (1 - a / POP_TIME), 0.07);
 }
 // Treffer op een gebouw: stof en een paar vonken ergens op de gevel
 function buildingHit(r, s) {
@@ -140,7 +161,10 @@ export function syncBuildings() {
       (d.wall ? wallMask(b) : '');
     let r = bRec.get(b.id);
     if (!r || r.key !== key) {
+      // Net opgeleverd, of het stamhuis krijgt het uiterlijk van een nieuw tijdperk: dan veert het even op
       const justFinished = r && !r.done && b.done;
+      const newLook = r && r.done && b.done && b.type === 'townhall' && r.key.split('|')[1] !== String(G.age);
+      const pops = justFinished || newLook;
       if (r) BG3.remove(r.g);
       const g = new T3.Group(),
         m = makeBuilding(b.type, G.age, b);
@@ -179,8 +203,10 @@ export function syncBuildings() {
         if (o.userData.spin) spins.push(o);
       });
       r = { g, m, key, h, fires, flags, pumps, lamps, spins, chims, done: b.done, flPrev: 0 };
+      r.popSeen = b.pop_t; // zie hieronder: een nieuwe pop_t betekent een verbetering
+      r.popAt = pops ? store.TM : -9;
       bRec.set(b.id, r);
-      if (justFinished) finishedBurst(g, s);
+      if (pops) finishedBurst(g, s);
       store.mapVersion++;
       groundChanged();
     }
@@ -194,8 +220,12 @@ export function syncBuildings() {
       const p = Math.min(1, b.prog / b.bt);
       r.m.position.y = -r.h * (1 - (0.12 + 0.88 * p));
     } else {
-      const pt = b.pop_t != null ? G.t - b.pop_t : 9;
-      r.m.scale.setScalar(pt < 0.45 ? 1 + Math.sin((pt / 0.45) * Math.PI) * 0.08 : 1);
+      // Een verbetering (niveau omhoog) laat het gebouw ook even opveren (zie game/upgrades.js)
+      if (b.pop_t !== r.popSeen) {
+        r.popSeen = b.pop_t;
+        r.popAt = store.TM;
+      }
+      popBounce(r, s);
     }
     for (const f of r.fires) {
       const k = 0.85 + Math.sin(store.TM * 13 + b.id) * 0.1 + Math.sin(store.TM * 7.3 + b.id * 2) * 0.08;

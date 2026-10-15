@@ -104,7 +104,7 @@ import { renderLog } from './ui/panes/log.js';
 import { renderUpgrades } from './ui/panes/upgrades.js';
 import { renderRivals } from './ui/rivals.js';
 import { renderTopBars } from './ui/finale.js';
-import { rate } from './ui/resources.js';
+import { rate, tickResourceNumbers } from './ui/resources.js';
 import { $, isCompact } from './util/dom.js';
 import { measure } from './core/perf.js';
 import { initQuality, tickQuality } from './render/quality.js';
@@ -214,6 +214,7 @@ function frame(now) {
     renderCmd();
     checkBlessing(); // ligt er een zegening klaar om te kiezen?
   }
+  tickResourceNumbers(rdt); // grondstofgetallen tellen vloeiend op
   measure('ui', t0);
   miniT -= rdt;
   if (miniT <= 0) {
@@ -238,7 +239,8 @@ function frame(now) {
   saveT += rdt;
   if (saveT > 60) {
     saveT = 0;
-    if (!G.over && SET.autosave) save();
+    // Niet op het titelscherm: daar ligt soms een wereld waarin je nog niet speelt
+    if (!G.over && SET.autosave && $('#title').hidden) save();
   }
   requestAnimationFrame(frame);
 }

@@ -11,6 +11,8 @@ import { updateCamera } from './camera.js';
 import { pool, poolsBegin, poolsEnd, quadAt, rangeAt, ringAt } from './decals.js';
 import { drawFx, drawRain } from './effects.js';
 import { drawFinaleFx } from './finalefx.js';
+import { stepCinematic } from './cinematic.js';
+import { stepFireworks } from './fireworks.js';
 import { stepDying } from './animate.js';
 import { stepParticles } from './particles.js';
 import { drawAmbient } from './ambient.js';
@@ -68,6 +70,7 @@ export function render() {
   const dk = darkness();
   checkWorld();
   applySeason();
+  stepCinematic(store.TM); // nieuw tijdperk: de camera zweeft even uit boven de stad
   updateCamera();
   poolsBegin();
   syncBuildings();
@@ -81,6 +84,7 @@ export function render() {
   drawFinaleFx(); // lichtzuil uit de sterrenpoort tijdens de finale
   drawRain();
   drawAmbient(dk);
+  stepFireworks(); // vuurwerk als je gewonnen hebt
   stepParticles(store.TM);
   drawPlacement();
   lighting(dk);
