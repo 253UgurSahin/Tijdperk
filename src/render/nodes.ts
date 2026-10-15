@@ -5,12 +5,12 @@ import { NODES } from '../data/nodes';
 import { RES } from '../data/resources';
 import { G } from '../game/state';
 import { C, GB, M_, gCyl, gDod, gIco, gOct, mat, type Paint } from './kit';
-import { CAM3, S3, cam } from './scene';
+import { S3, VH, VW } from './scene';
 import { hash2 } from '../util/random';
 import { TER, bmap, ground, node, ter } from '../world/world';
 import { settled } from '../game/rivals';
 import { groundHeight } from './terrain';
-import { camDist } from './camera';
+import { camDist, isFar, s2t } from './camera';
 
 /** Eén onderdeel van een boom of rots: een vorm (al op zijn plek gezet) en het materiaal. */
 interface NodePart {
@@ -173,6 +173,20 @@ for (const k of ['copper', 'tin', 'iron', 'gold', 'lithium'])
   ];
 const NGROUP = new T3.Group();
 S3.add(NGROUP);
+// Onderdelen die je ver uitgezoomd niet ziet, en die we dan niet tekenen (nummers in NVAR): kleine dingen (bessen,
+// steentjes, kleine kristallen) en de stammen van bomen (die vallen weg onder de kruin). Dat scheelt veel driehoekjes.
+const HIDDEN_FAR: Record<string, number[]> = {
+  bush: [2, 3, 4],
+  rock: [1, 2],
+  coal: [1, 2],
+  pine: [0],
+  pineTall: [0],
+  birch: [0],
+  birchPair: [0, 1],
+  oak: [0],
+  oakWide: [0],
+};
+for (const k of ['copper', 'tin', 'iron', 'gold', 'lithium']) HIDDEN_FAR[k] = [1, 3, 4];
 
 // Losse rotsblokken op de bergen: zo zijn de bergen niet glad maar ruw en rotsig.
 // Ze staan half in de grond en krijgen bovenop de berg een laagje sneeuw (lichtere kleur).
@@ -190,15 +204,14 @@ const CRAGS = CRAG_SHAPES.map(geo => {
   return m;
 });
 const SNOWC = new T3.Color('#e6ecf2');
-function placeCrags(x0: number, x1: number, y0: number, y1: number) {
+function placeCrags(x0: number, x1: number, y0: number, y1: number, area: Quad) {
   const n = [0, 0, 0],
-    reach = Math.min(drawn.r, camDist() * 2),
     // Ver uitgezoomd zie je losse rotsen nauwelijks: dan minder
     few = Math.min(1, 32 / camDist()) * (richTrees ? 1 : 0.5);
   for (let y = y0; y <= y1; y++)
     for (let x = x0; x <= x1; x++) {
       const i = y * W + x;
-      if (ter[i] !== TER.ROCK || Math.hypot(x - cam.x, y - cam.y) > reach) continue;
+      if (ter[i] !== TER.ROCK || !inQuad(area, x + 0.5, y + 0.5)) continue;
       // Aan de rand van een berg (bij de wand) vaker een uitstekende rots dan bovenop
       const edge =
         ter[i - 1] !== TER.ROCK ||
@@ -242,7 +255,7 @@ let richTrees = true;
 export function setNodeDetail(rich: boolean) {
   if (rich === richTrees) return;
   richTrees = rich;
-  drawn.r = 0; // bij de volgende controle alles opnieuw neerzetten
+  drawnArea = null; // bij de volgende controle alles opnieuw neerzetten
 }
 const nodeVar = (i: number) => {
   const k = NODES[node[i]].k;
@@ -262,23 +275,71 @@ const _m4 = new T3.Matrix4(),
   _e = new T3.Euler(),
   _c = new T3.Color(),
   LOCKED = new T3.Color(0.5, 0.52, 0.56);
-// Alleen bronnen in een cirkel rond de camera worden getekend: op een grote kaart scheelt dat veel.
-// De cirkel schuift mee als de camera verder dan een stukje beweegt (zie nodesNeedUpdate).
-const drawn = { x: -999, y: -999, r: 0 };
-// Op een breed scherm zie je meer opzij, dus dan reikt de cirkel verder
-const drawRadius = () => camDist() * 2.4 * Math.max(1, CAM3.aspect / 1.78) + 10;
-export const nodesNeedUpdate = () =>
-  Math.hypot(cam.x - drawn.x, cam.y - drawn.y) > drawn.r * 0.3 ||
-  Math.abs(drawRadius() - drawn.r) > drawn.r * 0.25;
+// Alleen bronnen in en rond het beeld worden getekend: op een grote kaart scheelt dat veel.
+// Het getekende stuk is het beeld op de grond (de vier hoeken), ruim naar buiten opgerekt. Pas als het beeld
+// daar buiten komt (schuiven, zoomen, draaien), zetten we alles opnieuw neer (zie nodesNeedUpdate).
+/** Een vierhoek op de kaart: vier hoekpunten [x, y] in tegels, op volgorde rondom. */
+type Quad = [number, number][];
+let drawnArea: Quad | null = null,
+  drawnSize = 0;
+// Ver uitgezoomd (zie isFar in camera.ts): geen schaduw van bomen en rotsen, en geen kleine onderdelen
+let farLook = false;
+
+/** De vier hoeken van het beeld op de grond, het midden ertussen en de afstand tot de verste hoek. */
+function viewOnGround() {
+  const quad: Quad = [s2t(0, 0), s2t(VW, 0), s2t(VW, VH), s2t(0, VH)];
+  const cx = (quad[0][0] + quad[1][0] + quad[2][0] + quad[3][0]) / 4,
+    cy = (quad[0][1] + quad[1][1] + quad[2][1] + quad[3][1]) / 4,
+    size = Math.max(...quad.map(([x, y]) => Math.hypot(x - cx, y - cy)));
+  return { quad, cx, cy, size };
+}
+/** Rek een vierhoek op vanuit (cx, cy): elke hoek k keer zo ver weg, plus nog m tegels. */
+function stretch(quad: Quad, cx: number, cy: number, k: number, m: number): Quad {
+  return quad.map(([x, y]) => {
+    const f = k + m / (Math.hypot(x - cx, y - cy) || 1);
+    return [cx + (x - cx) * f, cy + (y - cy) * f];
+  });
+}
+/** Ligt punt (x, y) in de vierhoek? Dan ligt het voor elke rand aan dezelfde kant. */
+function inQuad(q: Quad, x: number, y: number): boolean {
+  let left = false,
+    right = false;
+  for (let k = 0; k < 4; k++) {
+    const [ax, ay] = q[k],
+      [bx, by] = q[(k + 1) % 4],
+      side = (bx - ax) * (y - ay) - (by - ay) * (x - ax);
+    if (side > 0) left = true;
+    else if (side < 0) right = true;
+  }
+  return !(left && right);
+}
+/** Opnieuw neerzetten? Als het beeld buiten het getekende stuk komt, flink kleiner is of ver/dichtbij wisselt. */
+export function nodesNeedUpdate(): boolean {
+  const area = drawnArea;
+  if (!area || isFar() !== farLook) return true;
+  const view = viewOnGround();
+  if (view.size < drawnSize * 0.5) return true;
+  return stretch(view.quad, view.cx, view.cy, 1, 2).some(([x, y]) => !inQuad(area, x, y));
+}
+function applyNodeLook() {
+  for (const v in NI3)
+    NI3[v].forEach((m, k) => {
+      m.castShadow = !farLook && v !== 'oil' && v !== 'sand';
+      m.visible = !(farLook && HIDDEN_FAR[v]?.includes(k));
+    });
+}
 
 export function rebuildNodes(full?: boolean): void {
-  drawn.x = cam.x;
-  drawn.y = cam.y;
-  drawn.r = drawRadius();
-  const x0 = Math.max(0, Math.floor(cam.x - drawn.r)),
-    x1 = Math.min(W - 1, Math.ceil(cam.x + drawn.r)),
-    y0 = Math.max(0, Math.floor(cam.y - drawn.r)),
-    y1 = Math.min(H - 1, Math.ceil(cam.y + drawn.r));
+  const view = viewOnGround(),
+    area = stretch(view.quad, view.cx, view.cy, 1.3, 8),
+    xs = area.map(p => p[0]),
+    ys = area.map(p => p[1]);
+  drawnArea = area;
+  drawnSize = view.size;
+  const x0 = Math.max(0, Math.floor(Math.min(...xs))),
+    x1 = Math.min(W - 1, Math.ceil(Math.max(...xs))),
+    y0 = Math.max(0, Math.floor(Math.min(...ys))),
+    y1 = Math.min(H - 1, Math.ceil(Math.max(...ys)));
   if (full) {
     for (const k in NI3) for (const m of NI3[k]) NGROUP.remove(m);
     NI3 = {};
@@ -292,7 +353,6 @@ export function rebuildNodes(full?: boolean): void {
       const cap = (cnt[v] || 0) + 200; // ruimte voor nieuwe bronnen (teruggroei, meteorieten)
       NI3[v] = NVAR[v].map(p => {
         const m = new T3.InstancedMesh(p.geo, p.mat, cap);
-        m.castShadow = v !== 'oil' && v !== 'sand';
         m.receiveShadow = true;
         m.count = 0;
         m.instanceMatrix.setUsage(T3.DynamicDrawUsage);
@@ -309,7 +369,7 @@ export function rebuildNodes(full?: boolean): void {
       const i = yy * W + xx,
         t = node[i];
       if (!t || bmap[i] || NODES[t].age > G.age) continue;
-      if (Math.hypot(xx - cam.x, yy - cam.y) > drawn.r) continue;
+      if (!inQuad(area, xx + 0.5, yy + 0.5)) continue;
       const v = nodeVar(i),
         arr = NI3[v];
       if (!arr) continue;
@@ -346,5 +406,7 @@ export function rebuildNodes(full?: boolean): void {
       m.instanceMatrix.needsUpdate = true;
       if (m.instanceColor) m.instanceColor.needsUpdate = true;
     }
-  placeCrags(x0, x1, y0, y1);
+  farLook = isFar();
+  applyNodeLook();
+  placeCrags(x0, x1, y0, y1, area);
 }

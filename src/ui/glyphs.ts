@@ -118,6 +118,9 @@ const PATHS: Record<string, string> = {
   '☾': '<path d="M19 14.5A7.5 7.5 0 1 1 9.5 5a6 6 0 0 0 9.5 9.5z"/>',
   // pijl naar links: terug
   '←': '<path d="M20 12H5M11 6l-6 6 6 6"/>',
+  // hoekje omlaag en omhoog: openklappen en dichtklappen
+  '⌄': '<path d="M6 9l6 6 6-6"/>',
+  '⌃': '<path d="M6 15l6-6 6 6"/>',
 
   // Voor uitdagingen
   // sneeuwvlok: de lange winter

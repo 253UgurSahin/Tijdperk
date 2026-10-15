@@ -4,6 +4,7 @@ import { B } from '../data/buildings';
 import { G } from '../game/state';
 import { measureHud } from '../main';
 import { renderChart } from './panes/log';
+import { closeResPop } from './resources';
 import { $ } from '../util/dom';
 
 // Zijpaneel (Dorp / Leger / Verbeteren / Logboek)
@@ -11,6 +12,7 @@ let ptab: string | null = null;
 const PT: Record<string, string> = { pop: 'Dorp', def: 'Leger', upg: 'Verbeteren', log: 'Logboek' };
 function setPane(k: string | null) {
   ptab = k;
+  closeResPop(); // nooit twee kaartjes over elkaar: de lijst met grondstoffen gaat dicht
   if (k) document.body.classList.remove('showmap', 'showgoal');
   $('#panel').hidden = !k;
   document.body.classList.toggle('panelopen', !!k);
@@ -54,9 +56,19 @@ export function updateTabs() {
     b.hidden = !vis[b.dataset.p!];
   });
   markMobileButtons();
+  measureSideButtons();
   if (ptab && !vis[ptab]) setPane(null);
   const s4 = document.querySelector<HTMLElement>('#speed [data-s="4"]')!;
   s4.hidden = !(G.age >= 1 || G.day >= 3 || G.speed === 4);
+}
+// Op een smalle telefoon kunnen de knoppen (Dorp, Leger, ...) over twee rijen lopen. Hoe hoog ze zijn staat
+// in --sideH: panelen en lijsten blijven er dan boven (zie responsive.css).
+let sideHeight = -1;
+function measureSideButtons() {
+  const h = $('#sidebtns').offsetHeight;
+  if (h === sideHeight) return;
+  sideHeight = h;
+  document.documentElement.style.setProperty('--sideH', h + 'px');
 }
 // Laat zien of de kaart of het doel open staat
 function markMobileButtons() {
@@ -65,9 +77,16 @@ function markMobileButtons() {
   document.querySelector('#sidebtns [data-p="goal"]')!.classList.toggle('on', body.contains('showgoal'));
 }
 
+/** Eén ding tegelijk: een open paneel, de kaart en (op een telefoon) het doel gaan dicht. */
+export function closeSidePanels() {
+  const body = document.body.classList;
+  if (!$('#panel').hidden || body.contains('showmap')) togglePanel();
+  if (body.contains('showgoal')) togglePanel('goal');
+}
 // Op telefoon/tablet staat er steeds maar één ding open: een paneel, de kaart of het doel
 export function togglePanel(side?: string) {
   const body = document.body.classList;
+  closeResPop();
   if (side === undefined) {
     setPane(null);
     body.remove('showmap');

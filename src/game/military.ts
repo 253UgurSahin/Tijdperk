@@ -1,4 +1,16 @@
-import type { Building, Camp, Cost, Foe, Mobile, Projectile, Target, Tile, Unit, Villager } from '../types';
+import type {
+  Building,
+  Camp,
+  Cost,
+  Foe,
+  GameState,
+  Mobile,
+  Projectile,
+  Target,
+  Tile,
+  Unit,
+  Villager,
+} from '../types';
 // Gevechten: soldaten, vijanden, torens en projectielen.
 import { store } from '../core/store';
 import { screenRight } from '../core/view';
@@ -6,9 +18,9 @@ import { sfx } from '../audio/sound';
 import { CN, CX, CY, H, W } from '../config';
 import { SET } from '../core/settings';
 import { B } from '../data/buildings';
-import { difficulty } from '../data/difficulty';
+import { difficulty, raidMatch, type RaidMatch } from '../data/difficulty';
 import { RES } from '../data/resources';
-import { FOES, UNITS, bonusMul } from '../data/units';
+import { FOES, UNITS, bonusMul, foodUpkeep } from '../data/units';
 import { endGame } from './achievements';
 import { computeAvail } from './caches';
 import { gain } from './economy';
@@ -34,7 +46,7 @@ import { bmap, foeWalk, freeWalk, isUnl, nearestWall, setBlk, walkable } from '.
 import { wonderDestroyed } from './wonders';
 import { bossDefeated, bossForRaid } from './bosses';
 import { gateDestroyed, gateHurt, isCharging, raidBoost } from './finale';
-import { allyHelp, atWarWith, commonEnemyBeaten, fairTarget, helpersNear } from './diplomacy';
+import { allyHelp, atWarWith, commonEnemyBeaten, fairTarget, helpersNear, yourPower } from './diplomacy';
 import { spreadOut } from '../data/finale';
 import { creditKill, veteranMul } from './army';
 
@@ -272,7 +284,8 @@ export function nearestFoe(x: number, y: number, r: number, air?: boolean | 1): 
   }
   return best;
 }
-// Schade van een eigen eenheid tegen doel t: basis × wapens × onderzoek × rol-bonus × rang (veteranen)
+// Schade van een eigen eenheid tegen doel t: basis × wapens × onderzoek × rol-bonus × rang (veteranen).
+// Met honger (geen voedsel) doet het leger half zoveel schade.
 function udmg(u: Unit, t: Target): number {
   return (
     UNITS[u.k].dmg *
@@ -280,7 +293,8 @@ function udmg(u: Unit, t: Target): number {
     armsMul() *
     mul('army.dmg') *
     (u.k === 'drone' || u.k === 'exo' ? mul('robot.dmg') : 1) *
-    veteranMul(u)
+    veteranMul(u) *
+    (armyHungry() ? 0.5 : 1)
   );
 }
 export function uUpdate(u: Unit, dt: number) {
@@ -291,7 +305,8 @@ export function uUpdate(u: Unit, dt: number) {
   if (u.swing && u.swing > 0) u.swing -= dt;
   const restHeal = u.order === 'guard' && !u.tgt ? 1.5 : 0; // rusten op wacht
   const bonusHeal = 2 * add('heal'); // het leger geneest dubbel zo snel als het volk
-  u.hp = Math.min(u.mhp, u.hp + dt * (restHeal + bonusHeal));
+  // Met honger geneest niemand (zie armyHungry)
+  if (!armyHungry()) u.hp = Math.min(u.mhp, u.hp + dt * (restHeal + bonusHeal));
   if (u.tgt && isDead(u.tgt)) {
     // Een gebouw van een rivaal is gevallen: meteen door naar het volgende gebouw van hun stad
     const next = u.order === 'attack' && u.tgt.kind === 'rb' ? nextRivalBuilding(u.tgt) : null;
@@ -311,6 +326,9 @@ export function uUpdate(u: Unit, dt: number) {
       // (alleen van rivalen waarmee het oorlog is: zo begin je niet per ongeluk een oorlog)
       const rb =
         !f && !u.tgt && (am || st === 'aggr') ? nearestRivalBuilding(u.x, u.y, leash, 0, true) : null;
+      // Op wacht (niet "stand houden") verdedigt hij je land vanzelf: zie nearestIntruder hieronder
+      const defender = u.order === 'guard' && st !== 'hold';
+      const chasingIntruder = defender && !!u.tgt && u.tgt.kind === 'f' && isIntruder(u.tgt);
       if (rb) u.tgt = rb;
       else if (
         f &&
@@ -319,7 +337,10 @@ export function uUpdate(u: Unit, dt: number) {
           dist(f.x, f.y, u.gx, u.gy) < (st === 'hold' ? U.r + 0.5 : 11))
       )
         u.tgt = f;
-      else if (u.order === 'guard' && !f && u.tgt && dist(u.x, u.y, u.gx, u.gy) > 10) u.tgt = null;
+      else if (u.order === 'guard' && !f && u.tgt && dist(u.x, u.y, u.gx, u.gy) > 10 && !chasingIntruder)
+        u.tgt = null;
+      // Valt er iemand je land aan? Dan gaat hij erop af, ook ver van zijn post. Daarna loopt hij terug.
+      if (!u.tgt && defender) u.tgt = nearestIntruder(u.x, u.y, U.air);
     }
   }
   u.cd -= dt;
@@ -600,10 +621,12 @@ const joinWords = (list: string[]): string =>
 
 export function spawnRaid(): void {
   G.raids++;
+  const match = raidMatchNow();
   const a = G.age,
-    n = raidSize(),
-    // Elke aanval iets taaier, maar niet eindeloos. Op Meedogenloos hebben aanvallers meer levens.
-    scale = Math.min(2.5, 1 + G.raids * 0.05) * difficulty(G.diff).raidHp,
+    n = raidSize(match),
+    // Elke aanval iets taaier, maar niet eindeloos. Op Meedogenloos hebben aanvallers meer levens,
+    // en tegen een sterk leger ook (zie raidMatch in data/difficulty.ts).
+    scale = Math.min(2.5, 1 + G.raids * 0.05) * difficulty(G.diff).raidHp * match.hp,
     edge: Tile[] = [];
   for (let y = 0; y < H; y++)
     for (let x = 0; x < W; x++) {
@@ -645,11 +668,19 @@ export function spawnRaid(): void {
 }
 // Hoe groot de volgende aanval is: groeit met elke aanval en elk tijdperk, maar blijft te overzien.
 // (Latere vijanden zijn per stuk al veel sterker, dus het aantal groeit rustig.)
+// Daarna past hij zich aan bij je leger: groter tegen een sterk leger, kleiner tegen een zwak
+// (zie raidMatch).
 // Tijdens de finale komt daar nog eens keer twee bij, boven op het gewone maximum.
-export function raidSize(): number {
+export function raidSize(match: RaidMatch = raidMatchNow()): number {
   const diff = difficulty(G.diff); // Zwaar en Meedogenloos sturen grotere groepen
   const base = 2 + Math.floor((G.raids + 1) * 0.9) + G.age;
-  return Math.min(diff.raidMax, Math.round(base * diff.raidSize * mul('raid.size'))) * raidBoost().size;
+  const usual = Math.min(diff.raidMax, Math.round(base * diff.raidSize * mul('raid.size')));
+  return Math.round(usual * match.size) * raidBoost().size;
+}
+
+/** Hoe zwaar de volgende aanval wordt, vergeleken met de sterkte van jouw leger en torens. */
+function raidMatchNow(): RaidMatch {
+  return raidMatch(yourPower(), G.age, G.raids);
 }
 export function compass(x: number, y: number): string {
   const a = (Math.atan2(y - CY, x - CX) * 180) / Math.PI;
@@ -675,3 +706,54 @@ export const isRaider = (f: Foe): boolean =>
 
 /** Is deze soldaat van een rivaal nog onderweg naar je stad? Dan is hij er nog niet, maar komt hij wel. */
 export const isMarching = (f: Foe): boolean => !!f.rival && f.mode === 'march' && !f.retreat && !f.dead;
+
+/**
+ * Valt deze vijand je land aan? Ja als het een aanvaller is (zie isRaider) die in je gebied staat,
+ * of die jouw gebouwen, volk of leger aanvalt. Soldaten op wacht gaan daar vanzelf op af.
+ */
+export function isIntruder(f: Foe): boolean {
+  if (!isRaider(f)) return false;
+  if (isUnl(f.x | 0, f.y | 0)) return true;
+  const t = f.tgt;
+  return !!t && !isDead(t) && (t.kind === 'b' || t.kind === 'v' || t.kind === 'u');
+}
+
+// De aanvallers in je land, één keer per speltik opgezocht: er kunnen veel soldaten tegelijk zoeken
+let intruderList: Foe[] = [];
+let intruderTime = -1;
+let intruderGame: GameState | null = null;
+function intruders(): Foe[] {
+  if (intruderTime !== G.t || intruderGame !== G) {
+    intruderTime = G.t;
+    intruderGame = G;
+    intruderList = G.foes.filter(isIntruder);
+  }
+  return intruderList;
+}
+
+/** De dichtstbijzijnde aanvaller in je land (zie isIntruder), of null. Zonder `air` geen vliegers. */
+function nearestIntruder(x: number, y: number, air?: boolean | 1): Foe | null {
+  let best: Foe | null = null,
+    bestDist = Infinity;
+  for (const f of intruders()) {
+    if (f.air && !air) continue;
+    const d = dist(x, y, f.x, f.y);
+    if (d < bestDist) {
+      bestDist = d;
+      best = f;
+    }
+  }
+  return best;
+}
+
+/** Hoeveel voedsel je leger nu per minuut eet (zie foodUpkeep in data/units.ts). */
+export function armyUpkeep(): number {
+  let perMinute = 0;
+  for (const u of G.us) perMinute += foodUpkeep(UNITS[u.k]);
+  return perMinute;
+}
+
+/** Heeft je leger honger? Zolang er geen voedsel is, doen soldaten half zoveel schade en genezen ze niet. */
+export function armyHungry(): boolean {
+  return G.hungry && G.us.length > 0;
+}

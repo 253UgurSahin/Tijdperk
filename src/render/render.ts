@@ -7,7 +7,7 @@ import { canBuyChunk } from '../game/placement';
 import { G, bById, sel } from '../game/state';
 import { darkness } from '../game/time';
 import { drag, hoverChunk, mouse } from '../input/input';
-import { updateCamera } from './camera';
+import { isFar, updateCamera } from './camera';
 import { pool, poolsBegin, poolsEnd, quadAt, rangeAt, ringAt } from './decals';
 import { drawFx, drawRain } from './effects';
 import { drawFinaleFx } from './finalefx';
@@ -42,6 +42,11 @@ function objectFor(kind: string, id: number): T3.Group | undefined {
 }
 function updateOutlines() {
   if (!outlinesOn()) return;
+  // Ver uitgezoomd geen omlijning: die tekent de hele wereld nog eens, en de cirkels op de grond zie je beter
+  if (isFar()) {
+    setOutlined([], []);
+    return;
+  }
   const selected: T3.Object3D[] = [],
     hovered: T3.Object3D[] = [];
   const add = (list: T3.Object3D[], o: T3.Object3D | undefined) =>
@@ -67,9 +72,9 @@ export function render() {
   animateWater(store.TM);
   WIND.value = store.TM;
   const dk = darkness();
+  updateCamera(); // eerst de camera: checkWorld kijkt welk stuk wereld in beeld is (zie nodes.ts)
   checkWorld();
   applySeason();
-  updateCamera();
   poolsBegin();
   syncBuildings();
   syncEntities();

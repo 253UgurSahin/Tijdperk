@@ -1,9 +1,9 @@
 import type { Building, Camp, GameOpts, GameState, NewGameOptions } from '../types';
 // De spelstand (G): alles wat er nu in de wereld is. Ook een nieuw spel starten.
-import { CN, CX, CY, TAU, W } from '../config';
+import { CN, CX, CY, TAU, W, setMapSize } from '../config';
 import { FIRST_BLESSING_AT } from '../data/blessings';
 import { cleanDiff, difficulty } from '../data/difficulty';
-import { cleanMap } from '../data/maps';
+import { NORMAL_SIZE, cleanMap, cleanMapSize } from '../data/maps';
 import { cleanMods } from '../data/modifiers';
 import { PLACES } from '../data/names';
 import { NODES } from '../data/nodes';
@@ -137,6 +137,7 @@ export function baseState(seed: number): GameState {
  * De keuzes voor een wereld, netjes gemaakt: wat ontbreekt of niet (meer) bestaat, wordt de standaard.
  * people: volk · diff: moeilijkheid · map: kaartsoort · seedCode: zaadcode · victories: manieren om te winnen
  * rivals: aantal rivalen (zonder keuze 0: zo hebben oude opslag en uitdagingen geen rivalen)
+ * size: kaartgrootte (zonder keuze de gewone grootte, zoals oude opslag en uitdagingen)
  */
 export function gameOpts(seed: number, o: Partial<GameOpts> = {}): GameOpts {
   const rivals = cleanRivalCount(o.rivals);
@@ -147,11 +148,12 @@ export function gameOpts(seed: number, o: Partial<GameOpts> = {}): GameOpts {
     seedCode: codeFromSeed(seed),
     victories: cleanVictories(o.victories, rivals),
     rivals,
+    size: cleanMapSize(o.size),
   };
 }
 
 /**
- * Begin een nieuwe wereld. `o` zijn de keuzes van het nieuw-spelscherm: { seed, people, diff, map, victories }.
+ * Begin een nieuwe wereld. `o` zijn de keuzes van het nieuw-spelscherm: { seed, people, diff, map, size, victories }.
  * Zonder seed komt er een willekeurige wereld.
  * Een uitdaging: { scenario: { k, date }, people }. De uitdaging bepaalt dan zelf de wereld, de regels en het
  * begin (zie data/scenarios.ts); `people` geldt alleen als de uitdaging geen vast volk heeft.
@@ -161,8 +163,11 @@ export function newGame(o: NewGameOptions = {}): void {
   if (challenge) o = { ...o, ...startOptions(challenge, o.people) };
   // Number.isInteger geeft alleen true bij een heel getal: dan is o.seed er zeker
   const seed = Number.isInteger(o.seed) && o.seed! >= 0 ? o.seed! : randomSeed();
+  const opts = gameOpts(seed, o);
+  // Eerst de kaartgrootte: de spelstand en de wereld hieronder hangen ervan af
+  setMapSize(opts.size);
   G = baseState(seed);
-  G.opts = gameOpts(seed, o);
+  G.opts = opts;
   // Uitdaging en spelregels meteen zetten: hun bonussen tellen mee voor alles wat hieronder gebouwd wordt
   G.scenario = cleanScenarioState(o.scenario);
   G.mods = cleanMods(o.mods);
@@ -223,10 +228,12 @@ function thinOutNodes(): void {
   }
 }
 export const placeName = (): string => PLACES[G.seed % PLACES.length];
-// Vijandelijke kampen: zwakke dichtbij, sterke ver weg. Op een grote kaart twee per niveau.
+// Vijandelijke kampen: zwakke dichtbij, sterke ver weg. Op een gewone kaart twee per niveau.
+// Op een grotere kaart staan die op dezelfde afstand van je stam, en komen er verderop extra
+// sterke kampen bij: hoe meer extra ruimte, hoe meer kampen.
 function genCamps(seed: number): void {
   const R = mulberry32(seed + 77),
-    spread = (W / 128) * 0.85,
+    spread = (Math.min(W, NORMAL_SIZE) / 128) * 0.85,
     perTier = W >= 256 ? 2 : 1,
     RANGES = [
       [22, 28],
@@ -237,32 +244,40 @@ function genCamps(seed: number): void {
       [50, 58],
     ];
   for (let tier = 0; tier < 6; tier++)
-    for (let n = 0; n < perTier; n++)
-      for (let tries = 0; tries < 300; tries++) {
-        const a = R() * TAU,
-          r = (RANGES[tier][0] + R() * (RANGES[tier][1] - RANGES[tier][0])) * spread;
-        const x = Math.round(CX + Math.cos(a) * r),
-          y = Math.round(CY + Math.sin(a) * r);
-        if (!inb(x - 1, y - 1) || !inb(x + 2, y + 2)) continue;
-        let ok = true;
-        for (let dy = -1; dy <= 2; dy++)
-          for (let dx = -1; dx <= 2; dx++) if (!passable((y + dy) * W + x + dx)) ok = false;
-        if (!ok || G.camps.some(c => dist(c.x, c.y, x, y) < 14 * spread)) continue;
-        for (let dy = -1; dy <= 2; dy++) for (let dx = -1; dx <= 2; dx++) node[(y + dy) * W + x + dx] = 0;
-        const camp: Camp = {
-          id: G.nid++,
-          kind: 'c',
-          x,
-          y,
-          tier,
-          hp: 500 * (1 + tier * 1.2),
-          mhp: 500 * (1 + tier * 1.2),
-          alive: true,
-        };
-        G.camps.push(camp);
-        spawnCampGuards(camp);
-        break;
-      }
+    for (let n = 0; n < perTier; n++) placeCamp(R, tier, RANGES[tier], spread, spread);
+  const extra = Math.round(12 * ((W * W) / (NORMAL_SIZE * NORMAL_SIZE) - 1) * 0.4);
+  for (let k = 0; k < extra; k++) placeCamp(R, 4 + (k % 2), [100, W / 2 - 14], 1, spread);
+}
+/**
+ * Zet één kamp neer op een afstand tussen range[0] en range[1] (keer `scale`) van het midden,
+ * op droog land en minstens 14 × `spread` tegels van de andere kampen.
+ */
+function placeCamp(R: () => number, tier: number, range: number[], scale: number, spread: number): void {
+  for (let tries = 0; tries < 300; tries++) {
+    const a = R() * TAU,
+      r = (range[0] + R() * (range[1] - range[0])) * scale;
+    const x = Math.round(CX + Math.cos(a) * r),
+      y = Math.round(CY + Math.sin(a) * r);
+    if (!inb(x - 1, y - 1) || !inb(x + 2, y + 2)) continue;
+    let ok = true;
+    for (let dy = -1; dy <= 2; dy++)
+      for (let dx = -1; dx <= 2; dx++) if (!passable((y + dy) * W + x + dx)) ok = false;
+    if (!ok || G.camps.some(c => dist(c.x, c.y, x, y) < 14 * spread)) continue;
+    for (let dy = -1; dy <= 2; dy++) for (let dx = -1; dx <= 2; dx++) node[(y + dy) * W + x + dx] = 0;
+    const camp: Camp = {
+      id: G.nid++,
+      kind: 'c',
+      x,
+      y,
+      tier,
+      hp: 500 * (1 + tier * 1.2),
+      mhp: 500 * (1 + tier * 1.2),
+      alive: true,
+    };
+    G.camps.push(camp);
+    spawnCampGuards(camp);
+    return;
+  }
 }
 function spawnCampGuards(c: Camp): void {
   const n = 3 + c.tier * 2;

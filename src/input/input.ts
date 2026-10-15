@@ -30,6 +30,7 @@ import {
   updateCamera,
 } from '../render/camera';
 import { cam, cv } from '../render/scene';
+import { bigMapOpen, setBigMap } from '../render/minimap';
 import { setTab } from '../ui/buildmenu';
 import { sigs } from '../ui/header';
 import { lastSpeed, setExpand, setSpeed, toast } from '../ui/hud';
@@ -275,7 +276,8 @@ cv.addEventListener(
   },
   { passive: false },
 );
-export const ZOOM_MIN = 0.35,
+// Zo ver kun je uitzoomen (ZOOM_MIN: dan zie je bijna een hele gewone kaart) en inzoomen
+export const ZOOM_MIN = 0.12,
   ZOOM_MAX = 2.4;
 /** Direct zoomen (bij knijpen met twee vingers en bij laden). */
 export function setZoom(z: number) {
@@ -328,6 +330,11 @@ addEventListener('keydown', e => {
     return;
   }
   if (!$('#title').hidden) return;
+  // Esc sluit eerst de grote kaart (zie render/minimap.ts)
+  if (k === 'escape' && bigMapOpen()) {
+    setBigMap(false);
+    return;
+  }
   keys.add(k);
   if (k === 'escape') {
     const busy =

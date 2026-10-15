@@ -1,7 +1,8 @@
 // Het water: ondiep turquoise bij de kust, diep blauw verder weg, schuim langs de oever,
 // golfjes die naar het strand rollen en glinsteringen van de zon.
 import * as T3 from 'three';
-import { H, W } from '../config';
+import { H, W, onMapSize } from '../config';
+import { FAR_DIST, camDist } from './camera';
 import { S3 } from './scene';
 import { DETAIL } from './textures';
 import { TER, ter } from '../world/world';
@@ -32,15 +33,32 @@ function waveNormals(size = 128) {
   x.putImageData(im, 0, 0);
   const t = new T3.CanvasTexture(c);
   t.wrapS = t.wrapT = T3.RepeatWrapping;
-  t.repeat.set((W + 400) / 7, (H + 400) / 7);
   return t;
 }
 const WNORM = waveNormals();
+// Hoe ver de zee rondom de kaart doorloopt (in tegels). Ver genoeg dat je ook helemaal uitgezoomd geen rand ziet.
+const MARGIN = 600;
+// Het golfpatroon herhaalt elke 7 tegels, hoe groot de kaart ook is
+const waveRepeat = () => WNORM.repeat.set((W + MARGIN * 2) / 7, (H + MARGIN * 2) / 7);
+waveRepeat();
 
 // Diepte per tegel: 0 = aan de kant, 1 = minstens 7 tegels van het land af
-const depthData = new Uint8Array(W * H * 4);
-const DEPTH = new T3.DataTexture(depthData, W, H, T3.RGBAFormat);
-DEPTH.magFilter = DEPTH.minFilter = T3.LinearFilter;
+let depthData = new Uint8Array(W * H * 4);
+function makeDepth(): T3.DataTexture {
+  const t = new T3.DataTexture(depthData, W, H, T3.RGBAFormat);
+  t.magFilter = t.minFilter = T3.LinearFilter;
+  return t;
+}
+// De dieptekaart en de kaartmaat voor de shader: gedeeld, zodat een andere kaartgrootte meteen doorwerkt
+const DEPTH = { value: makeDepth() },
+  MAP_SIZE = { value: new T3.Vector2(W, H) };
+onMapSize(() => {
+  depthData = new Uint8Array(W * H * 4);
+  DEPTH.value.dispose();
+  DEPTH.value = makeDepth();
+  MAP_SIZE.value.set(W, H);
+  waveRepeat();
+});
 
 /** Reken uit hoe ver elk stukje water van het land ligt, en leg het water neer (bij elke nieuwe wereld). */
 export function updateWaterDepth() {
@@ -95,7 +113,7 @@ export function updateWaterDepth() {
     depthData[i * 4] = Math.min(1, dist[i] / far) * 255;
     depthData[i * 4 + 3] = 255;
   }
-  DEPTH.needsUpdate = true;
+  DEPTH.value.needsUpdate = true;
   buildWaterSurface();
 }
 
@@ -110,10 +128,10 @@ export const WMAT = new T3.MeshStandardMaterial({
   normalScale: new T3.Vector2(0.3, 0.3),
 });
 WMAT.onBeforeCompile = shader => {
-  shader.uniforms.uDepth = { value: DEPTH };
+  shader.uniforms.uDepth = DEPTH;
   shader.uniforms.uDetail = { value: DETAIL };
   shader.uniforms.uTime = TIME;
-  shader.uniforms.uMapSize = { value: new T3.Vector2(W, H) };
+  shader.uniforms.uMapSize = MAP_SIZE;
   shader.vertexShader =
     'varying vec3 vWPos;\n' +
     shader.vertexShader.replace(
@@ -161,6 +179,11 @@ const WATER_COLOR = `
 export function animateWater(t: number) {
   WNORM.offset.set(t * 0.012, t * 0.007);
   TIME.value = t;
+  // Verder uitgezoomd dan vroeger kon, vlakkere golfjes: losse golfjes zie je dan niet meer, en op volle
+  // sterkte werden het strepen in het zonlicht
+  const near = Math.min(1, FAR_DIST / camDist()),
+    k = near * near * 0.3;
+  WMAT.normalScale.set(k, k);
 }
 
 // Het wateroppervlak ligt alleen waar water is (plus een rand eromheen, en de zee buiten de kaart).
@@ -168,7 +191,6 @@ export function animateWater(t: number) {
 export const WATER = new T3.Mesh(new T3.BufferGeometry(), WMAT);
 WATER.position.y = -0.16;
 S3.add(WATER);
-const MARGIN = 200;
 function buildWaterSurface() {
   const pos: number[] = [],
     uv: number[] = [],

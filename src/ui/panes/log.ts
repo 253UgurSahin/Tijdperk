@@ -7,6 +7,7 @@ import { centerOn } from '../../render/camera';
 import { renderEvent, renderOffer } from '../event';
 import { esc, fmt } from '../format';
 import { setHTML } from '../header';
+import { groupRepeats, type Repeated } from '../toasttext';
 import { $ } from '../../util/dom';
 
 /** Welke grondstoffen in de grafiek staan: voedsel, hout, steen en wat nieuw is in dit tijdperk (max. 5). */
@@ -56,24 +57,23 @@ export function renderChart() {
     return;
   drawChart(c, G.hist, chartKeys(G.age));
 }
-function logItem(l: LogEntry): string {
+// Eén regel in het Logboek. Kwam dezelfde melding vlak na elkaar, dan staat er hoe vaak ("3×").
+function logItem({ entry: l, count }: Repeated<LogEntry>): string {
   const j = l.x != null;
-  return `<div class="e ${l.k}${j ? ' jump' : ''}" ${j ? `data-jx="${l.x}" data-jy="${l.y}" title="Klik om ernaartoe te gaan"` : ''}><span>DAG ${l.d}</span>${esc(l.t)}${j ? ' <i class="go">➜</i>' : ''}</div>`;
+  const times = count > 1 ? `<b class="times">${count}×</b> ` : '';
+  return `<div class="e ${l.k}${j ? ' jump' : ''}" ${j ? `data-jx="${l.x}" data-jy="${l.y}" title="Klik om ernaartoe te gaan"` : ''}><span>DAG ${l.d}</span>${times}${esc(l.t)}${j ? ' <i class="go">➜</i>' : ''}</div>`;
 }
 export function renderLog() {
-  const sig = G.log.length + '|' + (G.log[0] && G.log[0].t);
-  setHTML($('#log'), 'log', sig, () => G.log.slice(0, 14).map(logItem).join(''));
-  const fs = 'f' + G.log.length + '|' + (G.log[0] && G.log[0].t);
-  setHTML($('#feed'), 'feed', fs, () => G.log.slice(1, 4).map(logItem).join(''));
+  const sig = G.log.length + '|' + (G.log[0] && G.log[0].id);
+  setHTML($('#log'), 'log', sig, () => groupRepeats(G.log).slice(0, 14).map(logItem).join(''));
   renderOffer();
   renderEvent();
   renderChart();
 }
-for (const id of ['#log', '#feed'])
-  $(id).addEventListener('click', e => {
-    const t = (e.target as HTMLElement).closest<HTMLElement>('.jump');
-    if (t) {
-      centerOn(+t.dataset.jx!, +t.dataset.jy!);
-      sfx('tick');
-    }
-  });
+$('#log').addEventListener('click', e => {
+  const t = (e.target as HTMLElement).closest<HTMLElement>('.jump');
+  if (t) {
+    centerOn(+t.dataset.jx!, +t.dataset.jy!);
+    sfx('tick');
+  }
+});

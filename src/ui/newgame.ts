@@ -1,10 +1,19 @@
-// Het nieuw-spelscherm: kies je volk, moeilijkheid, kaart, zaadcode, rivalen en hoe je wint. Daarna begint de wereld.
+// Het nieuw-spelscherm: kies je volk, moeilijkheid, kaart en grootte, zaadcode, rivalen en hoe je wint.
+// Daarna begint de wereld.
 import type { NewGameOptions } from '../types';
 import { sfx } from '../audio/sound';
-import { H, W } from '../config';
 import { nextAttackDay, relText, relationLabel, startRel } from '../data/diplomacy';
 import { DIFFICULTIES, cleanDiff } from '../data/difficulty';
-import { MAP, MAPS, cleanMap } from '../data/maps';
+import {
+  DEFAULT_SIZE,
+  MAP,
+  MAPS,
+  MAP_SIZES,
+  NORMAL_SIZE,
+  cleanMap,
+  cleanMapSize,
+  mapSizeName,
+} from '../data/maps';
 import { PLACES } from '../data/names';
 import { DEFAULT_PEOPLE, PEOPLE, isPeopleUnlocked } from '../data/peoples';
 import { SELECTABLE_VICTORIES, VICTORY, cleanVictories, victoryAllowed } from '../data/victories';
@@ -17,11 +26,12 @@ import { bannerHTML, peoplePickHTML, playerProfile, showPeoplePicker } from './p
 import { cleanCode, codeFromSeed, randomSeed, seedFromCode } from '../util/seedcode';
 import { BIOME, generateWorld, type GeneratedWorld } from '../world/generate';
 
-/** De keuzes op het nieuw-spelscherm: volk, moeilijkheid, kaart, doelen, rivalen en zaadcode. */
+/** De keuzes op het nieuw-spelscherm: volk, moeilijkheid, kaart en grootte, doelen, rivalen en zaadcode. */
 export interface NewGameDraft {
   people: string;
   diff: number;
   map: string;
+  size: number;
   victories: string[];
   rivals: number;
   code: string;
@@ -39,9 +49,9 @@ function rememberedChoices(): RememberedChoices {
   }
 }
 function rememberChoices(draft: NewGameDraft) {
-  const { people, diff, map, victories, rivals } = draft;
+  const { people, diff, map, size, victories, rivals } = draft;
   try {
-    localStorage.setItem(KEY, JSON.stringify({ people, diff, map, victories, rivals }));
+    localStorage.setItem(KEY, JSON.stringify({ people, diff, map, size, victories, rivals }));
   } catch (e) {}
 }
 
@@ -56,6 +66,8 @@ export function newGameDraft(keepCode = false): NewGameDraft {
   const last = { ...(plainGame ? G.opts : {}), ...remembered };
   // Rivalen: wat je de vorige keer koos, anders één (de wereld achter het titelscherm telt niet mee)
   const rivals = Number.isInteger(remembered.rivals) ? cleanRivalCount(remembered.rivals) : DEFAULT_RIVALS;
+  // Grootte: ook wat je de vorige keer koos, anders Groot
+  const size = remembered.size !== undefined ? cleanMapSize(remembered.size) : DEFAULT_SIZE;
   // Ontbreekt het volk (of bestaat het niet meer), dan is PEOPLE[...] leeg en wordt het DEFAULT_PEOPLE
   const people =
     PEOPLE[last.people!] && isPeopleUnlocked(last.people!, playerProfile()) ? last.people! : DEFAULT_PEOPLE;
@@ -64,6 +76,7 @@ export function newGameDraft(keepCode = false): NewGameDraft {
     // Wat ontbreekt of niet meer bestaat, wordt de standaard (Normaal, continent, de sterrenpoort)
     diff: cleanDiff(last.diff),
     map: cleanMap(last.map),
+    size,
     victories: cleanVictories(last.victories, rivals),
     rivals,
     code: keepCode && plainGame ? G.opts.seedCode : codeFromSeed(randomSeed()),
@@ -92,13 +105,24 @@ function mapHTML(draft: NewGameDraft) {
       `<button class="ngtile ${m.k === draft.map ? 'on' : ''}" data-map="${m.k}" aria-pressed="${m.k === draft.map}">${ico(m.g)}<b>${m.n}</b></button>`,
   ).join('');
   return `<section class="ng-map">${label('Kaart')}<div class="ngtiles">${tiles}</div>
-    <p class="nghint">${MAP[draft.map].d}.</p></section>`;
+    <p class="nghint">${MAP[draft.map].d}.</p>${sizeHTML(draft)}</section>`;
+}
+
+/** Hoe groot de wereld is: Normaal, Groot of Enorm (onder de kaartsoort). */
+function sizeHTML(draft: NewGameDraft) {
+  const buttons = MAP_SIZES.map(
+    z =>
+      `<button class="${z.n === draft.size ? 'on' : ''}" data-size="${z.n}" aria-pressed="${z.n === draft.size}">${z.name}</button>`,
+  ).join('');
+  const chosen = MAP_SIZES.find(z => z.n === draft.size) || MAP_SIZES[0];
+  return `<div class="ngsize" style="margin-top: 14px">${label('Grootte')}
+    <div class="seg rivseg">${buttons}</div><p class="nghint">${chosen.d}.</p></div>`;
 }
 
 /** Tekst onder de zaadcode: wat hij doet, of wat er mis is. */
 const seedHint = (ok: boolean) =>
   ok
-    ? 'Zelfde code en kaart = dezelfde wereld. Deel hem met een vriend.'
+    ? 'Zelfde code, kaart en grootte = dezelfde wereld. Deel hem met een vriend.'
     : 'Na TP- komen 4 tot 6 letters of cijfers, zoals TP-7K2Q.';
 
 /** De zaadcode met een kaartje van de wereld die eruit groeit. */
@@ -108,7 +132,7 @@ function atlasHTML(draft: NewGameDraft) {
   const place = ok ? PLACES[seed % PLACES.length] : '';
   return `<section class="ng-atlas">
     <div class="ngmap ${ok ? '' : 'empty'}">
-      <canvas width="${W}" height="${H}" aria-label="Kaartje van je wereld"></canvas>
+      <canvas width="${draft.size}" height="${draft.size}" aria-label="Kaartje van je wereld"></canvas>
       <span class="ngplace">${ok ? `${ico('⚑')}${place}` : 'Geen geldige code'}</span>
     </div>
     <div class="ngseed">
@@ -202,7 +226,9 @@ function setupHTML(draft: NewGameDraft) {
   const ok = seedFromCode(draft.code) !== null;
   // Met komma's: op een telefoon loopt dit door op een tweede regel, zonder los puntje aan het eind
   const foes = draft.rivals ? `, ${draft.rivals} ${draft.rivals === 1 ? 'rivaal' : 'rivalen'}` : '';
-  const summary = `${PEOPLE[draft.people].n}, ${DIFFICULTIES[draft.diff].n.toLowerCase()}, ${MAP[draft.map].n.toLowerCase()}${foes}`;
+  // De grootte alleen als die niet gewoon is: "continent (groot)"
+  const size = draft.size === NORMAL_SIZE ? '' : ` (${mapSizeName(draft.size).toLowerCase()})`;
+  const summary = `${PEOPLE[draft.people].n}, ${DIFFICULTIES[draft.diff].n.toLowerCase()}, ${MAP[draft.map].n.toLowerCase()}${size}${foes}`;
   return `<div class="tw ng">
     <div class="nghead">
       <button class="quiet ngback" data-ng="back">${ico('←')}Terug</button>
@@ -243,20 +269,20 @@ const previews = new Map<string, ImageData>(),
   rivalSpots = new Map<string, RivalSite[]>();
 let previewTimer = 0;
 
-/** Maak een plaatje van een wereld: kleur per landschap, met wat schaduw zodat je de bergen ziet. */
-function worldImage(world: GeneratedWorld) {
-  const img = new ImageData(W, H);
+/** Plaatje van een wereld van n bij n tegels: kleur per landschap, met schaduw zodat je de bergen ziet. */
+function worldImage(world: GeneratedWorld, n: number) {
+  const img = new ImageData(n, n);
   const { biome, elev, levels } = world;
-  for (let y = 0; y < H; y++)
-    for (let x = 0; x < W; x++) {
-      const i = y * W + x;
+  for (let y = 0; y < n; y++)
+    for (let x = 0; x < n; x++) {
+      const i = y * n + x;
       let c: number[];
       if (biome[i] === BIOME.WATER) {
         const deep = Math.min(1, Math.max(0, (levels.sea - elev[i]) / (levels.sea - levels.deep)));
         c = [70 - deep * 26, 112 - deep * 34, 128 - deep * 24];
       } else {
         // Licht van linksboven: een helling naar het licht toe is lichter
-        const up = elev[Math.max(0, y - 1) * W + Math.max(0, x - 1)];
+        const up = elev[Math.max(0, y - 1) * n + Math.max(0, x - 1)];
         const shade = 1 + Math.max(-0.25, Math.min(0.25, (elev[i] - up) * 9));
         c = COLORS[biome[i]].map(v => v * shade);
       }
@@ -265,24 +291,27 @@ function worldImage(world: GeneratedWorld) {
   return img;
 }
 
-/** Teken het kaartje bij de huidige zaadcode en kaartsoort. Een nieuwe wereld maken duurt even. */
+/** Teken het kaartje bij de huidige zaadcode, kaartsoort en grootte. Een nieuwe wereld maken duurt even. */
 function paintPreview(el: HTMLElement, draft: NewGameDraft) {
   const canvas = el.querySelector<HTMLCanvasElement>('.ngmap canvas');
   const seed = seedFromCode(draft.code);
   if (!canvas || seed === null) return;
-  const key = `${seed}:${draft.map}`;
+  const n = draft.size,
+    key = `${seed}:${draft.map}:${n}`;
   const img = previews.get(key);
   // Het canvas staat altijd in het vak .ngmap (zie atlasHTML)
   canvas.parentElement!.classList.toggle('busy', !img);
   if (img) {
     const ctx = canvas.getContext('2d')!;
     ctx.putImageData(img, 0, 0);
+    // Ringen en stippen even groot op het scherm, hoe groot de kaart ook is
+    const k = n / NORMAL_SIZE;
     // Je startplek: een ring in het midden
-    ctx.lineWidth = 5;
+    ctx.lineWidth = 5 * k;
     ctx.strokeStyle = '#2b2520';
     ctx.fillStyle = '#fcf7ec';
     ctx.beginPath();
-    ctx.arc(W / 2, H / 2, 8, 0, Math.PI * 2);
+    ctx.arc(n / 2, n / 2, 8 * k, 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
     // De rivalen: een stip in hun eigen kleur
@@ -290,7 +319,7 @@ function paintPreview(el: HTMLElement, draft: NewGameDraft) {
     (rivalSpots.get(key) || []).slice(0, draft.rivals).forEach((spot, i) => {
       ctx.fillStyle = RIVAL[lineup[i].k].c;
       ctx.beginPath();
-      ctx.arc(spot.x + 1, spot.y + 1, 7, 0, Math.PI * 2);
+      ctx.arc(spot.x + 1, spot.y + 1, 7 * k, 0, Math.PI * 2);
       ctx.fill();
       ctx.stroke();
     });
@@ -302,11 +331,12 @@ function paintPreview(el: HTMLElement, draft: NewGameDraft) {
     // Niet meer nodig als je het scherm al verliet of de code intussen niet meer klopt
     const now = seedFromCode(draft.code);
     if (now === null || el.hidden || !el.querySelector('.ngmap canvas')) return;
-    const nowKey = `${now}:${draft.map}`;
+    const size = draft.size,
+      nowKey = `${now}:${draft.map}:${size}`;
     if (!previews.has(nowKey)) {
-      const world = generateWorld(now, W, H, draft.map);
-      previews.set(nowKey, worldImage(world));
-      rivalSpots.set(nowKey, pickRivalSites(world.ter, W, H, now));
+      const world = generateWorld(now, size, size, draft.map);
+      previews.set(nowKey, worldImage(world, size));
+      rivalSpots.set(nowKey, pickRivalSites(world.ter, size, size, now));
     }
     if (previews.size > 12) {
       // Er staan er meer dan 12 in, dus er is zeker een oudste
@@ -360,8 +390,8 @@ export function showNewGame(el: HTMLElement, draft: NewGameDraft, { onBack, onSt
     const seed = seedFromCode(draft.code);
     if (seed === null) return;
     rememberChoices(draft);
-    const { people, diff, map, victories, rivals } = draft;
-    onStart({ seed, people, diff, map, victories, rivals });
+    const { people, diff, map, size, victories, rivals } = draft;
+    onStart({ seed, people, diff, map, size, victories, rivals });
   };
   draw();
   el.onclick = e => {
@@ -393,6 +423,9 @@ export function showNewGame(el: HTMLElement, draft: NewGameDraft, { onBack, onSt
       draw();
     } else if (t.dataset.map) {
       draft.map = t.dataset.map;
+      draw();
+    } else if (t.dataset.size) {
+      draft.size = cleanMapSize(+t.dataset.size);
       draw();
     } else if (t.dataset.vic) toggleVictory(el, draft, t, draw);
   };

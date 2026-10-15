@@ -16,7 +16,7 @@ import { mouse } from '../input/input';
 import { clearSel } from '../input/selection';
 import { iconFor } from '../render/icons';
 import { VW, worldEl } from '../render/scene';
-import { costHTML, esc, hy } from './format';
+import { costHTML, esc, hy, theAge } from './format';
 import { setHTML, sigs } from './header';
 import { toast } from './hud';
 import { insHandler, selCmds, selCtx } from './inspector';
@@ -157,7 +157,7 @@ function renderBuilds() {
         ? next
             .map(
               k =>
-                `<button class="gb locked" data-locked="${k}" aria-disabled="true" aria-label="${B[k].n}, vanaf de ${AGES[B[k].age].n.toLowerCase()}"><span class="lk">${AGES[B[k].age].r}</span><img src="${iconFor(k)}" alt=""><b>${hy(B[k].n)}</b></button>`,
+                `<button class="gb locked" data-locked="${k}" aria-disabled="true" aria-label="${B[k].n}, vanaf ${theAge(B[k].age)}"><span class="lk">${AGES[B[k].age].r}</span><img src="${iconFor(k)}" alt=""><b>${hy(B[k].n)}</b></button>`,
             )
             .join('')
         : ''),
@@ -179,9 +179,7 @@ export function renderCmd() {
 function buildTileClick(c: HTMLElement) {
   sfx('tick');
   if (c.dataset.locked) {
-    toast(
-      `${B[c.dataset.locked].n} wordt beschikbaar in de ${AGES[B[c.dataset.locked].age].n.toLowerCase()}.`,
-    );
+    toast(`${B[c.dataset.locked].n} wordt beschikbaar in ${theAge(B[c.dataset.locked].age)}.`);
     return;
   }
   // Een tegel zonder data-locked heeft altijd data-b (zie renderBuilds)
@@ -243,7 +241,7 @@ $('#cmdgrid').addEventListener('pointerover', e => {
   const k = c.dataset.b || c.dataset.locked!,
     d = B[k],
     idx = [...document.querySelectorAll('#cmdgrid .gb[data-b]')].indexOf(c);
-  const when = `<span>Beschikbaar in de ${AGES[d.age].n.toLowerCase()}.</span>`;
+  const when = `<span>Beschikbaar in ${theAge(d.age)}.</span>`;
   const cost = buildCost(k);
   const lack = has(cost) ? '' : `<span class="lack">Nog ${lackText(cost)} nodig.</span>`;
   const key = idx >= 0 && idx < 9 ? `<span class="key">Sneltoets <kbd>${idx + 1}</kbd></span>` : '';

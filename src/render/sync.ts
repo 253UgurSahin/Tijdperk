@@ -15,11 +15,12 @@ import { FOEK, makeUnit, makeVillager } from './people';
 import { animEntity, clearDying, initAnim, startDeath, type Animated } from './animate';
 import { LAYER, clearParticles, emit, puff } from './particles';
 import { markOrder } from './effects';
-import { camDist } from './camera';
+import { camDist, pxu } from './camera';
 import { S3, cam } from './scene';
-import { buildTerrain, flushTerrain, paintAll, pendingTiles, repaintTile } from './terrain';
+import { buildTerrain, flushTerrain, paintAll, repaintTile } from './terrain';
 import { dirtyGround, node, road } from '../world/world';
-import { groundChanged } from './terrainlook';
+import { groundChanged, shadeAll, shadeChanged } from './terrainlook';
+import { miniChanged } from './minimap';
 import { landSig, rivalColour } from '../game/rivals';
 
 /** Wat er per gebouw in de 3D-wereld bewaard wordt: houder (g), model (m), hoogte en bewegende delen. */
@@ -38,6 +39,10 @@ interface BuildingRec {
   chims: [number, number, number][];
   /** Was het gebouw af toen dit model gemaakt werd? */
   done: boolean;
+  /** De tegels onder het gebouw: linkerbovenhoek (x, y) en grootte (s). */
+  x: number;
+  y: number;
+  s: number;
   /** Vorige waarde van b.flash, om een nieuwe treffer te zien. */
   flPrev: number;
   /** Tijd tot het volgende rookpluimpje, en de bouwvoortgang bij het vorige beeldje. */
@@ -64,8 +69,10 @@ export interface EntityRec {
   selT: number;
   ringSize: number;
   ring: T3.Mesh<T3.RingGeometry, T3.MeshBasicMaterial>;
-  /** De gekleurde schijf onder het figuur. */
+  /** De gekleurde schijf onder het figuur, met haar gewone grootte en doorzichtigheid. */
   base: T3.Mesh<T3.BufferGeometry, T3.MeshBasicMaterial>;
+  dotR: number;
+  dotA: number;
   /** 1 als het figuur dit beeldje nog bestaat. */
   seen: number;
   /** Het figuur in de spelstand. */
@@ -210,6 +217,15 @@ function buildingHit(r: BuildingRec, s: number) {
   puff(LAYER.soft, 3, x, y, z, 0.5, 0.4, 0.9, 0.06, 0.22, 0x9a8c76, 0.6);
   puff(LAYER.glow, 3, x, y, z, 1.4, 1.4, 0.3, 0.035, 0.01, 0xffc070, 1, -4);
 }
+/**
+ * Er is iets veranderd op de tegels (x0, y0) tot en met (x1, y1): gebouwd, gekapt, een weg gelegd.
+ * Dan moeten daar de minikaart en de schaduw op de grond opnieuw, en het strooisel (gras, steentjes).
+ */
+export function changedAt(x0: number, y0: number, x1 = x0, y1 = y0): void {
+  miniChanged(x0, y0, x1, y1);
+  shadeChanged(x0, y0, x1, y1);
+  groundChanged();
+}
 export function syncBuildings() {
   const seen = new Set<number>(),
     dt = lastBT ? Math.min(0.1, store.TM - lastBT) : 0;
@@ -266,11 +282,26 @@ export function syncBuildings() {
         if (o.userData.lamp) lamps.push(o);
         if (o.userData.spin) spins.push(o);
       });
-      r = { g, m, key, h, fires, flags, pumps, lamps, spins, chims, done: b.done, flPrev: 0 };
+      r = {
+        g,
+        m,
+        key,
+        h,
+        fires,
+        flags,
+        pumps,
+        lamps,
+        spins,
+        chims,
+        done: b.done,
+        flPrev: 0,
+        x: b.x,
+        y: b.y,
+        s,
+      };
       bRec.set(b.id, r);
       if (justFinished) finishedBurst(g, s);
-      store.mapVersion++;
-      groundChanged();
+      changedAt(b.x, b.y, b.x + s - 1, b.y + s - 1);
     }
     chimneySmoke(r, b, d, dt);
     const fl = b.flash || 0;
@@ -301,8 +332,7 @@ export function syncBuildings() {
     if (!seen.has(id)) {
       BG3.remove(r.g);
       bRec.delete(id);
-      store.mapVersion++;
-      groundChanged();
+      changedAt(r.x, r.y, r.x + r.s - 1, r.y + r.s - 1);
     }
 }
 function entKey(e: Figure): string {
@@ -333,7 +363,7 @@ function bossLook(r: EntityRec, e: Foe) {
   r.g.scale.setScalar(BOSS_SCALE);
   r.bossTop = (top + 0.25) * BOSS_SCALE; // net boven de kroon: daar komen naam en levensbalk (zie overlay.ts)
   r.base.material.color.set('#e2b92c');
-  r.base.material.opacity = 0.75;
+  r.base.material.opacity = r.dotA = 0.75;
 }
 const BASEG = new T3.CircleGeometry(1, 20).rotateX(-Math.PI / 2);
 /** Iets dat beweegt en zijn plek bij de vorige speltik onthoudt (figuur of projectiel). */
@@ -402,9 +432,9 @@ function syncEnt(e: Figure, make: () => T3.Group): EntityRec {
         depthWrite: false,
       }),
     );
-    base.scale.setScalar(
-      e.kind === 'v' ? 0.18 : e.kind === 'u' && (e.k === 'tank' || e.k === 'knight') ? 0.4 : 0.25,
-    );
+    r.dotR = e.kind === 'v' ? 0.18 : e.kind === 'u' && (e.k === 'tank' || e.k === 'knight') ? 0.4 : 0.25;
+    r.dotA = base.material.opacity;
+    base.scale.setScalar(r.dotR);
     base.position.y = 0.025;
     base.renderOrder = 2;
     g.add(base);
@@ -442,7 +472,22 @@ function syncEnt(e: Figure, make: () => T3.Group): EntityRec {
   g.position.set(ex, 0, ey);
   const da = ((r.ang - g.rotation.y + Math.PI * 3) % TAU) - Math.PI;
   g.rotation.y += da * 0.25;
+  showAsDot(r);
   return r;
+}
+// Ver uitgezoomd worden figuurtjes gekleurde stippen: de schijf eronder, groter en voller, zonder het figuur.
+// Ze zijn dan toch maar een paar pixels groot, en elk figuurtje bestaat uit een tiental losse delen om te
+// tekenen. (Licht = dorpeling, blauw = jouw leger, rood = vijand, eigen kleur = soldaat van een rivaal.)
+// Een stip is op het scherm steeds even groot: DOT_PX pixels (straal) voor een soldaat of vijand, een dorpeling
+// iets kleiner. Zo worden de bewakers van een kamp losse stippen en niet samen één grote rode vlek.
+const DOT_DIST = 27 / 0.22,
+  DOT_PX = 3.4;
+let dots = false,
+  dotGrow = 1;
+function showAsDot(r: EntityRec) {
+  r.body.visible = !dots;
+  r.base.scale.setScalar(r.dotR * dotGrow);
+  r.base.material.opacity = dots ? Math.min(1, r.dotA * 1.7) : r.dotA;
 }
 // Selectiecirkel: verschijnt met een kort "plopje" (groter, dan terug naar normaal) en pulseert zacht
 function showRing(r: EntityRec, on: boolean) {
@@ -450,11 +495,14 @@ function showRing(r: EntityRec, on: boolean) {
   r.ring.visible = on;
   if (!on) return;
   const pop = Math.max(0, 1 - (store.TM - r.selT) / 0.22);
-  r.ring.scale.setScalar(r.ringSize * (1 + pop * 0.6));
+  r.ring.scale.setScalar(r.ringSize * (1 + pop * 0.6) * dotGrow);
   r.ring.material.opacity = 0.75 + Math.sin(store.TM * 4) * 0.15 + pop * 0.1;
 }
 
 export function syncEntities() {
+  dots = camDist() > DOT_DIST;
+  // (0,25 tegel is de gewone straal van de schijf onder een soldaat, zie syncEnt)
+  dotGrow = dots ? Math.max(1, DOT_PX / (0.25 * pxu())) : 1;
   for (const r of eRec.values()) r.seen = 0;
   for (const v of G.vs) {
     if (v.hidden) continue;
@@ -524,8 +572,11 @@ export function syncEntities() {
     if (!r.seen) {
       EG3.remove(r.g);
       eRec.delete(id);
-      // Gesneuveld (niet: naar binnen gegaan of gevlucht)? Dan laten omvallen.
-      if (r.e && r.e.dead && !r.e.retreat && !r.e.hidden) startDeath(r);
+      // Gesneuveld (niet: naar binnen gegaan of gevlucht)? Dan laten omvallen (ook als het net een stip was).
+      if (r.e && r.e.dead && !r.e.retreat && !r.e.hidden) {
+        r.body.visible = true;
+        startDeath(r);
+      }
     }
 }
 export function syncCamps() {
@@ -558,6 +609,19 @@ export function syncCamps() {
       cRec.delete(id);
     }
 }
+/**
+ * Roep `found(i)` aan voor elke tegel i waar `now` anders is dan `before`. We vergelijken vier tegels tegelijk
+ * (als één getal van 32 bits): elk beeldje de hele kaart nalopen gaat zo op een grote kaart een stuk sneller.
+ * (Dat kan, want deze rijen beginnen vooraan in hun eigen geheugen en de kaart is een veelvoud van 16 breed.)
+ */
+function forEachChange(now: Uint8Array, before: Uint8Array, found: (i: number) => void): void {
+  const a = new Uint32Array(now.buffer, now.byteOffset, now.length >> 2),
+    b = new Uint32Array(before.buffer, before.byteOffset, before.length >> 2);
+  for (let k = 0; k < a.length; k++) {
+    if (a[k] === b[k]) continue;
+    for (let i = k * 4; i < k * 4 + 4; i++) if (now[i] !== before[i]) found(i);
+  }
+}
 function resetWorld3D() {
   for (const m of [bRec, eRec, cRec]) for (const r of m.values()) (r.g.parent || S3).remove(r.g);
   clearDying();
@@ -574,6 +638,8 @@ function resetWorld3D() {
   store.nodeAge = G.age;
   lastG = G;
   groundChanged();
+  shadeAll(); // de hele schaduwkaart
+  store.mapVersion++; // en de hele minikaart
 }
 export function checkWorld() {
   if (lastG !== G) {
@@ -592,34 +658,35 @@ export function checkWorld() {
       for (let y = cy - 1; y <= cy + CS; y++)
         for (let x = cx - 1; x <= cx + CS; x++) if (x >= 0 && y >= 0 && x < W && y < H) repaintTile(x, y);
     }
-    rebuildNodes(false);
-    store.nodeSnap = node.slice();
+    rebuildNodes(false); // bomen en rotsen in de wildernis zijn donkerder
     groundChanged();
+    store.mapVersion++; // de hele minikaart opnieuw
   }
-  for (const i of dirtyGround) repaintTile(i % W, (i / W) | 0);
+  // Een krater of andere grondkleur (zie markGroundDirty in world.ts)
+  for (const i of dirtyGround) {
+    repaintTile(i % W, (i / W) | 0);
+    miniChanged(i % W, (i / W) | 0);
+  }
   dirtyGround.clear();
   // terrSnap en store.nodeSnap zijn gezet door resetWorld3D (hierboven, bij een nieuw spel)
-  for (let i = 0; i < W * H; i++)
-    if (road[i] !== terrSnap![i]) {
-      terrSnap![i] = road[i];
-      repaintTile(i % W, (i / W) | 0);
-      groundChanged();
-    }
-  if (pendingTiles()) store.mapVersion++;
+  forEachChange(road, terrSnap!, i => {
+    terrSnap![i] = road[i];
+    repaintTile(i % W, (i / W) | 0);
+    changedAt(i % W, (i / W) | 0);
+  });
   flushTerrain();
   // Echt iets veranderd (boom gekapt, nieuw tijdperk) of alleen de camera verschoven?
-  let changed = G.age !== store.nodeAge;
-  if (!changed)
-    for (let i = 0; i < W * H; i++)
-      if (node[i] !== store.nodeSnap![i]) {
-        changed = true;
-        break;
-      }
-  if (changed) groundChanged();
-  if (changed || nodesNeedUpdate()) {
-    store.mapVersion++;
+  const newAge = G.age !== store.nodeAge;
+  let changed = newAge;
+  forEachChange(node, store.nodeSnap!, i => {
+    changed = true;
+    changedAt(i % W, (i / W) | 0);
+  });
+  // In een nieuw tijdperk verschijnen overal nieuwe bronnen: de hele schaduwkaart opnieuw
+  if (newAge) shadeAll();
+  if (changed) {
     store.nodeSnap = node.slice();
     store.nodeAge = G.age;
-    rebuildNodes(false);
   }
+  if (changed || nodesNeedUpdate()) rebuildNodes(false);
 }

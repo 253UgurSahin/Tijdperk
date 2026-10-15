@@ -2,9 +2,9 @@
 import { store } from '../core/store';
 import { TAU } from '../config';
 import { B } from '../data/buildings';
-import { GATHER } from '../data/resources';
+import { basePower } from '../data/economy';
 import { TECH } from '../data/tech';
-import { powerDem, powerSup, wr } from '../game/caches';
+import { powerDem, powerSup } from '../game/caches';
 import { has } from '../game/economy';
 import { popCap, popNow } from '../game/entities';
 import { isMarching, isRaider } from '../game/military';
@@ -14,68 +14,14 @@ import { isNight, raidNight, season } from '../game/time';
 import { armsCost, armsUseful, canUpg, hasT, toolCost, upgCost } from '../game/upgrades';
 import { costText } from './buildmenu';
 import { coach } from './coach';
-import { TOUCH, fmt } from './format';
-import { renderQuick } from './hud';
+import { TOUCH } from './format';
+import { fitToasts, renderQuick } from './hud';
 import { updateTabs } from './panel';
-import { buildResBar, rate, updateResPop } from './resources';
-import { $, isCompact } from '../util/dom';
+import { updateResources } from './resources';
+import { $ } from '../util/dom';
 
-// Speel het tik-animatietje opnieuw af (eerst weghalen, dan terugzetten)
-function tick(el: HTMLElement, cls: string) {
-  el.classList.remove('tick-up', 'tick-down');
-  void el.offsetWidth;
-  el.classList.add(cls);
-}
 export function updateHeader() {
-  buildResBar();
-  updateResPop();
-  const rb = $('#resbar');
-  // Past het niet (te hoog of te breed)? Dan één grondstof minder tonen dan er nu staan.
-  // Desnoods maar één: de knop +N moet altijd zichtbaar blijven (telefoon met stroom en leger).
-  const tooBig =
-    rb.scrollWidth > rb.clientWidth + 2 || (!isCompact() && rb.scrollHeight > rb.clientHeight + 2);
-  if (tooBig && store.resMax > 1) {
-    const shown = rb.querySelectorAll('.res').length;
-    store.resMax = Math.max(1, Math.min(store.resMax, shown) - 1);
-    sigs.resbar = null;
-    buildResBar();
-  }
-  const prod: Record<string, number> = {};
-  for (const b of G.bs) {
-    const d = B[b.type];
-    if (b.done && b.on && d.conv) for (const k in d.conv.out) prod[k] = (prod[k] || 0) + 1;
-    if (b.done && d.pump) prod[d.pump.res] = (prod[d.pump.res] || 0) + 1;
-  }
-  // Wat je nu wilt bouwen: grondstoffen waar je te weinig van hebt, kleuren rood
-  const need = store.placing ? buildCost(store.placing) : null;
-  for (const el of document.querySelectorAll<HTMLElement>('#resbar .res,#resPop .res')) {
-    // Elk vakje heeft een sleutel (data-k) en een getal (<b>), zie resItem in ui/resources.ts
-    const k = el.dataset.k!,
-      num = el.querySelector('b')!,
-      txt = fmt(G.res[k]);
-    if (num.textContent !== txt) {
-      // Een klein tikje als het getal verandert: groen omhoog, rood omlaag
-      // data-v ontbreekt de eerste keer: dan geeft + NaN, en || 0 maakt er 0 van
-      const up = G.res[k] > (+el.dataset.v! || 0);
-      if (num.textContent) tick(num, up ? 'tick-up' : 'tick-down');
-      num.textContent = txt;
-    }
-    el.dataset.v = String(Math.floor(G.res[k]));
-    el.classList.toggle('short', !!(need && need[k] > G.res[k]));
-    const r = rate[k],
-      em = el.querySelector('em')!;
-    if (r !== undefined && Math.abs(r) >= 1) {
-      em.textContent = (r > 0 ? '+' : '−') + Math.abs(Math.round(r)) + '/m';
-      em.className = r > 0 ? '' : 'down';
-    } else em.textContent = '';
-    const wk = el.querySelector('.wk');
-    if (wk) {
-      const n = String(GATHER.includes(k) ? wr[k] || 0 : prod[k] || 0),
-        cnt = wk.querySelector('span');
-      if (cnt && cnt.textContent !== n) cnt.textContent = n;
-      wk.classList.toggle('zero', n === '0');
-    }
-  }
+  updateResources();
   const cap = popCap(),
     pn = popNow();
   $('#popStat b').textContent = `${pn}/${cap}`;
@@ -87,9 +33,20 @@ export function updateHeader() {
   const ps = $('#powStat');
   ps.hidden = G.age < 5;
   if (!ps.hidden) {
-    $('#powStat b').textContent = `${Math.round(powerSup)}/${powerDem}`;
+    const supply = Math.round(powerSup);
+    $('#powStat b').textContent = `${supply}/${powerDem}`;
     ps.classList.toggle('bad', powerDem > powerSup);
+    ps.title = powerTip(supply);
   }
+}
+/** Uitleg bij het stroomgetal bovenaan, in gewone woorden (zie computeCaches in game/caches.ts). */
+function powerTip(supply: number): string {
+  const lines = [`Stroom: ${supply} geleverd, ${powerDem} nodig.`];
+  const emergency = basePower(G.age);
+  if (emergency) lines.push(`Het stamhuis levert altijd ${emergency} noodstroom; die telt mee.`);
+  lines.push('Gebouwen die niets te doen hebben, gebruiken geen stroom en tellen niet mee.');
+  if (powerDem > powerSup) lines.push('Te weinig stroom: gebouwen werken trager. Bouw een centrale.');
+  return lines.join('\n');
 }
 export function updateWorldTop() {
   const h = Math.floor(G.clock),
@@ -133,10 +90,14 @@ export function updateWorldTop() {
   if ($('#modeHint').textContent !== C.h) $('#modeHint').textContent = C.h;
   $('#step').classList.toggle('alarm', !!C.alarm);
   {
-    const cb = $('#coachBtn'),
-      al = store.coachAct ? store.coachAct.l : '';
-    cb.hidden = !al || !!store.placing;
-    if (cb.textContent !== al) cb.textContent = al;
+    // Zegt de stap zelf al wat je bouwt ("Bouw een hut."), dan is "Bouwen" genoeg op de knop
+    const act = store.coachAct,
+      named = !!act && !!act.b && C.t.toLowerCase().includes(B[act.b].n.toLowerCase()),
+      label = !act ? '' : named ? 'Bouwen' : act.l,
+      cb = $('#coachBtn');
+    cb.hidden = !label || !!store.placing;
+    if (cb.textContent !== label) cb.textContent = label;
+    cb.title = act && act.l !== label ? act.l : '';
   }
   let txt = '',
     hint = '',
@@ -187,16 +148,21 @@ export function updateWorldTop() {
     $('#cancelBtn').textContent = TOUCH ? 'Sluiten' : 'Annuleren';
   }
   renderQuick();
+  fitToasts(); // er kan net een ander kaartje boven in beeld zijn gekomen: dan minder meldingen
   $('#expandBtn').classList.toggle('on', store.expandMode);
   $('#expandBtn').firstElementChild!.textContent = store.expandMode ? 'Klaar' : 'Uitbreiden';
-  $('#expandBtn').title = `Gebied uitbreiden (E) · ${costText(chunkCost())}`;
+  // Hoeveel gebieden je hebt staat in de uitleg bij de muis (niet meer als getal in het overzicht)
+  const owned = G.unl.filter(Boolean).length;
+  $('#expandBtn').title = `Gebied uitbreiden (E) · ${costText(chunkCost())} · je hebt ${owned} gebieden`;
   $('#raidflash').classList.toggle('on', raidNow);
   const dq = document.querySelector('#sidebtns [data-p="def"]'),
     uq = document.querySelector('#sidebtns [data-p="upg"]');
   if (dq) dq.classList.toggle('dot', raidNow || marchNow || (raidNight() && G.clock >= 12 && G.clock < 21));
+  // Iets te verbeteren dat je kunt betalen: een rustig stipje in de kleur van het tijdperk
+  // (rood is voor gevaar)
   if (uq)
     uq.classList.toggle(
-      'dot',
+      'hint',
       G.bs.some(b => canUpg(b) && has(upgCost(b))) ||
         (G.toolLvl < G.age && has(toolCost())) ||
         (armsUseful() && G.armsLvl < G.age && has(armsCost())) ||

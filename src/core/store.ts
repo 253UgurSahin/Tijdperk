@@ -32,7 +32,6 @@ export interface Store {
   notePos: [number, number] | null;
   rateSnap: { t: number; r: Record<string, number> } | null;
   rateT: number;
-  resMax: number;
   missionOpen: boolean;
   coachTile: string | null;
   coachAct: CoachAct | null;
@@ -79,8 +78,7 @@ export const store: Store = {
   notePos: null,
   rateSnap: null,
   rateT: 0,
-  resMax: 14,
-  missionOpen: true,
+  missionOpen: false, // de eisen voor het volgende tijdperk zijn dichtgeklapt (klik om te openen)
   coachTile: null,
   coachAct: null,
   modalLocked: false, // het open venster gaat niet dicht met Esc of een klik ernaast

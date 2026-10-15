@@ -7,6 +7,13 @@ import { CAM3, S3, VH, VW, cam, sun } from './scene';
 import { clamp } from '../util/math';
 
 export const camDist = () => 27 / cam.z;
+/**
+ * Hoe ver de camera tot hier altijd hoogstens uitzoomde (zoom 0,35). Nog verder uitgezoomd tekenen we minder
+ * details (zie isFar): schaduwen van bomen, kleine dingen en figuurtjes kosten dan veel en zie je nauwelijks.
+ */
+export const FAR_DIST = 27 / 0.35;
+/** Zijn we verder uitgezoomd dan vroeger kon? Dan tekenen we eenvoudiger (minder schaduw, stippen voor figuren). */
+export const isFar = () => camDist() > FAR_DIST * 1.05;
 // Hoe schuin de camera kijkt (bovenaanzicht bijna recht omlaag) en hoe hij gedraaid staat (zie core/view.ts)
 const PITCH = () => (store.V2 ? 1.5 : 0.9),
   YAW = viewYaw;
@@ -23,7 +30,16 @@ export function updateCamera() {
   CAM3.position.set(tx + Math.cos(p) * Math.sin(y) * d, Math.sin(p) * d, tz + Math.cos(p) * Math.cos(y) * d);
   CAM3.lookAt(tx, 0, tz);
   CAM3.updateMatrixWorld();
-  const sc = Math.max(14, d * 0.9 * Math.max(1, CAM3.aspect / 1.78)); // schaduw ook op brede schermen
+  // Ver uitgezoomd begint het beeld pas een eind voor de camera (near). Anders is de dieptebuffer daar te grof
+  // en schemert het water door de oever heen (witte randen om elk meer). Dichtbij blijft het 0,5.
+  const near = Math.max(0.5, d * 0.55 - 25);
+  if (CAM3.near !== near) {
+    CAM3.near = near;
+    CAM3.updateProjectionMatrix();
+  }
+  // Schaduw in een vierkant rond het midden van het beeld (ook op brede schermen). Verder uitgezoomd dan
+  // vroeger kon, groeit het niet verder mee: zo blijft de schaduw scherp en kost hij niet meer werk.
+  const sc = Math.max(14, Math.min(d, FAR_DIST) * 0.9 * Math.max(1, CAM3.aspect / 1.78));
   const sh = sun.shadow.camera;
   sh.left = -sc;
   sh.right = sc;

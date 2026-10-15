@@ -1,11 +1,12 @@
 import type { Building, GameState, Stance } from '../types';
 // Opslaan en laden in de browser.
 import { store } from '../core/store';
-import { CX, CY, H, TH, TW, W } from '../config';
+import { CX, CY, H, TH, TW, W, setMapSize } from '../config';
 import { ACHIEVEMENT } from '../data/achievements';
 import { BLESSING } from '../data/blessings';
 import { B } from '../data/buildings';
 import { cleanDiff } from '../data/difficulty';
+import { cleanMapSize } from '../data/maps';
 import { cleanPendingBoss } from '../data/bosses';
 import { cleanActiveEvent, cleanBuffs, cleanEventsSeen, cleanFollowups } from '../data/events';
 import { cleanFinale, resetCharge } from '../data/finale';
@@ -178,10 +179,13 @@ interface SaveData {
 }
 export function deserialize(str: string): boolean {
   const s: SaveData = JSON.parse(str);
-  if (s.v !== 4 || s.size !== W) return false;
+  // Elke opslag heeft zijn eigen kaartgrootte (oude opslag: de gewone). Een onbekende grootte laden we niet.
+  if (s.v !== 4 || cleanMapSize(s.size) !== s.size) return false;
+  // Eerst de kaartgrootte van deze opslag: de spelstand en de wereld hieronder hangen ervan af
+  setMapSize(s.size);
   // De keuzes van het nieuw-spelscherm. Opslag van daarvóór: volk en moeilijkheid uit het spel, de rest standaard
   // (een continent, winnen met de sterrenpoort). De kaartsoort is nodig om dezelfde wereld te maken.
-  const opts = gameOpts(s.seed, { people: s.g.people, diff: s.g.diff, ...s.g.opts });
+  const opts = gameOpts(s.seed, { people: s.g.people, diff: s.g.diff, ...s.g.opts, size: s.size });
   setGame(baseState(s.seed));
   genWorld(s.seed, opts.map);
   Object.assign(G, s.g);

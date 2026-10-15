@@ -35,8 +35,8 @@ function cardHTML(blessing: BlessingDef, nr: number) {
   let tags = '';
   if (blessing.risk) tags += '<span class="btag risk">Riskant</span>';
   if (blessing.oneoff) tags += '<span class="btag now">Meteen</span>';
-  return `<button class="bless ${blessing.risk ? 'risk' : ''}" data-bless="${blessing.k}" aria-keyshortcuts="${nr}">
-    ${TOUCH ? '' : `<kbd class="bkey" aria-hidden="true">${nr}</kbd>`}
+  // De sneltoets (1, 2 of 3) staat in de uitleg bij de muis, niet als plaatje op de kaart
+  return `<button class="bless ${blessing.risk ? 'risk' : ''}" data-bless="${blessing.k}" aria-keyshortcuts="${nr}" ${TOUCH ? '' : `title="Sneltoets: ${nr}"`}>
     <span class="bic">${ico(blessing.g)}</span>
     <span class="bhead"><span class="bcat">${BLESSING_CATS[blessing.cat]}</span>${tags}</span>
     <b>${blessing.n}</b>

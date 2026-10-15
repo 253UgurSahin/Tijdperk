@@ -21,10 +21,19 @@ import { dayLength, eventRules, haveNow, resolveEvent } from '../game/events';
 import { G } from '../game/state';
 import { costHTML, esc, fmt, gem } from './format';
 import { setHTML, sigs } from './header';
-import { note, pulseRes, toast } from './hud';
-import { $ } from '../util/dom';
+import { note, toast } from './hud';
+import { closeSidePanels } from './panel';
+import { $, isCompact } from '../util/dom';
 import { ico } from './glyphs';
 import { rivalOfferHTML } from './diplomacy';
+
+/**
+ * Op een telefoon past er maar één ding tegelijk in beeld. Komt er een nieuw kaartje dat om een antwoord
+ * vraagt (een gebeurtenis of een aanbod), dan gaat een open paneel of het doel dicht, zodat je het ziet.
+ */
+function makeRoomOnPhone() {
+  if (isCompact()) closeSidePanels();
+}
 
 /** Het gebeurteniskaartje en het rijtje tijdelijke bonussen eronder. */
 export function renderEvent() {
@@ -36,11 +45,14 @@ function renderEventCard() {
   const ev = G.event,
     el = $('#event');
   const def = ev && EVENT[ev.k];
+  // Voor de opmaak: staat er een gebeurtenis open? (Op een liggende telefoon maakt de rest dan plaats.)
+  document.body.classList.toggle('evopen', !!def);
   if (!def) {
     el.hidden = true;
     sigs.ev = null;
     return;
   }
+  if (el.hidden) makeRoomOnPhone();
   el.hidden = false;
   const options = allowedChoices(def, eventRules());
   const problems = options.map(i => choiceProblem(def.choices[i], G.age, haveNow()));
@@ -183,11 +195,13 @@ $('#buffs').addEventListener('click', e => {
 export function renderOffer() {
   const o = G.offer,
     el = $('#offer');
+  document.body.classList.toggle('offeropen', !!o); // voor de opmaak, net als 'evopen' hierboven
   if (!o) {
     el.hidden = true;
     sigs.offer = null;
     return;
   }
+  if (el.hidden) makeRoomOnPhone();
   el.hidden = false;
   // (bij give hoort altijd een price: bij de handelaar en bij een rivaal, zie makeRivalOffer)
   const canPay = !o.give || has({ [o.give]: o.price! });
@@ -222,7 +236,6 @@ $('#offer').addEventListener('click', e => {
     // Zonder afzender is het de reizende handelaar: die heeft altijd want, amt, give en price
     pay({ [o.give!]: o.price! });
     G.res[o.want!] += o.amt!;
-    pulseRes(o.want!);
     toast(`Geruild: ${o.amt} ${RES[o.want!].n.toLowerCase()} ontvangen.`, 'good');
     sfx('upgrade');
   } else note('Aanbod van de handelaar afgeslagen.');

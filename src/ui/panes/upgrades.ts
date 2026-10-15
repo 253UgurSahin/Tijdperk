@@ -1,5 +1,6 @@
-// Paneel "Verbeteren": werktuigen, wapens, gebouwen en uitvindingen, steeds met wat het oplevert.
-import type { Building, Cost } from '../../types';
+// Paneel "Verbeteren": werktuigen, wapens, gebouwen en uitvindingen. Eén korte regel per ding, met de
+// kosten ernaast; wat het precies oplevert staat in de uitleg bij de muis.
+import type { Building } from '../../types';
 import { store } from '../../core/store';
 import { sfx } from '../../audio/sound';
 import { AGES } from '../../data/ages';
@@ -25,7 +26,7 @@ import {
   upgradeTools,
 } from '../../game/upgrades';
 import { blessingListHTML } from '../blessings';
-import { compareHTML, compareText, costHTML, esc, type CompareRow } from '../format';
+import { compareText, costHTML, esc } from '../format';
 import { iconFor } from '../../render/icons';
 import { ico } from '../glyphs';
 import { setHTML, sigs } from '../header';
@@ -35,26 +36,42 @@ import { $ } from '../../util/dom';
 // Volgende tijdperk als tekst, voor "volgende verbetering in de ..."
 const nextAgeName = () => (AGES[G.age + 1] ? 'de ' + AGES[G.age + 1].n.toLowerCase() : 'een later tijdperk');
 
-/** Eén blok: titel, uitleg, vergelijking nu → straks, kosten en knop. */
-function block(
-  key: string,
-  title: string,
-  level: number,
-  about: string,
-  rows: CompareRow[],
-  cost: Cost,
-  maxed: boolean,
-) {
-  const can = !maxed && has(cost);
-  return `<div class="ublock ${can ? 'can' : ''}"><div class="ut"><b>${title}</b><span>niveau ${level + 1}</span></div><p>${about}</p>${
-    maxed
-      ? `<div class="why">Volgende verbetering in ${nextAgeName()}.</div>`
-      : `${compareHTML(rows)}<div class="upf">${costHTML(cost)}<button class="primary" data-g="${key}" ${can ? '' : 'disabled'}>Verbeteren</button></div>`
-  }</div>`;
+/** Wat er in één regel van het paneel staat. */
+interface RowParts {
+  /** De data-attributen van de knop (wat er gebeurt als je klikt). */
+  data: string;
+  /** Plaatje of pictogram vooraan. */
+  pic: string;
+  name: string;
+  /** Een korte tweede regel, of leeg. */
+  sub?: string;
+  /** Rechts: de kosten (of een kort woord als het nu niet kan). */
+  right: string;
+  can: boolean;
+  /** Uitleg bij de muis: wat het precies oplevert. */
+  tip: string;
+}
+/** Eén regel: een knop met plaatje, naam, eventueel een korte uitleg, en rechts de kosten. */
+function row({ data, pic, name, sub, right, can, tip }: RowParts): string {
+  return `<button class="urow" ${data} ${can ? '' : 'disabled'} title="${esc(tip)}">${pic}<span class="un"><b>${name}</b>${sub ? `<small>${sub}</small>` : ''}</span>${right}</button>`;
+}
+/** Werktuigen of wapens: geldt voor iedereen tegelijk. */
+function globalRow(key: string, glyph: string, name: string, sub: string, level: number, rows: string) {
+  const maxed = level >= G.age,
+    cost = key === 'tools' ? toolCost() : armsCost();
+  return row({
+    data: `data-g="${key}"`,
+    pic: `<span class="ug">${ico(glyph)}</span>`,
+    name,
+    sub: maxed ? `Volgende in ${nextAgeName()}` : sub,
+    right: maxed ? '' : costHTML(cost, true),
+    can: !maxed && has(cost),
+    tip: maxed ? `Niveau ${level + 1}` : `Niveau ${level + 1} → ${level + 2}. ${rows}`,
+  });
 }
 
-// Staat het lijstje met zegeningen open? null = nog niet aangeklikt: dan open bij weinig zegeningen,
-// zodat een lange lijst later in het spel de verbeteringen niet uit beeld duwt.
+// Staat het lijstje met zegeningen open? null = nog niet aangeklikt: dan open bij één of twee zegeningen.
+// Zonder zegeningen valt er niets te zien, en een lange lijst duwt later de verbeteringen uit beeld.
 const BLESSINGS_OPEN_KEY = 'tijdperken-zegeningen-open';
 let blessingsOpen: boolean | null = null;
 try {
@@ -63,7 +80,7 @@ try {
 } catch {
   // geen opslag (bijv. privévenster): dan gewoon de standaard
 }
-const showBlessingList = () => blessingsOpen ?? G.blessings.length <= 2;
+const showBlessingList = () => blessingsOpen ?? (G.blessings.length > 0 && G.blessings.length <= 2);
 
 /** Bovenaan: de zegeningen die je koos, in een uitklapblok met de pictogrammen alvast zichtbaar. */
 function blessingsSection() {
@@ -79,11 +96,7 @@ function blessingsSection() {
 
 export function renderUpgrades() {
   const up = G.bs.filter(canUpg),
-    aff = up.filter(b => has(upgCost(b))),
-    techOpen = TECH.filter(T => T.age <= G.age && !hasT(T.k)).length,
-    armsOpen = armsUseful() ? G.age - G.armsLvl : 0,
-    open = up.length + (G.age - G.toolLvl) + armsOpen + techOpen;
-  $('#upgSect').textContent = open > 0 ? `${open} mogelijk` : 'alles klaar';
+    aff = up.filter(b => has(upgCost(b)));
   const sig = JSON.stringify([
     G.age,
     G.toolLvl,
@@ -102,68 +115,66 @@ export function renderUpgrades() {
     let h = blessingsSection();
 
     // 1. Werktuigen en wapens: gelden voor iedereen tegelijk
-    h += block(
-      'tools',
-      `${ico('⚒')} Werktuigen`,
-      G.toolLvl,
-      'Al je dorpelingen verzamelen sneller en dragen meer per keer.',
-      toolRows(),
-      toolCost(),
-      G.toolLvl >= G.age,
-    );
+    h += `<div class="usub">Voor iedereen</div><div class="ulist">`;
+    h += globalRow('tools', '⚒', 'Werktuigen', 'Sneller verzamelen', G.toolLvl, compareText(toolRows()));
     // Zonder leger (spelregel Geen leger) hebben wapens en pantser geen zin
     if (armsUseful())
-      h += block(
-        'arms',
-        `${ico('⛨')} Wapens en pantser`,
-        G.armsLvl,
-        'Je hele leger slaat harder en kan meer hebben, ook soldaten die je later traint.',
-        armsRows(),
-        armsCost(),
-        G.armsLvl >= G.age,
-      );
+      h += globalRow('arms', '⛨', 'Wapens en pantser', 'Sterker leger', G.armsLvl, compareText(armsRows()));
+    h += '</div>';
 
-    // 2. Gebouwen: per soort één regel, met wat het belangrijkste is dat verbetert
-    h += `<div class="usub">Gebouwen</div>`;
+    // 2. Gebouwen: per soort één regel; wat er beter wordt staat in de uitleg bij de muis
+    const allBtn =
+      aff.length > 1
+        ? `<button class="quiet" data-g="all" title="Verbeter alle ${aff.length} gebouwen die je kunt betalen">Alles verbeteren</button>`
+        : '';
+    h += `<div class="usub">Gebouwen${allBtn}</div>`;
     if (!up.length)
-      h += `<p class="small">Niets te verbeteren. Elk nieuw tijdperk geeft gebouwen een niveau extra.</p>`;
+      h += `<p class="small">Niets te verbeteren. Elk nieuw tijdperk geeft een niveau extra.</p>`;
     else {
       const byType: Record<string, Building[]> = {};
       for (const b of up) (byType[b.type] = byType[b.type] || []).push(b);
       h += `<div class="ulist">${Object.entries(byType)
         .map(([k, list]) => {
           const b = list[0],
-            rows = upgradeRows(b),
-            main = rows[0],
-            c = upgCost(b),
-            n = list.filter(x => has(upgCost(x))).length;
-          return `<button class="urow" data-ut="${k}" ${n ? '' : 'disabled'} title="${esc(compareText(rows))}"><img src="${iconFor(k)}" alt=""><span><b>${B[k].n}${list.length > 1 ? ` ×${list.length}` : ''} · niveau ${lvlOf(b) + 1} → ${lvlOf(b) + 2}</b><small>${main[0]} ${main[1]} → ${main[2]}</small></span>${costHTML(c, true)}</button>`;
+            level = lvlOf(b);
+          return row({
+            data: `data-ut="${k}"`,
+            pic: `<img src="${iconFor(k)}" alt="">`,
+            name: B[k].n + (list.length > 1 ? ` ×${list.length}` : ''),
+            right: costHTML(upgCost(b), true),
+            can: list.some(x => has(upgCost(x))),
+            tip: `Niveau ${level + 1} → ${level + 2}. ${compareText(upgradeRows(b))}`,
+          });
         })
         .join('')}</div>`;
-      if (aff.length > 1)
-        h += `<div class="upf"><span class="small">${aff.length} betaalbaar</span><button data-g="all">Alles verbeteren</button></div>`;
     }
 
-    // 3. Uitvindingen: eerst wat nu kan, dan wat klaar is, dan een blik vooruit
+    // 3. Uitvindingen: eerst wat nu kan, dan een blik vooruit en wat al klaar is
     const now = TECH.filter(T => T.age <= G.age && !hasT(T.k)),
       done = TECH.filter(T => hasT(T.k)),
       soon = TECH.filter(T => T.age === G.age + 1);
-    h += `<div class="usub">Uitvindingen <span class="small">${done.length}/${TECH.length}</span></div>`;
+    h += `<div class="usub">Uitvindingen</div><div class="ulist">`;
     if (G.research) {
-      const T = TK[G.research.k];
-      h += `<div class="ublock can"><div class="ut"><b>${ico(T.g)} ${T.n}</b><span>bezig · ${Math.ceil(researchTime(T) - G.research.t)}s</span></div><p>${T.d}</p><div class="bar acc"><i style="width:${(G.research.t / researchTime(T)) * 100}%"></i></div></div>`;
+      const T = TK[G.research.k],
+        left = Math.ceil(researchTime(T) - G.research.t);
+      h += `<div class="urow busy" title="${esc(`${T.d} · nog ${left} seconden`)}"><span class="ug">${ico(T.g)}</span><span class="un"><b>${T.n}</b><span class="bar acc"><i style="width:${(G.research.t / researchTime(T)) * 100}%"></i></span></span><small class="state">bezig</small></div>`;
     }
     for (const T of now) {
       if (G.research && G.research.k === T.k) continue;
-      const can = !G.research && has(T.cost);
-      h += `<button class="tech ${can ? '' : ''}" data-tech="${T.k}" ${can ? '' : 'disabled'} title="${esc(T.d)}"><span class="g">${ico(T.g)}</span><b>${T.n}</b><span class="d">${T.d} · ${Math.round(researchTime(T))}s</span>${costHTML(T.cost)}</button>`;
+      h += row({
+        data: `data-tech="${T.k}"`,
+        pic: `<span class="ug">${ico(T.g)}</span>`,
+        name: T.n,
+        sub: T.d,
+        right: costHTML(T.cost, true),
+        can: !G.research && has(T.cost),
+        tip: `${T.d} · ${Math.round(researchTime(T))} seconden onderzoek${G.research ? ' · eerst moet het andere onderzoek klaar zijn' : ''}`,
+      });
     }
-    if (!now.length && !G.research)
-      h += `<p class="small">Alle uitvindingen van dit tijdperk zijn klaar.</p>`;
-    if (soon.length)
-      h += `<p class="small" style="margin-top:8px">In ${nextAgeName()}: ${soon.map(T => T.n).join(', ')}.</p>`;
-    if (done.length)
-      h += `<p class="small" style="margin-top:6px">${ico('✓')} Klaar: ${done.map(T => T.n).join(', ')}.</p>`;
+    h += '</div>';
+    if (!now.length && !G.research) h += `<p class="small">Alles van dit tijdperk is uitgevonden.</p>`;
+    if (soon.length) h += `<p class="small">In ${nextAgeName()}: ${soon.map(T => T.n).join(', ')}.</p>`;
+    if (done.length) h += `<p class="small">${ico('✓')} Klaar: ${done.map(T => T.n).join(', ')}.</p>`;
     return h;
   });
 }

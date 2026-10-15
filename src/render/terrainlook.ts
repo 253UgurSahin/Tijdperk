@@ -3,7 +3,7 @@
 // videokaart, bovenop de kleur per tegel uit terrain.ts.
 import type { Building } from '../types';
 import * as T3 from 'three';
-import { H, W } from '../config';
+import { H, W, onMapSize } from '../config';
 import { NODES } from '../data/nodes';
 import { B } from '../data/buildings';
 import { G } from '../game/state';
@@ -14,19 +14,26 @@ import { bmap, node } from '../world/world';
 
 // Schaduwkaart rond gebouwen en bomen: 2 vakjes per tegel, zodat de rand zacht maar smal blijft.
 // Eén byte per vakje (grijswaarde): klein om naar de videokaart te sturen.
-const SH = 2,
-  SW = W * SH,
-  SHH = H * SH;
-const shadeData = new Uint8Array(SW * SHH);
-export const SHADE = new T3.DataTexture(
-  shadeData,
-  SW,
-  SHH,
-  R3.capabilities.isWebGL2 ? T3.RedFormat : T3.LuminanceFormat, // (oudere browsers kennen geen 'rood')
-);
-SHADE.magFilter = T3.LinearFilter;
-SHADE.minFilter = T3.LinearFilter;
-SHADE.needsUpdate = true;
+const SH = 2;
+let SW = W * SH,
+  SHH = H * SH,
+  shadeData = new Uint8Array(SW * SHH);
+function makeShade(): T3.DataTexture {
+  const t = new T3.DataTexture(
+    shadeData,
+    SW,
+    SHH,
+    R3.capabilities.isWebGL2 ? T3.RedFormat : T3.LuminanceFormat, // (oudere browsers kennen geen 'rood')
+  );
+  t.magFilter = T3.LinearFilter;
+  t.minFilter = T3.LinearFilter;
+  t.needsUpdate = true;
+  return t;
+}
+// De schaduwkaart en de kaartmaat voor de shader. Eén gedeeld object: bij een andere kaartgrootte
+// krijgt de shader zo meteen de nieuwe schaduwkaart en maat.
+const SHADE = { value: makeShade() },
+  MAP_SIZE = { value: new T3.Vector2(W, H) };
 
 // Hoe donker het rond een bron wordt (bomen het meest, olie en zand niet)
 const NODE_SHADE: Record<string, number> = {
@@ -38,18 +45,43 @@ const NODE_SHADE: Record<string, number> = {
   sand: 0,
 };
 // Werkgeheugen met een rand van één vakje rondom: dan hoeven we bij de buren niet te controleren
-// of we buiten de kaart vallen (dat maakt het een stuk sneller)
-const RW = SW + 2,
+// of we buiten de kaart vallen (dat maakt het een stuk sneller). Het blijft bewaard: na een gekapte boom
+// hoeft zo alleen dat stukje opnieuw (zie shadeChanged).
+let RW = SW + 2,
   raw = new Float32Array(RW * (SHH + 2));
-let shadeVersion = -1,
+let shadeTime = -9;
+// Welk stuk van de schaduwkaart opnieuw moet, in tegels: van (x0, y0) tot en met (x1, y1). Leeg als x1 < x0.
+const todo = { x0: 0, y0: 0, x1: -1, y1: -1 };
+// Een andere kaartgrootte: schaduwkaart en werkgeheugen opnieuw op maat
+onMapSize(() => {
+  SW = W * SH;
+  SHH = H * SH;
+  shadeData = new Uint8Array(SW * SHH);
+  SHADE.value.dispose();
+  SHADE.value = makeShade();
+  MAP_SIZE.value.set(W, H);
+  RW = SW + 2;
+  raw = new Float32Array(RW * (SHH + 2));
   shadeTime = -9;
+  shadeAll(); // bij het volgende beeldje alles opnieuw uitrekenen
+});
 // Telt op als er gebouwd, gekapt, een weg gelegd of gebied gekocht is (zie sync.ts).
-// Dan moeten de schaduwkaart en het strooisel (scatter.ts) opnieuw; bij alleen de camera
-// verschuiven niet.
+// Dan moet het strooisel (scatter.ts) opnieuw; bij alleen de camera verschuiven niet.
+// (De schaduwkaart houdt zelf bij welk stuk opnieuw moet: zie shadeChanged.)
 export let groundVersion = 0;
 export function groundChanged() {
   groundVersion++;
 }
+/** Reken de schaduw van de tegels (x0, y0) tot en met (x1, y1) opnieuw uit: daar is gebouwd, gekapt of gesloopt. */
+export function shadeChanged(x0: number, y0: number, x1 = x0, y1 = y0): void {
+  const empty = todo.x1 < todo.x0;
+  todo.x0 = empty ? x0 : Math.min(todo.x0, x0);
+  todo.y0 = empty ? y0 : Math.min(todo.y0, y0);
+  todo.x1 = empty ? x1 : Math.max(todo.x1, x1);
+  todo.y1 = empty ? y1 : Math.max(todo.y1, y1);
+}
+/** De hele schaduwkaart opnieuw: een nieuwe wereld of een nieuw tijdperk. */
+export const shadeAll = (): void => shadeChanged(0, 0, W - 1, H - 1);
 
 // Zet een tegel (x, y) in de schaduwkaart op minstens v
 function putTile(x: number, y: number, v: number) {
@@ -61,37 +93,55 @@ function putTile(x: number, y: number, v: number) {
 }
 
 /**
- * Werk de schaduwkaart bij als er iets gebouwd, gekapt of gesloopt is (hooguit ~3× per seconde).
+ * Werk de schaduwkaart bij waar iets gebouwd, gekapt of gesloopt is (hooguit ~3× per seconde).
+ * Alleen dat stuk (zie shadeChanged): de hele kaart nalopen zou op een grote kaart haperen.
  * heightOf(b) geeft de hoogte van het 3D-model van gebouw b (lage velden geven weinig schaduw).
  */
 export function updateGroundShade(now: number, heightOf: (b: Building) => number | undefined) {
-  if (groundVersion === shadeVersion || now - shadeTime < 0.3) return;
-  shadeVersion = groundVersion;
+  if (todo.x1 < todo.x0 || now - shadeTime < 0.3) return;
   shadeTime = now;
-  raw.fill(0);
-  for (let i = 0; i < W * H; i++) {
-    const t = node[i];
-    if (!t || bmap[i] || NODES[t].age > G.age) continue;
-    const v = NODE_SHADE[NODES[t].k] ?? 0.3;
-    if (v) putTile(i % W, (i / W) | 0, v);
-  }
+  const x0 = Math.max(0, todo.x0),
+    y0 = Math.max(0, todo.y0),
+    x1 = Math.min(W - 1, todo.x1),
+    y1 = Math.min(H - 1, todo.y1);
+  todo.x1 = -1; // weer leeg
+  if (x1 < x0 || y1 < y0) return;
+  // 1. De schaduw op die tegels zelf: eerst leeg, dan bomen, rotsen en gebouwen erin
+  for (let sy = y0 * SH; sy < (y1 + 1) * SH; sy++)
+    raw.fill(0, (sy + 1) * RW + x0 * SH + 1, (sy + 1) * RW + (x1 + 1) * SH + 1);
+  for (let y = y0; y <= y1; y++)
+    for (let x = x0; x <= x1; x++) {
+      const i = y * W + x,
+        t = node[i];
+      if (!t || bmap[i] || NODES[t].age > G.age) continue;
+      const v = NODE_SHADE[NODES[t].k] ?? 0.3;
+      if (v) putTile(x, y, v);
+    }
   for (const b of G.bs) {
-    const d = B[b.type];
+    const d = B[b.type],
+      bx1 = b.x + d.size - 1,
+      by1 = b.y + d.size - 1;
     if (d.wall && b.type !== 'stonewall' && b.type !== 'concrete') continue;
+    if (b.x > x1 || b.y > y1 || bx1 < x0 || by1 < y0) continue; // staat er niet in
     const v = Math.min(1, Math.max(0.15, (heightOf(b) || 0.3) * 0.85));
-    for (let dy = 0; dy < d.size; dy++) for (let dx = 0; dx < d.size; dx++) putTile(b.x + dx, b.y + dy, v);
+    for (let y = Math.max(b.y, y0); y <= Math.min(by1, y1); y++)
+      for (let x = Math.max(b.x, x0); x <= Math.min(bx1, x1); x++) putTile(x, y, v);
   }
-  // Uitvloeien naar de buren: recht ernaast iets meer dan schuin
-  for (let y = 0; y < SHH; y++) {
-    let k = (y + 1) * RW + 1,
-      o = y * SW;
-    for (let x = 0; x < SW; x++, k++, o++) {
+  // 2. Uitvloeien naar de buren: recht ernaast iets meer dan schuin. Dat reikt één vakje buiten het stuk.
+  const sx0 = Math.max(0, x0 * SH - 1),
+    sx1 = Math.min(SW - 1, (x1 + 1) * SH),
+    sy0 = Math.max(0, y0 * SH - 1),
+    sy1 = Math.min(SHH - 1, (y1 + 1) * SH);
+  for (let y = sy0; y <= sy1; y++) {
+    let k = (y + 1) * RW + sx0 + 1,
+      o = y * SW + sx0;
+    for (let x = sx0; x <= sx1; x++, k++, o++) {
       const side = Math.max(raw[k - 1], raw[k + 1], raw[k - RW], raw[k + RW]),
         corner = Math.max(raw[k - RW - 1], raw[k - RW + 1], raw[k + RW - 1], raw[k + RW + 1]);
       shadeData[o] = Math.max(raw[k], side * 0.5, corner * 0.32) * 255;
     }
   }
-  SHADE.needsUpdate = true;
+  SHADE.value.needsUpdate = true;
 }
 
 // Hoeveel sneeuw er op de grond ligt (0..1); schuift langzaam mee met het seizoen (lighting.ts)
@@ -115,8 +165,8 @@ export function dressTerrain(mat: T3.MeshStandardMaterial) {
   FINE.push(mat);
   mat.onBeforeCompile = shader => {
     shader.uniforms.uDetail = { value: DETAIL };
-    shader.uniforms.uShade = { value: SHADE };
-    shader.uniforms.uMapSize = { value: new T3.Vector2(W, H) };
+    shader.uniforms.uShade = SHADE;
+    shader.uniforms.uMapSize = MAP_SIZE;
     shader.uniforms.uSnowCover = SNOW_COVER;
     shader.vertexShader =
       'varying vec3 vWPos;\nvarying vec3 vWNrm;\n' +

@@ -12,8 +12,8 @@ import { unitRank } from '../game/army';
 import { canBuyChunk, chunkCost } from '../game/placement';
 import { rbById } from '../game/rivals';
 import { G, sel } from '../game/state';
-import { bMaxHp, canUpg, upgCost } from '../game/upgrades';
-import { drag } from '../input/input';
+import { bMaxHp } from '../game/upgrades';
+import { drag, hoverChunk } from '../input/input';
 import { proj, pxu, t2s } from './camera';
 import { rbRec } from './rivals3d';
 import { DPR, VH, VW, octx } from './scene';
@@ -39,6 +39,15 @@ function otext(x: number, y: number, t: string, col: string, size = 12, a = 1) {
   c.fillText(t, x, y);
   c.globalAlpha = 1;
 }
+/** De namen van alle soldaten: een nieuwe soldaat zweeft met zijn naam uit de kazerne. */
+const UNIT_NAMES = new Set(Object.values(UNITS).map(u => u.n));
+/**
+ * Wat er de hele tijd gebeurt, zweeft niet boven de wereld: opbrengst ("+27"), een nieuwe dorpeling of een
+ * nieuwe soldaat. Dat zie je al aan de voorraad en het inwonertal bovenaan. Iets bijzonders (een
+ * verbetering, buit, een verslagen kampioen, een veteraan) zweeft er wel.
+ */
+const isRoutine = (txt: string): boolean =>
+  /^[+−-]\d+$/.test(txt) || txt === '+1 dorpeling' || UNIT_NAMES.has(txt);
 // Een kampioen: zijn naam en een brede levensbalk boven zijn hoofd, in goud omrand
 function bossLabel(f: Foe) {
   const boss = bossForAge(f.boss);
@@ -74,6 +83,67 @@ function rankChevrons(u: Unit, rank: number) {
     c.stroke();
   }
 }
+// Een rondje met een plus: hier kun je uitbreiden (ver uitgezoomd, als er geen plek is voor tekst)
+function plusMark(x: number, y: number, col: string) {
+  const c = octx;
+  c.fillStyle = 'rgba(10,14,20,.6)';
+  c.beginPath();
+  c.arc(x, y, 9, 0, TAU);
+  c.fill();
+  c.strokeStyle = col;
+  c.lineWidth = 2;
+  c.lineCap = 'round';
+  c.beginPath();
+  c.moveTo(x - 4.5, y);
+  c.lineTo(x + 4.5, y);
+  c.moveTo(x, y - 4.5);
+  c.lineTo(x, y + 4.5);
+  c.stroke();
+}
+/** Waar de buurgebieden van een gebied op het scherm liggen: opzij, naar achteren en schuin. */
+const NEIGHBOURS = [
+  [1, 0],
+  [0, 1],
+  [1, 1],
+  [1, -1],
+];
+/**
+ * Bij het uitbreiden: op elk gebied dat je kunt kopen staat "Uitbreiden" (rood als je het niet kunt
+ * betalen). De prijs staat in de balk onderin en bij het gebied onder de muis. Liggen de gebieden op het
+ * scherm dicht op elkaar (ver uitgezoomd, of achteraan in het 3D-beeld), dan alleen een plusje, en nog
+ * dichter niets (de gele vlakken laten ze dan zien). Zo vallen de labels nooit over elkaar.
+ */
+function expandLabels() {
+  const cost = chunkCost(),
+    col = has(cost) ? '#f3ead2' : '#ff8a7a',
+    price = Object.keys(cost)
+      .map(k => `${cost[k]} ${RES[k].n.toLowerCase()}`)
+      .join(' · ');
+  // Zo breed is het woord op het scherm (met wat ruimte ertussen)
+  octx.font = '700 15px "Instrument Sans",sans-serif';
+  const wordRoom = octx.measureText('Uitbreiden').width + 12;
+  for (let cy = 0; cy < CN; cy++)
+    for (let cx = 0; cx < CN; cx++) {
+      if (!canBuyChunk(cx, cy)) continue;
+      const mx = cx * CS + CS / 2,
+        my = cy * CS + CS / 2,
+        [sx, sy, sz] = proj(mx, 0, my);
+      if (sz > 1 || sx < -120 || sy < -40 || sx > VW + 120 || sy > VH + 40) continue;
+      if (hoverChunk && hoverChunk[0] === cx && hoverChunk[1] === cy) {
+        otext(sx, sy - 6, 'Uitbreiden', col, 15);
+        otext(sx, sy + 12, price, '#d8d0bc', 12);
+        continue;
+      }
+      // Past een label van w bij h beeldpunten, zonder over dat van een buurgebied te vallen?
+      const steps = NEIGHBOURS.map(([dx, dy]) => {
+        const [nx, ny] = proj(mx + dx * CS, 0, my + dy * CS);
+        return [Math.abs(nx - sx), Math.abs(ny - sy)];
+      });
+      const fits = (w: number, h: number) => steps.every(([ax, ay]) => ax >= w || ay >= h);
+      if (fits(wordRoom, 24)) otext(sx, sy + 5, 'Uitbreiden', col, 15);
+      else if (fits(26, 26)) plusMark(sx, sy, col);
+    }
+}
 export function drawOverlay() {
   const c = octx;
   c.setTransform(DPR, 0, 0, DPR, 0, 0);
@@ -93,20 +163,8 @@ export function drawOverlay() {
     const mh = bMaxHp(b);
     if ((SET.hp && !d.wall) || b.hp < mh)
       obar(sx, sy, Math.min(52, s * z * 0.7), b.hp / mh, b.hp / mh > 0.4 ? '#7fd36a' : '#e3584a');
-    if (z > 18 && canUpg(b) && has(upgCost(b))) {
-      const by = sy - 14 + Math.sin(store.TM * 3 + b.id) * 2;
-      c.fillStyle = '#e2b92c';
-      c.beginPath();
-      c.arc(sx, by, 7, 0, TAU);
-      c.fill();
-      c.strokeStyle = '#2a1d05';
-      c.lineWidth = 2;
-      c.beginPath();
-      c.moveTo(sx - 3.4, by + 1.6);
-      c.lineTo(sx, by - 2);
-      c.lineTo(sx + 3.4, by + 1.6);
-      c.stroke();
-    }
+    // Geen pijltjes "kan verbeterd worden" meer boven gebouwen: dat werd een zee van pijltjes.
+    // Verbeteren zie je in het paneel van het gekozen gebouw en in het paneel Verbeteren.
     if (d.conv && b.starved && b.on) {
       c.fillStyle = '#fff';
       c.beginPath();
@@ -144,30 +202,11 @@ export function drawOverlay() {
   }
   for (const f of G.foes) if (f.boss && !f.retreat) bossLabel(f);
   for (const e of G.fx)
-    if (e.type === 'float') {
+    if (e.type === 'float' && !isRoutine(e.txt)) {
       const [sx, sy, sz] = proj(e.x, 0.9 + (e.z || 0) / 40, e.y);
       if (sz < 1) otext(sx, sy, e.txt, e.col, 13, Math.min(1, (e.life / e.max) * 2));
     }
-  if (store.expandMode) {
-    const cc = chunkCost(),
-      ok = has(cc);
-    for (let cy2 = 0; cy2 < CN; cy2++)
-      for (let cx2 = 0; cx2 < CN; cx2++) {
-        if (!canBuyChunk(cx2, cy2)) continue;
-        const [sx, sy, sz] = proj(cx2 * CS + 8, 0, cy2 * CS + 8);
-        if (sz > 1) continue;
-        otext(sx, sy - 6, 'Uitbreiden', ok ? '#f3ead2' : '#ff8a7a', 15);
-        otext(
-          sx,
-          sy + 12,
-          Object.keys(cc)
-            .map(k => `${cc[k]} ${RES[k].n.toLowerCase()}`)
-            .join(' · '),
-          '#d8d0bc',
-          12,
-        );
-      }
-  }
+  if (store.expandMode) expandLabels();
   if (store.raidPing) {
     // Waar de aanval begint; tijdens de finale ook waar de groepen uit de andere richtingen komen (raidPing.more)
     const spots = [[store.raidPing.x, store.raidPing.y], ...(store.raidPing.more || [])];

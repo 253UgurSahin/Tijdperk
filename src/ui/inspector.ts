@@ -9,8 +9,8 @@ import { NODES } from '../data/nodes';
 import { PEOPLE } from '../data/peoples';
 import { GATHER, RES } from '../data/resources';
 import { UNITS } from '../data/units';
-import { avail, computeCaches, powerRatio, siteCnt } from '../game/caches';
-import { gain, has, pay } from '../game/economy';
+import { avail, computeCaches, powerDem, powerRatio, powerSup, siteCnt } from '../game/caches';
+import { gain, has, pay, waitReason } from '../game/economy';
 import { popCap, popNow, trainCost } from '../game/entities';
 import { burst } from '../game/fx';
 import { G, bById, placeName, sel } from '../game/state';
@@ -40,7 +40,7 @@ import { selectArmy, selectIdle } from '../input/input';
 import { CHAPTERS } from '../game/chapters';
 import { iconFor, portrait } from '../render/icons';
 import { bShort } from './buildmenu';
-import { TOUCH, compareHTML, compareText, costHTML, esc, fmt, gem, hy } from './format';
+import { TOUCH, compareHTML, compareText, costHTML, esc, fmt, gem, hy, theAge } from './format';
 import { ico } from './glyphs';
 import { setHTML, sigs } from './header';
 import { setExpand, toast } from './hud';
@@ -119,9 +119,10 @@ export function renderInspector() {
     const idle = G.vs.filter(v => !v.hidden && v.state === 'idle').length;
     const sig =
       'e' + G.people + G.age + popNow() + popCap() + G.us.length + G.unl.filter(Boolean).length + '/' + idle;
-    // Niets geselecteerd: een overzicht van je stad met snelknoppen, zodat het paneel nooit leeg is
+    // Niets geselecteerd: een overzicht van je stad met snelknoppen, zodat het paneel nooit leeg is.
+    // (Inwoners staan al bovenaan, het leger op zijn knop.) De sneltoets staat in de uitleg bij de muis.
     const quick = (k: string, label: string, key: string, n?: number) =>
-      `<button class="quick" data-quick="${k}">${label}${n != null ? `<b>${n}</b>` : ''}${TOUCH ? '' : `<kbd>${key}</kbd>`}</button>`;
+      `<button class="quick" data-quick="${k}" ${TOUCH ? '' : `title="Sneltoets: ${key}"`}>${label}${n ? `<b>${n}</b>` : ''}</button>`;
     // Je volk, met zijn vlag: klik om te zien wat het goed kan
     const folk = PEOPLE[G.people];
     const folkBtn = `<button class="quick folkq" data-quick="people" title="Je volk: wat kan het goed?">${bannerHTML(folk, 'xs')}Volk: ${folk.n}</button>`;
@@ -132,7 +133,6 @@ export function renderInspector() {
       () =>
         `<div class="empty"><div class="selh" style="padding-right:0"><div class="port">${im(iconFor('townhall'))}</div><div><div class="selt">${placeName()}</div><div class="sels">${AGES[G.age].n} · ${AGES[G.age].lvl}</div></div></div>` +
         `<p class="chron">Hoofdstuk ${AGES[G.age].r} · ${CHAPTERS[G.age].t}</p>` +
-        `<div class="stats"><span><i>${ico('⌂')}</i>${popNow()}/${popCap()} inwoners</span><span><i>${ico('⚔')}</i>${G.us.length} soldaten</span><span><i>${ico('◇')}</i>${G.unl.filter(Boolean).length} gebieden</span></div>` +
         `<div class="quicks">${quick('idle', 'Wie doet niets?', 'I', idle)}${G.us.length ? quick('army', 'Hele leger', 'Q', G.us.length) : ''}${quick('home', 'Naar het stamhuis', 'Home')}${folkBtn}</div></div>`,
     );
   }
@@ -222,7 +222,7 @@ export function renderInspector() {
         vs.map(v => v.id + v.job + st(v) + v.carry.amt + Math.round(v.hp)).join() +
         Object.keys(avail).join(),
       () => `${head(im(portrait('v', one ? one.job : 'auto')), one ? esc(one.name) : vs.length + ' dorpelingen', one ? st(one) + (one.carry.amt ? ` · draagt ${one.carry.amt} ${RES[one.carry.res!].n.toLowerCase()}` : '') : 'Groep geselecteerd')}
-      ${one ? hpl(one.hp / one.mhp, `${Math.ceil(one.hp)}/${one.mhp}`) : ''}
+      ${one && one.hp < one.mhp ? hpl(one.hp / one.mhp, `${Math.ceil(one.hp)}/${one.mhp}`) : ''}
       <div class="chips">${jobs
         .map(j => {
           const n = j === 'auto' ? 'Vanzelf' : j === 'build' ? 'Bouwen' : RES[j].n,
@@ -295,18 +295,7 @@ export function renderInspector() {
         on: b.on,
         tip: b.on ? 'Zet dit gebouw uit' : 'Zet dit gebouw aan',
       });
-    if (UPG_OK(b.type)) {
-      const l = lvlOf(b),
-        mx = maxLvl(b);
-      if (l < mx) {
-        const c = upgCost(b);
-        cmd += CB('data-b="upgrade"', '▲', `Verbeter`, {
-          dis: !has(c),
-          cost: costHTML(c, true),
-          tip: `Naar niveau ${l + 2}. ` + compareText(upgradeRows(b)),
-        });
-      }
-    }
+    // (Verbeteren staat niet als tegel bij de opdrachten: daar is de kaart in het selectiepaneel voor.)
     if (b.type === 'townhall') {
       cmd += CB('data-b="train1"', '', `Dorpeling`, {
         img: portrait('v', 'auto'),
@@ -336,7 +325,7 @@ export function renderInspector() {
             dis: lock || !has(U.cost),
             cost: lock ? `<span class="lk">${AGES[U.age].r}</span>` : costHTML(U.cost, true),
             tip: lock
-              ? `Vanaf de ${AGES[U.age].n.toLowerCase()}`
+              ? `Vanaf ${theAge(U.age)}`
               : `${U.hp} leven · ${U.dmg} schade · bereik ${U.r}${U.air ? ' · raakt drones' : ''}${U.bonus ? ' · ' + U.bonus.d : ''}${U.note ? ' · ' + U.note : ''} · ${U.t}s · Shift-klik: 5 tegelijk`,
           });
         })
@@ -387,21 +376,23 @@ export function renderInspector() {
     (siteCnt.get(b.id) || 0) +
     lvlOf(b) +
     powerRatio.toFixed(2) +
+    waitReason(b) +
     (d.wonder ? wonderStatus(b.type).text : '');
   setHTML(p, 'ins', sig, () => {
     const mh = bMaxHp(b);
+    // Het niveau staat in de verbeterkaart hieronder, niet ook nog in de kop
     let h = head(
       im(iconFor(b.type)),
-      d.n + (lvlOf(b) ? ` <span class="lv">niv. ${lvlOf(b) + 1}</span>` : ''),
+      d.n,
       b.done
         ? d.wonder
           ? `Wereldwonder · ${AGES[d.age].n}` // de bonus staat in de kaart eronder
           : esc(bShort(b.type))
-        : 'In aanbouw · ' + Math.floor((b.prog / b.bt) * 100) + '%',
+        : 'In aanbouw',
     );
-    h += b.done
-      ? hpl(b.hp / mh, `${Math.ceil(b.hp)}/${Math.ceil(mh)}`)
-      : hpl(b.prog / b.bt, `${Math.floor((b.prog / b.bt) * 100)}% gebouwd`, 'acc');
+    // Een levensbalk alleen als het gebouw schade heeft: een heel gebouw hoeft geen getallen
+    if (!b.done) h += hpl(b.prog / b.bt, `${Math.floor((b.prog / b.bt) * 100)}% gebouwd`, 'acc');
+    else if (b.hp < mh) h += hpl(b.hp / mh, `${Math.ceil(b.hp)}/${Math.ceil(mh)}`);
     if (!b.done)
       return (
         h +
@@ -409,24 +400,24 @@ export function renderInspector() {
         (d.wonder ? wonderCardHTML(b) : '')
       );
     if (d.wonder) h += wonderCardHTML(b);
-    if (d.conv || d.gen || d.pump) {
-      const stt = !b.on
-        ? 'Uit'
-        : d.conv
-          ? b.starved
-            ? 'Wacht op ' +
-              Object.keys(d.conv.in)
-                .map(r => RES[r].n.toLowerCase())
-                .join(' en ')
-            : 'Produceert'
+    // Werkt het gebouw, of wacht het ergens op? Dan staat er waarom (zie waitReason in game/economy.ts).
+    // Oranje alleen bij een echt probleem. Hoort het stilstaan zo (door jou uitgezet, genoeg op voorraad,
+    // sparen voor het volgende tijdperk, zonnepanelen in het donker of een centrale die nu niet nodig
+    // is), dan rustig grijs.
+    if (d.conv || d.gen || d.pump || d.train) {
+      const why = waitReason(b),
+        busy = d.conv
+          ? 'Produceert'
           : d.gen
             ? d.gen.solar
               ? 'Zonnestroom'
-              : b.run
-                ? 'Levert stroom'
-                : 'Geen brandstof'
-            : 'Pompt';
-      h += `<div class="statline ${b.starved && b.on ? 'warn' : ''}"><i class="dot"></i>${stt}${d.power && powerRatio < 1 ? ` · stroom ${Math.round(powerRatio * 100)}%` : ''}</div>`;
+              : 'Levert stroom'
+            : d.pump
+              ? 'Pompt'
+              : '';
+      const calm = !b.on || !!b.plenty || !!b.saving || (!!d.gen && (!!d.gen.solar || powerSup >= powerDem));
+      if (why || busy)
+        h += `<div class="statline ${why ? (calm ? 'idle' : 'warn') : ''}"><i class="dot"></i>${esc(why || busy)}</div>`;
     }
     if (d.pop) h += `<div class="stats"><span><i>${ico('⌂')}</i>${bPop(b)} inwoners</span></div>`;
     if (d.def)
@@ -435,16 +426,19 @@ export function renderInspector() {
       const l = lvlOf(b),
         top = AGES.length - 1 - B[b.type].age,
         mx = maxLvl(b);
-      // Verbeterkaart: welk niveau, wat het oplevert (nu → straks), wat het kost
-      const pips = `<span class="pips">${Array.from({ length: top + 1 }, (_, i) => `<i class="${i <= l ? 'on' : i <= mx ? 'av' : ''}"></i>`).join('')}</span>`;
+      // Verbeterkaart: welk niveau, het belangrijkste dat beter wordt (nu → straks), wat het kost.
+      // Alles wat beter wordt staat in de uitleg bij de muis.
       if (l < mx) {
-        const c = upgCost(b);
+        const c = upgCost(b),
+          rows = upgradeRows(b);
         // Vooraan zetten: op een breed scherm staat de kaart dan rechts naast de gegevens
         h =
-          `<div class="upcard side"><div class="uph"><b>Verbeteren naar niveau ${l + 2}</b>${pips}</div>${compareHTML(upgradeRows(b))}<div class="upf">${costHTML(c)}<button class="primary" data-b="upgrade" ${has(c) ? '' : 'disabled'}>Verbeteren</button></div></div>` +
+          `<div class="upcard side" title="${esc(compareText(rows))}"><div class="uph"><b>Niveau ${l + 1} → ${l + 2}</b></div>${compareHTML(rows.slice(0, 1))}<div class="upf">${costHTML(c, true)}<button class="primary" data-b="upgrade" ${has(c) ? '' : 'disabled'}>Verbeteren</button></div></div>` +
           h;
-      } else
-        h += `<div class="lvrow">${pips}<span>Niveau ${l + 1} · ${l < top ? 'volgende verbetering in de ' + AGES[Math.min(AGES.length - 1, B[b.type].age + l + 1)].n.toLowerCase() : 'hoogste niveau'}</span></div>`;
+      } else {
+        const next = theAge(Math.min(AGES.length - 1, B[b.type].age + l + 1));
+        h += `<div class="lvrow">Niveau ${l + 1} · ${l < top ? `volgende verbetering in ${next}` : 'hoogste niveau'}</div>`;
+      }
     }
     if (d.market)
       h +=

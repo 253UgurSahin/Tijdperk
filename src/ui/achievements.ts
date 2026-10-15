@@ -38,7 +38,8 @@ const box = document.createElement('div');
 box.id = 'achv';
 box.setAttribute('role', 'status');
 box.setAttribute('aria-live', 'polite');
-$('#notes').prepend(box);
+// Net boven de meldingen: onder een gebeurtenis of aanbod, zodat die niet verspringen (zie index.html)
+$('#toast').before(box);
 
 /** Laat een behaalde prestatie zien. `people` is het volk dat je ermee vrijspeelt (of niets). */
 export function showAchievement(a: AchievementDef, people?: PeopleDef) {

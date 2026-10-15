@@ -355,6 +355,18 @@ export const FOES: FoeDef[] = [
 ];
 
 /**
+ * Hoeveel voedsel een soldaat per minuut eet. Soldaten uit latere tijdperken eten meer; zware eenheden met
+ * pantser (zoals tanks en mechs) de helft extra, en ruiters een kwart extra (het paard eet mee).
+ * Zo eet een leger van 30 in de Industriële tijd ±300 per minuut: ongeveer een vijfde van wat
+ * 15 boeren dan oogsten.
+ */
+export function foodUpkeep(unit: UnitDef): number {
+  const perMinute = 4 + 1.2 * unit.age;
+  const heavy = unit.big ? 1.5 : unit.ride ? 1.25 : 1;
+  return perMinute * heavy;
+}
+
+/**
  * Wat bonusMul van een doel wil weten: de soort (`kind`), en of het een ruiter (ride), gepantserd (big),
  * een vlieger (air) of een schutter (proj) is.
  */

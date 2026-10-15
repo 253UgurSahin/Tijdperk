@@ -8,7 +8,7 @@ import { th } from '../game/events';
 import { isMarching, isRaider } from '../game/military';
 import { buildCost, lackText } from '../game/placement';
 import { G, bById, sel } from '../game/state';
-import { selectArmy, selectIdle, zoomTo } from '../input/input';
+import { selectIdle, zoomTo } from '../input/input';
 import { clearSel } from '../input/selection';
 import { centerOn } from '../render/camera';
 import { cam } from '../render/scene';
@@ -19,9 +19,9 @@ import { $, isCompact } from '../util/dom';
 import { dist } from '../util/math';
 import { togglePanel } from './panel';
 import { ico } from './glyphs';
+import { shortToast } from './toasttext';
 
-export let lastSpeed = 1,
-  toastTimer = 0;
+export let lastSpeed = 1;
 export function note(text: string, kind = '') {
   if (!G) return;
   G.log.unshift({
@@ -36,14 +36,65 @@ export function note(text: string, kind = '') {
   G.log.length = Math.min(G.log.length, 40);
   store.uiDirty = true;
 }
+// Meldingen bovenin: hooguit twee tegelijk, en op een telefoon of naast een ander kaartje maar één (zie
+// fitToasts). Komt dezelfde melding nog eens, dan telt hij op ("2× ...") in plaats van een nieuwe strook.
+// Na een paar tellen zijn ze weg; alles blijft in het Logboek staan.
+const MAX_TOASTS = 2;
+/** Hoe lang een melding blijft staan (in ms): slecht nieuws en een nieuw tijdperk het langst. */
+const toastTime = (kind: string): number => (kind === 'bad' || kind === 'age' ? 6000 : kind ? 4000 : 3500);
+/** Eén melding in beeld: de korte tekst, de soort, hoe vaak hij kwam, en de klok die hem weer weghaalt. */
+interface ShownToast {
+  el: HTMLElement;
+  text: string;
+  kind: string;
+  count: number;
+  timer: number;
+}
+/** De meldingen in beeld, de oudste eerst (net als op het scherm: de nieuwste staat onderaan). */
+const shownToasts: ShownToast[] = [];
+function dropToast(shown: ShownToast) {
+  clearTimeout(shown.timer);
+  shown.el.remove();
+  const i = shownToasts.indexOf(shown);
+  if (i >= 0) shownToasts.splice(i, 1);
+}
+function newToast(text: string): ShownToast {
+  const shown: ShownToast = { el: document.createElement('div'), text, kind: '', count: 0, timer: 0 };
+  shown.el.addEventListener('click', () => dropToast(shown)); // tik erop: meteen weg
+  return shown;
+}
 export function toast(msg: string, kind = '') {
   if (kind === 'bad') sfx('bad', 0.6);
-  const t = $('#toast');
-  t.textContent = msg;
-  t.className = 'show ' + kind;
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => (t.className = kind), kind === 'bad' ? 5200 : 3400);
   note(msg, kind);
+  // In beeld alleen de eerste zin; de hele tekst staat in het Logboek (en bij de muis)
+  const text = shortToast(msg);
+  const shown = shownToasts.find(s => s.text === text) || newToast(text);
+  shown.count++;
+  shown.kind = kind;
+  shown.el.className = 'tst ' + kind;
+  shown.el.textContent = (shown.count > 1 ? shown.count + '× ' : '') + text;
+  shown.el.title = text === msg ? '' : msg;
+  clearTimeout(shown.timer);
+  shown.timer = setTimeout(() => dropToast(shown), toastTime(kind));
+  // De nieuwste melding (ook een die nog eens kwam) staat onderaan
+  const i = shownToasts.indexOf(shown);
+  if (i >= 0) shownToasts.splice(i, 1);
+  shownToasts.push(shown);
+  $('#toast').append(shown.el);
+  fitToasts();
+}
+/** Ligt er al een ander kaartje boven in beeld: een prestatie, een gebeurtenis of een aanbod? */
+const otherCardShown = (): boolean =>
+  !!document.querySelector('#achv .achpop, #event:not([hidden]), #offer:not([hidden])');
+/**
+ * Niet te veel meldingen tegelijk: twee, of één op een telefoon en naast een ander kaartje. Te veel? Dan
+ * gaat de oudste weg, maar slecht nieuws (zoals een aanval) blijft zo lang mogelijk staan.
+ * (Ook elke verversing, want een kaartje kan later nog verschijnen.)
+ */
+export function fitToasts() {
+  const room = isCompact() || otherCardShown() ? 1 : MAX_TOASTS;
+  while (shownToasts.length > room)
+    dropToast(shownToasts.find(s => s.kind !== 'bad' && s.kind !== 'age') || shownToasts[0]);
 }
 let bannerTimer = 0;
 /** Een grote kaart midden in beeld (een nieuw tijdperk, de finale). Na `ms` milliseconden is hij weer weg. */
@@ -54,13 +105,11 @@ export function showBanner(html: string, ms = 4500) {
   clearTimeout(bannerTimer);
   bannerTimer = setTimeout(() => (banner.hidden = true), ms);
 }
-export function pulseRes(k: string) {
-  const el = document.querySelector(`#resbar .res[data-k="${k}"]`);
-  if (el) {
-    el.classList.add('pulse');
-    setTimeout(() => el.classList.remove('pulse'), 400);
-  }
-}
+/**
+ * Er komt een grondstof binnen. De strook bovenaan knippert daar niet meer bij (bij elke levering was dat
+ * te onrustig); het nieuwe getal staat er vanzelf.
+ */
+export function pulseRes(_k: string) {}
 export function setSpeed(s: number) {
   if (s) lastSpeed = s;
   G.speed = s;
@@ -125,26 +174,30 @@ $('#cancelBtn').onclick = () => {
   clearSel();
   store.uiDirty = true;
 };
-// Op een telefoon: tik op de "volgende stap" om de uitleg en het tijdperk-doel te zien
+// De volgende stap staat er in één regel. Klik erop: op de computer klapt de uitleg open, op een
+// telefoon opent het doel met alles erover.
+function setStepOpen(open: boolean) {
+  $('#objectives').classList.toggle('stepopen', open);
+  $('#stepTxt').setAttribute('aria-expanded', String(open));
+  $('#stepTxt .caret').innerHTML = ico(open ? '⌃' : '⌄');
+}
+setStepOpen(false);
 $('#step').addEventListener('click', e => {
-  if (isCompact() && !(e.target as HTMLElement).closest('button')) togglePanel('goal');
+  const onTitle = (e.target as HTMLElement).closest('#stepTxt');
+  if (onTitle) sfx('tick');
+  if (isCompact()) {
+    if (onTitle || !(e.target as HTMLElement).closest('button')) togglePanel('goal');
+  } else if (onTitle) setStepOpen(!$('#objectives').classList.contains('stepopen'));
 });
-// Snelknoppen naast het inwonertal
+// Snelknop naast het inwonertal: alleen als er dorpelingen zonder werk zijn. (Het hele leger kiezen kan
+// met Q, in het paneel Leger of in het overzicht onderin.)
 export function renderQuick() {
   const idle = G.vs.filter(v => !v.hidden && v.state === 'idle').length,
     showIdle = idle >= 2 && G.t > 60;
-  const sig = [showIdle && idle, G.us.length].join();
-  setHTML(
-    $('#quick'),
-    'quick',
-    sig,
-    () =>
-      (showIdle
-        ? `<button class="pbtn" data-q="idle" title="Selecteer dorpelingen zonder werk (sneltoets I)"><i>${ico('☺')}</i>${idle}</button>`
-        : '') +
-      (G.us.length
-        ? `<button class="pbtn" data-q="army" title="Selecteer het hele leger (sneltoets Q)"><i>${ico('⚔')}</i>${G.us.length}</button>`
-        : ''),
+  setHTML($('#quick'), 'quick', String(showIdle && idle), () =>
+    showIdle
+      ? `<button class="pbtn" data-q="idle" title="${idle} dorpelingen zonder werk: klik om ze te kiezen (sneltoets I)"><i>${ico('☺')}</i>${idle}</button>`
+      : '',
   );
 }
 $('#quick').addEventListener('click', e => {
@@ -152,6 +205,5 @@ $('#quick').addEventListener('click', e => {
   if (!t) return;
   sfx('tick');
   if (t.dataset.q === 'idle') selectIdle();
-  else if (t.dataset.q === 'army') selectArmy();
   store.uiDirty = true;
 });

@@ -3,7 +3,7 @@ import type { Bonus, Cost, ScenarioState } from '../types';
 import { DAYLEN } from '../config';
 import { AGES } from './ages';
 import { B } from './buildings';
-import { DEFAULT_MAP, MAPS } from './maps';
+import { DEFAULT_MAP, MAPS, NORMAL_SIZE } from './maps';
 import { MODIFIERS, cleanMods } from './modifiers';
 import type { ModifierDef } from './modifiers';
 import { DEFAULT_PEOPLE, PEOPLES } from './peoples';
@@ -528,6 +528,8 @@ export function startOptions(s: ScenarioDef, people = DEFAULT_PEOPLE) {
     people: s.people || people,
     diff: s.diff,
     map: s.map,
+    // Altijd de gewone kaartgrootte: de tijden en medailles zijn daarop afgesteld
+    size: NORMAL_SIZE,
     mods: cleanMods(s.modifiers),
     scenario: { k: s.k, date: s.date || '' },
   };

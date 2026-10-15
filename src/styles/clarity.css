@@ -57,59 +57,24 @@
   font-weight: 600;
 }
 
-/* Paneel Verbeteren: blokken met kop, uitleg, vergelijking en knop */
-.ublock {
-  margin: 0 0 10px;
-  padding: 10px 12px;
-  border: 1px solid var(--rule-2);
-  border-radius: 12px;
-  background: var(--paper-hi);
-}
-.ublock.can {
-  border-color: var(--acc-edge);
-  box-shadow: inset 3px 0 0 var(--acc);
-}
-.ublock .ut {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 8px;
-}
-.ublock .ut b {
-  font: 600 15px var(--f-display);
-}
-.ublock .ut span {
-  font: 500 12px var(--f-mono);
-  color: var(--ink-3);
-}
-.ublock p {
-  margin: 2px 0 6px;
-  font-size: 12.5px;
-  color: var(--ink-3);
-}
-.ublock .upf .primary:disabled {
-  opacity: 0.5;
-}
-.ublock .why {
-  font-size: 12px;
-  color: var(--ink-3);
-}
-/* Lijst van gebouwen die je kunt verbeteren */
+/* Paneel Verbeteren: één regel per ding (een knop), met rechts de kosten op één rij */
 .ulist {
   display: grid;
-  gap: 6px;
+  gap: 4px;
 }
 .urow {
   display: grid;
-  grid-template-columns: 30px 1fr auto;
+  grid-template-columns: 28px minmax(0, 1fr) auto;
   align-items: center;
   gap: 8px;
-  padding: 6px 8px;
+  width: 100%;
+  min-height: 40px;
+  padding: 5px 8px;
   border: 1px solid var(--rule);
   border-radius: 10px;
-  background: var(--paper);
+  background: var(--paper-hi);
+  box-shadow: none;
   text-align: left;
-  cursor: pointer;
   font: inherit;
   color: inherit;
 }
@@ -117,29 +82,85 @@
   border-color: var(--acc-edge);
 }
 .urow:disabled {
-  opacity: 0.55;
+  opacity: 1;
+  background: transparent;
   cursor: default;
 }
-.urow img {
-  width: 30px;
-  height: 30px;
+.urow:disabled .un b {
+  color: var(--ink-3);
 }
-.urow b {
+.urow img {
+  width: 28px;
+  height: 28px;
+}
+/* Pictogram in een rond vakje (werktuigen, wapens, uitvindingen) */
+.urow .ug {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: var(--well);
+  color: var(--acc-ink);
+}
+.urow .ug .ico {
+  width: 16px;
+  height: 16px;
+}
+.urow .un {
+  min-width: 0;
+}
+.urow .un b {
   display: block;
   font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
-.urow small {
+.urow .un small {
   display: block;
   font-size: 11.5px;
-  color: var(--good);
+  color: var(--ink-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .urow .cost {
+  flex-wrap: nowrap;
   justify-content: flex-end;
 }
+/* Een uitvinding die nu onderzocht wordt: een balkje in plaats van de kosten */
+.urow.busy {
+  border-color: var(--acc-edge);
+}
+.urow.busy .bar {
+  display: block;
+  height: 5px;
+  margin-top: 4px;
+}
+.urow .state {
+  font-size: 11.5px;
+  color: var(--acc-ink);
+  font-weight: 600;
+}
 .usub {
-  margin: 14px 0 6px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 12px 0 5px;
   font: italic 600 14px var(--f-display);
   color: var(--acc-ink);
+}
+.usub button {
+  min-height: 26px;
+  padding: 2px 8px;
+  font: 600 12px var(--f-body);
+  color: var(--acc-ink);
+}
+#upgrades .small {
+  margin-top: 6px;
 }
 
 /*
@@ -152,74 +173,13 @@
 @media (min-width: 901px) and (min-height: 561px) {
   :root {
     --resw: 0px;
-    --toph: 58px; /* hoogte van de grondstoffenstrook */
+    --toph: 44px; /* hoogte van de grondstoffenstrook */
   }
   #resPanel {
+    left: var(--edge);
     top: 8px;
-    bottom: auto;
-    width: auto;
     height: var(--toph);
     max-width: calc(100% - 2 * var(--edge) - var(--agew, 470px) - 110px);
-    flex-direction: row;
-    align-items: center;
-    gap: 6px;
-    padding: 6px 8px;
-  }
-  /* Inwoners, stroom en de snelknoppen in twee rijen; komt er meer bij, dan komt er een kolom bij */
-  .poprow {
-    display: grid;
-    grid-template-rows: repeat(2, auto);
-    grid-auto-flow: column;
-    align-content: center;
-    align-items: stretch;
-    gap: 3px;
-    border: 0;
-    border-right: 1px dashed var(--rule-2);
-    margin: 0;
-    padding: 0 8px 0 0;
-  }
-  #quick {
-    display: contents;
-  }
-  .poprow .pstat,
-  .poprow .pbtn {
-    min-height: 21px;
-    padding: 0 8px;
-    font-size: 12px;
-  }
-  #resbar {
-    flex-direction: row;
-    flex-wrap: nowrap;
-    gap: 4px;
-    flex: 1;
-    min-width: 0;
-    height: 100%;
-    align-items: stretch;
-  }
-  .res {
-    grid-template-columns: 14px auto auto;
-    padding: 2px 6px 2px 9px;
-    min-height: 0;
-    border-radius: 12px;
-  }
-  .res > div {
-    display: flex;
-    flex-direction: column;
-    line-height: 1.05;
-  }
-  .res small {
-    margin: 1px 0 0;
-    font-size: 11px;
-    white-space: nowrap;
-  }
-  #resMore {
-    align-self: center;
-    margin: 0;
-    padding: 4px 9px;
-  }
-  #resPop {
-    top: calc(8px + var(--toph) + 8px);
-    bottom: auto;
   }
   /* Tijd en tijdperk rechtsboven, naast het menu */
   #ageplate {
@@ -235,11 +195,6 @@
   /* Onderbalk over de volle breedte: selectie · opdrachten · kaart */
   #bar {
     left: var(--edge);
-  }
-}
-@media (min-width: 901px) and (max-width: 1240px) and (min-height: 561px) {
-  .res small {
-    display: none;
   }
 }
 
@@ -259,5 +214,15 @@
     float: right;
     width: min(340px, 48%);
     margin: 22px 0 8px 14px; /* onder het sluitkruisje */
+  }
+}
+/* Anders eronder: eerst het gebouw zelf (plaatje en naam), dan wat verbeteren oplevert */
+@media (max-width: 1099px), (max-height: 560px) {
+  #inspector:has(> .upcard) {
+    display: flex;
+    flex-direction: column;
+  }
+  #inspector > .upcard {
+    order: 1;
   }
 }

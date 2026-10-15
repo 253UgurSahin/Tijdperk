@@ -6,7 +6,7 @@ import { G } from '../game/state';
 import { chargeFrac } from '../data/finale';
 import { isCharging } from '../game/finale';
 import { season } from '../game/time';
-import { camDist } from './camera';
+import { camDist, isFar } from './camera';
 import { GLOWS, glow } from './decals';
 import { GLASS, WIN } from './kit';
 import { FOL } from './nodes';
@@ -40,6 +40,8 @@ const AGE_MOOD = (
     ['#e2e4ff', '#9ea4c8', 0.4],
   ] as ([string, string, number] | null)[]
 ).map((m): [T3.Color, T3.Color, number] | null => m && [new T3.Color(m[0]), new T3.Color(m[1]), m[2]]);
+// Zoveel lichtvlekken van lampen op de grond hooguit (de dichtstbijzijnde)
+const MAX_GLOWS = 96;
 const moodSun = new T3.Color('#ffffff'),
   moodFog = new T3.Color('#9fb3a6'),
   wantSun = new T3.Color(),
@@ -131,20 +133,25 @@ export function lighting(dk: number) {
   (S3.background as T3.Color).copy(fogNow);
   WIN.emissiveIntensity = GLASS.emissiveIntensity = dk * 1.3;
   setBloomDarkness(dk);
+  // Lampen rond het beeld, de dichtstbijzijnde eerst. Elk krijgt een lichtvlek op de grond (hooguit MAX_GLOWS:
+  // ver uitgezoomd zijn het er soms heel veel) en de dichtstbijzijnde zes ook echt licht.
   const all = lights.filter(L => dist(L.x, L.y, cam.x, cam.y) < camDist() * 1.2);
+  all.sort((a, b) => dist(a.x, a.y, cam.x, cam.y) - dist(b.x, b.y, cam.x, cam.y));
   let gi = 0;
   for (const L of all) {
-    if (dk < 0.05) break;
+    if (dk < 0.05 || gi >= MAX_GLOWS) break;
     const m = glow(gi++, L.warm);
     m.position.set(L.x, 0.04, L.y);
     m.scale.setScalar(L.r);
     m.material.color.setScalar(dk * (L.warm ? 0.42 : 0.32));
   }
   for (let i = gi; i < GLOWS.length; i++) GLOWS[i].visible = false;
-  all.sort((a, b) => dist(a.x, a.y, cam.x, cam.y) - dist(b.x, b.y, cam.x, cam.y));
+  // Ver uitgezoomd geen echte lampen: die zouden maar een paar plekjes midden in beeld verlichten,
+  // en alle andere lampen niet. De lichtvlekken op de grond zijn dan genoeg.
+  const far = isFar();
   PL.forEach((p, i) => {
     const L = all[i];
-    if (!L || dk < 0.05) {
+    if (!L || dk < 0.05 || far) {
       p.intensity = 0;
       return;
     }

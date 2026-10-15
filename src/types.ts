@@ -185,6 +185,10 @@ export interface Building extends Hittable {
   blocked?: boolean;
   rally?: { x: number; y: number } | null;
   aim?: number;
+  /** Een fabriek of pomp pauzeert vanzelf: er is genoeg van wat hij maakt (zie game/caches.ts). Niet bewaard. */
+  plenty?: boolean;
+  /** De grondstof die een fabriek bewaart voor het volgende tijdperk, of leeg (zie game/buildings.ts). */
+  saving?: string;
 }
 
 export type VTarget = { k: 'node'; i: number } | { k: 'farm'; b: Building } | { k: 'site'; b: Building };
@@ -560,6 +564,8 @@ export interface GameOpts {
   /** Manieren om te winnen (sleutels uit data/victories.ts). */
   victories: string[];
   rivals: number;
+  /** Kaartgrootte: n bij n tegels (zie MAP_SIZES in data/maps.ts). */
+  size: number;
 }
 
 /**
@@ -573,6 +579,8 @@ export interface NewGameOptions {
   map?: string;
   victories?: string[];
   rivals?: number;
+  /** Kaartgrootte (zie MAP_SIZES in data/maps.ts); zonder keuze de gewone grootte. */
+  size?: number;
   /** Spelregels (sleutels uit data/modifiers.ts); komen van de uitdaging. */
   mods?: string[];
   /** De uitdaging: sleutel, en bij de wereld van de dag de datum. */
@@ -752,7 +760,10 @@ export interface GameState {
   wonBy: string;
   over: boolean;
   bought: number;
+  /** Geen voedsel: je volk werkt half zo snel en je leger vecht slechter (zie update in game/update.ts). */
   hungry: boolean;
+  /** De speler kreeg al de melding dat er geen voedsel is; de volgende komt pas als er weer genoeg is. */
+  hungerTold?: boolean;
   stats: Stats;
   /** Prestaties die je in dít spel voor het eerst haalde. */
   achieved: string[];

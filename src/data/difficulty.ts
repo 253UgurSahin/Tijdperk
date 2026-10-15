@@ -7,6 +7,7 @@ import type { Cost } from '../types';
  * - peaceful: geen aanvallen (de vredige modus staat meteen aan)
  * - everyNight: elke nacht een aanval in plaats van om de nacht
  * - raidSize: het aantal aanvallers gaat keer dit getal; raidMax: nooit meer aanvallers dan dit
+ *   (behalve bij een heel sterk leger: dan hoogstens ±1,6 keer zoveel, zie raidMatch hieronder)
  * - raidHp: aanvallers hebben zoveel keer meer levens
  * - start: grondstoffen bij het begin (je volk kan daar nog wat bij geven)
  * - score: je eindscore gaat keer dit getal
@@ -83,3 +84,36 @@ export const cleanDiff = (d: unknown): number =>
 
 /** De moeilijkheid bij een nummer (met Normaal als het nummer niet bestaat). */
 export const difficulty = (d: unknown): DifficultyDef => DIFFICULTIES[cleanDiff(d)];
+
+/*
+ * Aanvallen passen zich aan bij je leger. NORMAL_POWER is hoe sterk een gewoon leger met torens is in elk
+ * tijdperk, geteld zoals armyPower in data/rivals.ts (ongeveer: het stamhuis, een paar torens en
+ * 4 + 3 × tijdperk soldaten van dat tijdperk). Ben je sterker dan normaal, dan komen er meer en taaiere
+ * aanvallers; ben je zwakker, dan iets minder. Nooit lichter dan 0,75 en nooit zwaarder dan 2,5 keer.
+ */
+export const NORMAL_POWER: number[] = [200, 420, 800, 1250, 1400, 1700, 3000, 5500, 8500];
+export const RAID_MATCH_MIN = 0.75;
+export const RAID_MATCH_MAX = 2.5;
+/** De eerste aanval blijft zoals hij was; daarna past het zich in zoveel aanvallen helemaal aan. */
+export const RAID_MATCH_RAMP = 4;
+
+/** Hoeveel keer zoveel aanvallers er komen, en hoeveel keer zoveel leven elke aanvaller heeft. */
+export interface RaidMatch {
+  size: number;
+  hp: number;
+}
+
+/**
+ * Hoe zwaar een aanval wordt, vergeleken met je leger. `power`: de sterkte van je leger en torens
+ * (zie yourPower in game/diplomacy.ts) · `age`: je tijdperk · `raids`: de hoeveelste aanval dit is.
+ * Het verschil gaat half naar meer aanvallers en half naar meer leven (beide de wortel), zodat de hele
+ * aanval ongeveer zoveel sterker wordt als jouw leger sterker is dan normaal.
+ */
+export function raidMatch(power: number, age: number, raids: number): RaidMatch {
+  const normal = NORMAL_POWER[Math.max(0, Math.min(NORMAL_POWER.length - 1, age))];
+  const strength = Math.max(RAID_MATCH_MIN, Math.min(RAID_MATCH_MAX, power / normal));
+  // De eerste aanvallen van een spel blijven (bijna) zoals ze waren
+  const ramp = Math.max(0, Math.min(1, (raids - 1) / RAID_MATCH_RAMP));
+  const factor = 1 + (strength - 1) * ramp;
+  return { size: Math.sqrt(factor), hp: Math.sqrt(factor) };
+}

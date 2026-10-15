@@ -2,12 +2,12 @@ import type { Building, Foe, Tile, VTarget, Villager } from '../types';
 // Het brein van de dorpelingen: kiezen wat ze doen, verzamelen, bouwen, schuilen.
 import { sfx } from '../audio/sound';
 import { W } from '../config';
-import { AGE_UP } from '../data/ages';
 import { B } from '../data/buildings';
+import { gatherPull } from '../data/economy';
 import { NI, NODES, RES_NODES } from '../data/nodes';
 import { BASEW, GATHER, HARD, RES } from '../data/resources';
 import { wonderBuildRate } from '../data/wonders';
-import { avail, demand, farmCnt, litAt, siteCnt, wr } from './caches';
+import { avail, farmCnt, litAt, siteCnt, wanted, wr } from './caches';
 import { completeBuilding } from './entities';
 import { chips, floater } from './fx';
 import { G, bById } from './state';
@@ -189,18 +189,20 @@ function pickTarget(v: Villager, res: string, night: boolean): VTarget | null {
   }
   return best;
 }
+// Wat een dorpeling op 'auto' gaat halen, het belangrijkste eerst. Elke grondstof heeft een gewenste
+// voorraad (zie wanted in game/caches.ts): wat eronder zit, trekt meer naarmate het tekort groter is, en wat
+// er ver boven zit bijna niet (zie gatherPull in data/economy.ts). Wie er al op werkt, telt mee: zo verdelen
+// ze zich.
 function autoOrder() {
-  const nx = AGE_UP[G.age + 1],
-    arr: [number, string][] = [];
+  const arr: [number, string][] = [];
+  const load = carryMax();
   for (const r of GATHER) {
     if (!avail[r]) continue;
-    let w = BASEW[r];
-    const st = G.res[r];
-    let need = (nx && nx.cost[r]) || 0;
-    if (demand[r]) need = Math.max(need, st + 150);
-    if (need > st) w *= 1 + Math.min(2, ((need - st) / Math.max(need, 1)) * 2.2);
-    if (r === 'food' && st < 60) w *= 2;
-    arr.push([w / (1 + st / 260) / (1 + (wr[r] || 0) * 0.5), r]);
+    const working = wr[r] || 0;
+    // Wat al onderweg is (ongeveer een volle lading per dorpeling) telt mee: zo gaan er niet te veel heen
+    const expected = G.res[r] + working * load;
+    const pull = gatherPull(expected, wanted[r] || 0, BASEW[r]);
+    arr.push([pull / (1 + working * 0.5), r]);
   }
   arr.sort((a, b) => b[0] - a[0]);
   return arr.map(a => a[1]);

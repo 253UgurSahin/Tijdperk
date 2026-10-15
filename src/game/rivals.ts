@@ -12,7 +12,7 @@ import type {
 } from '../types';
 import { store } from '../core/store';
 import { sfx } from '../audio/sound';
-import { CN, CS, DAYLEN, H, W } from '../config';
+import { CN, CS, DAYLEN, H, W, onMapSize } from '../config';
 import { AGES } from '../data/ages';
 import { B } from '../data/buildings';
 import { cleanDiplomacy, diplomacyStart } from '../data/diplomacy';
@@ -107,12 +107,14 @@ export interface SavedRival extends Omit<Rival, 'bs'> {
 
 // Rivaalgebouwen op nummer (voor aanklikken en de minikaart). Ze staan niet in G.bs: dat zijn alleen de jouwe.
 export const rbById = new Map<number, RivalBuilding>();
-// Van wie is elk gebied? 0 = van niemand (of van jou, zie G.unl), anders het nummer van een rivaal
-const owner = new Uint8Array(CN * CN);
+// Van wie is elk gebied? 0 = van niemand (of van jou, zie G.unl), anders het nummer van een rivaal.
+// Een andere kaartgrootte heeft meer of minder gebieden: dan begint de tabel opnieuw.
+let owner = new Uint8Array(CN * CN);
+onMapSize(() => (owner = new Uint8Array(CN * CN)));
 // Zo lang een aanval duurt (speltijd) voordat de overlevenden naar huis gaan
 const RAID_TIME = DAYLEN * 0.35;
 // Lange routes (van hun stad naar de jouwe) mogen de hele kaart doorzoeken
-const LONG_SEARCH = W * H;
+const longSearch = () => W * H;
 let secondTimer = 0;
 
 // ---- Opzoeken ----
@@ -542,8 +544,8 @@ function marchGoal(): { x: number; y: number } | null {
 // Een route over de hele kaart. Eerst om muren heen; lukt dat niet, dan dwars over alle begaanbare grond.
 function routeTo(x: number, y: number, tx: number, ty: number): Path | null {
   return (
-    findPath(x | 0, y | 0, tx | 0, ty | 0, 2, LONG_SEARCH) ||
-    findPath(x | 0, y | 0, tx | 0, ty | 0, 3, LONG_SEARCH)
+    findPath(x | 0, y | 0, tx | 0, ty | 0, 2, longSearch()) ||
+    findPath(x | 0, y | 0, tx | 0, ty | 0, 3, longSearch())
   );
 }
 

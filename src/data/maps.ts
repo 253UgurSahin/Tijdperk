@@ -1,4 +1,5 @@
-// De kaartsoorten waaruit je kiest bij een nieuwe wereld, met de knoppen voor de wereldgenerator. Puur.
+// De kaartsoorten en kaartgroottes waaruit je kiest bij een nieuwe wereld, met de knoppen voor de
+// wereldgenerator. Puur.
 
 /*
  * Elke kaartsoort:
@@ -76,3 +77,30 @@ export const DEFAULT_MAP = 'continent';
 
 /** Een bestaande kaartsleutel, of de standaardkaart als de sleutel niet (meer) bestaat of ontbreekt (''). */
 export const cleanMap = (k = ''): string => (MAP[k] ? k : DEFAULT_MAP);
+
+/** Een kaartgrootte waaruit je kiest: n bij n tegels, met een naam en een korte uitleg. */
+export interface MapSizeDef {
+  n: number;
+  name: string;
+  d: string;
+}
+
+// De grootte wordt opgeslagen (als getal). Zelfde zaadcode, kaartsoort en grootte = dezelfde wereld.
+export const MAP_SIZES: MapSizeDef[] = [
+  { n: 256, name: 'Normaal', d: 'De gewone wereld' },
+  { n: 384, name: 'Groot', d: 'Meer ruimte, meer kampen en grondstoffen' },
+  { n: 512, name: 'Enorm', d: 'Heel veel ruimte, voor een lang spel' },
+];
+
+/** De gewone grootte: oude opslag, uitdagingen en de wereld van de dag (hun tijden zijn daarop afgesteld). */
+export const NORMAL_SIZE = 256;
+
+/** Waarmee een nieuwe vrije wereld begint op het nieuw-spelscherm. */
+export const DEFAULT_SIZE = 384;
+
+/** Een bestaande kaartgrootte, of de gewone grootte als die ontbreekt of niet (meer) bestaat. */
+export const cleanMapSize = (n: unknown): number =>
+  typeof n === 'number' && MAP_SIZES.some(s => s.n === n) ? n : NORMAL_SIZE;
+
+/** De naam van een kaartgrootte, zoals "Groot". */
+export const mapSizeName = (n: number): string => (MAP_SIZES.find(s => s.n === n) || MAP_SIZES[0]).name;

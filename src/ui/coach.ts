@@ -1,9 +1,12 @@
 import type { AgeUpDef, CoachAct, Foe } from '../types';
 // De "coach": kiest steeds één duidelijke volgende stap voor de speler.
-import { AGES, AGE_UP } from '../data/ages';
+import { AGE_UP } from '../data/ages';
 import { B, BKEYS } from '../data/buildings';
 import { GATHER, RES } from '../data/resources';
+import { CN } from '../config';
 import { avail } from '../game/caches';
+import { missingResources } from '../game/economy';
+import { canBuyChunk } from '../game/placement';
 import { built } from '../game/chapters';
 import { popCap, popNow } from '../game/entities';
 import { compass, isMarching, isRaider } from '../game/military';
@@ -12,7 +15,7 @@ import { RIVAL, verb } from '../data/rivals';
 import { ruleAllowsBuilding } from '../game/mods';
 import { G } from '../game/state';
 import { hoursUntilRaid, isNight } from '../game/time';
-import { fmt } from './format';
+import { fmt, theAge } from './format';
 import { VICTORY } from '../data/victories';
 import { victoryGoals } from '../game/victory';
 import { canMake } from '../data/succession';
@@ -38,7 +41,24 @@ export function lackList(nx: AgeUpDef): string[] {
 export const andJoin = (a: string[]): string =>
   a.length > 2 ? a.slice(0, 2).join(', ') + ' en meer' : a.length === 2 ? a[0] + ' en ' + a[1] : a[0] || '';
 const bAct = (k: string): CoachAct => ({ l: 'Bouw ' + B[k].n.toLowerCase(), b: k });
-const expandAct = (r: string): CoachAct => ({ l: 'Gebied uitbreiden', k: 'expand', r });
+const expandAct = (r: string): CoachAct => ({ l: 'Uitbreiden', k: 'expand', r });
+
+// Is er iets op in je gebied dat je nodig hebt (zie missingResources in game/economy.ts)? Dan uitbreiden,
+// tenminste als er nog land te koop is.
+function goneStep(): CoachStep | null {
+  const gone = missingResources();
+  if (!gone.length) return null;
+  let canGrow = false;
+  for (let cy = 0; cy < CN && !canGrow; cy++)
+    for (let cx = 0; cx < CN && !canGrow; cx++) canGrow = canBuyChunk(cx, cy);
+  if (!canGrow) return null;
+  const names = andJoin(gone.map(k => RES[k].n.toLowerCase()));
+  return {
+    t: 'Breid je gebied uit.',
+    h: `Er is geen ${names} meer in je gebied, en je hebt het nodig. Verderop ligt meer.`,
+    act: expandAct(gone[0]),
+  };
+}
 
 /** Eén stap van de coach: titel, uitleg, eventueel een gebouw om aan te wijzen, een knop en alarm. */
 interface CoachStep {
@@ -124,7 +144,7 @@ function finaleRaidStep(raid: number, boss: Foe | null): CoachStep {
 }
 export function coach(): CoachStep {
   const nx = AGE_UP[G.age + 1],
-    NA = nx && AGES[G.age + 1].n.toLowerCase(),
+    NA = nx ? theAge(G.age + 1) : '', // met lidwoord: "de bronstijd", "het dronetijdperk"
     pn = popNow(),
     cap = popCap();
   const raid = G.foes.filter(isRaider).length;
@@ -218,6 +238,8 @@ export function coach(): CoachStep {
         act: bAct('barracks'),
       };
   }
+  const gone = goneStep();
+  if (gone) return gone;
   if (!nx) return lastAgeStep();
   for (const n of nx.need)
     if (!placed(n)) {
@@ -230,7 +252,7 @@ export function coach(): CoachStep {
       }
       return {
         t: `Bouw een ${B[n].n.toLowerCase()}.`,
-        h: `Nodig voor de ${NA}.${B[n].desc ? ' ' + B[n].desc : ''}`,
+        h: `Nodig voor ${NA}.${B[n].desc ? ' ' + B[n].desc : ''}`,
         tile: n,
         act: bAct(n),
       };
@@ -239,14 +261,14 @@ export function coach(): CoachStep {
     const h = bestHouse();
     return {
       t: `Bouw een ${B[h].n.toLowerCase()}.`,
-      h: `Er is geen plek voor meer inwoners (${pn}/${cap}). De ${NA} vraagt er ${nx.pop}.`,
+      h: `Er is geen plek voor meer inwoners (${pn}/${cap}). Voor ${NA} heb je er ${nx.pop} nodig.`,
       tile: h,
       act: bAct(h),
     };
   }
   for (const k in nx.cost) {
     if (G.res[k] >= nx.cost[k]) continue;
-    const step = sourceStep(k, fmt(Math.ceil(nx.cost[k] - G.res[k])), `de ${NA}`);
+    const step = sourceStep(k, fmt(Math.ceil(nx.cost[k] - G.res[k])), NA);
     if (step) return step;
   }
   if (pn < nx.pop)
@@ -259,13 +281,13 @@ export function coach(): CoachStep {
   const miss = lackList(nx);
   if (miss.length)
     return {
-      t: `Op weg naar de ${NA}.`,
+      t: `Op weg naar ${NA}.`,
       h: `Nog ${andJoin(miss)} nodig. Je dorpelingen verzamelen vanzelf.`,
     };
   return {
-    t: `Klaar voor de ${NA}!`,
+    t: `Klaar voor ${NA}!`,
     h: 'Alles is binnen. Zet de stap naar een nieuw tijdperk.',
-    act: { l: `Naar de ${NA}`, k: 'age' },
+    act: { l: `Naar ${NA}`, k: 'age' },
   };
 }
 

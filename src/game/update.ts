@@ -2,6 +2,7 @@
 import type { Foe } from '../types';
 import { store } from '../core/store';
 import { sfx } from '../audio/sound';
+import { VILLAGER_FOOD } from '../data/economy';
 import { NODES } from '../data/nodes';
 import { RKEYS } from '../data/resources';
 import { TK } from '../data/tech';
@@ -10,7 +11,7 @@ import { computeAvail, computeCaches } from './caches';
 import { spawnFoe } from './entities';
 import { makeOffer, th, updateEvents } from './events';
 import { expireRivalOffer } from './diplomacy';
-import { fUpdate, isRaider, uUpdate, updateProj } from './military';
+import { armyUpkeep, fUpdate, isRaider, uUpdate, updateProj } from './military';
 import { updateRivals } from './rivals';
 import { G } from './state';
 import { advanceClock, isNight } from './time';
@@ -98,14 +99,30 @@ export function update(dt: number) {
     store.achievementTimer = 3;
     checkAchievements();
   }
-  G.res.food -= (G.vs.length * 0.05 + G.us.length * 0.08) * dt;
+  // Je volk en je leger eten (zie VILLAGER_FOOD in data/economy.ts en armyUpkeep in game/military.ts)
+  const eatPerMinute = G.vs.length * VILLAGER_FOOD + armyUpkeep();
+  G.res.food -= (eatPerMinute / 60) * dt;
   if (G.res.food < 0) {
     G.res.food = 0;
     if (!G.hungry) {
       G.hungry = true;
-      toast('Er is geen voedsel meer. Je volk werkt half zo snel.', 'bad');
+      // Maar één melding, ook als er af en toe een klein beetje voedsel binnenkomt
+      if (!G.hungerTold) {
+        G.hungerTold = true;
+        toast(
+          G.us.length
+            ? 'Er is geen voedsel meer. Je volk werkt half zo snel en je leger vecht slechter.'
+            : 'Er is geen voedsel meer. Je volk werkt half zo snel.',
+          'bad',
+        );
+      }
     }
   } else if (G.res.food > 20) G.hungry = false;
+  // Weer voedsel voor minstens een minuut eten: dan is de honger echt voorbij
+  if (G.hungerTold && !G.hungry && G.res.food >= Math.max(100, eatPerMinute)) {
+    G.hungerTold = false;
+    note('Er is weer voedsel: je volk en je leger zijn weer op krachten.', 'good');
+  }
   for (const b of G.bs) bUpdate(b, dt);
   for (const v of G.vs) vUpdate(v, dt);
   for (const u of G.us) uUpdate(u, dt);

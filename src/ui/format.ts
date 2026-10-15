@@ -40,6 +40,11 @@ export const hy = (s: string): string =>
     '$1\u00AD$2',
   );
 export const TOUCH = matchMedia('(pointer:coarse)').matches;
+/** Een tijdperk met het goede lidwoord, voor midden in een zin: "de bronstijd", maar "het dronetijdperk". */
+export const theAge = (i: number): string => {
+  const name = AGES[i].n.toLowerCase();
+  return (name.endsWith('tijdperk') ? 'het ' : 'de ') + name;
+};
 // Kort getal voor op een kleine tegel: 1200 wordt "1,2k", 15000 wordt "15k"
 export const fmtShort = (n: number): string => {
   n = Math.floor(n);

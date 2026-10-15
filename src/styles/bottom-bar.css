@@ -1,34 +1,34 @@
-/* Onderbalk: grondstoffen als fiches, selectie, bouwknoppen en de minikaart. */
+/* Onderbalk: selectie, bouwknoppen en de minikaart. Bovenaan: de strook met inwoners en grondstoffen. */
+
+/* ---- grondstoffenstrook: één rij plaatjes met de voorraad (de plek staat in clarity.css en responsive.css) ---- */
 #resPanel {
   position: absolute;
   z-index: 10;
-  left: var(--edge);
-  bottom: calc(8px + env(safe-area-inset-bottom, 0px));
-  width: var(--resw);
-  height: var(--barh);
-  padding: 8px 8px 8px;
   display: flex;
-  flex-direction: column;
-  gap: 3px;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 8px;
 }
+/* Inwoners en stroom (en soms de knop "zonder werk"), met een streepje ervoor de grondstoffen */
 .poprow {
   display: flex;
   gap: 4px;
   align-items: center;
-  padding-bottom: 5px;
-  border-bottom: 1px dashed var(--rule-2);
-  margin-bottom: 3px;
+  padding-right: 8px;
+  border-right: 1px dashed var(--rule-2);
+}
+#quick {
+  display: contents;
 }
 .pstat {
   display: flex;
   align-items: center;
   gap: 5px;
-  padding: 3px 10px;
+  padding: 2px 9px;
   border-radius: 99px;
-  background: var(--well);
   font-family: var(--f-mono);
   font-size: 13px;
-  min-height: 30px;
+  min-height: 28px;
 }
 .pstat b {
   font-weight: 600;
@@ -51,125 +51,68 @@
   display: flex;
   align-items: center;
   gap: 5px;
-  padding: 2px 7px;
+  padding: 2px 8px;
   font-family: var(--f-mono);
   font-size: 13px;
-  min-height: 30px;
+  min-height: 28px;
 }
+/* Zo breed als de grondstoffen erin (de strook groeit mee tot zijn grootste breedte); past het niet,
+   dan valt het eind weg en haalt resources.ts er één grondstof af */
 #resbar {
   display: flex;
-  flex-direction: column;
-  gap: 3px;
-  min-height: 0;
+  align-items: center;
+  gap: 2px;
+  flex: 0 1 auto;
+  min-width: 0;
   overflow: hidden;
 }
-.res {
-  display: grid;
-  grid-template-columns: 16px 1fr auto;
+/* Eén grondstof: plaatje en voorraad. Het is een knop: klik voor de lijst met alles. */
+#resbar .res {
+  display: inline-flex;
   align-items: center;
-  gap: 7px;
-  padding: 2px 4px 2px 8px;
+  gap: 6px;
+  flex: none;
   min-height: 28px;
+  padding: 2px 8px;
+  border: 0;
   border-radius: 99px;
-  background: rgba(43, 37, 32, 0.055);
-  transition: background 0.3s;
+  background: transparent;
+  box-shadow: none;
+  color: var(--ink);
 }
-.res:hover {
-  background: rgba(43, 37, 32, 0.1);
+#resbar .res:hover:not(:disabled) {
+  background: rgba(43, 37, 32, 0.08);
+}
+#resbar .res:active:not(:disabled) {
+  transform: none;
 }
 .res .gem {
   width: 13px;
   height: 13px;
 }
 .res b {
-  display: inline-block;
   font-family: var(--f-mono);
   font-weight: 600;
   font-size: 14px;
   font-variant-numeric: tabular-nums;
 }
-/* Een tikje als het getal verandert: even groen (erbij) of rood (eraf) */
-.res b.tick-up {
-  animation: tickup 0.6s ease-out;
-}
-.res b.tick-down {
-  animation: tickdown 0.6s ease-out;
-}
-@keyframes tickup {
-  0% {
-    color: var(--good);
-    transform: translateY(-1px);
-  }
-}
-@keyframes tickdown {
-  0% {
-    color: var(--bad);
-    transform: translateY(1px);
-  }
-}
-/* Te weinig voor wat je wilt bouwen */
-.res.short {
-  background: color-mix(in srgb, var(--bad) 12%, transparent);
-  box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--bad) 50%, transparent);
-}
+/* Raakt het op, of heb je te weinig voor wat je wilt bouwen? Dan wordt het getal rood. */
+.res.low b,
 .res.short b {
   color: var(--bad);
 }
-.res em {
-  display: none;
-  font-style: normal;
-  font-family: var(--f-mono);
-  font-size: 12px;
-  color: var(--good);
-  margin-left: 6px;
+#resbar .res.short {
+  background: color-mix(in srgb, var(--bad) 10%, transparent);
 }
-.res em.down {
-  color: var(--bad);
-}
-.res small {
-  display: inline;
-  font-size: 12px;
-  color: var(--muted);
-  margin-left: 6px;
-}
-.res .wk {
-  display: flex;
-  align-items: center;
-  gap: 3px;
-  font-family: var(--f-mono);
-  font-size: 12px;
-  color: var(--ink-2);
-  background: color-mix(in srgb, var(--team) 15%, var(--paper-hi));
-  border: 1px solid color-mix(in srgb, var(--team) 40%, transparent);
-  border-radius: 99px;
-  padding: 0 7px 0 6px;
-  min-width: 36px;
-  height: 20px;
-  justify-content: center;
-}
-.res .wk .ico {
-  width: 11px;
-  height: 11px;
-}
-.res .wk.zero {
-  background: transparent;
-  border-color: var(--line);
-  color: var(--faint);
-}
-.res.new {
+/* Net ontdekt in een nieuw tijdperk: even oplichten */
+#resbar .res.new {
   background: var(--acc-soft);
-  box-shadow: inset 0 0 0 1.5px var(--acc);
 }
-.res.pulse b {
-  color: var(--acc-ink);
-}
-/* "+N meer": een stippel-pilletje dat de volledige lijst opent */
+/* "+N": opent de lijst met alle grondstoffen */
 #resMore {
   flex: none;
-  margin-top: auto;
-  align-self: center;
   font: 500 12px var(--f-mono);
-  padding: 2px 12px;
+  padding: 2px 10px;
   min-height: 26px;
   border: 1px dashed var(--rule-2);
   border-radius: 99px;
@@ -181,26 +124,92 @@
   border-color: var(--acc-edge);
   color: var(--ink);
 }
+
+/* ---- de lijst met alle grondstoffen: een kaartje met een puntje naar de knop ---- */
 #resPop {
   position: absolute;
   z-index: 16;
   left: var(--edge);
-  bottom: calc(var(--barh) + 16px);
-  width: min(520px, calc(100% - 16px));
-  padding: 12px;
+  top: 60px;
+  width: min(320px, calc(100% - 16px));
+  padding: 8px 12px 10px;
+}
+#resPop::before {
+  content: '';
+  position: absolute;
+  top: -11px;
+  left: calc(var(--ax, 32px) - 7px);
+  border: 7px solid transparent;
+  border-bottom-color: var(--acc);
+}
+.rph {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 2px;
+}
+.rph b {
+  font: 600 15px var(--f-display);
+}
+.rph .x {
+  min-height: 28px;
+  padding: 2px 6px;
+}
+.rph .x .ico {
+  width: 15px;
+  height: 15px;
+}
+/* Eén lijst met vaste kolommen: plaatje, naam, voorraad, tempo per minuut en wie eraan werkt */
+.rpl {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-  gap: 4px;
+  grid-template-columns: 14px 1fr auto auto auto;
+  column-gap: 10px;
+  /* Niet lager dan de knoppen Dorp, Leger, ... boven de onderbalk; is de lijst langer, dan scrolt hij */
+  max-height: calc(100vh - var(--barh) - 190px);
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+#resPop .res {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+  align-items: center;
+  padding: 3px 0;
+  border-bottom: 1px dashed var(--rule);
+}
+#resPop .res:last-child {
+  border-bottom: 0;
+}
+#resPop .res b {
+  font-size: 13px;
+  text-align: right;
+}
+#resPop .rn {
+  font-size: 12.5px;
+  color: var(--ink-2);
+  white-space: nowrap;
 }
 #resPop .res em {
-  display: inline;
+  font: 500 11px var(--f-mono);
+  font-style: normal;
+  text-align: right;
+  color: var(--good);
 }
-#resPop .res small {
-  display: inline;
-  font-family: var(--f-body);
-  font-size: 12px;
-  color: var(--muted);
-  margin-left: 4px;
+#resPop .res em.down {
+  color: var(--bad);
+}
+#resPop .wk {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 2px;
+  min-width: 26px;
+  font: 500 11px var(--f-mono);
+  color: var(--ink-3);
+}
+#resPop .wk .ico {
+  width: 11px;
+  height: 11px;
 }
 
 #bar {
@@ -325,6 +334,77 @@ body.v2 #rotL,
 body.v2 #rotR {
   display: none;
 }
+/* Knop voor de grote kaart: naast het kompas (in het bovenaanzicht, zonder kompas, in de hoek) */
+#mapBig {
+  top: 6px;
+  right: 38px;
+}
+body.v2 #mapBig {
+  right: 6px;
+}
+#mapBig[aria-pressed='true'] {
+  background: var(--acc);
+  color: var(--on-acc);
+  border-color: var(--acc-edge);
+}
+/* De grote kaart: de minikaart (met haar knoppen) groot in het midden, de rest van het scherm gedimd.
+   Alleen als hij open is (body.bigmap): dicht mag de laag niets afdekken. */
+#bigMap {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: none;
+  place-items: center;
+  background: rgba(24, 18, 12, 0.55);
+}
+body.bigmap #bigMap {
+  display: grid;
+}
+#bigMap #miniBox {
+  flex: none;
+  padding: 10px;
+  border-radius: var(--r);
+  background: var(--panel);
+  border-top: 4px solid var(--acc);
+  box-shadow: var(--card-shadow);
+}
+/* Precies vierkant, zo groot als het scherm toelaat */
+#bigMap #mini {
+  flex: none;
+  width: calc(min(86vh, 86vw, 1100px) - 20px);
+  height: calc(min(86vh, 86vw, 1100px) - 20px);
+}
+#bigMap .viewseg {
+  top: 18px;
+  left: 18px;
+}
+#bigMap #compass {
+  top: 18px;
+  right: 18px;
+}
+#bigMap #mapBig {
+  top: 18px;
+  right: 52px;
+}
+body.v2 #bigMap #mapBig {
+  right: 18px;
+}
+#bigMap #rotL {
+  bottom: 18px;
+  left: 18px;
+}
+#bigMap #rotR {
+  bottom: 18px;
+  right: 18px;
+}
+#bigMap .viewseg button,
+#bigMap .mmb {
+  min-height: 32px;
+  font-size: 12px;
+}
+#bigMap .mmb {
+  width: 32px;
+}
 .mapbtns {
   display: flex;
   gap: 5px;
@@ -397,14 +477,6 @@ body.v2 #rotR {
   color: var(--fg-2);
   margin-top: 3px;
   line-height: 1.35;
-}
-.lv {
-  font-family: var(--f-mono);
-  font-size: 12px;
-  color: var(--acc-ink);
-  font-weight: 600;
-  vertical-align: middle;
-  margin-left: 4px;
 }
 .stats {
   display: flex;
@@ -479,6 +551,14 @@ body.v2 #rotR {
 .statline.warn .dot {
   background: var(--warn);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--warn) 22%, transparent);
+}
+/* Staat even stil, maar dat is goed zo (bijvoorbeeld: genoeg op voorraad) */
+.statline.idle {
+  color: var(--ink-3);
+}
+.statline.idle .dot {
+  background: var(--ink-4);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ink-4) 20%, transparent);
 }
 .chips {
   display: flex;
@@ -647,26 +727,6 @@ body.v2 #rotR {
   font-family: var(--f-mono);
   font-size: 12px;
 }
-.pips {
-  display: flex;
-  gap: 4px;
-  flex: none;
-}
-.pips i {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  border: 1.5px solid var(--ink-4);
-  background: transparent;
-}
-.pips i.on {
-  background: var(--acc);
-  border-color: var(--acc-edge);
-}
-.pips i.av {
-  border: 1.5px dashed var(--acc-edge);
-  background: var(--acc-soft);
-}
 .lvrow {
   display: flex;
   align-items: center;
@@ -725,14 +785,6 @@ body.v2 #rotR {
   color: var(--acc-ink);
   font: 600 12px/18px var(--f-mono);
   text-align: center;
-}
-.quick kbd {
-  font: 500 11px var(--f-mono);
-  color: var(--ink-3);
-  border: 1px solid var(--rule-2);
-  border-bottom-width: 2px;
-  border-radius: 5px;
-  padding: 0 4px;
 }
 
 /* Bouwknoppen: tabjes in een gootje en daaronder dikke tegels die indrukken als je klikt */

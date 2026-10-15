@@ -1,7 +1,7 @@
 // De grond: kleuren per tegel, de vorm van het land en de rand van je gebied.
 // (Fijne details en rotswanden: terrainlook.ts · water: water.ts)
 import * as T3 from 'three';
-import { CN, H, W } from '../config';
+import { CN, H, W, onMapSize } from '../config';
 import { G } from '../game/state';
 import { mat } from './kit';
 import { R3, S3 } from './scene';
@@ -17,8 +17,14 @@ const rivalRGB = (id: number) => {
   return [1, 3, 5].map(k => parseInt(c.slice(k, k + 2), 16));
 };
 
-const TS = 12, // pixels per tegel in de grondtextuur
-  TCAN = document.createElement('canvas');
+// Pixels per tegel in de grondtextuur. Op een grotere kaart minder, zodat de textuur nooit groter wordt dan
+// 3072 × 3072 pixels (zoals op een gewone kaart): dat past op elke videokaart en in het geheugen van een telefoon.
+const TEX_MAX = 3072;
+const tilePixels = () => Math.min(12, Math.floor(TEX_MAX / Math.max(W, H)));
+let TS = tilePixels(),
+  // Zo breed (in pixels) zijn de randen van wegen en gebieden: op een gewone kaart 2
+  EDGE = Math.max(1, Math.round(TS / 6));
+const TCAN = document.createElement('canvas');
 TCAN.width = W * TS;
 TCAN.height = H * TS;
 export const tctx = TCAN.getContext('2d')!;
@@ -30,7 +36,11 @@ TTEX.minFilter = T3.LinearMipmapLinearFilter;
 TTEX.anisotropy = 4;
 export const TMAT = new T3.MeshStandardMaterial({ map: TTEX, roughness: 0.95, flatShading: false });
 dressTerrain(TMAT);
-let TMESH: T3.Mesh<T3.PlaneGeometry, T3.MeshStandardMaterial> | null = null;
+// De grond in vierkante stukken van TERRAIN_PIECE tegels: wat buiten beeld ligt, slaat de videokaart over.
+// (Op een grote kaart is de grond een half miljoen driehoekjes; dichtbij zie je er maar een paar duizend van.)
+const TERRAIN_PIECE = 64;
+const TGROUP = new T3.Group();
+S3.add(TGROUP);
 /** Kleur van elke soort weg als [r, g, b] (0 = geen weg). */
 export const RC: ([number, number, number] | null)[] = [null, [176, 152, 108], [168, 166, 156], [78, 82, 88]];
 /** Kleur van de grond op tegel (x, y), zoals de wereldgenerator die heeft bepaald. */
@@ -96,10 +106,10 @@ export function paintTile(x: number, y: number) {
       }
       if (rd) {
         const ex =
-          (px < 2 && !nb(-1, 0)) ||
-          (px >= TS - 2 && !nb(1, 0)) ||
-          (py < 2 && !nb(0, -1)) ||
-          (py >= TS - 2 && !nb(0, 1));
+          (px < EDGE && !nb(-1, 0)) ||
+          (px >= TS - EDGE && !nb(1, 0)) ||
+          (py < EDGE && !nb(0, -1)) ||
+          (py >= TS - EDGE && !nb(0, 1));
         if (!ex) {
           const c = RC[rd]!,
             k = 0.9 + h * 0.16;
@@ -149,9 +159,9 @@ export function paintTile(x: number, y: number) {
       right = ownerAt(x + 1, y) !== own,
       up = ownerAt(x, y - 1) !== own,
       down = ownerAt(x, y + 1) !== own;
-    // Een rand van twee pixels breed
+    // Een rand van EDGE pixels breed
     for (let p = 0; p < TS; p++)
-      for (const w of [0, 1]) {
+      for (let w = 0; w < EDGE; w++) {
         if (left) put(w, p);
         if (right) put(TS - 1 - w, p);
         if (up) put(p, w);
@@ -168,25 +178,17 @@ export function paintTile(x: number, y: number) {
       d[o + 1] = 214;
       d[o + 2] = 150;
     };
-    if (L(x - 1, y))
-      for (let p = 0; p < TS; p++) {
-        put(0, p);
-        put(1, p);
-      }
-    if (L(x + 1, y))
-      for (let p = 0; p < TS; p++) {
-        put(TS - 1, p);
-        put(TS - 2, p);
-      }
-    if (L(x, y - 1))
-      for (let p = 0; p < TS; p++) {
-        put(p, 0);
-        put(p, 1);
-      }
-    if (L(x, y + 1))
-      for (let p = 0; p < TS; p++) {
-        put(p, TS - 1);
-        put(p, TS - 2);
+    // Grenst deze tegel links, rechts, boven of onder aan land dat niet van jou is? Daar een rand van EDGE pixels
+    const left = L(x - 1, y),
+      right = L(x + 1, y),
+      up = L(x, y - 1),
+      down = L(x, y + 1);
+    for (let p = 0; p < TS; p++)
+      for (let w = 0; w < EDGE; w++) {
+        if (left) put(w, p);
+        if (right) put(TS - 1 - w, p);
+        if (up) put(p, w);
+        if (down) put(p, TS - 1 - w);
       }
   }
 }
@@ -241,7 +243,7 @@ export function flushTerrain() {
   R3.copyTextureToTexture(patchPos, PATCHTEX, TTEX);
 }
 // Hoogte van elk hoekpunt van de grond (W+1 bij H+1), voor dingen die óp de bergen staan
-const heights = new Float32Array((W + 1) * (H + 1));
+let heights = new Float32Array((W + 1) * (H + 1));
 /** Hoogte van de grond op punt (x, z), tussen de hoekpunten in geschat. */
 export function groundHeight(x: number, z: number): number {
   const x0 = Math.max(0, Math.min(W - 1, Math.floor(x))),
@@ -254,10 +256,8 @@ export function groundHeight(x: number, z: number): number {
   return top + (bottom - top) * fz;
 }
 export function buildTerrain() {
-  if (TMESH) {
-    S3.remove(TMESH);
-    TMESH.geometry.dispose();
-  }
+  for (const m of TGROUP.children as T3.Mesh[]) m.geometry.dispose();
+  TGROUP.clear();
   const g = new T3.PlaneGeometry(W, H, W, H);
   g.rotateX(-Math.PI / 2);
   g.translate(W / 2, 0, H / 2);
@@ -295,11 +295,57 @@ export function buildTerrain() {
   }
   g.computeVertexNormals();
   updateWaterDepth();
-  TMESH = new T3.Mesh(g, TMAT);
-  TMESH.receiveShadow = true;
-  S3.add(TMESH);
+  // Eerst de hele grond (dan lopen de stukken naadloos in elkaar over), daarna in stukken knippen
+  for (let z0 = 0; z0 < H; z0 += TERRAIN_PIECE)
+    for (let x0 = 0; x0 < W; x0 += TERRAIN_PIECE) TGROUP.add(terrainPiece(g, x0, z0));
+  g.dispose();
 }
-{
+/** Een stuk grond van TERRAIN_PIECE bij TERRAIN_PIECE tegels vanaf tegel (x0, z0), geknipt uit de hele grond `g`. */
+function terrainPiece(g: T3.BufferGeometry, x0: number, z0: number): T3.Mesh {
+  const w = Math.min(TERRAIN_PIECE, W - x0),
+    h = Math.min(TERRAIN_PIECE, H - z0),
+    n = (w + 1) * (h + 1),
+    srcPos = (g.attributes.position as T3.BufferAttribute).array,
+    srcNrm = (g.attributes.normal as T3.BufferAttribute).array,
+    srcUv = (g.attributes.uv as T3.BufferAttribute).array,
+    pos = new Float32Array(n * 3),
+    nrm = new Float32Array(n * 3),
+    uv = new Float32Array(n * 2),
+    index: number[] = [];
+  let k = 0;
+  for (let z = 0; z <= h; z++)
+    for (let x = 0; x <= w; x++, k++) {
+      const s = (z0 + z) * (W + 1) + x0 + x; // hetzelfde hoekpunt in de hele grond
+      for (let c = 0; c < 3; c++) {
+        pos[k * 3 + c] = srcPos[s * 3 + c];
+        nrm[k * 3 + c] = srcNrm[s * 3 + c];
+      }
+      uv[k * 2] = srcUv[s * 2];
+      uv[k * 2 + 1] = srcUv[s * 2 + 1];
+    }
+  // Twee driehoekjes per tegel, in dezelfde volgorde als three.js dat bij een vlak doet
+  for (let z = 0; z < h; z++)
+    for (let x = 0; x < w; x++) {
+      const a = z * (w + 1) + x,
+        b = a + w + 1;
+      index.push(a, b, a + 1, b, b + 1, a + 1);
+    }
+  const piece = new T3.BufferGeometry();
+  piece.setIndex(index);
+  piece.setAttribute('position', new T3.BufferAttribute(pos, 3));
+  piece.setAttribute('normal', new T3.BufferAttribute(nrm, 3));
+  piece.setAttribute('uv', new T3.BufferAttribute(uv, 2));
+  piece.computeBoundingSphere();
+  const m = new T3.Mesh(piece, TMAT);
+  m.receiveShadow = true;
+  return m;
+}
+// De rand van de kaart: een donkere wand omlaag aan alle vier de kanten
+const SKIRT = new T3.Group();
+S3.add(SKIRT);
+function buildSkirt() {
+  for (const m of SKIRT.children as T3.Mesh[]) m.geometry.dispose();
+  SKIRT.clear();
   const sk = mat('#3a2f25');
   for (const [x, z, ry, l] of [
     [W / 2, H, 0, W],
@@ -310,6 +356,20 @@ export function buildTerrain() {
     const m = new T3.Mesh(new T3.PlaneGeometry(l, 6), sk);
     m.position.set(x, -3, z);
     m.rotation.y = ry;
-    S3.add(m);
+    SKIRT.add(m);
   }
 }
+buildSkirt();
+
+// Een andere kaartgrootte: grondtextuur, hoogtes en rand opnieuw op maat (de grond zelf volgt bij de nieuwe wereld)
+onMapSize(() => {
+  TS = tilePixels();
+  EDGE = Math.max(1, Math.round(TS / 6));
+  TCAN.width = W * TS;
+  TCAN.height = H * TS;
+  timg = null;
+  TTEX.dispose(); // de videokaart maakt de textuur opnieuw, in de nieuwe maat
+  pending.clear();
+  heights = new Float32Array((W + 1) * (H + 1));
+  buildSkirt();
+});

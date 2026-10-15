@@ -10,8 +10,7 @@ import { flagpole, isMesh, mat, paint } from './kit';
 import { makeBuilding } from './models';
 import { LAYER, puff } from './particles';
 import { S3 } from './scene';
-import { scaffold } from './sync';
-import { groundChanged } from './terrainlook';
+import { changedAt, scaffold } from './sync';
 
 export const RG3 = new T3.Group();
 S3.add(RG3);
@@ -51,8 +50,8 @@ export function syncRivalBuildings() {
         if (r) RG3.remove(r.g);
         r = buildModel(b, rival, key);
         rbRec.set(b.id, r);
-        store.mapVersion++;
-        groundChanged(); // geen gras en bloemen onder een nieuw gebouw
+        // Minikaart en schaduw daar opnieuw, en geen gras en bloemen onder een nieuw gebouw
+        changedAt(b.x, b.y, b.x + r.s - 1, b.y + r.s - 1);
       }
       animate(r, b);
     }
@@ -61,8 +60,10 @@ export function syncRivalBuildings() {
     if (!seen.has(id)) {
       RG3.remove(r.g);
       rbRec.delete(id);
-      store.mapVersion++;
-      groundChanged();
+      // Het midden van het gebouw min de halve grootte: de linkerbovenhoek (zie buildModel)
+      const x = r.g.position.x - r.s / 2,
+        y = r.g.position.z - r.s / 2;
+      changedAt(x, y, x + r.s - 1, y + r.s - 1);
     }
 }
 

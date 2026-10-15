@@ -1,16 +1,96 @@
 import type { Mobile, Path, Tile } from '../types';
 // Padvinding: hoe dorpelingen en soldaten om obstakels heen lopen (A*-zoekmethode).
 import { screenRight } from '../core/view';
-import { H, W } from '../config';
+import { H, W, onMapSize } from '../config';
 import { mul } from '../game/bonus';
 import { clamp } from '../util/math';
-import { foeWalk, freeWalk, passable, road, walkable } from './world';
+import { landParts } from './generate';
+import { foeWalk, freeWalk, passable, road, ter, walkable } from './world';
 
-const gS = new Float32Array(W * H),
+// Werkgeheugen per tegel (kosten, waar je vandaan kwam, en of een tegel al bekeken is); zo groot als de kaart
+let gS = new Float32Array(W * H),
   came = new Int32Array(W * H),
   stp = new Uint32Array(W * H),
   cls = new Uint32Array(W * H);
 let stamp = 0;
+// De open lijst van het zoeken: een binaire hoop met de laagste kosten (f) bovenaan, met bij elke kosten de tegel (i).
+// Twee rijen getallen in plaats van een lijst met paartjes: dat scheelt veel tijd en geheugen. Groeit als het nodig is.
+let heapF = new Float64Array(4096),
+  heapI = new Int32Array(4096),
+  heapN = 0;
+function heapPush(f: number, i: number) {
+  if (heapN === heapF.length) {
+    const biggerF = new Float64Array(heapN * 2),
+      biggerI = new Int32Array(heapN * 2);
+    biggerF.set(heapF);
+    biggerI.set(heapI);
+    heapF = biggerF;
+    heapI = biggerI;
+  }
+  let k = heapN++;
+  heapF[k] = f;
+  heapI[k] = i;
+  // Omhoog schuiven zolang de ouder hogere kosten heeft
+  while (k > 0) {
+    const p = (k - 1) >> 1;
+    if (heapF[p] <= heapF[k]) break;
+    heapSwap(p, k);
+    k = p;
+  }
+}
+/** Haal de tegel met de laagste kosten uit de hoop. */
+function heapPop(): number {
+  const top = heapI[0];
+  heapN--;
+  if (heapN) {
+    heapF[0] = heapF[heapN];
+    heapI[0] = heapI[heapN];
+    // Omlaag schuiven zolang een kind lagere kosten heeft
+    let k = 0;
+    for (;;) {
+      const l = 2 * k + 1,
+        r = l + 1;
+      let m = k;
+      if (l < heapN && heapF[l] < heapF[m]) m = l;
+      if (r < heapN && heapF[r] < heapF[m]) m = r;
+      if (m === k) break;
+      heapSwap(m, k);
+      k = m;
+    }
+  }
+  return top;
+}
+function heapSwap(a: number, b: number) {
+  const f = heapF[a],
+    i = heapI[a];
+  heapF[a] = heapF[b];
+  heapI[a] = heapI[b];
+  heapF[b] = f;
+  heapI[b] = i;
+}
+onMapSize(() => {
+  gS = new Float32Array(W * H);
+  came = new Int32Array(W * H);
+  stp = new Uint32Array(W * H);
+  cls = new Uint32Array(W * H);
+  stamp = 0;
+});
+// Hoeveel tegels een gewone zoektocht mag bekijken (gewone kaart: 40000). Op een grotere kaart meer, want de
+// routes zijn er langer; maar niet evenredig met de oppervlakte: een zoektocht die niets vindt (een doel achter
+// muren) bekijkt alles tot dit maximum, en dat mag niet te lang duren.
+const searchLimit = () => Math.round((40000 * W) / 256);
+
+// Van welk stuk land is elke tegel (zie landParts in generate.ts)? Eén keer per wereld uitgerekend:
+// water en bergen veranderen niet tijdens het spel.
+let landPart: Int32Array = new Int32Array(0),
+  landFor: Uint8Array | null = null;
+function landPartsNow(): Int32Array {
+  if (landFor !== ter || landPart.length !== W * H) {
+    landPart = landParts(ter, W, H);
+    landFor = ter;
+  }
+  return landPart;
+}
 // Alleen water en bergen houden je tegen (muren niet): voor lange routes van rivalen, zie game/rivals.ts
 const landWalk = (x: number, y: number): boolean => x >= 0 && y >= 0 && x < W && y < H && passable(y * W + x);
 /**
@@ -24,7 +104,7 @@ export function findPath(
   tx: number,
   ty: number,
   free: boolean | 2 | 3,
-  maxSteps = 40000,
+  maxSteps = searchLimit(),
 ): Path | null {
   sx = clamp(sx, 0, W - 1);
   sy = clamp(sy, 0, H - 1);
@@ -35,37 +115,14 @@ export function findPath(
     ok = (x: number, y: number) => ok0(x, y) || (free && x === tx && y === ty && passable(goalI));
   if (sx === tx && sy === ty) return [];
   if (!ok(tx, ty)) return null;
+  // Ligt het doel op een ander stuk land (een ander eiland)? Dan is er nooit een route: niet zoeken.
+  // (Dat scheelt veel: anders bekijkt het zoeken alles wat je wel kunt bereiken.)
+  const parts = landPartsNow(),
+    fromPart = parts[sy * W + sx],
+    toPart = parts[ty * W + tx];
+  if (fromPart && toPart && fromPart !== toPart) return null;
   stamp++;
-  const heap: [number, number][] = [];
-  const push = (f: number, i: number) => {
-    heap.push([f, i]);
-    let k = heap.length - 1;
-    while (k > 0) {
-      const p = (k - 1) >> 1;
-      if (heap[p][0] <= heap[k][0]) break;
-      [heap[p], heap[k]] = [heap[k], heap[p]];
-      k = p;
-    }
-  };
-  const pop = () => {
-    const top = heap[0],
-      last = heap.pop()!;
-    if (heap.length) {
-      heap[0] = last;
-      let k = 0;
-      for (;;) {
-        const l = 2 * k + 1,
-          r = l + 1;
-        let m = k;
-        if (l < heap.length && heap[l][0] < heap[m][0]) m = l;
-        if (r < heap.length && heap[r][0] < heap[m][0]) m = r;
-        if (m === k) break;
-        [heap[m], heap[k]] = [heap[k], heap[m]];
-        k = m;
-      }
-    }
-    return top;
-  };
+  heapN = 0;
   const hz = (x: number, y: number) => {
     const dx = Math.abs(x - tx),
       dy = Math.abs(y - ty);
@@ -76,10 +133,10 @@ export function findPath(
   gS[st] = 0;
   stp[st] = stamp;
   came[st] = -1;
-  push(hz(sx, sy), st);
+  heapPush(hz(sx, sy), st);
   let exp = 0;
-  while (heap.length) {
-    const c = pop()[1];
+  while (heapN) {
+    const c = heapPop();
     if (c === goal) {
       const path: Tile[] = [];
       let k = goal;
@@ -107,7 +164,7 @@ export function findPath(
           stp[ni] = stamp;
           gS[ni] = ng;
           came[ni] = c;
-          push(ng + hz(nx, ny), ni);
+          heapPush(ng + hz(nx, ny), ni);
         }
       }
   }

@@ -1,11 +1,11 @@
-import type { Building } from '../types';
+import type { Building, Cost } from '../types';
 // Wat gebouwen elke tik doen: produceren, trainen, stroom maken.
 import { store } from '../core/store';
 import { W } from '../config';
 import { B } from '../data/buildings';
 import { NI } from '../data/nodes';
 import { UNITS } from '../data/units';
-import { genPower, powerDem, powerRatio, powerSup } from './caches';
+import { genPower, goal, powerDem, powerRatio, powerSup } from './caches';
 import { gain, has, pay } from './economy';
 import { popCap, popNow, spawnUnit, spawnVillager, trainCost } from './entities';
 import { floater } from './fx';
@@ -20,11 +20,14 @@ export function bUpdate(b: Building, dt: number): void {
   const d = B[b.type],
     pr = d.power ? powerRatio : 1;
   b.act -= dt;
-  if (d.conv && b.on) {
+  // Een fabriek pauzeert vanzelf als er genoeg is van wat hij maakt (b.plenty, zie game/caches.ts)
+  if (d.conv && b.on && !b.plenty) {
     const mill = b.type === 'windmill' || b.type === 'powdermill' ? mul('mill.speed') : 1;
     b.ct += dt * pr * bRate(b) * mill * mul('conv.speed');
     if (b.ct >= d.conv.t) {
-      if (has(d.conv.in)) {
+      // Wat het volgende tijdperk kost, gebruikt hij niet: dat bewaart hij (b.saving)
+      b.saving = keptForGoal(d.conv.in);
+      if (has(d.conv.in) && !b.saving) {
         pay(d.conv.in);
         gain(d.conv.out);
         b.ct = 0;
@@ -32,9 +35,12 @@ export function bUpdate(b: Building, dt: number): void {
         b.starved = false;
       } else {
         b.ct = d.conv.t;
-        b.starved = true;
+        b.starved = !has(d.conv.in);
       }
     }
+  } else if (d.conv && b.plenty) {
+    b.starved = false;
+    b.saving = '';
   }
   if (d.gen) {
     if (!b.on) b.run = false;
@@ -54,7 +60,8 @@ export function bUpdate(b: Building, dt: number): void {
       }
     }
   }
-  if (d.pump && b.on) {
+  // Ook een pomp pauzeert als er genoeg olie is: zo raakt de bron niet voor niets leeg
+  if (d.pump && b.on && !b.plenty) {
     const i = b.y * W + b.x;
     if (node[i] === NI.oil && amt[i] > 0) {
       b.ct += dt * pr * bRate(b) * mul('conv.speed');
@@ -155,4 +162,16 @@ export function bUpdate(b: Building, dt: number): void {
       life: 2.6,
       max: 2.6,
     });
+}
+
+/**
+ * De eerste grondstof uit `input` die een fabriek bewaart voor het volgende tijdperk: hem gebruiken zou de
+ * voorraad onder de kosten van dat tijdperk brengen. Leeg als hij alles mag gebruiken.
+ */
+function keptForGoal(input: Cost): string {
+  for (const k in input) {
+    const need = goal[k] || 0;
+    if (need > 0 && G.res[k] >= input[k] && G.res[k] - input[k] < need) return k;
+  }
+  return '';
 }

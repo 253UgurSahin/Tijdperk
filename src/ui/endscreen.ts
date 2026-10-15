@@ -16,7 +16,7 @@ import { victoryFacts } from '../game/victory';
 import { achievementIcon, clearAchievementCards, medalHTML, scoreText } from './achievements';
 import { challengeEndParts } from './challengeend';
 import { openChallengeList, retryChallenge } from './challenges';
-import { ageTimeline, fmt, gem } from './format';
+import { ageTimeline, fmt, gem, theAge } from './format';
 import { ico } from './glyphs';
 import { openModal, showTitle } from './modals';
 import { chartKeys, drawChart } from './panes/log';
@@ -118,7 +118,7 @@ function freePlayParts(won: boolean, result: GameResult) {
     : `<div class="eyebrow">Dag ${G.day}</div><h1>Het stamhuis is gevallen.</h1>`;
   const story = won
     ? victory.end.story(victoryFacts())
-    : `${placeName()} hield ${G.day} dagen stand en bereikte de ${AGES[G.age].n.toLowerCase()}. Bouw volgende keer eerder torens en een leger, of speel in de vredige modus.`;
+    : `${placeName()} hield ${G.day} dagen stand en bereikte ${theAge(G.age)}. Bouw volgende keer eerder torens en een leger, of speel in de vredige modus.`;
   // "Nieuwe wereld" opent meteen het nieuw-spelscherm: er gaat niets verloren, want het spel wordt eerst bewaard
   const buttons = won
     ? `<button class="primary" data-m="close">Verder bouwen</button><button data-m="newok">Nieuwe wereld</button>`
