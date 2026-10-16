@@ -26,11 +26,12 @@ function bakePart(
   sx: number,
   sy: number,
   sz: number,
+  rot?: [number, number, number],
 ): NodePart {
   const g = geo.clone();
-  g.applyMatrix4(
-    new T3.Matrix4().compose(new T3.Vector3(x, y, z), new T3.Quaternion(), new T3.Vector3(sx, sy, sz)),
-  );
+  const q = new T3.Quaternion();
+  if (rot) q.setFromEuler(new T3.Euler(rot[0], rot[1], rot[2]));
+  g.applyMatrix4(new T3.Matrix4().compose(new T3.Vector3(x, y, z), q, new T3.Vector3(sx, sy, sz)));
   return { geo: g, mat: M_(m) };
 }
 // Een vorm met kleine willekeurige deuken, zodat niet elke boomkruin of steen een perfecte bol is.
@@ -188,6 +189,55 @@ const HIDDEN_FAR: Record<string, number[]> = {
 };
 for (const k of ['copper', 'tin', 'iron', 'gold', 'lithium']) HIDDEN_FAR[k] = [1, 3, 4];
 
+// Extra onderdelen die je alleen van dichtbij ziet: wortelvoeten, takken, nog een klomp blad, bessen en
+// steentjes. Ze komen achter de gewone onderdelen en gaan meteen in HIDDEN_FAR: van ver tekenen we ze niet.
+const ROOT = (r: number, c: string) => bakePart(gCyl(r * 0.8, r * 1.5, 6), c, 0, 0, 0, 1, 0.07, 1);
+const BRANCH = (c: string, x: number, y: number, z: number, ry: number, rz: number, len = 0.3) =>
+  bakePart(gCyl(0.012, 0.022, 4), c, x, y, z, 1, len, 1, [0, ry, rz]);
+const NEAR_DETAIL: Record<string, NodePart[]> = {
+  pine: [ROOT(0.07, C.woodd), bakePart(gCyl(0, 0.2, 7), FOL.pine, 0, 0.94, 0, 1, 0.36, 1)],
+  pineTall: [ROOT(0.07, C.woodd), bakePart(gCyl(0, 0.15, 7), FOL.pine2, 0, 1.06, 0, 1, 0.34, 1)],
+  birch: [
+    ROOT(0.055, '#e8e4d8'),
+    bakePart(GB, '#3a3630', 0.02, 0.22, 0, 0.07, 0.04, 0.07),
+    bakePart(GB, '#3a3630', -0.02, 0.48, 0.01, 0.07, 0.035, 0.07),
+    bakePart(BLOB[2], FOL.birch, 0.14, 0.76, 0.06, 0.16, 0.2, 0.16),
+    BRANCH('#d9d4c6', 0.06, 0.6, 0.02, 0.4, -1.1, 0.22),
+  ],
+  birchPair: [
+    ROOT(0.055, '#e8e4d8'),
+    bakePart(GB, '#3a3630', -0.02, 0.56, 0.01, 0.07, 0.035, 0.07),
+    bakePart(BLOB[0], FOL.birch, -0.14, 0.9, -0.08, 0.15, 0.17, 0.15),
+  ],
+  oak: [
+    ROOT(0.08, '#6e5537'),
+    BRANCH('#6e5537', 0.08, 0.38, 0.04, 0.3, -0.9),
+    BRANCH('#6e5537', -0.06, 0.4, -0.05, 2.6, -1.0, 0.26),
+    bakePart(BLOB[2], FOL.oak, -0.2, 0.6, -0.14, 0.24, 0.22, 0.24),
+    bakePart(BLOB[1], FOL.oak, 0.04, 1.02, 0.02, 0.26, 0.2, 0.26),
+  ],
+  oakWide: [
+    ROOT(0.1, '#6e5537'),
+    BRANCH('#6e5537', 0.1, 0.42, 0.02, 0.2, -1.0, 0.32),
+    BRANCH('#6e5537', -0.08, 0.44, 0.08, 2.0, -1.0, 0.3),
+    bakePart(BLOB[1], FOL.oak, -0.06, 1.04, -0.04, 0.3, 0.22, 0.3),
+    bakePart(BLOB[2], FOL.oak, -0.22, 0.6, -0.2, 0.2, 0.18, 0.2),
+  ],
+  bush: [
+    bakePart(gIco(0), '#c43c3c', -0.02, 0.3, -0.1, 0.04, 0.04, 0.04),
+    bakePart(gIco(0), '#d4483e', 0.16, 0.26, -0.04, 0.035, 0.035, 0.035),
+  ],
+  rock: [
+    bakePart(STONE[1], '#a0a298', 0.12, 0.02, -0.22, 0.07, 0.05, 0.07),
+    bakePart(STONE[2], '#8c8e85', -0.26, 0.02, -0.08, 0.08, 0.06, 0.08),
+  ],
+};
+for (const k in NEAR_DETAIL) {
+  const from = NVAR[k].length;
+  NVAR[k].push(...NEAR_DETAIL[k]);
+  HIDDEN_FAR[k] = [...(HIDDEN_FAR[k] || []), ...NEAR_DETAIL[k].map((_, i) => from + i)];
+}
+
 // Losse rotsblokken op de bergen: zo zijn de bergen niet glad maar ruw en rotsig.
 // Ze staan half in de grond en krijgen bovenop de berg een laagje sneeuw (lichtere kleur).
 // (Eenvoudige vormen en geen eigen schaduw: het zijn er veel, en ze moeten licht blijven)
@@ -325,7 +375,8 @@ function applyNodeLook() {
   for (const v in NI3)
     NI3[v].forEach((m, k) => {
       m.castShadow = !farLook && v !== 'oil' && v !== 'sand';
-      m.visible = !(farLook && HIDDEN_FAR[v]?.includes(k));
+      // (op "laag" ook dichtbij zonder de kleine onderdelen)
+      m.visible = !((farLook || !richTrees) && HIDDEN_FAR[v]?.includes(k));
     });
 }
 

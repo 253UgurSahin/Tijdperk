@@ -33,8 +33,11 @@ export function updateCamera() {
   // Ver uitgezoomd begint het beeld pas een eind voor de camera (near). Anders is de dieptebuffer daar te grof
   // en schemert het water door de oever heen (witte randen om elk meer). Dichtbij blijft het 0,5.
   const near = Math.max(0.5, d * 0.55 - 25);
-  if (CAM3.near !== near) {
+  // En het beeld houdt op waar de mist alles verbergt: wat daarachter ligt, hoeft niet getekend te worden
+  const far = d * 2.9 + 2;
+  if (CAM3.near !== near || CAM3.far !== far) {
     CAM3.near = near;
+    CAM3.far = far;
     CAM3.updateProjectionMatrix();
   }
   // Schaduw in een vierkant rond het midden van het beeld (ook op brede schermen). Verder uitgezoomd dan
@@ -51,9 +54,35 @@ export function updateCamera() {
   sun.position.set(cam.x - 28, 46, cam.y + 14);
   sun.target.position.set(cam.x, 0, cam.y);
   sun.target.updateMatrixWorld();
+  snapShadow(sc);
   const fog = S3.fog as T3.Fog;
   fog.near = d * 1.15;
   fog.far = d * 2.9;
+}
+/**
+ * De schaduwkaart schuift mee met de camera. Schuift hij een halve pixel (van de kaart) op, dan verspringen
+ * alle schaduwranden een beetje: dat flikkert bij het verschuiven van het beeld. Daarom zetten we de zon zo
+ * dat de kaart altijd met hele pixels opschuift; dan staan de schaduwen stil.
+ */
+const inLight = new T3.Vector3(),
+  shift = new T3.Vector3();
+function snapShadow(sc: number) {
+  const sh = sun.shadow;
+  sun.updateMatrixWorld();
+  sh.updateMatrices(sun); // zet de schaduwcamera op zijn plek
+  const texel = (2 * sc) / sh.mapSize.x;
+  inLight.copy(sun.target.position).applyMatrix4(sh.camera.matrixWorldInverse);
+  shift.set(
+    Math.round(inLight.x / texel) * texel - inLight.x,
+    Math.round(inLight.y / texel) * texel - inLight.y,
+    0,
+  );
+  if (shift.x === 0 && shift.y === 0) return;
+  // Terug naar de wereld: de verschuiving ligt in het vlak van de schaduwcamera
+  shift.applyQuaternion(sh.camera.quaternion);
+  sun.position.add(shift);
+  sun.target.position.add(shift);
+  sun.target.updateMatrixWorld();
 }
 const RAY = new T3.Raycaster(),
   NDC = new T3.Vector2(),

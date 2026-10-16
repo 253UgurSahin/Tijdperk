@@ -25,7 +25,8 @@ import { bRec, cRec, checkWorld, eRec, syncBuildings, syncCamps, syncEntities } 
 import { rbRec, syncRivalBuildings } from './rivals3d';
 import { rbById, rivalById } from '../game/rivals';
 import { inb } from '../world/world';
-import { outlinesOn, renderFrame, setOutlined } from './post';
+import { renderFrame } from './post';
+import { setOutlined } from './outline';
 import { applyPendingResize } from './scene';
 import { updateScatter } from './scatter';
 import { updateGroundShade } from './terrainlook';
@@ -34,7 +35,7 @@ import { WIND } from './nodes';
 import { entitiesInBox } from '../input/selection';
 
 // Omlijning: geselecteerde dingen (groen) en wat je aanwijst of in je selectiekader hebt (licht).
-// Alleen bij middel/hoog; op laag blijven alleen de cirkels op de grond.
+// (zie outline.ts; uit te zetten in de instellingen, dan blijven alleen de cirkels op de grond)
 const MAX_OUTLINED = 120;
 function objectFor(kind: string, id: number): T3.Group | undefined {
   if (kind === 'b') return bRec.get(id)?.g;
@@ -43,7 +44,6 @@ function objectFor(kind: string, id: number): T3.Group | undefined {
   return eRec.get(id)?.body;
 }
 function updateOutlines() {
-  if (!outlinesOn()) return;
   // Ver uitgezoomd geen omlijning: die tekent de hele wereld nog eens, en de cirkels op de grond zie je beter
   if (isFar()) {
     setOutlined([], []);

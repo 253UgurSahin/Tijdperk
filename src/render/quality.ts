@@ -32,7 +32,7 @@ export const LEVELS: Record<string, QualityLevel> = {
     shadowMap: 1024,
     post: false,
     bloom: false,
-    outline: false,
+    outline: true, // de omlijning kost bijna niets (zie outline.ts)
     particles: false,
     scatter: 0, // geen grassprieten en steentjes
     fine: false, // eenvoudiger grond, water, bomen en bergen
@@ -52,7 +52,7 @@ export const LEVELS: Record<string, QualityLevel> = {
   high: {
     name: 'Hoog',
     scale: 1,
-    pixels: 12e6,
+    pixels: 9e6, // genoeg voor een 4K-scherm; daarboven ziet niemand het verschil, de videokaart wel
     shadows: true,
     shadowMap: 2048,
     post: true,

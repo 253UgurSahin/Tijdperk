@@ -11,14 +11,16 @@ import { aimTurrets, findTurrets, type TurretState } from './turrets';
 import { makeBuilding } from './models';
 import { LAYER, puff } from './particles';
 import { S3 } from './scene';
-import { changedAt, scaffold } from './sync';
+import { buildingsFar, changedAt, scaffold } from './sync';
 
 export const RG3 = new T3.Group();
 S3.add(RG3);
 /** Wat er per gebouw van een rivaal bewaard wordt: houder (g), model (m), hoogte (h) en grootte (s). */
 interface RivalBuildingRec {
   g: T3.Group;
+  /** Het fijne model en de grove versie voor ver uitgezoomd (zie buildingsFar in sync.ts). */
   m: T3.Group;
+  coarse: T3.Group;
   /** Verandert de sleutel (soort, tijdperk, klaar), dan wordt het model opnieuw gemaakt. */
   key: string;
   h: number;
@@ -85,15 +87,19 @@ function buildModel(b: RivalBuilding, rival: Rival, key: string): RivalBuildingR
   // Banieren en schilden in hun kleur: makeBuilding gebruikt paint.team, dus die zetten we even om
   const before = paint.team;
   paint.team = colour;
-  let m;
+  let m, coarse;
   try {
     m = makeBuilding(b.type, rival.age, b);
+    coarse = makeBuilding(b.type, rival.age, b, false); // de grove versie voor ver uitgezoomd
   } finally {
     paint.team = before;
   }
-  g.add(m);
+  g.add(m, coarse);
+  m.visible = !buildingsFar();
+  coarse.visible = buildingsFar();
   const h = Math.max(0.3, new T3.Box3().setFromObject(m).max.y);
   tintTop(m, colour, h);
+  tintTop(coarse, colour, h);
   // Hun eigen vlag op een hoek, zodat je van ver ziet van wie het is
   flagpole(g, -s * 0.42, 0, -s * 0.42, Math.min(1.7, h * 0.55 + 0.5), colour);
   if (!b.done) {
@@ -114,7 +120,7 @@ function buildModel(b: RivalBuilding, rival: Rival, key: string): RivalBuildingR
     if (o.userData.spin) spins.push(o);
   });
   RG3.add(g);
-  return { g, m, key, h, s, flags, fires, spins, turret: findTurrets(g, b.id) };
+  return { g, m, coarse, key, h, s, flags, fires, spins, turret: findTurrets(g, b.id) };
 }
 
 // Daken en bovenkanten krijgen een tint van hun kleur; onderaan blijven de muren zoals ze zijn
@@ -139,10 +145,15 @@ function tintTop(group: T3.Object3D, colour: string, h: number) {
 }
 
 function animate(r: RivalBuildingRec, b: RivalBuilding) {
+  const far = buildingsFar();
+  if (r.m.visible === far) {
+    r.m.visible = !far;
+    r.coarse.visible = far;
+  }
   if (!b.done) {
     // In aanbouw: het gebouw rijst langzaam op binnen de steigers
     const p = Math.min(1, b.prog / b.bt);
-    r.m.position.y = -r.h * (1 - (0.12 + 0.88 * p));
+    r.m.position.y = r.coarse.position.y = -r.h * (1 - (0.12 + 0.88 * p));
   }
   for (const f of r.flags) f.rotation.y = Math.sin(store.TM * 2 + b.id) * 0.25;
   for (const f of r.fires) f.scale.set(1, 0.85 + Math.sin(store.TM * 13 + b.id) * 0.1, 1);

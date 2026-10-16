@@ -4,6 +4,7 @@ import { RES } from '../data/resources';
 import { C, CYANM, FOE, GB, TEAM, TEAMD, VIOLETM, bx, cn, cy, gIco, mat, mk, sp } from './kit';
 
 const SKIN = ['#e2b48c', '#c99470', '#a8754f', '#f0c8a0'];
+const BOOT = '#3a2e22'; // laarzen en riem
 const JOBCOL: Record<string, string> = {
   auto: '#cdbf9c',
   build: '#d9773a',
@@ -53,7 +54,13 @@ function person(g: T3.Group, o: PersonOpts) {
   lR.position.set(0.05, 0.2, 0);
   bx(lL, 0.06, 0.2, 0.07, o.pants || '#4a4038', 0, -0.2, 0);
   bx(lR, 0.06, 0.2, 0.07, o.pants || '#4a4038', 0, -0.2, 0);
+  // Laarzen onder de broekspijpen
+  bx(lL, 0.066, 0.05, 0.085, BOOT, 0, -0.2, 0.006);
+  bx(lR, 0.066, 0.05, 0.085, BOOT, 0, -0.2, 0.006);
   bx(g, 0.18, 0.2, 0.11, o.shirt, 0, 0.2, 0);
+  bx(g, 0.186, 0.025, 0.116, BOOT, 0, 0.2, 0); // riem
+  // Twee ogen aan de voorkant van het hoofd
+  for (const x of [-0.026, 0.026]) bx(g, 0.014, 0.014, 0.01, '#2a211c', x, 0.475, 0.068);
   if (o.sash) bx(g, 0.185, 0.05, 0.115, o.sash, 0, 0.32, 0);
   // Soldaten en vijanden dragen een gekleurd borststuk: blauw = jouw leger, rood = vijand
   if (o.tabard) bx(g, 0.19, 0.15, 0.118, o.tabard, 0, 0.21, 0);
@@ -94,6 +101,9 @@ function person(g: T3.Group, o: PersonOpts) {
   aR.position.set(0.12, 0.38, 0);
   bx(aL, 0.05, 0.18, 0.06, o.shirt, 0, -0.18, 0);
   bx(aR, 0.05, 0.18, 0.06, o.shirt, 0, -0.18, 0);
+  // Handen in huidskleur onderaan de mouwen
+  bx(aL, 0.046, 0.04, 0.052, sk, 0, -0.2, 0);
+  bx(aR, 0.046, 0.04, 0.052, sk, 0, -0.2, 0);
   if (o.tool) {
     const t = new T3.Group();
     t.position.set(0, -0.17, 0.04);

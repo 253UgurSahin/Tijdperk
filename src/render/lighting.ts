@@ -42,6 +42,8 @@ const AGE_MOOD = (
 ).map((m): [T3.Color, T3.Color, number] | null => m && [new T3.Color(m[0]), new T3.Color(m[1]), m[2]]);
 // Zoveel lichtvlekken van lampen op de grond hooguit (de dichtstbijzijnde)
 const MAX_GLOWS = 96;
+// Hangen de lampen (PL) nu in de scène? (zie lighting)
+let lampsIn = true;
 const moodSun = new T3.Color('#ffffff'),
   moodFog = new T3.Color('#9fb3a6'),
   wantSun = new T3.Color(),
@@ -149,6 +151,15 @@ export function lighting(dk: number) {
   // Ver uitgezoomd geen echte lampen: die zouden maar een paar plekjes midden in beeld verlichten,
   // en alle andere lampen niet. De lichtvlekken op de grond zijn dan genoeg.
   const far = isFar();
+  // Overdag (en van ver) halen we de lampen helemaal uit de scène: anders rekent de videokaart voor elk
+  // pixel zes lampen door die toch uit staan
+  const wantLamps = dk >= 0.05 && !far;
+  if (wantLamps !== lampsIn) {
+    lampsIn = wantLamps;
+    for (const p of PL)
+      if (wantLamps) S3.add(p);
+      else S3.remove(p);
+  }
   PL.forEach((p, i) => {
     const L = all[i];
     if (!L || dk < 0.05 || far) {

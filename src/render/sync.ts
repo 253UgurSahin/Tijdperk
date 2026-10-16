@@ -27,7 +27,7 @@ import { FOEK, makeUnit, makeVillager } from './people';
 import { animEntity, clearDying, initAnim, startDeath, type Animated } from './animate';
 import { LAYER, clearParticles, emit, puff } from './particles';
 import { markOrder } from './effects';
-import { camDist, pxu } from './camera';
+import { camDist, isFar, pxu } from './camera';
 import { CAM3, S3, cam } from './scene';
 import { buildTerrain, flushTerrain, paintAll, repaintTile } from './terrain';
 import { dirtyGround, node, road } from '../world/world';
@@ -38,7 +38,9 @@ import { landSig, rivalColour } from '../game/rivals';
 /** Wat er per gebouw in de 3D-wereld bewaard wordt: houder (g), model (m), hoogte en bewegende delen. */
 interface BuildingRec {
   g: T3.Group;
+  /** Het model met alle details, en de grove versie voor ver uitgezoomd (zie lodBuildings). */
   m: T3.Group;
+  coarse: T3.Group;
   /** Verandert de sleutel (soort, tijdperk, klaar, muurvorm), dan wordt het model opnieuw gemaakt. */
   key: string;
   h: number;
@@ -246,12 +248,14 @@ function popBounce(r: BuildingRec, s: number) {
   const a = store.TM - r.popAt;
   if (a >= POP_TIME) {
     if (r.popping) r.m.scale.set(1, 1, 1);
+    if (r.popping) r.coarse.scale.set(1, 1, 1);
     r.popping = false;
     return;
   }
   r.popping = true;
   const spring = Math.exp(-a * 5) * Math.cos(a * 18);
   r.m.scale.set(1 + spring * 0.1, 1 - spring * 0.22, 1 + spring * 0.1);
+  r.coarse.scale.copy(r.m.scale);
   const p = r.g.position;
   ringAt(p.x, p.z, s * 0.55 + a * 2.4, '#f1dfb8', 0.75 * (1 - a / POP_TIME), 0.07);
 }
@@ -273,10 +277,28 @@ export function changedAt(x0: number, y0: number, x1 = x0, y1 = y0): void {
   shadeChanged(x0, y0, x1, y1);
   groundChanged();
 }
+// Staan de gebouwen nu in hun grove versie (ver uitgezoomd)?
+let farLod = false;
+export const buildingsFar = () => farLod;
+/**
+ * Ver uitgezoomd wisselen alle gebouwen in één keer naar hun grove model (een paar honderd hoekpunten in
+ * plaats van duizenden), en dichtbij weer terug. Dat scheelt de grafische kaart het meest juist als de
+ * hele stad in beeld is.
+ */
+function lodBuildings() {
+  const far = isFar();
+  if (far === farLod) return;
+  farLod = far;
+  for (const r of bRec.values()) {
+    r.m.visible = !far;
+    r.coarse.visible = far;
+  }
+}
 export function syncBuildings() {
   const seen = new Set<number>(),
     dt = lastBT ? Math.min(0.1, store.TM - lastBT) : 0;
   lastBT = store.TM;
+  lodBuildings();
   for (const b of G.bs) {
     const d = B[b.type],
       s = d.size;
@@ -300,8 +322,12 @@ export function syncBuildings() {
         disposeMerged(r.g);
       }
       const g = new T3.Group(),
-        m = makeBuilding(b.type, G.age, b);
-      g.add(m);
+        m = makeBuilding(b.type, G.age, b),
+        coarse = makeBuilding(b.type, G.age, b, false);
+      g.add(m, coarse);
+      // Van ver zie je de grove versie; dichtbij de fijne (zie lodBuildings)
+      m.visible = !farLod;
+      coarse.visible = farLod;
       g.position.set(b.x + s / 2, 0, b.y + s / 2);
       const box = new T3.Box3().setFromObject(m);
       const h = Math.max(0.3, box.max.y);
@@ -324,11 +350,14 @@ export function syncBuildings() {
         spins: T3.Object3D[] = [],
         chims: [number, number, number][] = [];
       g.updateMatrixWorld(true);
-      g.traverse(o => {
+      // Schoorstenen alleen uit het fijne model, anders rookt elke schoorsteen dubbel
+      m.traverse(o => {
         if (o.userData.chim) {
           o.getWorldPosition(tmpV);
           chims.push([tmpV.x, tmpV.y, tmpV.z]);
         }
+      });
+      g.traverse(o => {
         if (o.userData.fire) fires.push(o);
         if (o.userData.flag) flags.push(o);
         if (o.userData.pump) pumps.push(o);
@@ -338,6 +367,7 @@ export function syncBuildings() {
       r = {
         g,
         m,
+        coarse,
         key,
         h,
         fires,
@@ -367,7 +397,7 @@ export function syncBuildings() {
       buildDust(r, b, s, dt);
       // Het gebouw rijst langzaam uit de grond op, binnen de steigers
       const p = Math.min(1, b.prog / b.bt);
-      r.m.position.y = -r.h * (1 - (0.12 + 0.88 * p));
+      r.m.position.y = r.coarse.position.y = -r.h * (1 - (0.12 + 0.88 * p));
     } else {
       // Een verbetering (niveau omhoog) laat het gebouw ook even opveren (zie game/upgrades.ts)
       if (b.pop_t !== r.popSeen) {

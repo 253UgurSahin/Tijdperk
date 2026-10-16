@@ -17,6 +17,7 @@ import {
   chim,
   cn,
   crenel,
+  curb,
   cy,
   door,
   flagpole,
@@ -32,6 +33,8 @@ import {
   mergeStatic,
   mk,
   pr,
+  props,
+  setDetail,
   sp,
   wins,
 } from './kit';
@@ -1240,14 +1243,30 @@ function banner(g: T3.Object3D, x: number, y: number, z: number) {
 const PLATE: Record<string, string> = { home: '#c4ad84', eco: '#8a7454', mil: '#5f6672' };
 const NO_PLATE = new Set(['farm', 'oilpump', 'campfire', 'lantern', 'streetlamp', 'road', 'townhall']);
 
-/** Maak het model van een gebouw (van jou of een rivaal); zonder b (null) voor een voorbeeld of pictogram. */
-export function makeBuilding(type: string, age: number, b?: Building | RivalBuilding | null): T3.Group {
+/**
+ * Maak het model van een gebouw (van jou of een rivaal); zonder b (null) voor een voorbeeld of pictogram.
+ * `fine` = false geeft de grove versie zonder kleine details, voor ver uitgezoomd (zie sync.ts).
+ */
+export function makeBuilding(
+  type: string,
+  age: number,
+  b?: Building | RivalBuilding | null,
+  fine = true,
+): T3.Group {
   const g = new T3.Group(),
     d = B[type];
+  setDetail(fine);
+  // Elk gebouw een eigen tint (zie bakeColours in kit.ts); het nummer van het gebouw is daarvoor genoeg
+  if (b) g.userData.seed = b.id;
   if (d.wall) makeWall(g, type, b ? wallMask(b) : 0);
   else {
-    if (PLATE[d.cat] && !NO_PLATE.has(type)) bx(g, d.size * 0.97, 0.03, d.size * 0.97, PLATE[d.cat]);
+    if (PLATE[d.cat] && !NO_PLATE.has(type)) {
+      bx(g, d.size * 0.97, 0.03, d.size * 0.97, PLATE[d.cat]);
+      curb(g, d.size * 0.97, PLATE[d.cat]);
+    }
     (MODELS[type] || MODELS.storage)(g, age, b);
+    if (b) props(g, d.size, d.cat, b.id);
   }
+  setDetail(true);
   return mergeStatic(g);
 }

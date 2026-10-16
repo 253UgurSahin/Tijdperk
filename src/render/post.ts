@@ -1,13 +1,13 @@
-// Nabewerking van het beeld: een zachte gloed rond lichten en vuur (bloom), een omlijning rond
-// wat je selecteert of aanwijst, en kleurcorrectie. Hoeveel hiervan aan staat, hangt af van de
-// kwaliteitsinstelling (zie quality.ts); op "laag" wordt het beeld direct getekend.
+// Nabewerking van het beeld: een zachte gloed rond lichten en vuur (bloom) en kleurcorrectie. Hoeveel
+// hiervan aan staat, hangt af van de kwaliteitsinstelling (zie quality.ts); op "laag" wordt het beeld
+// direct getekend. (De omlijning van wat je selecteert zit in outline.ts en kost geen extra beeldpas.)
 import * as T3 from 'three';
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
-import { OutlinePass } from 'three/examples/jsm/postprocessing/OutlinePass.js';
 import { CAM3, R3, S3 } from './scene';
+import { setOutlineEnabled } from './outline';
 
 // Zachte "schouder" voor felle kleuren: tot 0.8 blijft alles gelijk, daarboven loopt het
 // geleidelijk naar wit in plaats van hard af te kappen. Zo houden zonnig zand, sneeuw en
@@ -59,37 +59,31 @@ const GradeShader = {
 // Worden pas gemaakt als de nabewerking aan gaat (zie build), en dan allemaal tegelijk
 let composer: EffectComposer | null = null,
   bloom: UnrealBloomPass | null = null,
-  grade: ShaderPass | null = null,
-  selectOutline: OutlinePass | null = null,
-  hoverOutline: OutlinePass | null = null;
-const on = { post: false, bloom: false, outline: false, sharpen: 0, hdr: false };
+  grade: ShaderPass | null = null;
+const on = { post: false, bloom: false, outline: false, sharpen: 0, hdr: false, samples: 0 };
 /** Laatste schermmaat: breedte, hoogte en pixelverhouding. */
 let size: [number, number, number] = [4, 4, 1];
 
+// Boven zoveel pixels wordt het beeld met 2 in plaats van 4 monsters per pixel gladgestreken: op een
+// 4K-scherm kost 4× anders meer geheugenverkeer dan de hele rest van het beeld bij elkaar
+const MSAA_FULL_PIXELS = 4.5e6;
+const wantSamples = () => {
+  if (!R3.capabilities.isWebGL2) return 0;
+  const [w, h, dpr] = size;
+  return w * h * dpr * dpr > MSAA_FULL_PIXELS ? 2 : 4;
+};
+
 function build(hdr: boolean) {
-  // Eigen render-doel met 4× multisampling, zodat randen ook met nabewerking glad blijven.
+  // Eigen render-doel met multisampling, zodat randen ook met nabewerking glad blijven.
   // Op "hoog" met "half float": dan mogen kleuren feller dan wit zijn, en gloeien alleen echte
   // lichten (in plaats van alles wat in de zon wit wordt). Op "middel" gewone kleuren: lichter.
-  const gl2 = R3.capabilities.isWebGL2;
+  const samples = wantSamples();
   const target = new T3.WebGLRenderTarget(4, 4, {
-    samples: gl2 ? 4 : 0,
+    samples,
     type: hdr ? T3.HalfFloatType : T3.UnsignedByteType,
   });
   composer = new EffectComposer(R3, target);
   composer.addPass(new RenderPass(S3, CAM3));
-  selectOutline = new OutlinePass(new T3.Vector2(256, 256), S3, CAM3);
-  selectOutline.visibleEdgeColor.set('#b8ff9a');
-  selectOutline.hiddenEdgeColor.set('#3c6a32');
-  selectOutline.edgeStrength = 4;
-  selectOutline.edgeThickness = 1.2;
-  selectOutline.edgeGlow = 0.4;
-  composer.addPass(selectOutline);
-  hoverOutline = new OutlinePass(new T3.Vector2(256, 256), S3, CAM3);
-  hoverOutline.visibleEdgeColor.set('#fff4d6');
-  hoverOutline.hiddenEdgeColor.set('#000000');
-  hoverOutline.edgeStrength = 2.2;
-  hoverOutline.edgeThickness = 1;
-  composer.addPass(hoverOutline);
   // Alleen echt felle dingen (vuur, lampen, lasers) gloeien: de drempel ligt hoog
   bloom = new UnrealBloomPass(new T3.Vector2(256, 256), 0.55, 0.5, hdr ? 1.35 : 0.82);
   composer.addPass(bloom);
@@ -100,6 +94,7 @@ function build(hdr: boolean) {
   grade.needsSwap = false;
   composer.addPass(grade);
   on.hdr = hdr;
+  on.samples = samples;
   resizePost(...size);
 }
 
@@ -130,12 +125,12 @@ export function configurePost({ post, bloom: useBloom, outline, sharpen = 0, hdr
   on.sharpen = sharpen;
   if (composer && (!post || on.hdr !== hdr)) dispose();
   if (post && !composer) build(hdr);
-  // composer, bloom, grade en de omlijningen bestaan altijd samen (zie build)
+  // composer, bloom en grade bestaan altijd samen (zie build)
   if (composer) {
     bloom!.enabled = useBloom;
-    selectOutline!.enabled = hoverOutline!.enabled = outline;
     grade!.uniforms.uSharpen.value = sharpen;
   }
+  setOutlineEnabled(outline);
   // De zachte schouder voor felle kleuren zit in de laatste stap als die felle kleuren kent
   // (hoog); anders in de materialen zelf. Zo gebeurt het altijd precies één keer.
   R3.toneMapping = composer && on.hdr ? T3.NoToneMapping : T3.CustomToneMapping;
@@ -144,8 +139,17 @@ export function configurePost({ post, bloom: useBloom, outline, sharpen = 0, hdr
 export function resizePost(w: number, h: number, dpr: number) {
   size = [w, h, dpr];
   if (!composer) return;
+  // Een ander aantal monsters per pixel nodig (zie MSAA_FULL_PIXELS)? Dan alles opnieuw opbouwen
+  if (on.samples !== wantSamples()) {
+    dispose();
+    build(on.hdr);
+    return;
+  }
   composer.setPixelRatio(dpr);
   composer.setSize(w, h);
+  // De gloed is een wazige deken: die hoeft maar op een kwart van de pixels (de helft in elke richting
+  // van wat de composer zou nemen). Dat scheelt vier keer zoveel werk en je ziet het verschil niet.
+  bloom!.setSize(Math.max(2, Math.round((w * dpr) / 2)), Math.max(2, Math.round((h * dpr) / 2)));
   grade!.uniforms.uTexel.value.set(1 / Math.max(1, w * dpr), 1 / Math.max(1, h * dpr));
 }
 
@@ -157,18 +161,6 @@ export function setBloomDarkness(dk: number) {
   if (!bloom) return;
   bloom.threshold = on.hdr ? 1.35 - dk * 0.6 : 0.82;
 }
-
-/** Welke 3D-objecten een omlijning krijgen: geselecteerd en aangewezen. */
-export function setOutlined(selected: T3.Object3D[], hovered: T3.Object3D[]) {
-  if (!composer) return;
-  selectOutline!.selectedObjects = selected;
-  hoverOutline!.selectedObjects = hovered;
-  // Lege lijst: de pas overslaan scheelt werk
-  selectOutline!.enabled = on.outline && selected.length > 0;
-  hoverOutline!.enabled = on.outline && hovered.length > 0;
-}
-
-export const outlinesOn = () => on.post && on.outline;
 
 export function renderFrame() {
   // Staat on.post aan, dan is build() al gedaan en bestaat composer
