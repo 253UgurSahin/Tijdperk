@@ -7,6 +7,7 @@ import { RIVAL } from '../data/rivals';
 import { G } from '../game/state';
 import { quadG } from './decals';
 import { disposeMerged, flagpole, isMesh, mat, paint } from './kit';
+import { aimTurrets, findTurrets, type TurretState } from './turrets';
 import { makeBuilding } from './models';
 import { LAYER, puff } from './particles';
 import { S3 } from './scene';
@@ -25,6 +26,8 @@ interface RivalBuildingRec {
   flags: T3.Object3D[];
   fires: T3.Object3D[];
   spins: T3.Object3D[];
+  /** Het draaibare geschut van een toren (zie render/turrets.ts), of null. */
+  turret: TurretState | null;
 }
 /** Per gebouw van een rivaal: de 3D-groep en wat er beweegt (vlaggen, vuur, wieken). */
 export const rbRec = new Map<number, RivalBuildingRec>();
@@ -111,7 +114,7 @@ function buildModel(b: RivalBuilding, rival: Rival, key: string): RivalBuildingR
     if (o.userData.spin) spins.push(o);
   });
   RG3.add(g);
-  return { g, m, key, h, s, flags, fires, spins };
+  return { g, m, key, h, s, flags, fires, spins, turret: findTurrets(g, b.id) };
 }
 
 // Daken en bovenkanten krijgen een tint van hun kleur; onderaan blijven de muren zoals ze zijn
@@ -147,6 +150,8 @@ function animate(r: RivalBuildingRec, b: RivalBuilding) {
   if (b.done)
     for (const o of r.spins)
       o.rotation[(o.userData.axis || 'y') as 'x' | 'y' | 'z'] = store.TM * o.userData.spin + b.id;
+  // Het geschut van een toren draait mee naar jouw mensen waarop hij schiet
+  if (b.done && r.turret) aimTurrets(r.turret, b, store.TM);
   // Geraakt: stof en vonken op de gevel (flash zet game/military.ts bij elke treffer; hier weer op 0)
   if (b.flash) {
     b.flash = 0;

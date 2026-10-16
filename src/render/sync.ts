@@ -20,6 +20,7 @@ import {
   mk,
 } from './kit';
 import { BOSS_SCALE } from '../data/bosses';
+import { aimTurrets, findTurrets, type TurretState } from './turrets';
 import { makeBuilding, makeCamp, wallMask } from './models';
 import { nodesNeedUpdate, rebuildNodes } from './nodes';
 import { FOEK, makeUnit, makeVillager } from './people';
@@ -46,6 +47,8 @@ interface BuildingRec {
   pumps: T3.Object3D[];
   lamps: T3.Object3D[];
   spins: T3.Object3D[];
+  /** Het draaibare geschut van een toren (zie render/turrets.ts), of null. */
+  turret: TurretState | null;
   /** Plekken in de wereld waar rook uit een schoorsteen komt: [x, y, z]. */
   chims: [number, number, number][];
   /** Was het gebouw af toen dit model gemaakt werd? */
@@ -342,6 +345,7 @@ export function syncBuildings() {
         pumps,
         lamps,
         spins,
+        turret: findTurrets(g, b.id),
         chims,
         done: b.done,
         flPrev: 0,
@@ -383,6 +387,8 @@ export function syncBuildings() {
     if (b.done && b.on !== false)
       for (const o of r.spins)
         o.rotation[(o.userData.axis || 'y') as 'x' | 'y' | 'z'] = store.TM * o.userData.spin + b.id;
+    // Het geschut van een toren draait mee naar de vijand waarop hij schiet
+    if (b.done && r.turret) aimTurrets(r.turret, b, store.TM);
   }
   for (const [id, r] of bRec)
     if (!seen.has(id)) {

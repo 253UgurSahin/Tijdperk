@@ -58,6 +58,19 @@ const GATE_MAT2 = new T3.MeshBasicMaterial({
 
 /** Bouwt het model van één soort gebouw in groep g (a = het tijdperk, voor het stadhuis). */
 type ModelFn = (g: T3.Group, a: number, b?: Building | RivalBuilding | null) => void;
+/**
+ * Een draaibaar stuk geschut bovenop een toren (zie render/turrets.ts): alles wat je erin zet, draait mee naar
+ * de vijand. `forward` zegt waar de loop in het model naartoe wijst: 1 = naar voren (+z), -1 = naar achteren.
+ * Na het vullen: turretDone, dan worden de blokjes samengevoegd (minder om te tekenen).
+ */
+function turret(g: T3.Object3D, forward: 1 | -1): T3.Group {
+  const t = new T3.Group();
+  t.userData.turret = forward;
+  g.add(t);
+  return t;
+}
+const turretDone = (t: T3.Group) => mergeStatic(t);
+
 const MODELS: Record<string, ModelFn> = {
   townhall(g, a) {
     // Elk tijdperk krijgt een eigen stamhuis (a = nummer van het tijdperk)
@@ -536,13 +549,16 @@ const MODELS: Record<string, ModelFn> = {
   cannon(g) {
     cy(g, 0.46, 0.22, '#9a8e74', 0, 0, 0, 10);
     cy(g, 0.34, 0.06, '#6e6656', 0, 0.22, 0, 10);
-    const c = cy(g, 0.07, 0.7, '#2e3236', 0, 0.38, 0.05, 8);
+    // Het kanon met zijn wielen draait mee naar de vijand
+    const t = turret(g, 1);
+    const c = cy(t, 0.07, 0.7, '#2e3236', 0, 0.38, 0.05, 8);
     c.rotation.x = 1.2;
     c.position.z = -0.1;
     for (const x of [-0.16, 0.16]) {
-      const w = cy(g, 0.14, 0.04, C.woodd, x, 0.3, 0, 10);
+      const w = cy(t, 0.14, 0.04, C.woodd, x, 0.3, 0, 10);
       w.rotation.z = Math.PI / 2;
     }
+    turretDone(t);
   },
   oilpump(g) {
     bx(g, 0.82, 0.08, 0.82, C.concrete);
@@ -614,12 +630,15 @@ const MODELS: Record<string, ModelFn> = {
   aa(g) {
     bx(g, 0.84, 0.16, 0.84, C.concrete);
     cy(g, 0.3, 0.2, C.dmetal, 0, 0.16, 0, 10);
-    bx(g, 0.36, 0.24, 0.3, '#5b6644', 0, 0.36, 0);
+    // Het geschut met twee lopen draait mee (de lopen wijzen in het model naar achteren)
+    const t = turret(g, -1);
+    bx(t, 0.36, 0.24, 0.3, '#5b6644', 0, 0.36, 0);
     for (const x of [-0.08, 0.08]) {
-      const b = cy(g, 0.035, 0.6, C.dmetal, x, 0.5, 0, 6);
+      const b = cy(t, 0.035, 0.6, C.dmetal, x, 0.5, 0, 6);
       b.rotation.x = -0.7;
       b.position.z = -0.05;
     }
+    turretDone(t);
   },
   chipfab(g) {
     bx(g, 1.75, 0.62, 1.35, '#f2f4f5');
@@ -894,15 +913,17 @@ const MODELS: Record<string, ModelFn> = {
       const an = (k / 5) * TAU;
       bx(g, 0.05, 0.36, 0.05, C.stoned, Math.sin(an) * 0.47, 0, Math.cos(an) * 0.47, an);
     }
-    // Kanon op een houten affuit, gericht naar voren
-    bx(g, 0.22, 0.08, 0.3, C.woodd, 0, 0.4, 0);
+    // Kanon op een houten affuit: draait mee naar de vijand
+    const t = turret(g, 1);
+    bx(t, 0.22, 0.08, 0.3, C.woodd, 0, 0.4, 0);
     for (const x of [-0.13, 0.13]) {
-      const w = cy(g, 0.08, 0.03, C.woodd, x, 0.48, 0.06, 10);
+      const w = cy(t, 0.08, 0.03, C.woodd, x, 0.48, 0.06, 10);
       w.rotation.z = Math.PI / 2;
       w.position.x = x > 0 ? x + 0.03 : x;
     }
-    const c = cy(g, 0.05, 0.45, '#2e3236', 0, 0.52, -0.08, 8, 0.04);
+    const c = cy(t, 0.05, 0.45, '#2e3236', 0, 0.52, -0.08, 8, 0.04);
     c.rotation.x = Math.PI / 2 - 0.2;
+    turretDone(t);
     for (const [x, z] of [
       [-0.2, -0.22],
       [-0.13, -0.24],
@@ -983,11 +1004,14 @@ const MODELS: Record<string, ModelFn> = {
     // Geschutskoepel met twee lange rails waartussen een paarse gloed loopt
     cy(g, 0.45, 0.18, C.concrete, 0, 0, 0, 8);
     cy(g, 0.32, 0.1, '#3a3d48', 0, 0.18, 0, 12);
-    bx(g, 0.42, 0.26, 0.44, '#4a4e5a', 0, 0.28, -0.05);
+    // De koepel met de rails draait mee naar de vijand
+    const t = turret(g, 1);
+    bx(t, 0.42, 0.26, 0.44, '#4a4e5a', 0, 0.28, -0.05);
     for (const x of [-0.25, 0.25]) {
-      bx(g, 0.08, 0.2, 0.3, '#3a3d48', x, 0.28, -0.1);
-      bx(g, 0.085, 0.03, 0.25, VIOLETM, x, 0.42, -0.1);
+      bx(t, 0.08, 0.2, 0.3, '#3a3d48', x, 0.28, -0.1);
+      bx(t, 0.085, 0.03, 0.25, VIOLETM, x, 0.42, -0.1);
     }
+    turretDone(t);
     const r = new T3.Group();
     r.position.set(0, 0.5, -0.05);
     r.rotation.x = -0.32;
@@ -997,7 +1021,7 @@ const MODELS: Record<string, ModelFn> = {
     }
     for (const z of [0.05, 0.35, 0.65]) bx(r, 0.26, 0.12, 0.05, '#4a4e5a', 0, -0.03, z);
     mergeStatic(r);
-    g.add(r);
+    t.add(r);
   },
   mechbay(g) {
     // Werf voor lopende robots: hal met een gele stelling waarin een mech hangt
