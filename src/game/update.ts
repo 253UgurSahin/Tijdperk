@@ -127,7 +127,8 @@ export function update(dt: number) {
   for (const v of G.vs) vUpdate(v, dt);
   for (const u of G.us) uUpdate(u, dt);
   for (const f of G.foes) if (!f.dead) fUpdate(f, dt);
-  G.foes = G.foes.filter(f => !f.dead);
+  // Alleen een nieuwe lijst maken als er echt iemand gesneuveld is (scheelt elke speltik werk en geheugen)
+  if (G.foes.some(f => f.dead)) G.foes = G.foes.filter(f => !f.dead);
   if (G.spawnQ.length) {
     const now = G.spawnQ.filter(s => s.at <= G.t);
     if (now.length) {

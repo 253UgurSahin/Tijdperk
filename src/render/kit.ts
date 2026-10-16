@@ -114,6 +114,7 @@ function mergeSameMaterial(g: T3.Object3D, parts: T3.Mesh[], material: T3.Materi
  * die een dorpeling draagt) blijven los.
  */
 export function mergeFigure(root: T3.Object3D): void {
+  flattenLooseGroups(root);
   const groups: T3.Object3D[] = [];
   root.traverse(o => {
     if (!isMesh(o)) groups.push(o);
@@ -129,6 +130,50 @@ export function mergeFigure(root: T3.Object3D): void {
         Object.keys(o.userData).length === 0,
     );
     mergeParts(g, parts, false);
+  }
+}
+
+/*
+ * Een groepje dat alleen vaste blokjes bij elkaar houdt (zoals het gereedschap in een hand) en waar verder
+ * niets naar verwijst, lossen we op in zijn ouder: de blokjes krijgen meteen de goede plek. Zo kan
+ * mergeFigure ze samenvoegen met de arm die ze vasthoudt. Groepjes waar wel iets naar verwijst (armen, benen,
+ * de rotor van een drone: via userData) of met een naam blijven bestaan, want die bewegen.
+ */
+function flattenLooseGroups(root: T3.Object3D): void {
+  const used = new Set<unknown>();
+  root.traverse(o => {
+    for (const v of Object.values(o.userData)) {
+      used.add(v);
+      // (bijv. userData.limbs = { lL, lR, aL, aR })
+      if (v && typeof v === 'object' && !(v as T3.Object3D).isObject3D)
+        for (const w of Object.values(v)) used.add(w);
+    }
+  });
+  const loose: T3.Object3D[] = [];
+  root.traverse(o => {
+    if (
+      o !== root &&
+      !isMesh(o) &&
+      o.type === 'Group' &&
+      !o.name &&
+      !used.has(o) &&
+      Object.keys(o.userData).length === 0 &&
+      o.children.length > 0 &&
+      o.children.every(c => isMesh(c) && c.children.length === 0) &&
+      o.parent
+    )
+      loose.push(o);
+  });
+  for (const g of loose) {
+    const parent = g.parent!; // (zo gevonden: elk los groepje heeft een ouder)
+    g.updateMatrix();
+    for (const c of [...g.children]) {
+      c.updateMatrix();
+      c.matrix.premultiply(g.matrix);
+      c.matrix.decompose(c.position, c.quaternion, c.scale);
+      parent.add(c);
+    }
+    parent.remove(g);
   }
 }
 

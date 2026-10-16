@@ -27,7 +27,7 @@ import { animEntity, clearDying, initAnim, startDeath, type Animated } from './a
 import { LAYER, clearParticles, emit, puff } from './particles';
 import { markOrder } from './effects';
 import { camDist, pxu } from './camera';
-import { S3, cam } from './scene';
+import { CAM3, S3, cam } from './scene';
 import { buildTerrain, flushTerrain, paintAll, repaintTile } from './terrain';
 import { dirtyGround, node, road } from '../world/world';
 import { groundChanged, shadeAll, shadeChanged } from './terrainlook';
@@ -96,6 +96,8 @@ export interface EntityRec {
    */
   statue: T3.Mesh | null;
   statueOn: boolean;
+  /** De bewegende delen die even los liggen zolang het beeldje getoond wordt (zie showAsDot). */
+  parts: T3.Object3D[];
   /** Het figuur in de spelstand. */
   e: Figure;
   /** De laatste bestemming van een soldaat (voor de markering bij een nieuw looporder). */
@@ -512,6 +514,7 @@ function syncEnt(e: Figure, make: () => T3.Group): EntityRec {
   if (!r || r.key !== key) {
     if (r) {
       EG3.remove(r.g);
+      wholeFigure(r);
       disposeMerged(r.g);
     }
     // g = de houder (positie, draaiing, cirkels eronder), body = alleen het figuur zelf (voor de omlijning)
@@ -531,7 +534,19 @@ function syncEnt(e: Figure, make: () => T3.Group): EntityRec {
     });
     EG3.add(g);
     // ringSize, ring en seen worden hieronder ingevuld
-    r = { g, body, key, px: e.x, py: e.y, ang: 0, mv: 0, selT: -9, statue, statueOn: false } as EntityRec;
+    r = {
+      g,
+      body,
+      key,
+      px: e.x,
+      py: e.y,
+      ang: 0,
+      mv: 0,
+      selT: -9,
+      statue,
+      statueOn: false,
+      parts: [] as T3.Object3D[],
+    } as EntityRec;
     const ring = new T3.Mesh(
       RINGG,
       new T3.MeshBasicMaterial({ color: '#9fe28a', transparent: true, opacity: 0.95, depthWrite: false }),
@@ -592,16 +607,42 @@ let dots = false,
   statues = false,
   dotGrow = 1;
 // Kleiner dan dit (pixels per tegel) zie je armen en benen niet meer bewegen: dan het vaste beeldje
-const STATUE_PX = 26;
+const STATUE_PX = 32;
+/*
+ * Wat er niet getekend wordt, halen we ook echt even weg uit de wereld: three.js rekent anders elk beeldje
+ * toch de plek van elk onderdeel uit, ook als het onzichtbaar is. Als stip gaat het hele figuur eruit (alleen
+ * de schijf blijft, zie drawDiscs); als beeldje gaan de bewegende delen eruit (de kroon van een kampioen
+ * blijft altijd staan).
+ */
 function showAsDot(r: EntityRec) {
-  r.body.visible = !dots;
-  // (de schijf zelf tekent drawDiscs, voor alle figuren tegelijk)
+  // Buiten beeld (met wat speling, ook voor de schaduw) hoeft het figuur er ook niet te zijn
+  viewSphere.center.set(r.g.position.x, 0.4, r.g.position.z);
+  const show = !dots && viewFrustum.intersectsSphere(viewSphere);
+  if (show !== (r.body.parent === r.g)) {
+    if (show) r.g.add(r.body);
+    else r.g.remove(r.body);
+  }
   const still = statues && !!r.statue;
   if (still !== r.statueOn) {
+    if (still) {
+      r.parts = r.body.children.filter(c => c !== r.statue && c !== r.crown);
+      r.body.remove(...r.parts);
+    } else restoreParts(r);
     r.statueOn = still;
-    // Het beeldje of de losse delen tonen (de kroon van een kampioen blijft altijd staan)
-    for (const c of r.body.children) c.visible = c === r.statue ? still : c === r.crown || !still;
+    // (statue bestaat hier: zonder beeldje is still altijd false)
+    r.statue!.visible = still;
   }
+}
+/** Het figuur weer helemaal compleet (voor het omvallen of opruimen): alle delen terug, zonder beeldje. */
+function wholeFigure(r: EntityRec) {
+  if (r.body.parent !== r.g) r.g.add(r.body);
+  restoreParts(r);
+  if (r.statue) r.statue.visible = false;
+  r.statueOn = false;
+}
+function restoreParts(r: EntityRec) {
+  if (r.parts.length) r.body.add(...r.parts);
+  r.parts = [];
 }
 // Selectiecirkel: verschijnt met een kort "plopje" (groter, dan terug naar normaal) en pulseert zacht
 function showRing(r: EntityRec, on: boolean) {
@@ -613,7 +654,13 @@ function showRing(r: EntityRec, on: boolean) {
   r.ring.material.opacity = 0.75 + Math.sin(store.TM * 4) * 0.15 + pop * 0.1;
 }
 
+// Wat de camera nu ziet (elk beeldje opnieuw), om figuren buiten beeld over te slaan
+const viewFrustum = new T3.Frustum(),
+  viewMatrix = new T3.Matrix4(),
+  viewSphere = new T3.Sphere(new T3.Vector3(), 3);
 export function syncEntities() {
+  viewMatrix.multiplyMatrices(CAM3.projectionMatrix, CAM3.matrixWorldInverse);
+  viewFrustum.setFromProjectionMatrix(viewMatrix);
   dots = camDist() > DOT_DIST;
   statues = pxu() < STATUE_PX;
   // (0,25 tegel is de gewone straal van de schijf onder een soldaat, zie syncEnt)
@@ -688,6 +735,7 @@ export function syncEntities() {
       EG3.remove(r.g);
       eRec.delete(id);
       // Gesneuveld (niet: naar binnen gegaan of gevlucht)? Dan laten omvallen (ook als het net een stip was).
+      wholeFigure(r);
       if (r.e && r.e.dead && !r.e.retreat && !r.e.hidden) {
         r.body.visible = true;
         startDeath(r);
@@ -740,6 +788,7 @@ function forEachChange(now: Uint8Array, before: Uint8Array, found: (i: number) =
   }
 }
 function resetWorld3D() {
+  for (const r of eRec.values()) wholeFigure(r);
   for (const m of [bRec, eRec, cRec])
     for (const r of m.values()) {
       (r.g.parent || S3).remove(r.g);

@@ -489,25 +489,95 @@ export function moveToward(
   }
   return false;
 }
+/*
+ * Snel nakijken of er überhaupt iemand van jou in de buurt is. De kaart is verdeeld in vakken van 8 bij 8
+ * tegels; per vak tellen we je soldaten en dorpelingen (ook wie binnen zit). Dat gebeurt één keer per
+ * speltik, en opnieuw als er iemand bijkomt of wegvalt. Een bewaker bij een kamp ver weg hoeft dan niet alle
+ * soldaten en dorpelingen langs: daar staat toch niemand. Staat er wel iemand dichtbij, dan zoekt foeTarget
+ * gewoon zoals altijd.
+ */
+const CELL = 8;
+let peopleGrid = new Uint16Array(0),
+  gridCols = 0,
+  gridT = -1,
+  gridUs: Unit[] | null = null,
+  gridUsLen = -1,
+  gridVs: Villager[] | null = null,
+  gridVsLen = -1;
+function buildPeopleGrid() {
+  gridCols = Math.ceil(W / CELL);
+  const size = gridCols * Math.ceil(H / CELL);
+  if (peopleGrid.length !== size) peopleGrid = new Uint16Array(size);
+  else peopleGrid.fill(0);
+  const put = (x: number, y: number) => {
+    const cx = Math.min(gridCols - 1, Math.max(0, (x / CELL) | 0)),
+      cy = Math.max(0, (y / CELL) | 0),
+      i = cy * gridCols + cx;
+    if (i < size) peopleGrid[i]++;
+  };
+  for (const u of G.us) put(u.x, u.y);
+  for (const v of G.vs) put(v.x, v.y);
+  gridT = G.t;
+  gridUs = G.us;
+  gridUsLen = G.us.length;
+  gridVs = G.vs;
+  gridVsLen = G.vs.length;
+}
+/** Staat er misschien iemand van jou binnen r tegels van (x, y)? (Met 1 tegel speling: ze lopen ondertussen.) */
+function peopleMaybeNear(x: number, y: number, r: number): boolean {
+  if (
+    gridT !== G.t ||
+    gridUs !== G.us ||
+    gridUsLen !== G.us.length ||
+    gridVs !== G.vs ||
+    gridVsLen !== G.vs.length
+  )
+    buildPeopleGrid();
+  const rows = peopleGrid.length / gridCols,
+    x0 = Math.max(0, ((x - r - 1) / CELL) | 0),
+    x1 = Math.min(gridCols - 1, ((x + r + 1) / CELL) | 0),
+    y0 = Math.max(0, ((y - r - 1) / CELL) | 0),
+    y1 = Math.min(rows - 1, ((y + r + 1) / CELL) | 0);
+  for (let cy = y0; cy <= y1; cy++)
+    for (let cx = x0; cx <= x1; cx++) if (peopleGrid[cy * gridCols + cx]) return true;
+  return false;
+}
+// Een kamp opzoeken op nummer. Elke bewaker vraagt dit elke speltik: daarom een opzoeklijst, die opnieuw
+// gemaakt wordt als de lijst met kampen verandert.
+let campMap = new Map<number, Camp>(),
+  campMapOf: Camp[] | null = null,
+  campMapLen = -1;
+function campById(id: number): Camp | undefined {
+  if (campMapOf !== G.camps || campMapLen !== G.camps.length) {
+    campMap = new Map(G.camps.map(c => [c.id, c]));
+    campMapOf = G.camps;
+    campMapLen = G.camps.length;
+  }
+  return campMap.get(id);
+}
 export function foeTarget(f: Foe): Unit | Villager | Building | Foe | null {
   // (een Foe is hier een helper van een bondgenoot, zie hieronder)
   let best: Unit | Villager | Building | Foe | null = null,
     bd = f.camp ? 7 : 5.5;
-  for (const u of G.us) {
-    const d = dist(f.x, f.y, u.x, u.y);
-    if (d < bd && (!UNITS[u.k].fly || f.air || f.proj)) {
-      bd = d;
-      best = u;
+  // Niemand van jou in de buurt: dan hoeven we je soldaten en dorpelingen niet één voor één langs
+  const near = peopleMaybeNear(f.x, f.y, bd);
+  if (near)
+    for (const u of G.us) {
+      const d = dist(f.x, f.y, u.x, u.y);
+      if (d < bd && (!UNITS[u.k].fly || f.air || f.proj)) {
+        bd = d;
+        best = u;
+      }
     }
-  }
-  for (const v of G.vs) {
-    if (v.hidden) continue;
-    const d = dist(f.x, f.y, v.x, v.y);
-    if (d < bd) {
-      bd = d;
-      best = v;
+  if (near)
+    for (const v of G.vs) {
+      if (v.hidden) continue;
+      const d = dist(f.x, f.y, v.x, v.y);
+      if (d < bd) {
+        bd = d;
+        best = v;
+      }
     }
-  }
   // Helpers van een bondgenoot vechten mee, dus vallen aanvallers ook hen aan
   for (const h of helpersNear(f.x, f.y, bd)) {
     if (h.rival === f.rival) continue;
@@ -546,7 +616,7 @@ export function fUpdate(f: Foe, dt: number) {
     return;
   }
   if (f.camp) {
-    const c = G.camps.find(c => c.id === f.camp);
+    const c = campById(f.camp);
     if (!c || !c.alive) {
       f.camp = 0;
       f.retreat = true;
