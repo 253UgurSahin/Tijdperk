@@ -251,8 +251,18 @@ body.titled #armytip {
     right: 6px;
     bottom: calc(var(--barH, 240px) + var(--sideH, 36px) + 74px);
   }
+  /* Kort houden: alleen hoe je een groep maakt (de formatie staat bij Uitleg in het menu) */
+  #armytip p + p {
+    display: none;
+  }
   /* De tip staat waar de hintbalk staat: zolang de tip open is, wacht de hintbalk */
   #armytip:not([hidden]) ~ #hintbar {
     visibility: hidden;
+  }
+}
+/* Telefoon liggend: de tip niet over het menu en de bonussen rechtsboven */
+@media (max-height: 560px) {
+  #armytip {
+    right: 60px;
   }
 }

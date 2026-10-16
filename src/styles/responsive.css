@@ -36,10 +36,16 @@
   :root {
     --barh: auto;
   }
+
+  /* ---- Bovenin: smalle stroken over de wereld ----
+     rij 1: inwoners en grondstoffen, met rechts ernaast het menu
+     rij 2: tijdperk, dag en snelheid, met rechts de ronde plaatjes van de bonussen
+     rij 3: de volgende stap */
   #top {
     display: flex;
-    flex-direction: column;
-    gap: 5px;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
     position: absolute;
     z-index: 10;
     top: calc(6px + env(safe-area-inset-top, 0px));
@@ -55,49 +61,80 @@
     pointer-events: auto;
     max-height: none;
   }
-  #ageplate {
-    align-self: flex-start;
-    margin-right: 84px;
-    gap: 6px;
-    padding: 4px 6px;
+  /* Lichtere kaartjes: een dunner randje en een kleinere schaduw */
+  #top > .hud,
+  #menuBtn,
+  #sidebtns button {
+    border-top-width: 3px;
+    border-radius: 12px;
+    box-shadow:
+      0 2px 0 var(--paper-edge),
+      0 5px 12px rgba(30, 20, 10, 0.2);
   }
-  #ageplate .age {
+  /* (min-width 0: anders duwt een lange strook hem onder het menu; resources.ts haalt er dan een af) */
+  #resPanel {
+    order: 1;
+    flex: 1 1 100%;
     min-width: 0;
-    padding: 0 8px;
+    min-height: 42px;
+    margin-right: 48px; /* plek voor het menu */
+    padding: 2px 4px;
+    gap: 2px;
   }
-  #ageplate .age b {
-    width: 32px;
-    height: 32px;
-    font-size: 14px;
+  #ageplate {
+    order: 2;
+    gap: 6px;
+    padding: 3px 4px 3px 5px;
   }
-  #ageplate .age small {
-    font-size: 15px;
+  #buffs {
+    order: 3;
+    margin-left: auto;
   }
-  #ageplate .tl {
-    min-width: 110px;
+  #objectives {
+    order: 4;
+    flex: 1 1 100%;
   }
+  /* Het menu: een vierkante knop met drie streepjes */
   #topright {
     top: calc(6px + env(safe-area-inset-top, 0px));
     right: 6px;
   }
-  #resPanel {
-    padding: 4px 6px;
-    gap: 4px;
+  #menuBtn {
+    justify-content: center;
+    width: 42px;
+    height: 42px;
+    min-height: 0;
+    padding: 0;
   }
+  #menuBtn .lbl {
+    display: none;
+  }
+  #menuBtn .ico {
+    width: 20px;
+    height: 20px;
+  }
+
+  /* Rij 1: inwoners en grondstoffen. Op een telefoon vult de strook de hele rij. */
   .poprow {
-    padding-right: 4px;
+    gap: 2px;
+    padding-right: 3px;
   }
-  .pstat {
-    padding: 2px 6px;
+  .pstat,
+  .pbtn {
+    min-height: 32px;
+    padding: 2px 5px;
   }
-  /* Op een telefoon vult de strook de hele rij */
   #resbar {
     flex: 1;
   }
   #resbar .res {
-    gap: 5px;
-    padding: 2px 6px;
+    gap: 4px;
     min-height: 32px;
+    padding: 2px 5px;
+  }
+  #resMore {
+    min-height: 26px;
+    padding: 2px 7px;
   }
   /* De lijst met alles: over de volle breedte, net onder de bovenbalk */
   #resPop {
@@ -113,23 +150,152 @@
   .rpl {
     max-height: calc(100dvh - var(--topH, 120px) - var(--barH, 240px) - var(--sideH, 36px) - 80px);
   }
+
+  /* Rij 2: de stempel van het tijdperk, de klok met de dag en de snelheid in één klein kaartje.
+     (De naam van het tijdperk en de tijdlijn staan bij het doel.) */
+  #ageplate .age {
+    min-width: 0;
+    padding: 0;
+    border: 0;
+  }
+  #ageplate .age b {
+    grid-row: auto;
+    width: 26px;
+    height: 26px;
+    font-size: 12px;
+    outline-offset: -4px;
+    box-shadow: 0 1px 0 var(--acc-edge);
+  }
+  #ageplate .age small,
+  #ageplate .tl,
+  #ageplate .day small {
+    display: none;
+  }
+  #ageplate .day {
+    gap: 5px;
+  }
+  #ageplate .day canvas {
+    width: 22px;
+    height: 22px;
+  }
+  #ageplate .day b {
+    font: 600 12.5px var(--f-body);
+  }
+  #ageplate .day .season {
+    margin-left: 5px;
+  }
+  #ageplate .day .season .sn {
+    display: none;
+  }
+  #ageplate .speed {
+    padding: 2px;
+    border-radius: 10px;
+  }
+  .speed button {
+    min-width: 32px;
+    min-height: 30px;
+    padding: 0 6px;
+    border-radius: 8px;
+  }
+  .speed button .ico {
+    width: 13px;
+    height: 13px;
+  }
+
+  /* Rij 3: de volgende stap in één smalle regel. Tik erop: dan opent het doel met alles erover. */
   #objectives {
-    padding: 8px 10px;
+    padding: 3px 4px 3px 12px;
+  }
+  #step {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    gap: 2px 10px;
+    min-height: 34px;
+    cursor: pointer;
+  }
+  #step .caret {
+    display: none;
+  }
+  #step b {
+    font-size: 14px;
+  }
+  #step p {
+    display: none;
+    grid-column: 1 / -1;
+  }
+  #step .primary {
+    grid-column: 2;
+    grid-row: 1;
+    width: auto;
+    min-height: 32px;
+    margin: 0;
+    padding: 4px 12px;
   }
   #mission {
     display: none;
   }
-  body.showgoal #mission {
-    display: block;
-  }
-  body.showgoal #mission .body {
-    display: block;
-  }
-  /* Het open doel mag niet onder de knoppen verdwijnen: dan scrollt het */
+  /* Het doel open (knop Doel): de uitleg, alle eisen en hoe je wint */
   body.showgoal #objectives {
+    padding: 8px 10px;
     max-height: calc(100dvh - var(--barH, 240px) - var(--sideH, 36px) - 74px);
     overflow-y: auto;
   }
+  body.showgoal #step p,
+  body.showgoal #mission,
+  body.showgoal #mission .body {
+    display: block;
+  }
+  /* Hier sluit een tik op de regel het doel weer: dan is het pijltje niet nodig */
+  #ageToggle .caret {
+    display: none;
+  }
+  /* Uitleg uit (instellingen) en het doel dicht: dan is het kaartje leeg en staat het er niet */
+  body.nocoach:not(.showgoal) #objectives {
+    display: none;
+  }
+
+  /* ---- Meldingen en kaartjes, net onder de bovenkant ---- */
+  #notes {
+    top: calc(var(--topH, 120px) + 8px);
+  }
+  /* Staat er een paneel of het doel open, dan wacht alles boven in het midden even (meldingen, een
+     prestatie, een gebeurtenis of een aanbod): zo ligt er nooit een kaartje over het paneel heen.
+     Meldingen staan ook in het Logboek; een gebeurtenis of aanbod staat er weer als het paneel dicht is. */
+  body.panelopen #notes,
+  body.showgoal #notes {
+    visibility: hidden;
+  }
+  /* Een melding: één smalle regel (hooguit twee) */
+  .tst {
+    padding: 5px 12px 5px 9px;
+    font-size: 12.5px;
+    line-height: 1.35;
+  }
+  .tst span {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    overflow: hidden;
+  }
+  /* Een kleiner kaartje bij een prestatie */
+  #achv .achpop {
+    gap: 9px;
+    padding: 6px 12px 6px 8px;
+  }
+  #achv .achic {
+    width: 34px;
+    height: 34px;
+  }
+  #achv .achtx > b {
+    font-size: 15px;
+  }
+  #achv .achtx > span {
+    display: none;
+  }
+
+  /* ---- Onderin: de knoppen voor de panelen, en de balk met bouwen of opdrachten ---- */
   #bar {
     left: 6px;
     right: 6px;
@@ -164,61 +330,57 @@
   #cmdPanel {
     width: min(400px, 58%);
   }
-  /* Knoppenrij boven de onderbalk: Dorp, Leger, ... plus Doel en Kaart */
+  /* Soldaten en dorpelingen trainen: het portret en de kosten zeggen genoeg (lang drukken = de naam) */
+  .cb.pic .l {
+    display: none;
+  }
+  .cb.has-cost.pic img {
+    width: 34px;
+    height: 34px;
+  }
+  /* Panelknoppen (Dorp, Leger, ...): een rij vierkante knoppen met alleen een pictogram */
   #sidebtns {
     left: 6px;
     right: 6px;
     bottom: calc(var(--barH, 240px) + 10px);
     flex-wrap: wrap;
+    gap: 6px;
   }
   #sidebtns button,
   #sidebtns .mob {
     display: inline-flex;
-    align-items: center;
-    min-height: 36px;
-    padding: 6px 10px;
+    justify-content: center;
+    gap: 5px;
+    min-width: 42px;
+    height: 42px;
+    min-height: 0;
+    padding: 0 9px;
   }
-  /* Boven de knoppenrij (--sideH: zo hoog is die rij, één of twee rijen; zie ui/panel.ts) */
+  #sidebtns .lbl {
+    display: none;
+  }
+  #sidebtns button .ico {
+    width: 20px;
+    height: 20px;
+  }
+  /* Een paneel: een kaart net boven de knoppenrij, zo hoog als wat erin staat en hooguit tot de bovenkant
+     (--sideH: zo hoog is die rij; zie ui/panel.ts) */
   #panel {
     position: fixed;
     left: 6px;
     right: 6px;
-    top: calc(var(--topH, 120px) + 6px);
     bottom: calc(var(--barH, 240px) + var(--sideH, 36px) + 20px);
     width: auto;
-    max-height: none;
+    max-height: calc(100dvh - var(--topH, 120px) - var(--barH, 240px) - var(--sideH, 36px) - 32px);
+  }
+  #panel .ph {
+    padding: 4px 4px 4px 14px;
+  }
+  #panel .ph b {
+    font-size: 17px;
   }
   #hintbar {
     bottom: calc(var(--barH, 240px) + var(--sideH, 36px) + 20px);
-  }
-  #notes {
-    top: calc(var(--topH, 120px) + 8px);
-  }
-  /* Staat er een paneel of het doel open, dan wacht alles boven in het midden even (meldingen, een
-     prestatie, een gebeurtenis of een aanbod): zo ligt er nooit een kaartje over het paneel heen.
-     Meldingen staan ook in het Logboek; een gebeurtenis of aanbod staat er weer als het paneel dicht is. */
-  body.panelopen #notes,
-  body.showgoal #notes {
-    visibility: hidden;
-  }
-  /* Een kleiner kaartje bij een prestatie */
-  #achv .achpop {
-    gap: 9px;
-    padding: 6px 12px 6px 8px;
-  }
-  #achv .achic {
-    width: 34px;
-    height: 34px;
-  }
-  #achv .achtx > b {
-    font-size: 15px;
-  }
-  #achv .achtx > span {
-    display: none;
-  }
-  /* Hier sluit een tik op de regel het doel weer: dan is het pijltje niet nodig */
-  #ageToggle .caret {
-    display: none;
   }
 }
 @media (max-width: 620px) {
@@ -229,36 +391,20 @@
   #title .tw {
     padding: 26px 20px 20px;
   }
-  #ageplate .day canvas {
-    display: none;
-  }
   #ageplate .speed button[data-s='4'] {
     display: none;
-  }
-  /* Op een smalle telefoon: alleen de stempel en de tijdlijn, zonder naam */
-  #ageplate .age {
-    column-gap: 8px;
-    padding: 0 8px;
-  }
-  #ageplate .age small {
-    display: none;
-  }
-  #ageplate .age b {
-    grid-row: auto;
-  }
-  #ageplate .tl {
-    margin-top: 0;
-    min-width: 96px;
   }
   #bar {
     flex-direction: column;
     align-items: stretch;
     gap: 5px;
   }
+  /* Het selectiepaneel: alleen als je iets koos, en zo hoog als wat erin staat */
   #selPanel {
     display: none;
+    flex: none;
     max-height: 34vh;
-    padding: 10px 12px;
+    padding: 8px 10px;
   }
   body.insp #selPanel {
     display: block;
@@ -267,20 +413,25 @@
     width: auto;
   }
   #cmdgrid {
-    --tile-h: 80px;
+    --tile-h: 70px;
   }
-  /* Zes knoppen (Dorp, Leger, Verbeteren, Logboek, Doel, Kaart) op één rij, ook op een smalle telefoon */
-  #sidebtns {
-    gap: 4px;
+  .gb img,
+  .cb img,
+  .cb .g {
+    width: 28px;
+    height: 28px;
   }
-  #sidebtns button,
-  #sidebtns .mob {
-    padding: 5px 7px;
-    font-size: 13px;
+  .gb b,
+  .cb .l {
+    font-size: 11px;
   }
   .port {
-    width: 56px;
-    height: 56px;
+    width: 46px;
+    height: 46px;
+    border-width: 2px;
+  }
+  .selh {
+    gap: 10px;
   }
   .selt {
     font-size: 16px;
@@ -289,71 +440,42 @@
     font-size: 12px;
   }
 }
-/* Telefoon: de "volgende stap" als één compacte regel; tik erop voor de uitleg */
-@media (max-width: 620px), (max-height: 560px) {
-  #objectives {
-    padding: 6px 8px 6px 12px;
-  }
-  #step {
-    display: grid;
-    grid-template-columns: 1fr auto;
-    align-items: center;
-    gap: 2px 10px;
-    cursor: pointer;
-  }
-  /* Tik op de regel: dan opent het doel met alles erover (het pijltje is hier niet nodig) */
-  #step .caret {
+/* Heel smalle telefoon: zonder klokje (dag en nacht zie je ook aan de wereld), zodat de bonussen ernaast
+   passen */
+@media (max-width: 380px) {
+  #ageplate .day canvas {
     display: none;
-  }
-  #step b {
-    font-size: 14px;
-  }
-  #step p {
-    display: none;
-    grid-column: 1 / -1;
-  }
-  body.showgoal #step p {
-    display: block;
-  }
-  #step .primary {
-    grid-column: 2;
-    grid-row: 1;
-    width: auto;
-    margin: 0;
-    min-height: 38px;
-    padding: 6px 14px;
   }
 }
 
 /* Laag scherm (telefoon liggend): alles zo plat mogelijk, zodat de wereld zichtbaar blijft */
 @media (max-height: 560px) {
+  /* Bovenin één rij: grondstoffen, dan tijdperk, dag en snelheid, dan de volgende stap */
   #top {
-    flex-direction: row;
     flex-wrap: wrap;
     align-items: stretch;
-    right: 96px;
-  }
-  #ageplate {
-    margin-right: 0;
-  }
-  /* Plat houden: geen klokje, geen naam van het tijdperk en geen tijdlijn (de stempel met het cijfer blijft) */
-  #ageplate .day canvas,
-  #ageplate .day small,
-  #ageplate .age small,
-  #ageplate .tl {
-    display: none;
-  }
-  #ageplate .age b {
-    grid-row: auto;
+    right: 54px;
   }
   /* De strook past zich aan de plek naast de klok aan (resources.ts haalt er grondstoffen af als het
      niet past), zodat hij niet op een eigen rij belandt */
   #resPanel {
-    flex: 1 1 240px;
+    flex: 2 1 240px;
     min-width: 0;
+    margin-right: 0;
   }
   #objectives {
-    flex: 1 1 280px;
+    flex: 1 1 200px;
+  }
+  .speed button {
+    min-width: 28px;
+  }
+  /* De bonussen staan hier rechts onder het menu, onder elkaar */
+  #top > #buffs {
+    position: fixed !important;
+    top: calc(56px + env(safe-area-inset-top, 0px));
+    right: 10px;
+    flex-direction: column;
+    margin: 0;
   }
   /* Het doel gebruikt dan, net als een paneel, de hele hoogte boven de knoppen */
   body.showgoal #objectives {
@@ -361,7 +483,7 @@
     z-index: 12;
     top: calc(6px + env(safe-area-inset-top, 0px));
     left: 6px;
-    right: 102px;
+    right: 54px;
     bottom: calc(var(--barH, 240px) + var(--sideH, 36px) + 20px);
     max-height: none;
   }
@@ -398,10 +520,10 @@
     flex-direction: row;
     align-items: flex-end;
   }
-  /* Panelen gebruiken de hele hoogte boven de knoppen (over de bovenbalk heen) */
+  /* Panelen mogen hier tot de bovenkant (over de bovenbalk heen), anders is er te weinig plek */
   #panel {
-    top: calc(6px + env(safe-area-inset-top, 0px));
-    right: 102px;
+    right: 54px;
+    max-height: calc(100dvh - var(--barH, 240px) - var(--sideH, 36px) - 32px);
   }
   /* Het selectiepaneel verschijnt alleen als je iets hebt aangetikt */
   #selPanel {
@@ -427,8 +549,8 @@
   #cmdgrid {
     grid-auto-flow: column;
     grid-template-columns: none;
-    grid-template-rows: 72px;
-    grid-auto-columns: 74px;
+    grid-template-rows: 68px;
+    grid-auto-columns: 72px;
     overflow: auto hidden;
     flex: none;
   }
@@ -445,8 +567,12 @@
     height: 22px;
   }
   .port {
-    width: 48px;
-    height: 48px;
+    width: 44px;
+    height: 44px;
+    border-width: 2px;
+  }
+  .selt {
+    font-size: 16px;
   }
   #title .logo {
     font-size: clamp(34px, 10vh, 60px);
@@ -456,44 +582,6 @@
   }
   #title .tw {
     gap: 10px;
-  }
-}
-/* Heel smalle telefoon: menuknop wordt een icoon en de bovenbalk wordt krapper */
-@media (max-width: 400px) {
-  #menuBtn {
-    width: 44px;
-    padding: 0;
-    font-size: 0;
-  }
-  /* Drie streepjes, getekend als masker zodat ze altijd scherp en gelijk zijn */
-  #menuBtn {
-    display: grid;
-    place-items: center;
-  }
-  #menuBtn::before {
-    content: '';
-    width: 20px;
-    height: 20px;
-    background: currentColor;
-    -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round'%3E%3Cpath d='M4 7h16M4 12h16M4 17h16'/%3E%3C/svg%3E")
-      center / contain no-repeat;
-    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round'%3E%3Cpath d='M4 7h16M4 12h16M4 17h16'/%3E%3C/svg%3E")
-      center / contain no-repeat;
-  }
-  #ageplate {
-    margin-right: 52px;
-    gap: 4px;
-  }
-  #ageplate .age {
-    padding: 0 4px;
-  }
-  /* Geen plek voor de tijdlijn: de stempel met het cijfer blijft staan */
-  #ageplate .tl {
-    display: none;
-  }
-  .speed button {
-    min-width: 30px;
-    padding: 5px 6px;
   }
 }
 @media (prefers-reduced-motion: reduce) {

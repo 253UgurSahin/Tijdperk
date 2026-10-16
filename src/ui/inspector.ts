@@ -73,9 +73,12 @@ export interface InspectorParts {
   /** Een plaatje. */
   im: (src: string) => string;
 }
-// Een opdrachttegel. De uitleg (data-tip) toont buildmenu.ts in een eigen tooltip.
+// Een opdrachttegel. De uitleg (data-tip) toont buildmenu.ts in een eigen tooltip. Een tegel met een
+// portret (class "pic") laat op een telefoon de naam weg: het portret en de kosten zeggen genoeg.
 export const CB = (data: string, glyph: string, label: string, o: CmdOpts = {}): string => {
-  const cls = ['cb', o.on && 'on', o.danger && 'danger', o.cost && 'has-cost'].filter(Boolean).join(' ');
+  const cls = ['cb', o.on && 'on', o.danger && 'danger', o.cost && 'has-cost', o.img && 'pic']
+    .filter(Boolean)
+    .join(' ');
   const pic = o.img ? `<img src="${o.img}" alt="">` : `<span class="g">${ico(glyph)}</span>`;
   const cost = o.cost ? `<span class="c">${o.cost}</span>` : '';
   return `<button class="${cls}" ${data} ${o.dis ? 'disabled' : ''} aria-label="${esc(label.replace(/\u00AD/g, ''))}" data-tip="${esc(o.tip || '')}">${pic}<span class="l">${hy(label)}</span>${cost}</button>`;
@@ -96,7 +99,7 @@ export function renderInspector() {
     us = selUnits(),
     b = sel.b && bById.get(sel.b),
     camp = sel.camp && G.camps.find(c => c.id === sel.camp && c.alive);
-  const X = `<button class="quiet x" data-x="1" aria-label="Sluiten">${TOUCH ? 'Sluiten' : ico('✕')}</button>`;
+  const X = `<button class="quiet x" data-x="1" aria-label="Sluiten" title="Sluiten">${ico('✕')}</button>`;
   const im = (src: string) => `<img src="${src}" alt="">`;
   const head = (port: string, t: string, sub: string) =>
     `${X}<div class="selh"><div class="port">${port}</div><div><div class="selt">${t}</div><div class="sels">${sub}</div></div></div>`;

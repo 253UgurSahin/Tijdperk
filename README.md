@@ -14,7 +14,7 @@ Een real-time strategiespel in de browser: leid je stam van de **steentijd** naa
   bovenaan het paneel Verbeteren
 - Gebeurtenissen: ruim 40, de meeste horen bij een tijdperk (wolven, een ingestorte mijn, de pest, tulpenmanie,
   een staking, hackers, een signaal uit de ruimte, ...). Elke keuze heeft een voor- en een nadeel. Sommige geven
-  een tijdelijke bonus (onder de kaartjes zie je wat hij doet en hoe lang nog; tik erop voor uitleg) of krijgen
+  een tijdelijke bonus (bovenin een rond plaatje met hoe lang nog; tik erop of wijs hem aan voor uitleg) of krijgen
   dagen later een vervolg dat afhangt van wat je koos. Kies je niet op tijd, dan gebeurt de laatste keuze vanzelf
 - Nieuwe wereld: kies je volk, moeilijkheid (Vredig, Normaal, Zwaar of Meedogenloos), kaart (Continent,
   Eilanden of Bergland) en hoe je wint: de sterrenpoort bouwen, 30 nachten overleven, een kort spel tot de
@@ -123,8 +123,11 @@ tests/                Vitest-tests voor data, wereldgeneratie en hulpfuncties
 ## Op telefoon en tablet
 
 Het spel past zich aan elk scherm aan, staand en liggend. Tik om te selecteren of te bouwen, sleep om de kaart
-te verschuiven, knijp om te zoomen en draai met twee vingers om het 3D-beeld te draaien. Onderin staan knoppen
-voor **Dorp**, **Leger**, **Verbeteren**, **Doel** en **Kaart**. Tik op de "volgende stap" bovenin voor meer uitleg.
+te verschuiven, knijp om te zoomen en draai met twee vingers om het 3D-beeld te draaien. Bovenin staan alleen
+je grondstoffen, de dag en de snelheid, en ronde plaatjes voor tijdelijke bonussen. Onderin staat een rij
+pictogrammen voor **Dorp**, **Leger**, **Verbeteren**, **Logboek**, **Doel** en **Kaart**. Weet je niet wat een
+bouw- of opdrachtknop doet? Houd hem even vast: dan zie je de uitleg. Tik op de "volgende stap" bovenin voor meer
+uitleg.
 
 ## Besturing
 

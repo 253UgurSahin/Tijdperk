@@ -19,12 +19,11 @@ import { ageTimeline, fmt } from './format';
 import { ico } from './glyphs';
 import { sigs } from './header';
 import { setSpeed, toast } from './hud';
-import { togglePanel } from './panel';
 import { newGameDraft, showNewGame } from './newgame';
 import { peopleBarHTML, playerProfile } from './peoples';
 import { achievementCount, showProfile } from './profile';
 import { showLoadScreen, showSaveScreen } from './saveslots';
-import { $, isCompact } from '../util/dom';
+import { $ } from '../util/dom';
 import { LEVELS, setQuality } from '../render/quality';
 
 let prevSpeed = 1;
@@ -114,14 +113,6 @@ $('#modal').addEventListener('click', e => {
   } else if (m === 'pause') {
     if ($('#title').hidden) openPause();
     else closeModal();
-  } else if (m === 'pl' || m === 'pr' || m === 'pg') {
-    closeModal();
-    if (m === 'pg') {
-      document.body.classList.add('showgoal');
-      store.missionOpen = true;
-      sigs.mission = null;
-      measureHud();
-    } else togglePanel(m === 'pl' ? 'left' : 'right');
   } else if (m === 'resetset') {
     resetSet();
     if (!sndOn) setSound(true);
@@ -187,14 +178,6 @@ export function openPause() {
     `${Object.keys(G.tech).length} uitvindingen`,
     `${G.blessings.length} ${G.blessings.length === 1 ? 'zegening' : 'zegeningen'}`,
   ].join(' · ');
-  // Op een smal scherm staan de panelen niet open: dan kun je ze hier openen
-  const panelButtons = isCompact()
-    ? `<button class="mbtn" data-m="pg"><span>Volgend tijdperk</span><small>wat er nog nodig is</small></button>
-      <div class="mpair">
-        <button class="mbtn" data-m="pr"><span>Kaart</span><small>overzicht · uitbreiden</small></button>
-        <button class="mbtn" data-m="pl"><span>Dorp en leger</span><small>volk · leger · verbeteren</small></button>
-      </div>`
-    : '';
   // Je wereld in één regel, zodat je de zaadcode kunt delen (in een uitdaging staat de naam ervoor)
   const challenge = currentChallenge();
   const world = `${challenge ? `${challenge.n} · ` : ''}Zaadcode <b>${G.opts.seedCode}</b> · ${MAP[G.opts.map].n} · ${DIFF_NAMES[G.diff]}`;
@@ -209,7 +192,6 @@ export function openPause() {
   ${peopleBarHTML()}
   <div class="mstack" style="margin-top:18px">
     <button class="mbtn primary" data-m="close"><span>Hervatten</span><small>terug naar het spel</small></button>
-    ${panelButtons}
     <div class="mpair">
       <button class="mbtn" data-m="save"><span>Opslaan</span><small>kies uit 3 plekken</small></button>
       <button class="mbtn" data-m="load"><span>Laden</span><small>${lastSaveLine()}</small></button>

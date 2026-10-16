@@ -39,8 +39,8 @@ const PATHS: Record<string, string> = {
   '⛽': '<path d="M12 3c4 5 6 8.2 6 11a6 6 0 0 1-12 0c0-2.8 2-6 6-11z"/>',
   // een poppetje: inwoners en dorpelingen
   '☺': '<circle cx="12" cy="7.5" r="3.5"/><path d="M5 20c.6-4 3.3-6.5 7-6.5s6.4 2.5 7 6.5"/>',
-  // tandwiel: gebouwen die iets maken
-  '⚙': '<circle cx="12" cy="12" r="3"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"/>',
+  // tandwiel: gebouwen die iets maken (een ring met tanden, zodat hij niet op een zon lijkt)
+  '⚙': '<circle cx="12" cy="12" r="2.6"/><circle cx="12" cy="12" r="6.4"/><path d="M12 2.6v3M12 18.4v3M2.6 12h3M18.4 12h3M5.4 5.4l2.1 2.1M16.5 16.5l2.1 2.1M5.4 18.6l2.1-2.1M16.5 7.5l2.1-2.1"/>',
   // bliksem: stroom
   ϟ: '<path d="M13 3L5 13h6l-1 8 8-10h-6z"/>',
   // ruit: gebied
@@ -146,6 +146,28 @@ const PATHS: Record<string, string> = {
 
   // vraagteken: geheime prestatie
   '?': '<path d="M9 9a3 3 0 1 1 4.2 2.8c-.8.4-1.2 1-1.2 1.9V15"/><circle cx="12" cy="18.6" r=".6" fill="currentColor"/>',
+
+  // Voor de knoppen van de HUD (op een telefoon staat er alleen het pictogram)
+  // twee poppetjes: het dorp
+  '⚇': '<circle cx="9" cy="8" r="3.2"/><path d="M3 20c.5-3.6 2.9-6 6-6s5.5 2.4 6 6"/><circle cx="16.8" cy="8.6" r="2.6"/><path d="M15.6 13.9c2.7.3 4.6 2.6 5.1 6.1"/>',
+  // open boek: het logboek
+  '≣': '<path d="M12 6.5C10 5 7 4.6 4 5.3v13.2c3-.7 6-.3 8 1.2 2-1.5 5-1.9 8-1.2V5.3c-3-.7-6-.3-8 1.2z"/><path d="M12 6.5v13.2"/>',
+  // gevouwen kaart
+  '◫': '<path d="M3 6.5L9 4l6 2.5L21 4v13.5L15 20l-6-2.5L3 20z"/><path d="M9 4v13.5M15 6.5V20"/>',
+  // drie streepjes: het menu
+  '☰': '<path d="M4 7h16M4 12h16M4 17h16"/>',
+  // snelheid: pauze, gewoon, twee keer en vier keer zo snel
+  '⏸': '<rect x="6.5" y="5.5" width="3.2" height="13" rx="1" fill="currentColor"/><rect x="14.3" y="5.5" width="3.2" height="13" rx="1" fill="currentColor"/>',
+  '▶': '<path d="M8 5.5v13l10-6.5z" fill="currentColor"/>',
+  '⏩': '<path d="M3.5 6.5v11l8-5.5zM12.5 6.5v11l8-5.5z" fill="currentColor"/>',
+  '⏭': '<path d="M2 7.5v9l6-4.5zM9 7.5v9l6-4.5zM16 7.5v9l6-4.5z" fill="currentColor"/>',
+  // waarschuwing: slecht nieuws
+  '⚠': '<path d="M12 4l9 16H3z"/><path d="M12 10v4.5"/><circle cx="12" cy="17.2" r=".6" fill="currentColor"/>',
+  // een i in een rondje: gewoon nieuws
+  ℹ: '<circle cx="12" cy="12" r="9"/><path d="M12 11v6"/><circle cx="12" cy="7.8" r=".6" fill="currentColor"/>',
+  // seizoenen (de lente is het kiemplantje ⚘, de winter de sneeuwvlok ❄): zon en een blad
+  '☀': '<circle cx="12" cy="12" r="4.2"/><path d="M12 2.8v2.4M12 18.8v2.4M2.8 12h2.4M18.8 12h2.4M5.5 5.5l1.7 1.7M16.8 16.8l1.7 1.7M5.5 18.5l1.7-1.7M16.8 7.2l1.7-1.7"/>',
+  '❧': '<path d="M5 19C5 10 10 5 19.5 4.5 19 14 14 19 5 19z"/><path d="M5 19l9-9"/>',
 };
 
 // Geeft een SVG-pictogram terug voor een bekend teken, of het teken zelf als we het niet kennen.

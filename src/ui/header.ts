@@ -18,7 +18,11 @@ import { TOUCH } from './format';
 import { fitToasts, renderQuick } from './hud';
 import { updateTabs } from './panel';
 import { updateResources } from './resources';
+import { ico } from './glyphs';
 import { $ } from '../util/dom';
+
+/** Het pictogram van elk seizoen, naast de dag bovenin. */
+const SEASON_ICON: Record<string, string> = { Lente: '⚘', Zomer: '☀', Herfst: '❧', Winter: '❄' };
 
 export function updateHeader() {
   updateResources();
@@ -62,9 +66,15 @@ export function updateWorldTop() {
               ? 'avond'
               : 'nacht';
   {
-    const dt = `Dag ${G.day} · ${season().n}${G.rain ? ' ☂' : ''}`;
-    const el = $('#dayTxt');
-    if (el.textContent !== dt) el.textContent = dt;
+    // De dag, met het seizoen als pictogram (op een groot scherm ook als woord) en een wolkje als het regent
+    const sn = season().n,
+      key = `${G.day}|${sn}|${G.rain}`,
+      el = $('#dayTxt');
+    if (el.dataset.key !== key) {
+      el.dataset.key = key;
+      const rain = G.rain ? ico('☁', 'rain') : '';
+      el.innerHTML = `Dag ${G.day}<span class="season" title="${sn}${G.rain ? ', regen' : ''}">${ico(SEASON_ICON[sn] || '☀')}<span class="sn">${sn}</span>${rain}</span>`;
+    }
   }
   const raidNow = G.foes.some(isRaider),
     // Soldaten van een rivaal onderweg: ze komen eraan, maar zijn nog niet in je land
@@ -145,12 +155,14 @@ export function updateWorldTop() {
     if ($('#hintTxt').textContent !== txt) $('#hintTxt').textContent = txt;
     if ($('#hintSub').textContent !== hint) $('#hintSub').textContent = hint;
     $('#modeDot').className = 'dot ' + cls;
-    $('#cancelBtn').textContent = TOUCH ? 'Sluiten' : 'Annuleren';
+    // De knop zelf is een kruisje; de naam staat erbij voor schermlezers
+    $('#cancelBtn').setAttribute('aria-label', TOUCH ? 'Sluiten' : 'Annuleren');
   }
   renderQuick();
   fitToasts(); // er kan net een ander kaartje boven in beeld zijn gekomen: dan minder meldingen
   $('#expandBtn').classList.toggle('on', store.expandMode);
-  $('#expandBtn').firstElementChild!.textContent = store.expandMode ? 'Klaar' : 'Uitbreiden';
+  // (de tekst staat in de span; vooraan staat het pictogram)
+  $('#expandBtn span').textContent = store.expandMode ? 'Klaar' : 'Uitbreiden';
   // Hoeveel gebieden je hebt staat in de uitleg bij de muis (niet meer als getal in het overzicht)
   const owned = G.unl.filter(Boolean).length;
   $('#expandBtn').title = `Gebied uitbreiden (E) · ${costText(chunkCost())} · je hebt ${owned} gebieden`;

@@ -423,10 +423,25 @@ body.v2 #bigMap #mapBig {
   width: 17px;
   height: 17px;
 }
+/* Uitbreiden: het pictogram met vier hoekjes en het woord ernaast */
 #expandBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   flex: 2.6;
   font-size: 12px;
   font-weight: 600;
+}
+#expandBtn .ico {
+  width: 15px;
+  height: 15px;
+}
+/* Op de computer is de knop smal: daar alleen het woord */
+@media (min-width: 901px) and (min-height: 561px) {
+  #expandBtn .ico {
+    display: none;
+  }
 }
 #expandBtn.on {
   background: var(--acc);
@@ -798,13 +813,16 @@ body.v2 #bigMap #mapBig {
   box-shadow: inset 0 1px 2px rgba(43, 37, 32, 0.15);
   flex: none;
 }
-/* Vijf tabjes (met Wonderen) moeten ook in een smal paneel passen: ze delen de breedte eerlijk */
+/* Vijf tabjes (met Wonderen) moeten ook in een smal paneel passen. Elk tabje is een pictogram; alleen het
+   gekozen tabje heeft de naam erbij en is daarom breder (de naam van de andere staat in de uitleg). */
 .cats button {
-  flex: 1 1 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  flex: 1 1 0;
   min-width: 0;
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
   border: 0;
   border-radius: 9px;
   background: transparent;
@@ -816,6 +834,21 @@ body.v2 #bigMap #mapBig {
   font-size: 15px;
   font-weight: 600;
   color: var(--ink-3);
+}
+.cats button .ico {
+  width: 15px;
+  height: 15px;
+}
+.cats button .lbl {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cats button.on {
+  flex: 2.2 1 auto;
+}
+.cats button:not(.on) .lbl {
+  display: none;
 }
 .cats button:hover:not(:disabled) {
   background: rgba(255, 255, 255, 0.5);
@@ -841,17 +874,6 @@ body.v2 #bigMap #mapBig {
   box-shadow: 0 0 0 2px var(--paper);
   animation: hintp 1.2s ease-in-out infinite;
 }
-.cats .ctx {
-  font-family: var(--f-display);
-  font-style: italic;
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--acc-ink);
-  padding: 4px 8px;
-  min-height: 30px;
-  display: flex;
-  align-items: center;
-}
 @keyframes hintp {
   50% {
     opacity: 0.3;
@@ -871,6 +893,10 @@ body.v2 #bigMap #mapBig {
   scrollbar-width: thin;
   scrollbar-color: var(--rule-2) transparent;
   align-content: start;
+  /* Lang drukken op een tegel toont de uitleg (zie buildmenu.ts): dan geen tekst selecteren of menu */
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
 }
 .gb,
 .cb {

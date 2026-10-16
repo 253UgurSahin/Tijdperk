@@ -273,8 +273,9 @@ export function measureHud() {
   const ds = document.documentElement.style,
     w = worldEl.getBoundingClientRect();
   if (isCompact()) {
+    // (een verborgen deel, zoals #buffs zonder bonussen, telt niet mee: zijn onderkant is 0)
     const bt = Math.max(
-      ...['#ageplate', '#resPanel', '#objectives'].map(s => $(s).getBoundingClientRect().bottom),
+      ...['#ageplate', '#resPanel', '#objectives', '#buffs'].map(s => $(s).getBoundingClientRect().bottom),
     );
     ds.setProperty('--topH', Math.round(bt - w.top) + 'px');
     ds.setProperty('--barH', $('#bar').offsetHeight + 'px');
@@ -288,7 +289,7 @@ export function measureHud() {
 }
 try {
   const ro = new ResizeObserver(measureHud);
-  for (const s of ['#ageplate', '#resPanel', '#objectives', '#bar']) ro.observe($(s));
+  for (const s of ['#ageplate', '#resPanel', '#objectives', '#buffs', '#bar']) ro.observe($(s));
 } catch (e) {
   addEventListener('resize', measureHud);
 }

@@ -70,6 +70,24 @@
   font-weight: 650;
   line-height: 1.1;
 }
+/* Het seizoen naast de dag: een pictogram met het woord (op een telefoon alleen het pictogram) */
+.day .season {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 8px;
+  font: 500 13px var(--f-body);
+  color: var(--ink-2);
+  vertical-align: 1px;
+}
+.day .season .ico {
+  width: 14px;
+  height: 14px;
+  color: var(--acc-ink);
+}
+.day .season .rain {
+  color: var(--team);
+}
 .day small {
   display: block;
   font-family: var(--f-mono);
@@ -90,16 +108,21 @@
   background: var(--well);
   box-shadow: inset 0 1px 2px rgba(43, 37, 32, 0.18);
 }
+/* Elke knop is een pictogram: pauze, afspelen, twee keer en vier keer zo snel */
 .speed button {
+  display: grid;
+  place-items: center;
   border: 0;
   border-radius: 9px;
   padding: 4px 8px;
   min-width: 34px;
-  font-family: var(--f-mono);
-  font-size: 12px;
   color: var(--ink-3);
   background: transparent;
   box-shadow: none;
+}
+.speed button .ico {
+  width: 14px;
+  height: 14px;
 }
 .speed button:hover:not(:disabled) {
   background: rgba(255, 255, 255, 0.5);
@@ -119,14 +142,22 @@
   display: flex;
   gap: 6px;
 }
+/* Menu: drie streepjes met het woord ernaast (op een telefoon alleen de streepjes) */
 #menuBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   font-family: var(--f-display);
   font-size: 16px;
   font-weight: 650;
-  padding: 7px 16px;
+  padding: 7px 16px 7px 13px;
   border-top-width: 1px;
   border-color: var(--rule-2);
   box-shadow: var(--card-shadow);
+}
+#menuBtn .ico {
+  width: 18px;
+  height: 18px;
 }
 #menuBtn:active {
   box-shadow: 0 0 0 var(--paper-edge);

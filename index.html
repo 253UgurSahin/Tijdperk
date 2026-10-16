@@ -34,11 +34,29 @@
               <b id="ageNum">I</b><small id="locEyebrow">Steentijd</small>
               <ol class="tl" id="ageLine"></ol>
             </div>
+            <!-- Knoppen met data-ico krijgen bij het opstarten hun pictogram (zie ui/hud.ts) -->
             <div class="speed" id="speed" role="group" aria-label="Spelsnelheid">
-              <button data-s="0" aria-label="Pauze">II</button
-              ><button data-s="1" class="on" aria-label="Normale snelheid">1×</button
-              ><button data-s="2" aria-label="Dubbele snelheid">2×</button
-              ><button data-s="4" aria-label="Viervoudige snelheid" hidden>4×</button>
+              <button data-s="0" data-ico="⏸" aria-label="Pauze" title="Pauze (spatie)"></button
+              ><button
+                data-s="1"
+                data-ico="▶"
+                class="on"
+                aria-label="Normale snelheid"
+                title="Normale snelheid"
+              ></button
+              ><button
+                data-s="2"
+                data-ico="⏩"
+                aria-label="Dubbele snelheid"
+                title="Twee keer zo snel"
+              ></button
+              ><button
+                data-s="4"
+                data-ico="⏭"
+                aria-label="Viervoudige snelheid"
+                title="Vier keer zo snel"
+                hidden
+              ></button>
             </div>
           </div>
           <section id="resPanel" class="hud" aria-label="Grondstoffen">
@@ -90,8 +108,14 @@
             </div>
             <div id="mission"></div>
           </section>
+          <!-- Tijdelijke bonussen en vervolgen die nog komen: kleine ronde plaatjes (zie ui/event.ts) -->
+          <div id="buffs" hidden></div>
         </div>
-        <div id="topright"><button id="menuBtn" class="hud" aria-label="Menu">Menu</button></div>
+        <div id="topright">
+          <button id="menuBtn" class="hud" data-ico="☰" aria-label="Menu" title="Menu (Esc)">
+            <span class="lbl">Menu</span>
+          </button>
+        </div>
         <div id="resPop" class="hud" hidden></div>
         <!-- Boven in het midden: eerst wat blijft staan (balken, een gebeurtenis, een aanbod), daaronder wat
              vanzelf weer weggaat (een prestatie en de meldingen). Zo verspringt een kaartje niet. -->
@@ -100,18 +124,32 @@
           <div id="event" class="hud" hidden></div>
           <div id="offer" class="hud" hidden></div>
           <div id="toast" role="status" aria-live="polite"></div>
-          <div id="buffs" hidden></div>
         </div>
+        <!-- Panelen: een pictogram met de naam ernaast (op een telefoon alleen het pictogram) -->
         <nav id="sidebtns" aria-label="Panelen">
-          <button data-p="pop">Dorp<i></i></button><button data-p="def" hidden>Leger<i></i></button
-          ><button data-p="upg" hidden>Verbeteren<i></i></button
-          ><button data-p="log" hidden>Logboek<i></i></button
-          ><button data-p="goal" class="mob">Doel<i></i></button
-          ><button data-p="map" class="mob">Kaart<i></i></button>
+          <button data-p="pop" data-ico="⚇" aria-label="Dorp"><span class="lbl">Dorp</span><i></i></button
+          ><button data-p="def" data-ico="⚔" aria-label="Leger" hidden>
+            <span class="lbl">Leger</span><i></i></button
+          ><button data-p="upg" data-ico="▲" aria-label="Verbeteren" hidden>
+            <span class="lbl">Verbeteren</span><i></i></button
+          ><button data-p="log" data-ico="≣" aria-label="Logboek" hidden>
+            <span class="lbl">Logboek</span><i></i></button
+          ><button data-p="goal" data-ico="◎" aria-label="Doel" class="mob">
+            <span class="lbl">Doel</span><i></i></button
+          ><button data-p="map" data-ico="◫" aria-label="Kaart" class="mob">
+            <span class="lbl">Kaart</span><i></i>
+          </button>
         </nav>
         <section id="panel" class="hud" hidden>
           <div class="ph">
-            <b id="panelTitle">Dorp</b><button class="quiet" id="panelClose">Sluiten</button>
+            <b id="panelTitle">Dorp</b
+            ><button
+              class="quiet x"
+              id="panelClose"
+              data-ico="✕"
+              aria-label="Sluiten"
+              title="Sluiten"
+            ></button>
           </div>
           <div class="pbody">
             <div class="pane" data-pane="pop">
@@ -157,7 +195,13 @@
         </section>
         <div id="hintbar" class="hud" hidden>
           <i class="dot" id="modeDot"></i><b id="hintTxt"></b><span id="hintSub"></span
-          ><button class="quiet" id="cancelBtn">Annuleren</button>
+          ><button
+            class="quiet x"
+            id="cancelBtn"
+            data-ico="✕"
+            aria-label="Annuleren"
+            title="Annuleren (Esc)"
+          ></button>
         </div>
         <footer id="bar">
           <section id="selPanel" class="hud" aria-label="Selectie"><div id="inspector"></div></section>
@@ -257,7 +301,7 @@
                   <path d="M6 9.5V20h12V9.5" />
                   <path d="M10 20v-5h4v5" />
                 </svg></button
-              ><button id="expandBtn" title="Gebied uitbreiden"><span>Uitbreiden</span></button>
+              ><button id="expandBtn" data-ico="⬚" title="Gebied uitbreiden"><span>Uitbreiden</span></button>
             </div>
           </section>
         </footer>

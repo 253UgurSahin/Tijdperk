@@ -127,13 +127,23 @@ function timeLeft(until: number) {
   return `nog ${Math.max(1, Math.ceil(days * 24))} uur`;
 }
 
+// Hetzelfde heel kort, voor op het plaatje: "2d" (dagen) of "5u" (uur)
+function timeShort(until: number) {
+  const days = (until - G.t) / dayLength();
+  if (days >= 1) return `${Math.round(days)}d`;
+  return `${Math.max(1, Math.ceil(days * 24))}u`;
+}
+
 // Wanneer een vervolg komt: vandaag, morgen of op dag zoveel
 function whenComing(day: number) {
   if (day <= G.day) return 'vandaag';
   return day === G.day + 1 ? 'morgen' : `dag ${day}`;
 }
 
-/** Tijdelijke bonussen (en vervolgen die nog komen) als kleine plaatjes onder de kaartjes. */
+/**
+ * Tijdelijke bonussen (en vervolgen die nog komen) als kleine ronde plaatjes bovenin: het pictogram met
+ * een gekleurde rand (groen = goed, rood = slecht) en hoe lang nog. Muis erop of tik erop voor de uitleg.
+ */
 function renderBuffs() {
   const el = $('#buffs');
   const buffs = G.buffs || [],
@@ -147,46 +157,51 @@ function renderBuffs() {
   const times = buffs.map(b => timeLeft(b.until));
   const sig = [buffs.map((b, n) => b.k + times[n]), coming.map(f => f.k + f.day), G.day].join('|');
   setHTML(el, 'buffs', sig, () => {
-    const active = buffs.map((b, n) => buffPill(b, n, times[n]));
-    const soon = coming.map((f, n) => followPill(f, n));
+    const active = buffs.map((b, n) => buffBadge(b, n, times[n]));
+    const soon = coming.map((f, n) => followBadge(f, n));
     return active.concat(soon).join('');
   });
 }
 
-// Een lopende bonus: wat je koos, wat het doet en hoe lang nog. Tik erop voor de hele uitleg.
-function buffPill(b: Buff, n: number, left: string) {
-  const effect = buffEffect(b.d) || b.d;
+// Wat een bonus doet, als korte zin: "dorpelingen dragen 3 meer per keer"
+const buffText = (b: Buff): string => buffEffect(b.d) || b.d;
+
+// Een lopende bonus: het pictogram en hoe lang nog. Wat hij doet staat in de uitleg (muis of tik).
+function buffBadge(b: Buff, n: number, left: string) {
+  const label = `${b.n}: ${buffText(b)} (${left})`;
   return [
-    `<button type="button" class="buff ${buffMood(b.bonus)}" data-buff="${n}">`,
+    `<button type="button" class="buff ${buffMood(b.bonus)}" data-buff="${n}" aria-label="${esc(label)}" title="${esc(label)}">`,
     ico(b.g),
-    `<b>${esc(b.l || b.n)}</b>`,
-    `<span>${esc(effect)}</span>`,
-    `<i>${left}</i>`,
+    `<i>${timeShort(b.until)}</i>`,
     '</button>',
   ].join('');
 }
 
-// Een vervolg dat nog komt: alleen de naam van de eerdere gebeurtenis, zodat de verrassing blijft
-function followPill(f: Followup, n: number) {
+// Een vervolg dat nog komt: een zandloper. De uitleg noemt alleen de eerdere gebeurtenis, zodat de
+// verrassing blijft.
+function followBadge(f: Followup, n: number) {
   const from = EVENT[f.from];
+  const label = `Vervolg op ${from ? from.n : 'een gebeurtenis'}: ${whenComing(f.day)}`;
   return [
-    `<button type="button" class="buff soon" data-follow="${n}">`,
+    `<button type="button" class="buff soon" data-follow="${n}" aria-label="${esc(label)}" title="${esc(label)}">`,
     ico('⌛'),
-    `<b>Vervolg: ${esc(from ? from.n : 'een gebeurtenis')}</b>`,
-    `<i>${whenComing(f.day)}</i>`,
     '</button>',
   ].join('');
 }
 
-// Tikken op een plaatje laat de hele uitleg zien (ook op een telefoon, waar zweven niet kan)
+// Tikken op een plaatje laat de uitleg zien (ook op een telefoon, waar zweven niet kan). Wat de bonus doet
+// staat vooraan: van een lange melding blijft in beeld alleen de eerste zin over (zie toasttext.ts).
 $('#buffs').addEventListener('click', e => {
   const pill = (e.target as HTMLElement).closest('button');
   if (!pill) return;
   // Het nummer in de lijst (als tekst op de knop); zonder nummer vind je niets
   const b = G.buffs[Number(pill.dataset.buff)],
     f = G.followups[Number(pill.dataset.follow)];
-  if (b) toast(`${b.n}, je koos: ${b.l || b.n}. ${b.d} (${timeLeft(b.until)})`);
-  else if (f) {
+  if (b) {
+    const effect = buffText(b);
+    const first = effect.charAt(0).toUpperCase() + effect.slice(1);
+    toast(`${first}, ${timeLeft(b.until)}. ${b.n}, je koos: ${b.l || b.n}.`);
+  } else if (f) {
     const from = EVENT[f.from];
     toast(`Er komt nog een vervolg op ${from ? from.n : 'een gebeurtenis'} (${whenComing(f.day)}).`);
   }

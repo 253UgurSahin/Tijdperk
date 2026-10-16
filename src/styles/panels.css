@@ -7,15 +7,27 @@
   display: flex;
   gap: 6px;
 }
+/* Elke knop: een pictogram met de naam ernaast (op een telefoon alleen het pictogram, zie responsive.css) */
 #sidebtns button {
   position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
   font-family: var(--f-display);
   font-weight: 650;
   font-size: 15px;
-  padding: 5px 13px;
+  padding: 5px 13px 5px 11px;
   background: var(--panel);
   border-color: var(--rule-2);
   box-shadow: var(--card-shadow);
+}
+#sidebtns button .ico {
+  width: 17px;
+  height: 17px;
+  color: var(--acc-ink);
+}
+#sidebtns button.on .ico {
+  color: inherit;
 }
 #sidebtns button.on,
 #sidebtns button.on:hover:not(:disabled) {
@@ -49,6 +61,13 @@
 /* Kaart en Doel bestaan alleen op telefoon/tablet (zie responsive.css) */
 #sidebtns .mob {
   display: none;
+}
+/* Het kruisje rechtsboven in een paneel */
+#panel .ph .x {
+  display: grid;
+  place-items: center;
+  min-width: 34px;
+  padding: 2px 6px;
 }
 /* Paneel en volledige grondstoffenlijst schuiven zacht omhoog als ze opengaan */
 #panel:not([hidden]),

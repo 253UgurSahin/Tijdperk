@@ -33,6 +33,13 @@
 #hintbar button {
   flex: none;
 }
+/* Annuleren: een kruisje */
+#hintbar .x {
+  display: grid;
+  place-items: center;
+  min-width: 32px;
+  padding: 2px 6px;
+}
 
 /* Meldingen en kaartjes boven in het midden. Staat de lijst met alle grondstoffen open, dan wachten ze
    even onzichtbaar (de lijst ligt daar anders overheen). */
@@ -52,8 +59,9 @@ body.respop #notes {
   pointer-events: none;
   width: min(460px, calc(100% - 32px));
 }
-/* Meldingen: hooguit twee papieren strookjes onder elkaar (zie fitToasts in ui/hud.ts), links een gekleurd
-   streepje (goed, slecht of tijdperk). Tik erop en hij is weg. */
+/* Meldingen: hooguit twee smalle papieren strookjes onder elkaar (zie fitToasts in ui/hud.ts), met vooraan
+   een gekleurd pictogram: goed nieuws (vinkje), slecht nieuws (driehoek), een tijdperk (ster) of gewoon
+   nieuws (i). Tik erop en hij is weg. */
 #toast {
   display: flex;
   flex-direction: column;
@@ -65,11 +73,13 @@ body.respop #notes {
   display: none;
 }
 .tst {
-  --mark: var(--acc);
-  position: relative;
+  --mark: var(--acc-ink);
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
   max-width: 100%;
-  padding: 7px 14px 7px 20px;
-  border-radius: var(--r-sm);
+  padding: 6px 14px 6px 10px;
+  border-radius: 18px;
   background: var(--panel);
   border: 1px solid var(--rule-2);
   color: var(--ink);
@@ -77,20 +87,16 @@ body.respop #notes {
   line-height: 1.4;
   box-shadow:
     0 2px 0 var(--paper-edge),
-    0 8px 18px rgba(30, 20, 10, 0.22);
+    0 6px 14px rgba(30, 20, 10, 0.2);
   pointer-events: auto;
   cursor: pointer;
   animation: fin 0.25s ease-out;
 }
-.tst::before {
-  content: '';
-  position: absolute;
-  left: 8px;
-  top: 8px;
-  bottom: 8px;
-  width: 4px;
-  border-radius: 2px;
-  background: var(--mark);
+.tst .ico {
+  width: 16px;
+  height: 16px;
+  margin-top: 1.5px;
+  color: var(--mark);
 }
 .tst.bad {
   --mark: var(--bad);

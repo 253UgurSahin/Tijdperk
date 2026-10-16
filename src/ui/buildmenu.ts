@@ -93,13 +93,15 @@ function bDesc(k: string): string {
   return (d.desc ? d.desc + ' ' : '') + bShort(k) + (d.power ? ` · verbruikt ${d.power} stroom` : '');
 }
 const CATKEY: Record<string, string> = { home: 'Z', eco: 'X', light: 'C', mil: 'B', wonder: 'N' };
+/** Het pictogram van elke bouwcategorie. Op een telefoon staat de naam alleen bij de gekozen categorie. */
+const CAT_ICON: Record<string, string> = { home: '⌂', eco: '⚙', light: '✹', mil: '⚔', wonder: '★' };
 function renderCats() {
   const hc = store.coachTile && B[store.coachTile].cat;
   setHTML($('#cats'), 'cats', 'b' + store.tab + hc, () =>
     Object.keys(CATS)
       .map(
         k =>
-          `<button role="tab" aria-selected="${k === store.tab}" data-t="${k}" class="${k === store.tab ? 'on' : ''} ${k === hc ? 'hint' : ''}" title="${CATS[k]} (sneltoets ${CATKEY[k]})">${CATS[k]}</button>`,
+          `<button role="tab" aria-selected="${k === store.tab}" aria-label="${CATS[k]}" data-t="${k}" class="${k === store.tab ? 'on' : ''} ${k === hc ? 'hint' : ''}" title="${CATS[k]} (sneltoets ${CATKEY[k]})">${ico(CAT_ICON[k])}<span class="lbl">${CATS[k]}</span></button>`,
       )
       .join(''),
   );
@@ -165,8 +167,11 @@ function renderBuilds() {
 }
 export function renderCmd() {
   const before = sigs.grid;
+  // Iets gekozen: dan staan hier de opdrachten, zonder de bouwtabjes. De naam van wat je koos staat al in
+  // het selectiepaneel; hier alleen voor schermlezers.
+  $('#cats').hidden = selCmds != null;
+  $('#cmdgrid').setAttribute('aria-label', selCmds != null ? selCtx : 'Bouwen');
   if (selCmds != null) {
-    setHTML($('#cats'), 'cats', 'c' + selCtx, () => `<span class="ctx">${esc(selCtx)}</span>`);
     // selCmds is hierboven al gecontroleerd: niet leeg
     setHTML($('#cmdgrid'), 'grid', 'c' + selCmds, () => selCmds!);
   } else {
@@ -209,9 +214,10 @@ $('#cmdgrid').addEventListener('click', e => {
   }
   insHandler(e);
 });
-// Tooltip boven een tegel: de tip komt net boven de tegel, binnen het scherm
-function showTileTip(tile: HTMLElement, html: string) {
-  if (!SET.tips) return;
+// Tooltip boven een tegel: de tip komt net boven de tegel, binnen het scherm. Staat "uitleg bij de muis"
+// uit (instellingen), dan alleen als je er zelf om vraagt (lang drukken, zie hieronder).
+function showTileTip(tile: HTMLElement, html: string, asked = false) {
+  if (!SET.tips && !asked) return;
   const tip = $('#hovertip'),
     r = tile.getBoundingClientRect(),
     w = worldEl.getBoundingClientRect();
@@ -223,41 +229,84 @@ function showTileTip(tile: HTMLElement, html: string) {
     clamp(r.left - w.left + r.width / 2 - tip.offsetWidth / 2, 8, VW - tip.offsetWidth - 8) + 'px';
   tip.style.top = Math.max(8, r.top - w.top - tip.offsetHeight - 10) + 'px';
 }
-$('#cmdgrid').addEventListener('pointerover', e => {
-  if (mouse.touch) return;
+/** De uitleg bij een tegel (onder de muis of onder je vinger), of null als het geen tegel is. */
+function tileTip(target: HTMLElement): { tile: HTMLElement; html: string } | null {
   // Opdrachttegels (trainen, verbeteren, ...): naam, uitleg en de volledige kosten
-  const cmd = (e.target as HTMLElement).closest<HTMLElement>('.cb');
+  const cmd = target.closest<HTMLElement>('.cb');
   if (cmd) {
     // Elke opdrachttegel heeft een aria-label (zie CB in ui/inspector.ts)
     const name = cmd.getAttribute('aria-label')!,
       cost = cmd.querySelector('.cost');
     const why = cmd.dataset.tip && cmd.dataset.tip !== name ? `<span>${esc(cmd.dataset.tip)}</span>` : '';
     const full = cost ? cost.outerHTML.replace(' tight', '') : '';
-    showTileTip(cmd, `<b>${esc(name)}</b>${why}${full}`);
-    return;
+    return { tile: cmd, html: `<b>${esc(name)}</b>${why}${full}` };
   }
-  const c = (e.target as HTMLElement).closest<HTMLElement>('.gb');
-  if (!c) return;
+  const c = target.closest<HTMLElement>('.gb');
+  if (!c) return null;
   const k = c.dataset.b || c.dataset.locked!,
     d = B[k],
     idx = [...document.querySelectorAll('#cmdgrid .gb[data-b]')].indexOf(c);
   const when = `<span>Beschikbaar in ${theAge(d.age)}.</span>`;
   const cost = buildCost(k);
   const lack = has(cost) ? '' : `<span class="lack">Nog ${lackText(cost)} nodig.</span>`;
-  const key = idx >= 0 && idx < 9 ? `<span class="key">Sneltoets <kbd>${idx + 1}</kbd></span>` : '';
-  if (d.wonder) {
-    showTileTip(c, wonderTip(k, d.age > G.age ? when : costHTML(cost) + lack, key));
-    return;
-  }
-  showTileTip(
-    c,
-    `<b>${d.n}</b><span>${esc(bDesc(k))}</span>${d.age > G.age ? when : costHTML(cost) + lack}${key}`,
-  );
+  // Een sneltoets heb je alleen met een toetsenbord
+  const key =
+    !mouse.touch && idx >= 0 && idx < 9 ? `<span class="key">Sneltoets <kbd>${idx + 1}</kbd></span>` : '';
+  if (d.wonder) return { tile: c, html: wonderTip(k, d.age > G.age ? when : costHTML(cost) + lack, key) };
+  return {
+    tile: c,
+    html: `<b>${d.n}</b><span>${esc(bDesc(k))}</span>${d.age > G.age ? when : costHTML(cost) + lack}${key}`,
+  };
+}
+$('#cmdgrid').addEventListener('pointerover', e => {
+  if (mouse.touch) return;
+  const tip = tileTip(e.target as HTMLElement);
+  if (tip) showTileTip(tip.tile, tip.html);
 });
 $('#cmdgrid').addEventListener('pointerout', e => {
   const to = e.relatedTarget as HTMLElement | null;
   if (!to || !to.closest || !to.closest('.gb,.cb')) hideTip();
 });
+// Op een aanraakscherm kun je niet zweven: lang op een tegel drukken toont daar de uitleg. Loslaten telt
+// dan niet als een tik (je wilde alleen kijken), en bij de volgende aanraking is de uitleg weer weg.
+const LONG_PRESS_MS = 450;
+let pressTimer = 0,
+  pressShown = false;
+$('#cmdgrid').addEventListener('pointerdown', e => {
+  if (e.pointerType === 'mouse') return;
+  const target = e.target as HTMLElement;
+  pressShown = false;
+  clearTimeout(pressTimer);
+  pressTimer = window.setTimeout(() => {
+    const tip = tileTip(target);
+    if (!tip) return;
+    pressShown = true;
+    showTileTip(tip.tile, tip.html, true);
+  }, LONG_PRESS_MS);
+});
+for (const type of ['pointerup', 'pointercancel', 'pointerleave'])
+  $('#cmdgrid').addEventListener(type, () => clearTimeout(pressTimer));
+// (in de opvangfase, dus vóór de klik die bouwt of traint)
+$('#cmdgrid').addEventListener(
+  'click',
+  e => {
+    if (!pressShown) return;
+    pressShown = false;
+    e.stopPropagation();
+  },
+  true,
+);
+// Geen menu van de browser (zoals "afbeelding bewaren") bij lang drukken op een tegel
+$('#cmdgrid').addEventListener('contextmenu', e => {
+  if ((e.target as HTMLElement).closest('.gb,.cb')) e.preventDefault();
+});
+addEventListener(
+  'pointerdown',
+  e => {
+    if (e.pointerType !== 'mouse' && $('#hovertip').dataset.tile) hideTip();
+  },
+  true,
+);
 // Tooltip bij een wereldwonder: wat het is, de bonus, de bouwtijd, hoe het ervoor staat en de kosten
 function wonderTip(k: string, costPart: string, key: string) {
   const d = B[k],

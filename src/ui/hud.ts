@@ -21,6 +21,14 @@ import { dist } from '../util/math';
 import { togglePanel } from './panel';
 import { ico } from './glyphs';
 import { shortToast } from './toasttext';
+import { esc } from './format';
+
+// Knoppen met data-ico (in index.html) krijgen hier hun pictogram vóór de tekst. Zo staat elk pictogram
+// maar op één plek getekend: in glyphs.ts.
+for (const el of document.querySelectorAll<HTMLElement>('[data-ico]')) {
+  // (data-ico staat er zeker: zo vonden we de knop)
+  el.insertAdjacentHTML('afterbegin', ico(el.dataset.ico!));
+}
 
 export let lastSpeed = 1;
 export function note(text: string, kind = '') {
@@ -43,6 +51,8 @@ export function note(text: string, kind = '') {
 const MAX_TOASTS = 2;
 /** Hoe lang een melding blijft staan (in ms): slecht nieuws en een nieuw tijdperk het langst. */
 const toastTime = (kind: string): number => (kind === 'bad' || kind === 'age' ? 6000 : kind ? 4000 : 3500);
+/** Het pictogram vóór een melding: goed nieuws, slecht nieuws, een nieuw tijdperk, anders gewoon nieuws. */
+const TOAST_ICON: Record<string, string> = { good: '✓', bad: '⚠', age: '★' };
 /** Eén melding in beeld: de korte tekst, de soort, hoe vaak hij kwam, en de klok die hem weer weghaalt. */
 interface ShownToast {
   el: HTMLElement;
@@ -73,7 +83,8 @@ export function toast(msg: string, kind = '') {
   shown.count++;
   shown.kind = kind;
   shown.el.className = 'tst ' + kind;
-  shown.el.textContent = (shown.count > 1 ? shown.count + '× ' : '') + text;
+  const times = shown.count > 1 ? shown.count + '× ' : '';
+  shown.el.innerHTML = `${ico(TOAST_ICON[kind] || 'ℹ')}<span>${esc(times + text)}</span>`;
   shown.el.title = text === msg ? '' : msg;
   clearTimeout(shown.timer);
   shown.timer = setTimeout(() => dropToast(shown), toastTime(kind));

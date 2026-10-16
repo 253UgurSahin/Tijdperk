@@ -160,11 +160,11 @@ function groupWords(info: GroupInfo): string {
     .join(', ');
 }
 
-function fillTile(b: HTMLButtonElement, info: GroupInfo, picked: boolean): void {
+function fillTile(b: HTMLButtonElement, info: GroupInfo, canAdd: boolean): void {
   const g = info.g;
   if (!info.count) {
-    // Lege plek: alleen zichtbaar als je iets geselecteerd hebt, om er een groep van te maken
-    b.hidden = !picked;
+    // Lege plek: alleen de eerste, en alleen als je iets geselecteerd hebt, om er een groep van te maken
+    b.hidden = !canAdd;
     b.className = 'grp add';
     b.title = `Maak groep ${g} van je selectie${TOUCH ? '' : ` (Ctrl+Shift+F${g})`}`;
     b.setAttribute('aria-label', `Maak groep ${g} van je selectie`);
@@ -204,7 +204,9 @@ export function renderGroups(): void {
   const show = infos.some(info => info.count) || picked;
   bar.hidden = !show;
   document.body.classList.toggle('hasgroups', show);
-  if (show) infos.forEach((info, k) => fillTile(tiles[k], info, picked));
+  // Eén knop + is genoeg (de eerste lege groep), niet een hele rij lege plekken
+  const firstEmpty = infos.find(info => !info.count);
+  if (show) infos.forEach((info, k) => fillTile(tiles[k], info, picked && info === firstEmpty));
   renderTip(show && sel.us.size >= 2);
 }
 
