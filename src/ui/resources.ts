@@ -78,6 +78,7 @@ export function buildResBar(force?: boolean) {
     inOrder.map(k => barItem(k, keys.indexOf(k))).join('') +
     `<button class="quiet" id="resMore" aria-expanded="${!$('#resPop').hidden}" title="Alle grondstoffen"></button>`;
   numbers = null; // opnieuw getekend: de getallen straks opnieuw opzoeken
+  fitSig = ''; // en opnieuw kijken wat er past
 }
 function updateResPop() {
   const p = $('#resPop');
@@ -169,11 +170,21 @@ function workersOf(k: string, made: Record<string, number>): number {
  * staan). De knop +N telt alles wat niet in de strook staat. Dit wordt elke keer opnieuw gemeten: is er
  * weer plek (bijvoorbeeld omdat de tekst bij de klok korter werd), dan komen ze vanzelf terug.
  */
+// Hoe de strook er de vorige keer uitzag (breedte, grondstoffen en de lengte van hun getallen). Is dat
+// hetzelfde, dan past alles nog net zo en hoeven we niets opnieuw te meten (meten kost de browser veel werk).
+let fitSig = '';
 function fitResBar() {
   const bar = $('#resbar'),
     more = $('#resMore'),
     items = [...bar.querySelectorAll<HTMLElement>('.res')],
     total = RKEYS.filter(k => RES[k].age <= G.age).length;
+  const sig = [
+    bar.clientWidth,
+    total,
+    ...items.map(el => (el.dataset.k || '') + (el.querySelector('b')?.textContent || '').length),
+  ].join();
+  if (sig === fitSig) return;
+  fitSig = sig;
   const setMore = (left: number) => {
     const rest = total - items.length + left,
       text = '+' + rest;

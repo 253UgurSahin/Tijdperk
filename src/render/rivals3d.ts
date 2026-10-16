@@ -6,7 +6,7 @@ import { B } from '../data/buildings';
 import { RIVAL } from '../data/rivals';
 import { G } from '../game/state';
 import { quadG } from './decals';
-import { flagpole, isMesh, mat, paint } from './kit';
+import { disposeMerged, flagpole, isMesh, mat, paint } from './kit';
 import { makeBuilding } from './models';
 import { LAYER, puff } from './particles';
 import { S3 } from './scene';
@@ -34,7 +34,10 @@ let lastG: GameState | null = null;
 export function syncRivalBuildings() {
   // Nieuw spel of geladen: alles opnieuw
   if (lastG !== G) {
-    for (const r of rbRec.values()) RG3.remove(r.g);
+    for (const r of rbRec.values()) {
+      RG3.remove(r.g);
+      disposeMerged(r.g);
+    }
     rbRec.clear();
     lastG = G;
   }
@@ -47,7 +50,10 @@ export function syncRivalBuildings() {
       const key = `${b.type}|${b.type === 'townhall' ? rival.age : ''}|${b.done ? 1 : 0}`;
       let r = rbRec.get(b.id);
       if (!r || r.key !== key) {
-        if (r) RG3.remove(r.g);
+        if (r) {
+          RG3.remove(r.g);
+          disposeMerged(r.g);
+        }
         r = buildModel(b, rival, key);
         rbRec.set(b.id, r);
         // Minikaart en schaduw daar opnieuw, en geen gras en bloemen onder een nieuw gebouw
@@ -59,6 +65,7 @@ export function syncRivalBuildings() {
   for (const [id, r] of rbRec)
     if (!seen.has(id)) {
       RG3.remove(r.g);
+      disposeMerged(r.g);
       rbRec.delete(id);
       // Het midden van het gebouw min de halve grootte: de linkerbovenhoek (zie buildModel)
       const x = r.g.position.x - r.s / 2,

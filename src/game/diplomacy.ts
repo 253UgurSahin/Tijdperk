@@ -941,9 +941,23 @@ function nearestAttacker(f: Foe): Foe | null {
   return best;
 }
 
-/** Helpers van bondgenoten die nu in je land zijn (voor aanvallers die ook hen aanvallen). */
-export const helpersNear = (x: number, y: number, r: number): Foe[] =>
-  G.foes.filter(h => h.helper && !h.retreat && !h.dead && dist(x, y, h.x, h.y) < r);
+/**
+ * Helpers van bondgenoten die nu in je land zijn (voor aanvallers die ook hen aanvallen). Elke aanvaller vraagt
+ * dit vaak, dus de lijst met helpers wordt bewaard tot er vijanden bijkomen of weggaan (de lijst G.foes wordt
+ * dan langer of een nieuwe lijst). Meestal zijn er geen helpers: dan is het antwoord meteen leeg.
+ */
+let helperList: Foe[] = [],
+  helperListOf: Foe[] | null = null,
+  helperListLen = -1;
+export function helpersNear(x: number, y: number, r: number): Foe[] {
+  if (helperListOf !== G.foes || helperListLen !== G.foes.length) {
+    helperListOf = G.foes;
+    helperListLen = G.foes.length;
+    helperList = G.foes.filter(h => h.helper);
+  }
+  if (!helperList.length) return helperList;
+  return helperList.filter(h => !h.retreat && !h.dead && dist(x, y, h.x, h.y) < r);
+}
 
 /** De volgende stap met deze rivaal, als korte tip voor de kaart in het venster Diplomatie (of leeg). */
 export const nextStep = (r: Rival): string => {

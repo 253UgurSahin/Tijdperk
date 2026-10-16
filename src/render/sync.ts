@@ -7,7 +7,18 @@ import { B } from '../data/buildings';
 import { RES } from '../data/resources';
 import { G, sel } from '../game/state';
 import { RINGG, quadG, ringAt } from './decals';
-import { bx, gOct, gTorus, isMesh, mat, mergeStatic, mk } from './kit';
+import {
+  bx,
+  disposeMerged,
+  gOct,
+  gTorus,
+  isMesh,
+  mat,
+  mergeFigure,
+  mergeStatic,
+  mergeWhole,
+  mk,
+} from './kit';
 import { BOSS_SCALE } from '../data/bosses';
 import { makeBuilding, makeCamp, wallMask } from './models';
 import { nodesNeedUpdate, rebuildNodes } from './nodes';
@@ -73,12 +84,18 @@ export interface EntityRec {
   selT: number;
   ringSize: number;
   ring: T3.Mesh<T3.RingGeometry, T3.MeshBasicMaterial>;
-  /** De gekleurde schijf onder het figuur, met haar gewone grootte en doorzichtigheid. */
-  base: T3.Mesh<T3.BufferGeometry, T3.MeshBasicMaterial>;
+  /** De gekleurde schijf onder het figuur (zie drawDiscs): kleur, gewone grootte en of het een dorpeling is. */
+  disc: T3.Color;
   dotR: number;
-  dotA: number;
+  discV: boolean;
   /** 1 als het figuur dit beeldje nog bestaat. */
   seen: number;
+  /**
+   * Het hele figuur als één vast beeldje (zie mergeWhole in kit.ts), voor ver uitgezoomd, en of dat nu in
+   * beeld staat in plaats van het bewegende figuur.
+   */
+  statue: T3.Mesh | null;
+  statueOn: boolean;
   /** Het figuur in de spelstand. */
   e: Figure;
   /** De laatste bestemming van een soldaat (voor de markering bij een nieuw looporder). */
@@ -273,7 +290,10 @@ export function syncBuildings() {
       const justFinished = r && !r.done && b.done;
       const newLook = r && r.done && b.done && b.type === 'townhall' && r.key.split('|')[1] !== String(G.age);
       const pops = justFinished || newLook;
-      if (r) BG3.remove(r.g);
+      if (r) {
+        BG3.remove(r.g);
+        disposeMerged(r.g);
+      }
       const g = new T3.Group(),
         m = makeBuilding(b.type, G.age, b);
       g.add(m);
@@ -365,6 +385,7 @@ export function syncBuildings() {
   for (const [id, r] of bRec)
     if (!seen.has(id)) {
       BG3.remove(r.g);
+      disposeMerged(r.g);
       bRec.delete(id);
       changedAt(r.x, r.y, r.x + r.s - 1, r.y + r.s - 1);
     }
@@ -396,10 +417,67 @@ function bossLook(r: EntityRec, e: Foe) {
   r.crownY = crown.position.y;
   r.g.scale.setScalar(BOSS_SCALE);
   r.bossTop = (top + 0.25) * BOSS_SCALE; // net boven de kroon: daar komen naam en levensbalk (zie overlay.ts)
-  r.base.material.color.set('#e2b92c');
-  r.base.material.opacity = r.dotA = 0.75;
+  r.disc.set('#e2b92c');
 }
 const BASEG = new T3.CircleGeometry(1, 20).rotateX(-Math.PI / 2);
+/**
+ * Alle gekleurde schijven onder de figuren in twee keer getekend (één laag voor dorpelingen, één voor soldaten
+ * en vijanden) in plaats van één keer per figuur: met honderden figuren scheelt dat veel werk.
+ */
+interface DiscLayer {
+  mesh: T3.InstancedMesh<T3.CircleGeometry, T3.MeshBasicMaterial>;
+  /** Hoe doorzichtig gewoon (zonder stippen). */
+  alpha: number;
+}
+function discLayer(alpha: number, size: number): DiscLayer {
+  const mesh = new T3.InstancedMesh(
+    BASEG as T3.CircleGeometry,
+    new T3.MeshBasicMaterial({ transparent: true, opacity: alpha, depthWrite: false }),
+    size,
+  );
+  // Elke schijf staat ergens anders: niet als één geheel wegsnijden buiten beeld
+  mesh.frustumCulled = false;
+  mesh.renderOrder = 2;
+  mesh.count = 0;
+  S3.add(mesh);
+  return { mesh, alpha };
+}
+const discs = { v: discLayer(0.32, 256), u: discLayer(0.55, 256) };
+const discM = new T3.Matrix4(),
+  discS = new T3.Vector3(),
+  discP = new T3.Vector3(),
+  discQ = new T3.Quaternion();
+/** Elk beeldje: de schijven op de plek van hun figuur zetten (ver uitgezoomd groter en voller: stippen). */
+function drawDiscs() {
+  const n = { v: 0, u: 0 };
+  for (const r of eRec.values()) if (r.g.visible) n[r.discV ? 'v' : 'u']++;
+  for (const k of ['v', 'u'] as const) {
+    const layer = discs[k];
+    // Te weinig plek: een grotere laag maken (de oude geven we vrij)
+    if (n[k] > layer.mesh.instanceMatrix.count) {
+      S3.remove(layer.mesh);
+      layer.mesh.dispose();
+      discs[k] = discLayer(layer.alpha, Math.ceil(n[k] * 1.5));
+    }
+    discs[k].mesh.count = 0;
+    discs[k].mesh.material.opacity = dots ? Math.min(1, discs[k].alpha * 1.7) : discs[k].alpha;
+  }
+  for (const r of eRec.values()) {
+    if (!r.g.visible) continue;
+    const layer = discs[r.discV ? 'v' : 'u'].mesh,
+      i = layer.count++,
+      s = r.dotR * dotGrow * r.g.scale.x;
+    discP.set(r.g.position.x, 0.025, r.g.position.z);
+    discM.compose(discP, discQ, discS.set(s, s, s));
+    layer.setMatrixAt(i, discM);
+    layer.setColorAt(i, r.disc);
+  }
+  for (const k of ['v', 'u'] as const) {
+    const layer = discs[k].mesh;
+    layer.instanceMatrix.needsUpdate = true;
+    if (layer.instanceColor) layer.instanceColor.needsUpdate = true;
+  }
+}
 /** Iets dat beweegt en zijn plek bij de vorige speltik onthoudt (figuur of projectiel). */
 interface Moving {
   x: number;
@@ -432,47 +510,41 @@ function syncEnt(e: Figure, make: () => T3.Group): EntityRec {
   let r = eRec.get(e.id);
   const key = entKey(e);
   if (!r || r.key !== key) {
-    if (r) EG3.remove(r.g);
+    if (r) {
+      EG3.remove(r.g);
+      disposeMerged(r.g);
+    }
     // g = de houder (positie, draaiing, cirkels eronder), body = alleen het figuur zelf (voor de omlijning)
     const body = make(),
       g = new T3.Group();
+    // Ver uitgezoomd: het hele figuur als één beeldje (in de rusthouding, dus nu meteen gemaakt)
+    const statue = mergeWhole(body);
+    // Vaste blokjes per bewegend deel samenvoegen: veel minder om te tekenen (zie mergeFigure in kit.ts)
+    mergeFigure(body);
+    if (statue) {
+      statue.visible = false;
+      body.add(statue);
+    }
     g.add(body);
     body.traverse(o => {
       if (isMesh(o)) o.castShadow = e.kind !== 'v' && !(e.kind === 'f' && e.camp);
     });
     EG3.add(g);
     // ringSize, ring en seen worden hieronder ingevuld
-    r = { g, body, key, px: e.x, py: e.y, ang: 0, mv: 0, selT: -9 } as EntityRec;
+    r = { g, body, key, px: e.x, py: e.y, ang: 0, mv: 0, selT: -9, statue, statueOn: false } as EntityRec;
     const ring = new T3.Mesh(
       RINGG,
       new T3.MeshBasicMaterial({ color: '#9fe28a', transparent: true, opacity: 0.95, depthWrite: false }),
     );
     r.ringSize = e.kind === 'u' && BIG_RING.has(e.k) ? 0.42 : 0.28;
     ring.scale.setScalar(r.ringSize);
-    // Gekleurde schijf onder elk figuur, zodat je in één oogopslag ziet wie wie is:
+    // Gekleurde schijf onder elk figuur, zodat je in één oogopslag ziet wie wie is (getekend in drawDiscs):
     // licht = dorpeling, blauw = jouw leger, rood = vijand, eigen kleur = soldaat van een rivaal
-    const base = new T3.Mesh(
-      BASEG,
-      new T3.MeshBasicMaterial({
-        color: e.rival
-          ? rivalColour(e.rival)
-          : e.kind === 'v'
-            ? '#f1e6c4'
-            : e.kind === 'u'
-              ? '#3d8bff'
-              : '#ff4a3a',
-        transparent: true,
-        opacity: e.kind === 'v' ? 0.32 : 0.55,
-        depthWrite: false,
-      }),
+    r.disc = new T3.Color(
+      e.rival ? rivalColour(e.rival) : e.kind === 'v' ? '#f1e6c4' : e.kind === 'u' ? '#3d8bff' : '#ff4a3a',
     );
+    r.discV = e.kind === 'v';
     r.dotR = e.kind === 'v' ? 0.18 : e.kind === 'u' && (e.k === 'tank' || e.k === 'knight') ? 0.4 : 0.25;
-    r.dotA = base.material.opacity;
-    base.scale.setScalar(r.dotR);
-    base.position.y = 0.025;
-    base.renderOrder = 2;
-    g.add(base);
-    r.base = base;
     ring.position.y = 0.03;
     ring.renderOrder = 3;
     g.add(ring);
@@ -517,11 +589,19 @@ function syncEnt(e: Figure, make: () => T3.Group): EntityRec {
 const DOT_DIST = 27 / 0.22,
   DOT_PX = 3.4;
 let dots = false,
+  statues = false,
   dotGrow = 1;
+// Kleiner dan dit (pixels per tegel) zie je armen en benen niet meer bewegen: dan het vaste beeldje
+const STATUE_PX = 26;
 function showAsDot(r: EntityRec) {
   r.body.visible = !dots;
-  r.base.scale.setScalar(r.dotR * dotGrow);
-  r.base.material.opacity = dots ? Math.min(1, r.dotA * 1.7) : r.dotA;
+  // (de schijf zelf tekent drawDiscs, voor alle figuren tegelijk)
+  const still = statues && !!r.statue;
+  if (still !== r.statueOn) {
+    r.statueOn = still;
+    // Het beeldje of de losse delen tonen (de kroon van een kampioen blijft altijd staan)
+    for (const c of r.body.children) c.visible = c === r.statue ? still : c === r.crown || !still;
+  }
 }
 // Selectiecirkel: verschijnt met een kort "plopje" (groter, dan terug naar normaal) en pulseert zacht
 function showRing(r: EntityRec, on: boolean) {
@@ -535,6 +615,7 @@ function showRing(r: EntityRec, on: boolean) {
 
 export function syncEntities() {
   dots = camDist() > DOT_DIST;
+  statues = pxu() < STATUE_PX;
   // (0,25 tegel is de gewone straal van de schijf onder een soldaat, zie syncEnt)
   dotGrow = dots ? Math.max(1, DOT_PX / (0.25 * pxu())) : 1;
   for (const r of eRec.values()) r.seen = 0;
@@ -553,7 +634,7 @@ export function syncEntities() {
     );
     const c = r.body.userData.carry as T3.Mesh | undefined;
     if (c) {
-      c.visible = v.carry.amt > 0;
+      c.visible = v.carry.amt > 0 && !r.statueOn;
       // Wie iets draagt, weet ook wat (carry.res)
       if (c.visible) c.material = mat(RES[v.carry.res!] ? RES[v.carry.res!].c : '#8a6a44');
     }
@@ -610,8 +691,9 @@ export function syncEntities() {
       if (r.e && r.e.dead && !r.e.retreat && !r.e.hidden) {
         r.body.visible = true;
         startDeath(r);
-      }
+      } else disposeMerged(r.g);
     }
+  drawDiscs();
 }
 export function syncCamps() {
   const seen = new Set<number>();
@@ -640,6 +722,7 @@ export function syncCamps() {
   for (const [id, r] of cRec)
     if (!seen.has(id)) {
       CG3.remove(r.g);
+      disposeMerged(r.g);
       cRec.delete(id);
     }
 }
@@ -657,7 +740,11 @@ function forEachChange(now: Uint8Array, before: Uint8Array, found: (i: number) =
   }
 }
 function resetWorld3D() {
-  for (const m of [bRec, eRec, cRec]) for (const r of m.values()) (r.g.parent || S3).remove(r.g);
+  for (const m of [bRec, eRec, cRec])
+    for (const r of m.values()) {
+      (r.g.parent || S3).remove(r.g);
+      disposeMerged(r.g);
+    }
   clearDying();
   clearParticles();
   bRec.clear();

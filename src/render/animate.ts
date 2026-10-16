@@ -1,6 +1,7 @@
 // Beweging van figuurtjes: lopen, werken, ademen, aanvallen (zwaai, terugslag, mondingsvuur) en neervallen.
 import * as T3 from 'three';
 import { store } from '../core/store';
+import { disposeMerged } from './kit';
 import { LAYER, emit, puff } from './particles';
 import type { Limbs } from './people';
 import { S3 } from './scene';
@@ -268,7 +269,6 @@ export function animEntity(r: EntityRec, e: Animated, moving: boolean, working: 
 export function startDeath(r: EntityRec) {
   DG3.add(r.g);
   r.ring.visible = false;
-  if (r.base) r.base.visible = false;
   r.dieT = store.TM;
   r.machine = MACHINE.has(r.k);
   r.fallDir = Math.random() < 0.5 ? -1 : 1;
@@ -304,6 +304,7 @@ export function stepDying() {
     }
     if (a > 2) {
       DG3.remove(r.g);
+      disposeMerged(r.g);
       dying.splice(i, 1);
     }
   }
@@ -311,6 +312,9 @@ export function stepDying() {
 
 /** Nieuw spel: gevallenen opruimen. */
 export function clearDying() {
-  for (const r of dying) DG3.remove(r.g);
+  for (const r of dying) {
+    DG3.remove(r.g);
+    disposeMerged(r.g);
+  }
   dying.length = 0;
 }

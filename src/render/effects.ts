@@ -3,7 +3,7 @@ import type { Fx, Projectile } from '../types';
 import * as T3 from 'three';
 import { store } from '../core/store';
 import { G } from '../game/state';
-import { camDist } from './camera';
+import { camDist, pxu } from './camera';
 import { pool, ringAt } from './decals';
 import { GB, gIco, mat } from './kit';
 import { S3, cam } from './scene';
@@ -182,7 +182,46 @@ const beamM = () => {
 const BEAMG = new T3.BoxGeometry(1, 1, 1);
 const tmpTarget = new T3.Vector3();
 
+/**
+ * Splinters (hout, steen, voedsel) die van een dorpeling aan het werk afspringen. Het zijn er vaak honderd of
+ * meer tegelijk: daarom allemaal in één keer getekend (één vorm, elk met een eigen plek en kleur). Ver
+ * uitgezoomd zijn ze kleiner dan een pixel: dan slaan we ze over.
+ */
+let chips: T3.InstancedMesh<T3.BufferGeometry, T3.MeshStandardMaterial> | null = null;
+const chipM = new T3.Matrix4(),
+  chipC = new T3.Color(),
+  chipP = new T3.Vector3(),
+  chipQ = new T3.Quaternion(),
+  chipS = new T3.Vector3(0.06, 0.06, 0.06);
+let chipShow = true;
+function addChip(x: number, y: number, z: number, col: string) {
+  if (!chipShow) return;
+  if (!chips || chips.count >= chips.instanceMatrix.count) {
+    // Eerste keer, of te weinig plek: een grotere laag (de oude geven we vrij)
+    const size = chips ? chips.instanceMatrix.count * 2 : 128;
+    if (chips) {
+      S3.remove(chips);
+      chips.dispose();
+    }
+    chips = new T3.InstancedMesh(
+      GB,
+      new T3.MeshStandardMaterial({ flatShading: true, roughness: 0.88 }),
+      size,
+    );
+    // Overal in de wereld: niet als één geheel wegsnijden buiten beeld
+    chips.frustumCulled = false;
+    chips.count = 0;
+    S3.add(chips);
+  }
+  const i = chips.count++;
+  chipM.compose(chipP.set(x, y, z), chipQ, chipS);
+  chips.setMatrixAt(i, chipM);
+  chips.setColorAt(i, chipC.set(col));
+}
+
 export function drawFx() {
+  chipShow = pxu() > 20;
+  if (chips) chips.count = 0;
   drawMeteor();
   drawMarks();
   for (const p of G.proj as DrawnProjectile[]) {
@@ -229,12 +268,8 @@ export function drawFx() {
       m.material.opacity = k * 0.5;
       m.position.set(e.x, 0.2 + (e.z || 0) / 32, e.y);
       m.scale.setScalar(0.12 + (1 - k) * 0.35);
-    } else if (e.type === 'chip') {
-      const m = pool('chip', () => new T3.Mesh(GB, mat('#fff')));
-      m.material = mat(e.col || '#bbb');
-      m.position.set(e.x, (e.z || 0) / 32, e.y);
-      m.scale.setScalar(0.06);
-    } else if (e.type === 'ring') ringAt(e.x, e.y, 0.3 + (1 - k) * 1.2, e.col || '#fff', k * 0.9, 0.06);
+    } else if (e.type === 'chip') addChip(e.x, (e.z || 0) / 32, e.y, e.col || '#bbb');
+    else if (e.type === 'ring') ringAt(e.x, e.y, 0.3 + (1 - k) * 1.2, e.col || '#fff', k * 0.9, 0.06);
     else if (e.type === 'boom') {
       // Vuurbal: groeit snel, kleurt van wit-geel naar oranje en dooft uit
       const m = pool('boom', () => {
@@ -265,6 +300,10 @@ export function drawFx() {
         m.scale.set(w, w, Math.hypot(l, 0.65));
       }
     }
+  }
+  if (chips) {
+    chips.instanceMatrix.needsUpdate = true;
+    if (chips.instanceColor) chips.instanceColor.needsUpdate = true;
   }
 }
 // Twee lagen voor een laserstraal: brede gekleurde gloed en een smalle witte kern.

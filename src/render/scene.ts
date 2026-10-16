@@ -73,6 +73,13 @@ addEventListener('resize', resize);
 // Vraag om een nieuwe grootte die pas vlak vóór het volgende beeldje ingaat (zie quality.ts)
 let resizeWanted = false;
 export const requestResize = () => (resizeWanted = true);
+// Ook als de wereld van grootte verandert zonder dat het venster dat doet (bijv. bij het opstarten, nog voor
+// de opmaak klaar is): anders klopt de maat van de wereld niet en wordt er te groot of te klein getekend
+try {
+  new ResizeObserver(requestResize).observe(worldEl);
+} catch (e) {
+  // (oude browser: dan alleen bij het draaien of groter maken van het venster, zie hierboven)
+}
 export function applyPendingResize() {
   if (!resizeWanted) return;
   resizeWanted = false;

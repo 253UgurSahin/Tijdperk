@@ -56,12 +56,131 @@ export function mergeStatic(g: T3.Group): T3.Group {
   const parts = (g.children as SolidMesh[]).filter(
     o => o.isMesh && o.material.userData && o.material.userData.vc && !o.userData.flag && !o.userData.lamp,
   );
-  if (parts.length < 2) return g;
+  mergeParts(g, parts, true);
+  // Ook de andere vaste delen (ramen, glas, gloeiende stukken) per materiaal samen: één mesh per materiaal
+  const rest = (g.children as T3.Mesh[]).filter(
+    o =>
+      o.isMesh &&
+      !o.name &&
+      Object.keys(o.userData).length === 0 &&
+      !(o.geometry.userData && o.geometry.userData.merged) &&
+      !Array.isArray(o.material) &&
+      !(o.material as T3.MeshStandardMaterial).map &&
+      !(o.material as T3.Material).transparent,
+  );
+  const byMat = new Map<T3.Material, T3.Mesh[]>();
+  for (const o of rest) {
+    const m = o.material as T3.Material;
+    byMat.set(m, [...(byMat.get(m) || []), o]);
+  }
+  for (const [m, list] of byMat) if (list.length > 1) mergeSameMaterial(g, list, m);
+  return g;
+}
+
+// Delen met hetzelfde (bijzondere) materiaal tot één mesh, zonder kleuren per hoekpunt
+function mergeSameMaterial(g: T3.Object3D, parts: T3.Mesh[], material: T3.Material): void {
   let n = 0;
-  const gs = parts.map((o): [T3.BufferGeometry, T3.Color] => {
+  const gs = parts.map(o => {
     o.updateMatrix();
     const q = o.geometry.index ? o.geometry.toNonIndexed() : o.geometry.clone();
     q.applyMatrix4(o.matrix);
+    n += q.attributes.position.count;
+    return q;
+  });
+  const pos = new Float32Array(n * 3);
+  let k = 0;
+  for (const q of gs) {
+    pos.set((q.attributes.position as T3.BufferAttribute).array, k * 3);
+    k += q.attributes.position.count;
+    q.dispose();
+  }
+  const mg = new T3.BufferGeometry();
+  mg.setAttribute('position', new T3.BufferAttribute(pos, 3));
+  mg.computeVertexNormals();
+  mg.computeBoundingSphere();
+  mg.userData.merged = true; // hoort bij precies één model (zie disposeMerged)
+  for (const o of parts) g.remove(o);
+  const m = new T3.Mesh(mg, material);
+  m.castShadow = parts.some(o => o.castShadow);
+  m.receiveShadow = parts.some(o => o.receiveShadow);
+  g.add(m);
+}
+
+/**
+ * Hetzelfde voor een figuurtje (dorpeling, soldaat, vijand): per bewegend deel (romp, arm, been, gereedschap)
+ * worden de vaste stukjes één mesh. Een poppetje van een stuk of twaalf losse blokjes wordt zo vijf of zes
+ * stukken: veel minder werk voor de grafische kaart als er honderden figuren rondlopen.
+ * Delen die apart moeten blijven (met een naam, met userData zoals een rotor, of onzichtbaar zoals de vracht
+ * die een dorpeling draagt) blijven los.
+ */
+export function mergeFigure(root: T3.Object3D): void {
+  const groups: T3.Object3D[] = [];
+  root.traverse(o => {
+    if (!isMesh(o)) groups.push(o);
+  });
+  for (const g of groups) {
+    const parts = (g.children as SolidMesh[]).filter(
+      o =>
+        o.isMesh &&
+        o.visible &&
+        !o.name &&
+        !!o.material.userData &&
+        !!o.material.userData.vc &&
+        Object.keys(o.userData).length === 0,
+    );
+    mergeParts(g, parts, false);
+  }
+}
+
+/**
+ * Plak deze delen van groep g samen tot één mesh met kleuren per hoekpunt. Met `shade` worden muren onderaan
+ * wat donkerder (voor gebouwen); figuurtjes houden hun eigen kleuren.
+ */
+function mergeParts(g: T3.Object3D, parts: SolidMesh[], shade: boolean): void {
+  if (parts.length < 2) return;
+  const mg = bakeColours(
+    parts.map(o => {
+      o.updateMatrix();
+      return [o, o.matrix];
+    }),
+    shade,
+  );
+  for (const o of parts) g.remove(o);
+  const m = new T3.Mesh(mg, VCMAT);
+  m.castShadow = shade || parts.some(o => o.castShadow);
+  m.receiveShadow = shade || parts.some(o => o.receiveShadow);
+  g.add(m);
+}
+
+/**
+ * Het hele figuur als één vast beeldje, in de houding waarin het nu staat (armen en benen bewegen dan niet
+ * meer). Voor ver uitgezoomd: dan is een figuur maar een paar pixels hoog. Alleen de zichtbare stukken met
+ * een gewoon materiaal doen mee. Geeft null als er niets samen te voegen valt.
+ */
+export function mergeWhole(root: T3.Object3D): T3.Mesh | null {
+  root.updateMatrixWorld(true);
+  const toRoot = root.matrixWorld.clone().invert(),
+    items: [SolidMesh, T3.Matrix4][] = [];
+  const walk = (o: T3.Object3D) => {
+    if (!o.visible) return;
+    const m = o as SolidMesh;
+    if (m.isMesh && m.material.userData && m.material.userData.vc)
+      items.push([m, toRoot.clone().multiply(m.matrixWorld)]);
+    for (const c of o.children) walk(c);
+  };
+  for (const c of root.children) walk(c);
+  if (items.length < 2) return null;
+  const mesh = new T3.Mesh(bakeColours(items, false), VCMAT);
+  mesh.castShadow = mesh.receiveShadow = true;
+  return mesh;
+}
+
+/** Eén vorm met kleuren per hoekpunt uit losse delen, elk met zijn eigen plaatsing (matrix). */
+function bakeColours(items: [SolidMesh, T3.Matrix4][], shade: boolean): T3.BufferGeometry {
+  let n = 0;
+  const gs = items.map(([o, matrix]): [T3.BufferGeometry, T3.Color] => {
+    const q = o.geometry.index ? o.geometry.toNonIndexed() : o.geometry.clone();
+    q.applyMatrix4(matrix);
     n += q.attributes.position.count;
     return [q, o.material.color];
   });
@@ -75,14 +194,15 @@ export function mergeStatic(g: T3.Group): T3.Group {
     for (let i = 0; i < cnt; i += 3) {
       // Per driehoek: liggende vlakken (vloeren, platen, daken) blijven zoals ze zijn
       const flat =
-        Math.abs(p[i * 3 + 1] - p[i * 3 + 4]) < 1e-4 && Math.abs(p[i * 3 + 1] - p[i * 3 + 7]) < 1e-4;
+        !shade ||
+        (Math.abs(p[i * 3 + 1] - p[i * 3 + 4]) < 1e-4 && Math.abs(p[i * 3 + 1] - p[i * 3 + 7]) < 1e-4);
       for (let j = i; j < i + 3 && j < cnt; j++) {
         // Muren worden onderaan wat donkerder, zoals in het echt (minder licht bij de grond)
         const y = p[j * 3 + 1],
-          shade = flat ? 1 : 0.7 + 0.3 * smooth01(y / 0.55);
-        col[(k + j) * 3] = c.r * shade;
-        col[(k + j) * 3 + 1] = c.g * shade;
-        col[(k + j) * 3 + 2] = c.b * shade;
+          f = flat ? 1 : 0.7 + 0.3 * smooth01(y / 0.55);
+        col[(k + j) * 3] = c.r * f;
+        col[(k + j) * 3 + 1] = c.g * f;
+        col[(k + j) * 3 + 2] = c.b * f;
       }
     }
     k += cnt;
@@ -93,11 +213,19 @@ export function mergeStatic(g: T3.Group): T3.Group {
   mg.setAttribute('color', new T3.BufferAttribute(col, 3));
   mg.computeVertexNormals();
   mg.computeBoundingSphere();
-  for (const o of parts) g.remove(o);
-  const m = new T3.Mesh(mg, VCMAT);
-  m.castShadow = m.receiveShadow = true;
-  g.add(m);
-  return g;
+  // Deze vorm hoort bij precies één model: weg ermee als het model weggaat (zie disposeMerged)
+  mg.userData.merged = true;
+  return mg;
+}
+
+/**
+ * Een model gaat voorgoed uit beeld: geef de samengevoegde vormen vrij op de grafische kaart. (Gedeelde
+ * vormen, zoals het blokje GB, blijven staan: die gebruikt de rest van de wereld ook.)
+ */
+export function disposeMerged(root: T3.Object3D): void {
+  root.traverse(o => {
+    if (isMesh(o) && o.geometry.userData.merged) o.geometry.dispose();
+  });
 }
 export const M_ = (c: Paint): T3.Material => (typeof c === 'string' ? mat(c) : c);
 export const WIN = new T3.MeshStandardMaterial({
