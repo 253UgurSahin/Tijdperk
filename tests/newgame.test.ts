@@ -140,8 +140,18 @@ describe('manieren om te winnen', () => {
     expect(VICTORY.stargate.end.story(facts({ day: 40 }))).toContain('in 40 dagen.');
   });
 
-  it('nu te kiezen: sterrenpoort, overleven, kort spel, verovering en wonderen', () => {
-    expect(SELECTABLE_VICTORIES.map(v => v.k)).toEqual(['stargate', 'survive', 'age', 'conquest', 'wonders']);
+  it('nu te kiezen: snel spel, sterrenpoort, overleven, kort spel, verovering en wonderen', () => {
+    expect(SELECTABLE_VICTORIES.map(v => v.k)).toEqual([
+      'quick',
+      'stargate',
+      'survive',
+      'age',
+      'conquest',
+      'wonders',
+    ]);
+    // Snel spel: gewonnen bij de IJzertijd (tijdperk 3)
+    expect(reachedVictory(['quick'], facts({ age: 1 }))).toBeNull();
+    expect(reachedVictory(['quick'], facts({ age: 2 }))).toBe('quick');
     expect(VICTORY.conquest.soon).toBeFalsy();
     expect(VICTORY.wonders.soon).toBeFalsy();
     expect(DEFAULT_VICTORIES).toEqual(['stargate']);

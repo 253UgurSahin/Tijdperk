@@ -16,6 +16,9 @@ Een real-time strategiespel in de browser: leid je stam van de **steentijd** naa
   een staking, hackers, een signaal uit de ruimte, ...). Elke keuze heeft een voor- en een nadeel. Sommige geven
   een tijdelijke bonus (bovenin een rond plaatje met hoe lang nog; tik erop of wijs hem aan voor uitleg) of krijgen
   dagen later een vervolg dat afhangt van wat je koos. Kies je niet op tijd, dan gebeurt de laatste keuze vanzelf
+- Snel spel: drie tijdperken (tot de IJzertijd) in ongeveer 25 minuten. Wie voor het eerst speelt, begint hier
+  meteen, zonder menu; de eerste nacht is een oefennacht met een paar zwakke wolven. Op het eindscherm begin je
+  met **Nog een keer** meteen een nieuwe wereld met dezelfde keuzes. Elke ochtend wordt het spel bewaard
 - Nieuwe wereld: kies je volk, moeilijkheid (Vredig, Normaal, Zwaar of Meedogenloos), kaart (Continent,
   Eilanden of Bergland) en hoe je wint: de sterrenpoort bouwen, 30 nachten overleven, een kort spel tot de
   Gouden Eeuw, alle rivalen verslaan of vier wereldwonderen hebben. Elke wereld heeft een zaadcode zoals `TP-7K2Q`: dezelfde code met dezelfde kaart geeft dezelfde

@@ -9,16 +9,16 @@ import { DIFF_NAMES, MEDALS } from '../data/score';
 import type { ScenarioDef } from '../data/scenarios';
 import { VICTORY } from '../data/victories';
 import { finishGame } from '../game/achievements';
-import { wipe } from '../game/save';
+import { save, wipe } from '../game/save';
 import { currentChallenge } from '../game/scenario';
-import { G, placeName } from '../game/state';
+import { G, newGame, placeName } from '../game/state';
 import { victoryFacts } from '../game/victory';
 import { achievementIcon, clearAchievementCards, medalHTML, scoreText } from './achievements';
 import { challengeEndParts } from './challengeend';
 import { openChallengeList, retryChallenge } from './challenges';
 import { ageTimeline, fmt, gem, theAge } from './format';
 import { ico } from './glyphs';
-import { openModal, showTitle } from './modals';
+import { closeModalAndPlay, openModal, showTitle } from './modals';
 import { chartKeys, drawChart } from './panes/log';
 import { showProfile } from './profile';
 import { $ } from '../util/dom';
@@ -119,10 +119,12 @@ function freePlayParts(won: boolean, result: GameResult) {
   const story = won
     ? victory.end.story(victoryFacts())
     : `${placeName()} hield ${G.day} dagen stand en bereikte ${theAge(G.age)}. Bouw volgende keer eerder torens en een leger, of speel in de vredige modus.`;
-  // "Nieuwe wereld" opent meteen het nieuw-spelscherm: er gaat niets verloren, want het spel wordt eerst bewaard
+  // "Nog een keer": meteen een nieuwe wereld met dezelfde keuzes. "Nieuwe wereld" opent het nieuw-spelscherm;
+  // er gaat niets verloren, want het spel wordt eerst bewaard.
+  const again = `<button class="primary" data-end="again">${ico('↻')}Nog een keer</button>`;
   const buttons = won
-    ? `<button class="primary" data-m="close">Verder bouwen</button><button data-m="newok">Nieuwe wereld</button>`
-    : `<button class="primary" data-m="newok">Nieuwe wereld</button><button data-end="menu">Hoofdmenu</button>`;
+    ? `${again}<button data-m="close">Verder bouwen</button><button data-m="newok">Nieuwe wereld</button>`
+    : `${again}<button data-m="newok">Nieuwe wereld</button><button data-end="menu">Hoofdmenu</button>`;
   return {
     head,
     story,
@@ -172,12 +174,25 @@ export function showEndScreen(won: boolean) {
   lastWon = won;
 }
 
+/**
+ * Nog een keer: een nieuwe wereld (met een nieuwe zaadcode) met dezelfde keuzes als dit spel: volk,
+ * moeilijkheid, kaart, grootte, rivalen en doel. Een gewonnen spel wordt eerst bewaard, een verloren niet.
+ */
+function playAgain() {
+  const { people, diff, map, size, victories, rivals } = G.opts;
+  if (G.won) save();
+  else wipe();
+  newGame({ people, diff, map, size, victories, rivals });
+  closeModalAndPlay();
+}
+
 // Knoppen op het eindscherm die niet in modals.ts staan
 $('#modal').addEventListener('click', e => {
   const t = (e.target as HTMLElement).closest<HTMLElement>('[data-end]');
   if (!t) return;
   if (t.dataset.end === 'profile') showProfile({ back: () => showEndScreen(lastWon) });
   else if (t.dataset.end === 'retry') retryChallenge();
+  else if (t.dataset.end === 'again') playAgain();
   else if (t.dataset.end === 'challenges') openChallengeList();
   else if (t.dataset.end === 'menu') {
     // Dit spel is voorbij: niet bewaren, zodat "Verder spelen" niet terugkomt naar een gevallen stad

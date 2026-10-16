@@ -97,9 +97,11 @@ export function renderChronicle() {
   const sig = JSON.stringify([G.age, req, goals, races, open]);
   setHTML($('#mission'), 'mission', sig, () => {
     const chevron = `<i class="caret" aria-hidden="true">${ico(open ? '⌃' : '⌄')}</i>`;
-    // In een uitdaging blijft het doel in beeld; anders zit "Winnen" in het uitklapdeel
-    const shown = challenge ? goals : '',
-      folded = challenge ? '' : goals;
+    // In een uitdaging, en bij één gekozen doel, blijft het doel altijd in beeld (één duidelijk doel per
+    // spel); bij meer doelen zit "Winnen" in het uitklapdeel
+    const pinned = !!challenge || G.opts.victories.length === 1;
+    const shown = pinned ? goals : '',
+      folded = pinned ? '' : goals;
     if (!req)
       return `${shown}<button id="ageToggle" aria-expanded="${open}"><span class="mt">Laatste tijdperk</span>${chevron}</button>${races}<div class="body"><p class="why">${CHAPTERS[G.age].s}</p>${folded}</div>`;
     const name = theAge(G.age + 1); // "de bronstijd", "het dronetijdperk"

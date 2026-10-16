@@ -693,11 +693,15 @@ const joinWords = (list: string[]): string =>
 export function spawnRaid(): void {
   G.raids++;
   const match = raidMatchNow();
+  // Oefennacht: de allereerste aanval in je allereerste spel is klein en zwak, zodat je rustig leert hoe
+  // een nacht gaat (geen uitdaging: daar gelden de regels van de uitdaging)
+  // (het spel van nu telt al mee in games zodra er gespeeld wordt, zie checkAchievements: dus hooguit 1)
+  const practice = G.raids === 1 && !G.scenario && !G.peaceful && (store.profile?.games ?? 0) <= 1;
   const a = G.age,
-    n = raidSize(match),
+    n = practice ? 2 : raidSize(match),
     // Elke aanval iets taaier, maar niet eindeloos. Op Meedogenloos hebben aanvallers meer levens,
     // en tegen een sterk leger ook (zie raidMatch in data/difficulty.ts).
-    scale = Math.min(2.5, 1 + G.raids * 0.05) * difficulty(G.diff).raidHp * match.hp,
+    scale = Math.min(2.5, 1 + G.raids * 0.05) * difficulty(G.diff).raidHp * match.hp * (practice ? 0.5 : 1),
     edge: Tile[] = [];
   for (let y = 0; y < H; y++)
     for (let x = 0; x < W; x++) {
@@ -732,7 +736,12 @@ export function spawnRaid(): void {
   const anchor = anchors[0];
   const from = [...new Set(anchors.map(an => compass(an[0], an[1])))];
   store.notePos = [anchor[0], anchor[1]];
-  toast(`Aanval! ${n} × ${FOES[a].n.toLowerCase()} uit het ${joinWords(from)}.`, 'bad');
+  toast(
+    practice
+      ? `Oefennacht: ${n} zwakke ${FOES[a].n.toLowerCase()} uit het ${joinWords(from)}. Je stamhuis houdt ze wel tegen.`
+      : `Aanval! ${n} × ${FOES[a].n.toLowerCase()} uit het ${joinWords(from)}.`,
+    'bad',
+  );
   sfx('alarm');
   store.raidPing = { x: anchor[0], y: anchor[1], t: 8, more: anchors.slice(1) };
   allyHelp(); // bondgenoten sturen misschien soldaten (zie game/diplomacy.ts)

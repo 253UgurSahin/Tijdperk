@@ -6,6 +6,8 @@ import { CHARGE_NIGHTS, chargePercent } from './finale';
 export const SURVIVE_NIGHTS = 30;
 /** Het tijdperk voor het korte spel: de Gouden Eeuw. */
 export const SHORT_AGE = 4;
+/** Het tijdperk voor een snel spel (ongeveer 25 minuten, drie tijdperken): de IJzertijd. */
+export const QUICK_AGE = 2;
 /** Zoveel wereldwonderen moet je tegelijk hebben voor de overwinning "Wonderen". */
 export const WONDER_GOAL = 4;
 const LAST_AGE = AGES.length - 1;
@@ -68,6 +70,21 @@ export interface VictoryDef {
 }
 
 export const VICTORIES: VictoryDef[] = [
+  {
+    // Een snel spel: drie tijdperken (steen, brons, ijzer) in ongeveer 25 minuten. Goed om even te spelen.
+    k: 'quick',
+    n: 'Snel spel',
+    d: `Bereik de ${AGES[QUICK_AGE].n} (ongeveer 25 minuten)`,
+    g: '»',
+    len: 'Snel spel',
+    frac: f => Math.min(1, f.age / QUICK_AGE),
+    text: f => (f.age >= QUICK_AGE ? 'klaar' : ageWord(QUICK_AGE - f.age)),
+    end: {
+      eyebrow: 'Snel spel gewonnen',
+      title: 'Het zwarte metaal.',
+      story: f => `${f.place} smeedde zijn eerste ijzer na ${days(f.day)}.`,
+    },
+  },
   {
     k: 'stargate',
     n: 'Sterrenpoort',

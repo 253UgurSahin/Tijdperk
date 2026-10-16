@@ -11,7 +11,7 @@ import { isCharging } from './finale';
 import { bossName } from '../data/bosses';
 import { FINALE_SIDES } from '../data/finale';
 import { hasT } from './upgrades';
-import { note, toast } from '../ui/hud';
+import { note, screenEffect, toast } from '../ui/hud';
 
 /** Een seizoen: naam, hoeveel voedsel er komt (keer), en een kleurfilter over het beeld (of geen). */
 export interface Season {
@@ -72,7 +72,16 @@ export function advanceClock(dt: number): void {
   if (crossed(p, c, 6.3)) {
     // Het is ochtend en het stamhuis staat nog: de aanval van vannacht is doorstaan.
     // We kijken naar de aanval die echt begon (niet naar het rooster): de vredige modus kan intussen zijn omgezet.
-    if (G.stats.raidDay === G.day - 1 && !G.over) G.stats.survived++;
+    if (G.stats.raidDay === G.day - 1 && !G.over) {
+      G.stats.survived++;
+      // Een klein feestje: de nacht is doorstaan
+      toast(
+        `Nacht doorstaan! (${G.stats.survived} ${G.stats.survived === 1 ? 'aanval' : 'aanvallen'} afgeslagen)`,
+        'good',
+      );
+      sfx('done');
+      screenEffect('win');
+    }
     let n = 0,
       boss = null;
     // (Soldaten van rivalen niet: die gaan pas naar huis als hun eigen aanval voorbij is, zie game/rivals.ts)

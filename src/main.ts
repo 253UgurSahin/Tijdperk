@@ -109,13 +109,20 @@ import { rate, tickResourceNumbers } from './ui/resources';
 import { $, isCompact } from './util/dom';
 import { measure } from './core/perf';
 import { initQuality, tickQuality } from './render/quality';
+import { setSpeed, toast } from './ui/hud';
+import { AGES } from './data/ages';
+import { QUICK_AGE } from './data/victories';
+
+/** De allereerste wereld: een snel spel op een gewone kaart (zie data/victories.ts). */
+const FIRST_GAME = { victories: ['quick'], size: 256 };
 
 let lastT = performance.now(),
   acc = 0,
   uiT = 0,
   miniT = 0,
   miniYaw = NaN, // de draaiing waarmee de minikaart het laatst getekend is
-  saveT = 0;
+  saveT = 0,
+  savedDay = -1; // de dag waarop het laatst automatisch opgeslagen is
 const edge = { x: -1, y: -1 };
 addEventListener('mousemove', e => {
   edge.x = e.clientX;
@@ -248,8 +255,13 @@ function frame(now: number) {
     }
     store.rateSnap = { t: G.t, r: { ...G.res } };
   }
-  // Echte tijd tellen (ook als het spel hapert), zodat automatisch opslaan echt elke minuut gebeurt
+  // Echte tijd tellen (ook als het spel hapert), zodat automatisch opslaan echt elke minuut gebeurt.
+  // Ook bij elke nieuwe dag: dan kun je altijd verder vanaf de laatste ochtend.
   saveT += Math.min(realDt, 5);
+  if (G.day !== savedDay) {
+    savedDay = G.day;
+    saveT = 61;
+  }
   if (saveT > 60) {
     saveT = 0;
     // Niet op het titelscherm: daar ligt soms een wereld waarin je nog niet speelt
@@ -325,8 +337,16 @@ function start(data?: HotData) {
   }
   const fromHot = ok;
   if (!ok) ok = load();
-  if (!ok) newGame();
-  if (!fromHot) showTitle();
+  // De allereerste keer (geen opslag en nog nooit een spel gespeeld): meteen spelen, met een snel spel van
+  // ongeveer 25 minuten. Het titelscherm met alle keuzes komt pas daarna.
+  const firstVisit = !ok && (store.profile?.games ?? 0) === 0;
+  if (!ok) newGame(firstVisit ? FIRST_GAME : {});
+  if (fromHot) {
+    // (verder spelen na een nieuwe versie van de pagina: geen titelscherm)
+  } else if (firstVisit) {
+    setSpeed(1);
+    toast(`Welkom! Bereik de ${AGES[QUICK_AGE].n} in een snel spel. Volg de stap bovenin.`, 'age');
+  } else showTitle();
   measureHud();
   requestAnimationFrame(frame);
 }

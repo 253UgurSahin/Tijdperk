@@ -439,7 +439,10 @@ export function showTitle({ setup = false, challenges = false, focus = null }: T
     <div class="agesrow">${ageTimeline(next ? next.age : 0, true)}<div class="tlends"><span>vuursteen</span><span>sterrenpoort</span></div></div>
     <div class="mstack">
       ${continueButton}
-      <button class="mbtn ${next ? '' : 'primary'}" data-t="new"><span>Nieuwe wereld</span><small class="whole">volk · kaart · doel</small></button>
+      <div class="mpair">
+        <button class="mbtn ${next ? '' : 'primary'}" data-t="quick"><span>Snel spel</span><small class="whole">±25 minuten · 3 tijdperken</small></button>
+        <button class="mbtn" data-t="new"><span>Nieuwe wereld</span><small class="whole">volk · kaart · doel</small></button>
+      </div>
       <div class="mpair">
         <button class="mbtn" data-t="challenges"><span>Uitdagingen</span><small class="whole">${medalCount()}/${SCENARIOS.length} medailles</small></button>
         <button class="mbtn" data-t="daily"><span>Wereld van de dag</span><small class="whole">${dailyLine()}</small></button>
@@ -480,6 +483,9 @@ export function showTitle({ setup = false, challenges = false, focus = null }: T
     // Hoe het venster ook dichtgaat (Klaar, Esc of een klik ernaast): daarna het titelscherm opnieuw tekenen
     else if (t.dataset.t === 'profile') showProfile({ onClose: drawHome });
     else if (t.dataset.t === 'new') openSetup();
+    // Snel spel: meteen beginnen met je laatste volk en moeilijkheid, een gewone kaart en één doel
+    else if (t.dataset.t === 'quick')
+      startGame({ people: draft.people, diff: draft.diff, size: 256, victories: ['quick'], rivals: 1 });
     else if (t.dataset.t === 'challenges') openChallenges();
     else if (t.dataset.t === 'daily') openChallenges(DAILY);
     else if (t.dataset.t === 'load') showLoadScreen({ onLoaded: leaveTitle, onClose: drawHome });
@@ -514,7 +520,7 @@ export function showHelp() {
   <p><b>Muren</b> houden vijanden echt tegen: ze moeten erdoorheen hakken. Bouw een <b>poort</b> zodat je eigen mensen erdoor kunnen. <b>Wegen</b> laten iedereen sneller lopen. In het paneel <b>Verbeteren</b> zie je per verbetering precies wat ze oplevert (nu → straks): werktuigen, wapens, gebouwen en uitvindingen, en soms vraagt een <b>gebeurtenis</b> om een keuze.</p>
   <p>Elk nieuw tijdperk ontgrendelt <b>verbeteringen</b> voor wat je al hebt: gebouwen gaan een niveau omhoog, je dorpelingen krijgen betere werktuigen en je leger beter pantser. Welke er klaarstaan, zie je in het paneel <b>Verbeteren</b>.</p>
   <p>Zin in iets anders? Onder <b>Uitdagingen</b> staan opdrachten met eigen regels, zoals een lange winter of geen leger, en een doel binnen een tijd. Haal je het, dan krijg je een medaille. De <b>wereld van de dag</b> is elke dag nieuw en voor iedereen hetzelfde.</p>
-  <p>Bij een <b>nieuwe wereld</b> kies je je volk, de moeilijkheid, de kaart en hoe je wint: de sterrenpoort bouwen, 30 nachten overleven, een kort spel tot de Gouden Eeuw of alle rivalen verslaan (Verovering). Je doelen staan op de doelenkaart onder <b>Winnen</b> (op een telefoon: knop <b>Doel</b>). Met dezelfde <b>zaadcode</b> krijg je dezelfde wereld; je vindt hem onder <b>Menu</b>.</p>
+  <p>Even spelen? Kies <b>Snel spel</b>: drie tijdperken in ongeveer 25 minuten. Bij een <b>nieuwe wereld</b> kies je je volk, de moeilijkheid, de kaart en hoe je wint: de sterrenpoort bouwen, 30 nachten overleven, een kort spel tot de Gouden Eeuw of alle rivalen verslaan (Verovering). Je doelen staan op de doelenkaart onder <b>Winnen</b> (op een telefoon: knop <b>Doel</b>). Met dezelfde <b>zaadcode</b> krijg je dezelfde wereld; je vindt hem onder <b>Menu</b>.</p>
   <p><b>Rivalen</b> zijn andere volken op de kaart (je kiest er 0 tot 3 bij een nieuwe wereld). Ze bouwen en gaan door de tijdperken net als jij, en vallen soms overdag aan. Hun land heeft hun kleur; in het paneel <b>Leger</b> zie je hoe sterk ze zijn. Verwoest hun stamhuis: dan zijn ze verslagen en wordt hun land van jou. Versla ze allemaal en je wint met <b>Verovering</b>.</p>
   <p>Elk tijdperk heeft één <b>wereldwonder</b>, zoals het Hunebed of de Eiffeltoren (bouwcategorie <b>Wonderen</b>). Elk wonder bestaat maar één keer per wereld en geeft een sterke bonus. Een rivaal met het karakter Bouwer bouwt ook wonderen. Op de doelenkaart zie je als hij ervoor spaart of eraan bouwt: sloop zijn bouwplaats of wees sneller. Is hij eerder klaar, dan is het wonder bezet tot je het verwoest of hem verslaat. Met vier wonderen tegelijk kun je winnen.</p>
   <p>Elk <b>volk</b> heeft eigen voordelen; je ziet ze onder <b>Menu</b>, en in het overzicht onderin als je niets hebt geselecteerd.</p>

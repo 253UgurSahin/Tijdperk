@@ -642,8 +642,9 @@
   }
 }
 
-/* Knop "Alle prestaties": sterretje met wat ruimte voor de tekst */
-.endsheet [data-end='profile'] .ico {
+/* Knoppen "Alle prestaties" en "Nog een keer": pictogram met wat ruimte voor de tekst */
+.endsheet [data-end='profile'] .ico,
+.endsheet [data-end='again'] .ico {
   width: 15px;
   height: 15px;
   margin-right: 6px;
