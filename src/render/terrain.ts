@@ -67,22 +67,111 @@ const groundAt = (u: number, v: number, out: number[]) => {
 };
 const px3 = [0, 0, 0];
 
+// Is hier een weg? (0 buiten de kaart)
+const roadOn = (x: number, y: number) => (x < 0 || y < 0 || x >= W || y >= H ? 0 : road[y * W + x]);
+/** Eén stuk weg op de grond: van het midden van tegel (ax, ay) naar dat van (bx, by), met het soort weg. */
+interface RoadPiece {
+  ax: number;
+  ay: number;
+  bx: number;
+  by: number;
+  tier: number;
+  /** Rond plein in plaats van vierkant (een tegel met alleen schuine buren: dan geen kartelrand). */
+  round?: boolean;
+}
+/**
+ * De stukken weg die tegel (x, y) kunnen raken: van elke wegtegel eromheen naar zijn buren. Ook schuin:
+ * twee wegtegels die alleen met een hoekje aan elkaar zitten, krijgen een schuine strook ertussen, die
+ * over de hoeken van de tegels ernaast loopt. Zo sluit een schuin pad netjes aan in plaats van een
+ * dambord te worden. (Zit er al een weg recht ertussen, dan niet: dan blijft een bocht gewoon haaks.)
+ */
+function roadPieces(x: number, y: number): RoadPiece[] {
+  const list: RoadPiece[] = [];
+  for (let ry = y - 1; ry <= y + 1; ry++)
+    for (let rx = x - 1; rx <= x + 1; rx++) {
+      const t = roadOn(rx, ry);
+      if (!t) continue;
+      const square = { ax: rx, ay: ry, bx: rx, by: ry, tier: t, round: false }; // het plein van de tegel zelf
+      list.push(square);
+      let straight = false,
+        slanted = false;
+      for (const [dx, dy] of [
+        [1, 0],
+        [0, 1],
+        [-1, 0],
+        [0, -1],
+      ]) {
+        const n = roadOn(rx + dx, ry + dy);
+        if (n) {
+          straight = true;
+          list.push({ ax: rx, ay: ry, bx: rx + dx, by: ry + dy, tier: Math.max(t, n) });
+        }
+      }
+      for (const [dx, dy] of [
+        [1, 1],
+        [1, -1],
+        [-1, 1],
+        [-1, -1],
+      ]) {
+        const n = roadOn(rx + dx, ry + dy);
+        if (n && !roadOn(rx + dx, ry) && !roadOn(rx, ry + dy)) {
+          slanted = true;
+          list.push({ ax: rx, ay: ry, bx: rx + dx, by: ry + dy, tier: Math.max(t, n) });
+        }
+      }
+      square.round = slanted && !straight;
+    }
+  return list;
+}
+/**
+ * Welk soort weg ligt op punt (u, v) (in tegels), of 0. Een recht stuk is een rechthoek (dan sluit het
+ * strak aan op de tegel ernaast), een schuin stuk een strook even breed als een recht stuk.
+ */
+function roadTierAt(pieces: RoadPiece[], u: number, v: number, half: number): number {
+  let best = 0;
+  for (const p of pieces) {
+    if (p.tier <= best) continue;
+    const ax = p.ax + 0.5,
+      ay = p.ay + 0.5,
+      dx = p.bx - p.ax,
+      dy = p.by - p.ay;
+    let hit: boolean;
+    if (p.round) {
+      const ex = u - ax,
+        ey = v - ay;
+      hit = ex * ex + ey * ey <= half * half;
+    } else if (dx !== 0 && dy !== 0) {
+      // Schuin: afstand tot het lijnstuk tussen de twee middens
+      const t = Math.max(0, Math.min(1, ((u - ax) * dx + (v - ay) * dy) / 2)),
+        ex = u - (ax + dx * t),
+        ey = v - (ay + dy * t);
+      hit = ex * ex + ey * ey <= half * half;
+    } else {
+      // Recht (of het plein zelf): binnen de rechthoek van midden tot midden, half breed
+      const x0 = Math.min(ax, ax + dx) - half,
+        x1 = Math.max(ax, ax + dx) + half,
+        y0 = Math.min(ay, ay + dy) - half,
+        y1 = Math.max(ay, ay + dy) + half;
+      hit = u >= x0 && u <= x1 && v >= y0 && v <= y1;
+    }
+    if (hit) best = p.tier;
+  }
+  return best;
+}
+
 export function paintTile(x: number, y: number) {
   const i = y * W + x,
     mine = G.unl[(y >> 4) * CN + (x >> 4)] === 1,
     own = mine ? 0 : ownerAt(x, y), // land van een rivaal (zijn nummer), of 0
     lk = !mine && !own, // wildernis: die tekenen we donkerder
     tint = own ? rivalRGB(own) : null,
-    rd = road[i],
     d = timg!.data,
     X0 = x * TS,
     Y0 = y * TS,
     WW = W * TS;
-  const nb = (dx: number, dy: number) => {
-    const xx = x + dx,
-      yy = y + dy;
-    return xx < 0 || yy < 0 || xx >= W || yy >= H ? 0 : road[yy * W + xx];
-  };
+  // De wegen die over deze tegel kunnen lopen (meestal geen: dan slaan we het hele zoeken over)
+  const pieces = roadPieces(x, y),
+    half = 0.5 - EDGE / TS; // een weg is een tegel breed, min een grasrandje aan elke kant
   for (let py = 0; py < TS; py++)
     for (let px = 0; px < TS; px++) {
       groundAt(x + (px + 0.5) / TS - 0.5, y + (py + 0.5) / TS - 0.5, px3);
@@ -104,28 +193,24 @@ export function paintTile(x: number, y: number) {
         g *= k;
         b *= k;
       }
+      const rd = pieces.length ? roadTierAt(pieces, x + (px + 0.5) / TS, y + (py + 0.5) / TS, half) : 0;
       if (rd) {
-        const ex =
-          (px < EDGE && !nb(-1, 0)) ||
-          (px >= TS - EDGE && !nb(1, 0)) ||
-          (py < EDGE && !nb(0, -1)) ||
-          (py >= TS - EDGE && !nb(0, 1));
-        if (!ex) {
-          const c = RC[rd]!,
-            k = 0.9 + h * 0.16;
-          r = c[0] * k;
-          g = c[1] * k;
-          b = c[2] * k;
-          if (rd === 2 && ((px + (py >> 2) * 2) % 5 === 0 || py % 4 === 0)) {
-            r *= 0.86;
-            g *= 0.86;
-            b *= 0.86;
-          }
-          if (rd === 3 && py === TS / 2 && px % 6 < 3) {
-            r = 230;
-            g = 220;
-            b = 150;
-          }
+        const c = RC[rd]!,
+          k = 0.9 + h * 0.16;
+        r = c[0] * k;
+        g = c[1] * k;
+        b = c[2] * k;
+        // Klinkers: een patroon van voegen
+        if (rd === 2 && ((px + (py >> 2) * 2) % 5 === 0 || py % 4 === 0)) {
+          r *= 0.86;
+          g *= 0.86;
+          b *= 0.86;
+        }
+        // Asfalt: een gestippelde middenstreep (alleen op de wegtegel zelf, niet op een schuin hoekje)
+        if (rd === 3 && road[i] === 3 && py === TS / 2 && px % 6 < 3) {
+          r = 230;
+          g = 220;
+          b = 150;
         }
       }
       if (lk) {

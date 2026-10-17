@@ -877,8 +877,12 @@ export function checkWorld() {
   // terrSnap en store.nodeSnap zijn gezet door resetWorld3D (hierboven, bij een nieuw spel)
   forEachChange(road, terrSnap!, i => {
     terrSnap![i] = road[i];
-    repaintTile(i % W, (i / W) | 0);
-    changedAt(i % W, (i / W) | 0);
+    const x = i % W,
+      y = (i / W) | 0;
+    // Ook de tegels eromheen: een weg kan schuin over hun hoeken lopen (zie roadPieces in terrain.ts)
+    for (let ty = Math.max(0, y - 1); ty <= Math.min(H - 1, y + 1); ty++)
+      for (let tx = Math.max(0, x - 1); tx <= Math.min(W - 1, x + 1); tx++) repaintTile(tx, ty);
+    changedAt(x, y);
   });
   flushTerrain();
   // Echt iets veranderd (boom gekapt, nieuw tijdperk) of alleen de camera verschoven?
