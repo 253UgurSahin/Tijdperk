@@ -1,0 +1,36 @@
+
+[1m[46m RUN [49m[22m [36mv3.2.7 [39m[90m/home/runner/work/Tijdperk/Tijdperk[39m
+
+ [32m✓[39m tests/diplomacy.test.ts [2m([22m[2m34 tests[22m[2m)[22m[32m 22[2mms[22m[39m
+ [32m✓[39m tests/events.test.ts [2m([22m[2m30 tests[22m[2m)[22m[32m 105[2mms[22m[39m
+ [32m✓[39m tests/scenarios.test.ts [2m([22m[2m19 tests[22m[2m)[22m[32m 152[2mms[22m[39m
+ [32m✓[39m tests/achievements.test.ts [2m([22m[2m28 tests[22m[2m)[22m[32m 22[2mms[22m[39m
+ [32m✓[39m tests/wonders.test.ts [2m([22m[2m20 tests[22m[2m)[22m[32m 27[2mms[22m[39m
+ [32m✓[39m tests/newgame.test.ts [2m([22m[2m18 tests[22m[2m)[22m[32m 37[2mms[22m[39m
+ [32m✓[39m tests/finale.test.ts [2m([22m[2m19 tests[22m[2m)[22m[33m 394[2mms[22m[39m
+   [33m[2m✓[22m[39m kampioenen: de beloning[2m > [22mna een kampioen liggen er geen kaarten die je bij de gewone keuze al zag, net zo voorspelbaar [33m 371[2mms[22m[39m
+ [32m✓[39m tests/peoples.test.ts [2m([22m[2m16 tests[22m[2m)[22m[32m 17[2mms[22m[39m
+ [32m✓[39m tests/rivals.test.ts [2m([22m[2m20 tests[22m[2m)[22m[33m 1347[2mms[22m[39m
+   [33m[2m✓[22m[39m rivalen: getallen[2m > [22mtempo op Normaal: de bouwer gaat het snelst, en niemand is al na dag 3 in de IJzertijd [33m 318[2mms[22m[39m
+ [32m✓[39m tests/army.test.ts [2m([22m[2m19 tests[22m[2m)[22m[32m 11[2mms[22m[39m
+ [32m✓[39m tests/economy.test.ts [2m([22m[2m17 tests[22m[2m)[22m[32m 11[2mms[22m[39m
+ [32m✓[39m tests/bonus.test.ts [2m([22m[2m17 tests[22m[2m)[22m[32m 15[2mms[22m[39m
+ [32m✓[39m tests/saveslots.test.ts [2m([22m[2m13 tests[22m[2m)[22m[33m 407[2mms[22m[39m
+ [32m✓[39m tests/blessings.test.ts [2m([22m[2m14 tests[22m[2m)[22m[32m 60[2mms[22m[39m
+ [32m✓[39m tests/balance.test.ts [2m([22m[2m13 tests[22m[2m)[22m[32m 85[2mms[22m[39m
+ [32m✓[39m tests/data.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 23[2mms[22m[39m
+ [32m✓[39m tests/mapsize.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 4[2mms[22m[39m
+ [32m✓[39m tests/toasttext.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 3[2mms[22m[39m
+ [32m✓[39m tests/succession.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 8[2mms[22m[39m
+ [32m✓[39m tests/util.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 19[2mms[22m[39m
+ [32m✓[39m tests/generate.test.ts [2m([22m[2m44 tests[22m[2m)[22m[33m 3446[2mms[22m[39m
+   [33m[2m✓[22m[39m grotere kaarten[2m > [22mzelfde seed, kaartsoort en grootte = dezelfde wereld, met de start in het midden [33m 660[2mms[22m[39m
+   [33m[2m✓[22m[39m grotere kaarten[2m > [22meen enorme kaart (512) heeft veel meer ertsen dan een gewone [33m 304[2mms[22m[39m
+   [33m[2m✓[22m[39m stukken land (voor het zoeken van routes)[2m > [22mwater en bergen horen bij geen stuk land, al het andere wel [33m 309[2mms[22m[39m
+   [33m[2m✓[22m[39m stukken land (voor het zoeken van routes)[2m > [22mhetzelfde nummer = je kunt er te voet komen, een ander nummer = nooit [33m 747[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m21 passed[39m[22m[90m (21)[39m
+[2m      Tests [22m [1m[32m364 passed[39m[22m[90m (364)[39m
+[2m   Start at [22m 14:23:05
+[2m   Duration [22m 7.34s[2m (transform 838ms, setup 0ms, collect 4.13s, tests 6.21s, environment 3ms, prepare 1.40s)[22m
+
