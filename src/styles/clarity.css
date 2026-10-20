@@ -162,6 +162,24 @@
 #upgrades .small {
   margin-top: 6px;
 }
+/* "Alles samen": de totale kosten van alle verbeteringen, met wat je tekortkomt */
+.utotal {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  margin: 0 0 6px;
+  font-size: 12px;
+  color: var(--ink-2, var(--ink));
+}
+.utotal .lack {
+  color: var(--bad, #b8352c);
+  font-weight: 600;
+}
+.utotal .ok {
+  color: var(--good, #4f8a3c);
+  font-weight: 600;
+}
 
 /*
  * Indeling op de computer, in vaste zones:

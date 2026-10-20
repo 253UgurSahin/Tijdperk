@@ -1,11 +1,12 @@
 // Paneel "Verbeteren": werktuigen, wapens, gebouwen en uitvindingen. Eén korte regel per ding, met de
 // kosten ernaast; wat het precies oplevert staat in de uitleg bij de muis.
-import type { Building } from '../../types';
+import type { Building, Cost } from '../../types';
 import { store } from '../../core/store';
 import { sfx } from '../../audio/sound';
 import { AGES } from '../../data/ages';
 import { BLESSING } from '../../data/blessings';
 import { B } from '../../data/buildings';
+import { RES } from '../../data/resources';
 import { TECH, TK } from '../../data/tech';
 import { has, pay } from '../../game/economy';
 import { G } from '../../game/state';
@@ -26,7 +27,7 @@ import {
   upgradeTools,
 } from '../../game/upgrades';
 import { blessingListHTML } from '../blessings';
-import { compareText, costHTML, esc } from '../format';
+import { compareText, costHTML, esc, fmtShort } from '../format';
 import { iconFor } from '../../render/icons';
 import { ico } from '../glyphs';
 import { setHTML, sigs } from '../header';
@@ -94,6 +95,22 @@ function blessingsSection() {
   return `<details class="blessbox" ${showBlessingList() ? 'open' : ''}><summary class="usub">Zegeningen <span class="small">${G.blessings.length}</span><span class="bchips">${icons}</span></summary>${blessingListHTML()}</details>`;
 }
 
+/** Wat alle verbeteringen samen kosten (één niveau per gebouw). */
+function totalUpgradeCost(list: Building[]): Cost {
+  const total: Cost = {};
+  for (const b of list) {
+    const c = upgCost(b);
+    for (const k in c) total[k] = (total[k] || 0) + c[k];
+  }
+  return total;
+}
+/** Wat je per grondstof tekortkomt voor deze kosten (alleen de grondstoffen waar je te weinig van hebt). */
+function shortfall(c: Cost): Cost {
+  const out: Cost = {};
+  for (const k in c) if (G.res[k] < c[k]) out[k] = Math.ceil(c[k] - G.res[k]);
+  return out;
+}
+
 export function renderUpgrades() {
   const up = G.bs.filter(canUpg),
     aff = up.filter(b => has(upgCost(b)));
@@ -105,6 +122,7 @@ export function renderUpgrades() {
     has(armsCost()),
     up.map(b => b.id + ':' + lvlOf(b)),
     aff.length,
+    Object.values(shortfall(totalUpgradeCost(up))),
     Object.keys(G.tech),
     G.research && [G.research.k, Math.floor(G.research.t / 2)],
     TECH.map(T => (has(T.cost) ? 1 : 0)).join(''),
@@ -122,15 +140,32 @@ export function renderUpgrades() {
       h += globalRow('arms', '⛨', 'Wapens en pantser', 'Sterker leger', G.armsLvl, compareText(armsRows()));
     h += '</div>';
 
-    // 2. Gebouwen: per soort één regel; wat er beter wordt staat in de uitleg bij de muis
-    const allBtn =
-      aff.length > 1
-        ? `<button class="quiet" data-g="all" title="Verbeter alle ${aff.length} gebouwen die je kunt betalen">Alles verbeteren</button>`
-        : '';
+    // 2. Gebouwen: per soort één regel; wat er beter wordt staat in de uitleg bij de muis.
+    // Bovenaan "Alles verbeteren" met wat dat samen kost (één niveau per gebouw) en wat je daarvoor tekortkomt.
+    const total = totalUpgradeCost(up),
+      short = shortfall(total),
+      allOk = up.length > 0 && !Object.keys(short).length;
+    const allBtn = up.length
+      ? `<button class="quiet" data-g="all" ${aff.length ? '' : 'disabled'} title="${esc(
+          allOk
+            ? `Verbeter alle ${up.length} gebouwen in één keer`
+            : aff.length
+              ? `Verbeter de ${aff.length} van ${up.length} gebouwen die je nu kunt betalen`
+              : 'Je kunt nu geen enkele verbetering betalen',
+        )}">Alles verbeteren${up.length > 1 ? ` (${aff.length}/${up.length})` : ''}</button>`
+      : '';
     h += `<div class="usub">Gebouwen${allBtn}</div>`;
     if (!up.length)
       h += `<p class="small">Niets te verbeteren. Elk nieuw tijdperk geeft een niveau extra.</p>`;
     else {
+      // Wat alles samen kost, en (rood) wat je daarvoor nog mist
+      h += `<div class="utotal"><span>Alles samen</span>${costHTML(total, true)}${
+        Object.keys(short).length
+          ? `<span class="lack">tekort ${Object.keys(short)
+              .map(k => `${fmtShort(short[k])} ${RES[k].n.toLowerCase()}`)
+              .join(', ')}</span>`
+          : `<span class="ok">${ico('✓')} genoeg</span>`
+      }</div>`;
       const byType: Record<string, Building[]> = {};
       for (const b of up) (byType[b.type] = byType[b.type] || []).push(b);
       h += `<div class="ulist">${Object.entries(byType)
