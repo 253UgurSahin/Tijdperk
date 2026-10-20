@@ -68,7 +68,6 @@ export function selectGroup(g: string, add = false): void {
   if (!add) clearSel();
   us.forEach(u => sel.us.add(u.id));
   vs.forEach(v => sel.vs.add(v.id));
-  store.lastGroup = g;
   sfx('select');
   store.uiDirty = true;
 }

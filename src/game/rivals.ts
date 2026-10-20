@@ -452,7 +452,7 @@ export function rivalThink(f: Foe, dt: number): boolean {
   if (f.mode === 'help') return helperThink(f, dt); // een bondgenoot die jou helpt (zie game/diplomacy.ts)
   if (f.mode === 'home') return guardHome(f, r, dt);
   if (f.mode === 'march' || f.mode === 'return') {
-    walkRoute(f, r, dt);
+    walkRoute(f, dt);
     return false;
   }
   // Aanvallen, net als de nachtelijke aanvallers; na een tijdje gaan de overlevenden naar huis
@@ -509,7 +509,7 @@ function homeTarget(f: Foe, r: Rival): Unit | Villager | null {
 }
 
 // Een lange route lopen: op weg naar jouw stad (march) of terug naar huis (return)
-function walkRoute(f: Foe, _r: Rival, dt: number): void {
+function walkRoute(f: Foe, dt: number): void {
   if (f.mode === 'march' && f.rt <= 0) {
     f.rt = 0.7;
     // Iets van jou in de buurt? Dan begint de aanval hier
@@ -954,7 +954,9 @@ export function rivalDefeated(r: Rival): void {
 
 function rivalTowers(dt: number): void {
   for (const r of G.rivals) {
-    if (r.dead || !r.atWar) continue; // zonder oorlog schieten hun torens niet
+    if (r.dead) continue;
+    for (const b of r.bs) if (b.flash) b.flash -= dt; // de treffer-flits loopt af (zie hit in military.ts)
+    if (!r.atWar) continue; // zonder oorlog schieten hun torens niet
     for (const b of r.bs) {
       const d = B[b.type];
       if (!d.def || !b.done) continue;

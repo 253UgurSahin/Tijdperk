@@ -10,7 +10,6 @@ export interface Store {
   placing: string | null;
   expandMode: boolean;
   demolishArm: number;
-  lastGroup: string | null;
   cmdMode: 'amove' | 'patrol' | null;
   demoMode: boolean;
   /** Waar een aanval begint; tijdens de finale (`more`) ook de plekken van de andere groepen. */
@@ -59,7 +58,6 @@ export const store: Store = {
   placing: null,
   expandMode: false,
   demolishArm: 0,
-  lastGroup: null,
   cmdMode: null,
   demoMode: false,
   raidPing: null,

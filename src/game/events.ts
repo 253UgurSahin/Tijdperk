@@ -1,5 +1,6 @@
 // Gebeurtenissen in het spel: wanneer ze komen, wat een keuze doet, vervolgen en tijdelijke bonussen.
 // Ook de reizende handelaar. Welke gebeurtenissen er zijn, staat in data/events.ts.
+import { weightedPick } from '../util/random';
 import type { Buff, Building, GameEvent, Tile } from '../types';
 import { store } from '../core/store';
 import { sfx } from '../audio/sound';
@@ -37,7 +38,7 @@ import { G, placeName, sel } from './state';
 import { isNight, raidNight, season } from './time';
 import { bMaxHp } from './upgrades';
 import { sigs } from '../ui/header';
-import { note, pulseRes, toast } from '../ui/hud';
+import { note, toast } from '../ui/hud';
 import { dist } from '../util/math';
 import { inb, isUnl, node, nodeLists, walkable } from '../world/world';
 
@@ -108,15 +109,6 @@ function choiceEndsBeforeRaid(): boolean {
 }
 
 // Kies er één, waarbij een gewicht van 2 twee keer zoveel kans geeft als 1
-function weightedPick<T>(list: T[], weightOf: (item: T) => number): T | null {
-  const total = list.reduce((sum, item) => sum + weightOf(item), 0);
-  let roll = Math.random() * total;
-  for (const item of list) {
-    roll -= weightOf(item);
-    if (roll < 0) return item;
-  }
-  return null;
-}
 
 /** Elke speltik: bonussen die aflopen, een gebeurtenis die verloopt, en of er een nieuwe komt. */
 export function updateEvents(dt: number): void {
@@ -231,7 +223,6 @@ function runChoice(def: EventDef, choice: EventChoice, ev: GameEvent): void {
   if (cost) pay(cost);
   for (const [r, n] of Object.entries(amountsFor(choice.gain, age) || {})) {
     G.res[r] += n;
-    pulseRes(r);
   }
   for (const [r, n] of Object.entries(amountsFor(choice.lose, age) || {}))
     G.res[r] = Math.max(0, G.res[r] - n);

@@ -142,7 +142,6 @@ export function hallHit() {
  * Er komt een grondstof binnen. De strook bovenaan knippert daar niet meer bij (bij elke levering was dat
  * te onrustig); het nieuwe getal staat er vanzelf.
  */
-export function pulseRes(_k: string) {}
 export function setSpeed(s: number) {
   if (s) lastSpeed = s;
   G.speed = s;

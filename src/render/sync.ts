@@ -296,9 +296,11 @@ function lodBuildings() {
 }
 /** Hoe lang het vorige beeldje duurde (seconden), voor bewegingen die niet van de framerate mogen afhangen. */
 let frameDt = 1 / 60;
+const seenBuildings = new Set<number>(); // (hergebruikt: niet elk beeldje een nieuwe)
 export function syncBuildings() {
-  const seen = new Set<number>(),
+  const seen = seenBuildings,
     dt = lastBT ? Math.min(0.1, store.TM - lastBT) : 0;
+  seen.clear();
   lastBT = store.TM;
   frameDt = dt || 1 / 60;
   lodBuildings();

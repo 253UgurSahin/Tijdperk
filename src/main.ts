@@ -126,6 +126,9 @@ let lastT = performance.now(),
   miniYaw = NaN, // de draaiing waarmee de minikaart het laatst getekend is
   saveT = 0,
   savedDay = -1; // de dag waarop het laatst automatisch opgeslagen is
+// (één keer opzoeken, niet elk beeldje)
+const modalEl = $('#modal'),
+  titleEl = $('#title');
 const edge = { x: -1, y: -1 };
 addEventListener('mousemove', e => {
   edge.x = e.clientX;
@@ -153,7 +156,7 @@ function tick(now: number) {
   const realDt = (now - lastT) / 1000,
     rdt = Math.min(0.1, realDt);
   lastT = now;
-  if ($('#modal').hidden) {
+  if (modalEl.hidden) {
     const pp = 900 * rdt * (SET.camSpeed || 1);
     let kx = 0,
       ky = 0;
@@ -161,7 +164,7 @@ function tick(now: number) {
     if ((keys.has('s') && !sel.us.size) || keys.has('arrowdown')) ky += 1;
     if (keys.has('a') || keys.has('arrowleft')) kx += 1;
     if (keys.has('d') || keys.has('arrowright')) kx -= 1;
-    if (SET.edge && edge.x >= 0 && !drag && !mouse.touch && $('#title').hidden) {
+    if (SET.edge && edge.x >= 0 && !drag && !mouse.touch && titleEl.hidden) {
       const m = 10;
       if (edge.x < m) kx += 1;
       else if (edge.x > innerWidth - m) kx -= 1;
@@ -174,7 +177,7 @@ function tick(now: number) {
     if (turn) turnCamera(turn * TURN_SPEED * rdt * (SET.camSpeed || 1));
   }
   updateTurn(rdt);
-  if (!$('#title').hidden) {
+  if (!titleEl.hidden) {
     cam.x += Math.cos(now / 9000) * 0.4 * rdt;
     cam.y += Math.sin(now / 7000) * 0.3 * rdt;
     clampCam();
@@ -287,7 +290,7 @@ function tick(now: number) {
   if (saveT > 60) {
     saveT = 0;
     // Niet op het titelscherm: daar ligt soms een wereld waarin je nog niet speelt
-    if (!G.over && SET.autosave && $('#title').hidden) save();
+    if (!G.over && SET.autosave && titleEl.hidden) save();
   }
 }
 // Teller met beeldjes per seconde (aan te zetten in de instellingen)

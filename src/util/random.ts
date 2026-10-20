@@ -39,3 +39,14 @@ export function fbm(x: number, y: number, s: number): number {
   }
   return t / n;
 }
+
+/** Kies één uit een lijst, waarbij elk een eigen kans (gewicht) heeft. Lege lijst of alles 0: null. */
+export function weightedPick<T>(list: T[], weightOf: (item: T) => number): T | null {
+  const total = list.reduce((sum, item) => sum + weightOf(item), 0);
+  let roll = Math.random() * total;
+  for (const item of list) {
+    roll -= weightOf(item);
+    if (roll < 0) return item;
+  }
+  return null;
+}

@@ -703,6 +703,11 @@ function resetUiState(): void {
   $('#resPop').hidden = true;
 }
 // Je verlaat het tabblad: bewaren (alleen tijdens het spelen, niet op het titelscherm)
-addEventListener('visibilitychange', () => {
+const saveOnLeave = () => {
   if (document.hidden && G && !G.over && SET.autosave && $('#title').hidden) save();
+};
+addEventListener('visibilitychange', saveOnLeave);
+// (op iOS komt bij het sluiten van een tabblad soms alleen pagehide)
+addEventListener('pagehide', () => {
+  if (G && !G.over && SET.autosave && $('#title').hidden) save();
 });

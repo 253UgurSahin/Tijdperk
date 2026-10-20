@@ -14,7 +14,6 @@ import { G, bById } from './state';
 import { isNight, season } from './time';
 import { mul } from './bonus';
 import { bMaxHp, carryMax, farmSlots } from './upgrades';
-import { pulseRes } from '../ui/hud';
 import { clamp, dist } from '../util/math';
 import { findPath, follow } from '../world/pathfinding';
 import { amt, claims, isUnl, node, nodeLists, unreach, walkable } from '../world/world';
@@ -341,7 +340,6 @@ function arrive(v: Villager) {
         G.res[r] += a;
         G.stats.gathered += a;
         floater(v.x, v.y, '+' + a, RES[r].c);
-        pulseRes(r);
         sfx('drop', 0.25);
       }
       v.carry = { res: null, amt: 0 };

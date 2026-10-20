@@ -1,5 +1,6 @@
 // Diplomatie in het spel: relaties met rivalen, verdragen, oorlog en vrede, berichten en hulp van bondgenoten.
 // De getallen (kansen, kosten, grenzen) staan in data/diplomacy.ts.
+import { weightedPick } from '../util/random';
 import type { AttackTarget, Cost, Foe, OfferKind, Rival, RivalMode, RivalOffer, Target } from '../types';
 import { store } from '../core/store';
 import { sfx } from '../audio/sound';
@@ -62,6 +63,12 @@ import { sigs } from '../ui/header';
 import { note, toast } from '../ui/hud';
 import { dist } from '../util/math';
 import { isUnl, passable } from '../world/world';
+
+// Een soort bericht kiezen met gewicht (zie weightedPick)
+const pickOfferKind = (list: [OfferKind, number][]): OfferKind | null => {
+  const hit = weightedPick(list, ([, w]) => w);
+  return hit ? hit[0] : null;
+};
 
 // Zo lang blijven soldaten van een bondgenoot hoogstens helpen
 const HELP_TIME = 110;
@@ -702,15 +709,6 @@ const ACTIONS: Record<string, (r: Rival, a: DiplomacyAction) => DiplomacyResult>
 // ---- Berichten van rivalen (in het kaartje van de handelaar, zie ui/event.ts) ----
 
 // Kies er één, waarbij een gewicht van 2 twee keer zoveel kans geeft als 1
-function weightedPick(list: [OfferKind, number][]): OfferKind | null {
-  const total = list.reduce((sum, [, w]) => sum + w, 0);
-  let left = Math.random() * total;
-  for (const [k, w] of list) {
-    left -= w;
-    if (left < 0) return k;
-  }
-  return null;
-}
 
 // Om de twee à drie dagen stuurt elke rivaal een bericht, overdag, als er geen ander kaartje openstaat
 function maybeOffer(r: Rival): void {
@@ -727,7 +725,7 @@ function maybeOffer(r: Rival): void {
     // In de vredige modus dreigt niemand, en met gesloten grenzen komt er geen handel
     ([k]) => !(k === 'demand' && G.peaceful) && !(k === 'trade' && hasRule('noTrade')),
   );
-  const kind = weightedPick(kinds);
+  const kind = pickOfferKind(kinds);
   if (kind) makeRivalOffer(r, kind);
 }
 

@@ -21,6 +21,8 @@ interface RivalBuildingRec {
   /** Het fijne model en de grove versie voor ver uitgezoomd (zie buildingsFar in sync.ts). */
   m: T3.Group;
   coarse: T3.Group;
+  /** Vorige waarde van b.flash, om een nieuwe treffer te zien. */
+  flPrev: number;
   /** Verandert de sleutel (soort, tijdperk, klaar), dan wordt het model opnieuw gemaakt. */
   key: string;
   h: number;
@@ -121,7 +123,7 @@ function buildModel(b: RivalBuilding, rival: Rival, key: string): RivalBuildingR
     if (o.userData.spin) spins.push(o);
   });
   RG3.add(g);
-  return { g, m, coarse, key, h, s, flags, fires, spins, turret: findTurrets(g, b.id) };
+  return { g, m, coarse, key, h, s, flags, fires, spins, turret: findTurrets(g, b.id), flPrev: 0 };
 }
 
 // Daken en bovenkanten krijgen een tint van hun kleur; onderaan blijven de muren zoals ze zijn
@@ -164,9 +166,10 @@ function animate(r: RivalBuildingRec, b: RivalBuilding) {
       o.rotation[(o.userData.axis || 'y') as 'x' | 'y' | 'z'] = store.TM * o.userData.spin + b.id;
   // Het geschut van een toren draait mee naar jouw mensen waarop hij schiet
   if (b.done && r.turret) aimTurrets(r.turret, b, store.TM);
-  // Geraakt: stof en vonken op de gevel (flash zet game/military.ts bij elke treffer; hier weer op 0)
-  if (b.flash) {
-    b.flash = 0;
+  // Geraakt: stof en vonken op de gevel. game/military.ts zet flash bij elke treffer; hier kijken we alleen of
+  // hij omhoog sprong (de weergave schrijft niets in de spelstand)
+  const fl = b.flash || 0;
+  if (fl > r.flPrev + 0.05) {
     const p = r.g.position,
       x = p.x + (Math.random() - 0.5) * r.s * 0.8,
       z = p.z + (Math.random() - 0.5) * r.s * 0.8,
@@ -174,4 +177,5 @@ function animate(r: RivalBuildingRec, b: RivalBuilding) {
     puff(LAYER.soft, 3, x, y, z, 0.5, 0.4, 0.9, 0.06, 0.22, 0x9a8c76, 0.6);
     puff(LAYER.glow, 3, x, y, z, 1.4, 1.4, 0.3, 0.035, 0.01, 0xffc070, 1, -4);
   }
+  r.flPrev = fl;
 }
