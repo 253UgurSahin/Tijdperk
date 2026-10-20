@@ -91,7 +91,8 @@ Testen gebeurt op twee manieren: `npm test` draait de unittests (speldata, werel
 spelstand, invoer en weergave worden in een echte browser gecontroleerd (Playwright-scripts, niet in de repo).
 In de ontwikkelserver staan hulpjes op `window.__tp` (bijv. `__tp.rich(1000)`, `__tp.setAge(4)`).
 
-Wat er per ronde veranderd is, staat in [CHANGELOG.md](CHANGELOG.md).
+Wat er per ronde veranderd is, staat in [CHANGELOG.md](CHANGELOG.md); wat er nog kan komen in
+[ROADMAP.md](ROADMAP.md).
 
 ## Projectstructuur
 
