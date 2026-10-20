@@ -448,7 +448,7 @@ export function renderInspector() {
     if (d.market)
       h +=
         '<div class="trade">' +
-        ['food', 'wood', 'stone', 'copper', 'iron', 'coal']
+        ['food', 'wood', 'stone', 'copper', 'tin', 'iron', 'coal', 'sand', 'lithium']
           .filter(r => RES[r].age <= G.age)
           .map(r => {
             const { buy, sell } = marketPrices(b, r);

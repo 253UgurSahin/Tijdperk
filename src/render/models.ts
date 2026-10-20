@@ -33,6 +33,7 @@ import {
   mk,
   pr,
   props,
+  detail,
   setDetail,
   sp,
   wins,
@@ -297,26 +298,57 @@ const MODELS: Record<string, ModelFn> = {
     bx(g, 0.96, 0.03, 0.06, '#4e3a2c', 0, 0.76, 0); // nok van het dak
   },
   farm(g) {
+    // Omgeploegde akker: donkere aarde met voren, en per voor een rij planten (stengel, blad en een aar), zodat
+    // het van dichtbij een echt gewas is en van ver nog steeds groene rijen. Eromheen een hek, met een
+    // vogelverschrikker, een waterbak en een paar schoven.
     bx(g, 1.92, 0.05, 1.92, C.soil);
-    for (let r = 0; r < 7; r++) bx(g, 1.7, 0.1, 0.09, '#86aa48', 0, 0.05, -0.78 + r * 0.26);
+    for (let r = 0; r < 6; r++) {
+      const z = -0.7 + r * 0.28;
+      bx(g, 1.7, 0.035, 0.12, '#5a4230', 0, 0.05, z); // de opgehoogde voor
+      if (!detail) {
+        bx(g, 1.7, 0.1, 0.09, '#86aa48', 0, 0.08, z); // van ver: één groene rij
+        continue;
+      }
+      for (let i = 0; i < 9; i++) {
+        const x = -0.76 + i * 0.19,
+          h = 0.16 + ((i * 7 + r * 3) % 5) * 0.02; // elke plant net iets anders hoog
+        cy(g, 0.012, h, '#6f9a3c', x, 0.08, z, 4);
+        bx(g, 0.1, 0.02, 0.035, '#86aa48', x, 0.08 + h * 0.45, z, 0.6); // blad
+        bx(g, 0.035, 0.02, 0.1, '#7fa843', x, 0.08 + h * 0.65, z, 0.3); // blad
+        cn(g, 0.03, 0.07, '#d6b85c', x, 0.08 + h, z, 5); // de aar
+      }
+    }
+    // Hek rondom: palen op de hoeken en halverwege, met twee latten
     for (const [x, z] of [
       [-0.95, -0.95],
+      [0, -0.95],
       [0.95, -0.95],
+      [-0.95, 0],
+      [0.95, 0],
       [-0.95, 0.95],
+      [0, 0.95],
       [0.95, 0.95],
     ])
-      bx(g, 0.05, 0.22, 0.05, C.woodd, x, 0, z);
-    bx(g, 0.05, 0.04, 1.9, C.wood, -0.95, 0.16, 0);
-    bx(g, 1.9, 0.04, 0.05, C.wood, 0, 0.16, 0.95);
-    // Vogelverschrikker en een paar schoven graan
-    bx(g, 0.03, 0.55, 0.03, C.woodd, 0.55, 0, -0.05);
-    bx(g, 0.3, 0.03, 0.03, C.woodd, 0.55, 0.4, -0.05);
-    bx(g, 0.12, 0.16, 0.06, '#b8452e', 0.55, 0.28, -0.05);
-    sp(g, 0.05, '#d9c27a', 0.55, 0.5, -0.05);
-    cn(g, 0.08, 0.06, '#c9a14a', 0.55, 0.53, -0.05, 6);
+      bx(g, 0.05, 0.26, 0.05, C.woodd, x, 0, z);
+    for (const y of [0.1, 0.21]) {
+      bx(g, 0.04, 0.03, 1.9, C.wood, -0.95, y, 0);
+      bx(g, 0.04, 0.03, 1.9, C.wood, 0.95, y, 0);
+      bx(g, 1.9, 0.03, 0.04, C.wood, 0, y, 0.95);
+      bx(g, 1.9, 0.03, 0.04, C.wood, 0, y, -0.95);
+    }
+    // Vogelverschrikker: paal, armen, jas, hoofd van stro en een hoed
+    bx(g, 0.03, 0.6, 0.03, C.woodd, 0.6, 0, -0.85);
+    bx(g, 0.34, 0.03, 0.03, C.woodd, 0.6, 0.42, -0.85);
+    bx(g, 0.14, 0.2, 0.07, '#b8452e', 0.6, 0.26, -0.85);
+    sp(g, 0.055, '#d9c27a', 0.6, 0.53, -0.85);
+    cn(g, 0.09, 0.07, '#c9a14a', 0.6, 0.56, -0.85, 6);
+    // Waterbak en een paar schoven in de hoek
+    bx(g, 0.3, 0.1, 0.16, C.woodd, -0.7, 0, -0.85);
+    bx(g, 0.26, 0.02, 0.12, '#5a8fb8', -0.7, 0.09, -0.85);
     for (const [x, z] of [
-      [-0.7, 0.75],
-      [-0.5, 0.78],
+      [-0.7, 0.78],
+      [-0.52, 0.8],
+      [-0.61, 0.66],
     ])
       cn(g, 0.07, 0.2, '#d9b860', x, 0, z, 6);
   },
@@ -783,6 +815,57 @@ const MODELS: Record<string, ModelFn> = {
     for (const x of [-0.76, -0.44]) bx(g, 0.04, 0.22, 0.12, C.woodd, x, 0, 0.8);
     banner(g, -0.75, 0.15, -0.18);
     flagpole(g, -0.85, 0, 0.85, 0.9);
+  },
+  quarry(g) {
+    // Een open groeve: een verzonken kuil met rotsblokken, een houten hijsbok en een kar met stenen
+    bx(g, 1.5, 0.05, 1.5, '#8f8a7e', 0, 0, 0);
+    for (const [x, z, sc] of [
+      [-0.45, -0.4, 0.22],
+      [0.35, -0.5, 0.17],
+      [-0.5, 0.35, 0.15],
+      [0.1, 0.1, 0.26],
+      [0.5, 0.4, 0.2],
+    ])
+      mk(gDod(), mat(C.stone), g, x, sc * 0.5, z, sc, sc * 0.8, sc * 0.9, (x + z) * 2);
+    // Hijsbok: twee schuine palen met een dwarsbalk en een touw met een stenen blok
+    for (const e of [-1, 1]) bx(g, 0.05, 0.9, 0.05, C.woodd, e * 0.22, 0, -0.75, 0).rotation.z = -e * 0.25;
+    bx(g, 0.6, 0.05, 0.05, C.woodd, 0, 0.86, -0.75);
+    cy(g, 0.008, 0.4, '#3a2e22', 0, 0.46, -0.75, 4);
+    bx(g, 0.16, 0.14, 0.16, C.stoned, 0, 0.32, -0.75);
+    // Kar met stenen
+    bx(g, 0.34, 0.14, 0.22, C.wood, 0.55, 0.08, -0.5);
+    for (const e of [-0.12, 0.12])
+      cy(g, 0.07, 0.03, C.woodd, 0.55 + e, 0.07, -0.62, 8).rotation.x = Math.PI / 2;
+    mk(gDod(), mat(C.stone), g, 0.55, 0.22, -0.5, 0.1, 0.08, 0.1);
+  },
+  mineshaft(g) {
+    // Mijnschacht: een houten schachttoren met een wiel bovenin, een lier en een hoop erts ernaast
+    bx(g, 0.8, 0.18, 0.8, C.stoned, 0, 0, 0);
+    for (const [x, z] of [
+      [-0.28, -0.28],
+      [0.28, -0.28],
+      [-0.28, 0.28],
+      [0.28, 0.28],
+    ])
+      bx(g, 0.06, 1.2, 0.06, C.woodd, x, 0.18, z);
+    bx(g, 0.7, 0.05, 0.7, C.wood, 0, 1.0, 0);
+    bx(g, 0.7, 0.05, 0.7, C.wood, 0, 0.55, 0);
+    gr(g, 0.84, 0.3, 0.84, C.slate, 0, 1.38, 0);
+    // Het wiel bovenin (draait: userData.spin), met de kabel naar beneden
+    const wheel = cy(g, 0.22, 0.05, C.dmetal, 0, 1.2, 0, 12);
+    wheel.rotation.x = Math.PI / 2;
+    wheel.userData.spin = 2;
+    wheel.userData.axis = 'z';
+    cy(g, 0.01, 1.0, '#3a2e22', 0.2, 0.18, 0, 4);
+    // Ingang met stutten en een hoop erts
+    bx(g, 0.3, 0.3, 0.1, '#2b2420', 0, 0.18, 0.42);
+    for (const e of [-0.17, 0.17]) bx(g, 0.05, 0.34, 0.05, C.woodd, e, 0.18, 0.44);
+    const ore: [number, number, string][] = [
+      [0.65, 0.1, '#b87333'],
+      [0.75, 0.35, '#8e979f'],
+      [0.6, 0.45, '#7a5a3a'],
+    ];
+    for (const [x, z, c] of ore) mk(gDod(), mat(c), g, x, 0.07, z, 0.12, 0.08, 0.12);
   },
   windmill(g) {
     // Hollandse stellingmolen: taps lijf, kap en vier wieken die draaien

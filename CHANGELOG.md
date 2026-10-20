@@ -3,6 +3,16 @@
 Alle wijzigingen uit de "wereldwijde hit"-ronde (analyse → bugfixes → techniek → gameplay → polish), in gewone
 taal. Per bug: wat er misging, hoe het is opgelost en hoe dat is gecontroleerd. Nieuwste bovenaan.
 
+## Daarna
+
+- **Opgeraakte delfstoffen:** nieuwe gebouwen Steengroeve (steen, steentijd) en Mijnschacht (koper, tin en
+  ijzer, IJzertijd) maken langzaam grondstoffen uit het niets; de markt verhandelt nu ook tin, zand en lithium;
+  de coach wijst deze uitwegen aan als een grondstof op is en er geen land meer te koop is.
+- **Beter ontwerp van figuren en akkers:** rondere hoofden, schouders, hals, kraag en neus; dorpelingen met een
+  tasje, geharnaste soldaten met schouderstukken; paarden met hoeven, oren, ogen en zadel; akkers met voren,
+  losse planten met aar, een hek rondom, waterbak en vogelverschrikker (van ver nog steeds simpele rijen).
+- **Verbeteren:** knop Alles verbeteren altijd zichtbaar, met de totale kosten en het tekort.
+
 ## Ronde "Hit-niveau" (oktober 2026)
 
 ### Kritiek

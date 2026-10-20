@@ -36,6 +36,8 @@ interface PersonOpts {
   /** Gloeiend materiaal van het vizier en van het wapen (soldaten uit de toekomst). */
   visor?: T3.Material;
   glow?: T3.Material;
+  /** Een tasje op de heup (dorpelingen). */
+  satchel?: boolean;
 }
 /** De armen en benen van een poppetje, om ze te laten bewegen (zie sync.ts). */
 export interface Limbs {
@@ -59,21 +61,31 @@ function person(g: T3.Group, o: PersonOpts) {
   bx(lR, 0.066, 0.05, 0.085, BOOT, 0, -0.2, 0.006);
   bx(g, 0.18, 0.2, 0.11, o.shirt, 0, 0.2, 0);
   bx(g, 0.186, 0.025, 0.116, BOOT, 0, 0.2, 0); // riem
-  // Twee ogen aan de voorkant van het hoofd
+  bx(g, 0.2, 0.045, 0.12, o.shirt, 0, 0.36, 0); // schouders: bovenaan net iets breder
+  cy(g, 0.028, 0.05, sk, 0, 0.395, 0, 6); // hals
+  bx(g, 0.09, 0.016, 0.1, BOOT, 0, 0.395, 0.01); // kraag
+  // Twee ogen aan de voorkant van het hoofd, en een neusje
   for (const x of [-0.026, 0.026]) bx(g, 0.014, 0.014, 0.01, '#2a211c', x, 0.475, 0.068);
+  bx(g, 0.012, 0.02, 0.012, sk, 0, 0.455, 0.075);
+  // Tasje op de heup (dorpelingen) of schouderstukken (met een borstplaat)
+  if (o.satchel) {
+    bx(g, 0.065, 0.075, 0.04, '#7a5a3a', -0.1, 0.21, 0.0);
+    bx(g, 0.012, 0.16, 0.012, '#5a4030', 0.06, 0.24, 0.058).rotation.z = 0.7; // het riempje
+  }
+  if (o.armor) for (const x of [-0.11, 0.11]) sp(g, 0.038, o.armor, x, 0.385, 0, 1, 0.8);
   if (o.sash) bx(g, 0.185, 0.05, 0.115, o.sash, 0, 0.32, 0);
   // Soldaten en vijanden dragen een gekleurd borststuk: blauw = jouw leger, rood = vijand
   if (o.tabard) bx(g, 0.19, 0.15, 0.118, o.tabard, 0, 0.21, 0);
-  sp(g, 0.075, sk, 0, 0.47, 0, 0);
-  if (o.hat === 'helmet') sp(g, 0.085, o.hatc || '#8e979f', 0, 0.5, 0, 0, 0.7);
+  sp(g, 0.075, sk, 0, 0.47, 0, 1); // (rond: 80 vlakjes in plaats van 20)
+  if (o.hat === 'helmet') sp(g, 0.085, o.hatc || '#8e979f', 0, 0.5, 0, 1, 0.7);
   else if (o.hat === 'cap') bx(g, 0.15, 0.05, 0.15, o.hatc || '#5b6644', 0, 0.52, 0);
   else if (o.hat === 'hood') cn(g, 0.1, 0.16, o.hatc || '#6b5a40', 0, 0.48, 0, 6);
-  else if (o.hat === 'hair') sp(g, 0.078, '#3b2a1a', 0, 0.5, -0.01, 0, 0.6);
+  else if (o.hat === 'hair') sp(g, 0.078, '#3b2a1a', 0, 0.5, -0.01, 1, 0.6);
   else if (o.hat === 'straw')
     cn(g, 0.13, 0.08, '#d9c27a', 0, 0.5, 0, 8); // strohoed van dorpelingen
   else if (o.hat === 'horned') {
     // Barbaar: helm met twee hoorns
-    sp(g, 0.085, o.hatc || '#6e6a64', 0, 0.5, 0, 0, 0.7);
+    sp(g, 0.085, o.hatc || '#6e6a64', 0, 0.5, 0, 1, 0.7);
     for (const x of [-1, 1]) cn(g, 0.025, 0.12, '#e8e0c8', x * 0.09, 0.5, 0, 5).rotation.z = -x * 0.9;
   } else if (o.hat === 'tricorn') {
     cy(g, 0.12, 0.03, o.hatc || '#2a2420', 0, 0.52, 0, 3);
@@ -85,12 +97,12 @@ function person(g: T3.Group, o: PersonOpts) {
     if (o.plume) bx(g, 0.03, 0.1, 0.12, o.plume, 0.06, 0.56, -0.02).rotation.x = -0.4;
   } else if (o.hat === 'morion') {
     // Morion: stalen helm met rand en kam (pikenier)
-    sp(g, 0.085, o.hatc || '#7d868e', 0, 0.5, 0, 0, 0.75);
+    sp(g, 0.085, o.hatc || '#7d868e', 0, 0.5, 0, 1, 0.75);
     cy(g, 0.12, 0.015, o.hatc || '#7d868e', 0, 0.5, 0, 10);
     bx(g, 0.02, 0.07, 0.14, o.hatc || '#7d868e', 0, 0.54, 0);
   } else if (o.hat === 'visor') {
     // Toekomsthelm met een gloeiend vizier
-    sp(g, 0.09, o.hatc || '#2a2c34', 0, 0.48, 0, 0, 1.05);
+    sp(g, 0.09, o.hatc || '#2a2c34', 0, 0.48, 0, 1, 1.05);
     // (wie een vizierhelm draagt, heeft in de lijst hieronder altijd ook een vizier)
     mk(GB, o.visor!, g, 0, 0.45, 0.075, 0.13, 0.045, 0.04);
   }
@@ -191,6 +203,7 @@ export function makeVillager(job: string): T3.Group {
     hat: job === 'build' ? 'cap' : job === 'food' || job === 'auto' ? 'straw' : 'hair',
     hatc: '#c9a14a',
     skin: (job || '').length % 4,
+    satchel: true,
   });
   return g;
 }
@@ -207,6 +220,18 @@ function horse(g: T3.Object3D, c: string, cd: string, z = 0) {
   bx(g, 0.08, 0.18, 0.1, c, 0, 0.36, z + 0.22);
   bx(g, 0.03, 0.12, 0.08, cd, 0, 0.4, z + 0.16); // manen
   bx(g, 0.03, 0.14, 0.04, cd, 0, 0.2, z - 0.24); // staart
+  // Hoeven, oren, ogen en een zadel met een dekje
+  for (const [x, dz] of [
+    [-0.06, -0.16],
+    [0.06, -0.16],
+    [-0.06, 0.16],
+    [0.06, 0.16],
+  ])
+    bx(g, 0.055, 0.04, 0.055, '#2a211c', x, 0, z + dz);
+  for (const x of [-0.03, 0.03]) cn(g, 0.015, 0.05, cd, x, 0.54, z + 0.19, 4);
+  for (const x of [-0.035, 0.035]) bx(g, 0.012, 0.012, 0.01, '#2a211c', x, 0.49, z + 0.27);
+  bx(g, 0.2, 0.03, 0.22, '#8f3d32', 0, 0.44, z);
+  bx(g, 0.16, 0.05, 0.14, '#5a3a24', 0, 0.46, z);
 }
 // Wiel dat dwars op de rijrichting staat
 function wheel(g: T3.Object3D, r: number, x: number, y: number, z: number, c = C.woodd) {

@@ -51,13 +51,39 @@ function goneStep(): CoachStep | null {
   let canGrow = false;
   for (let cy = 0; cy < CN && !canGrow; cy++)
     for (let cx = 0; cx < CN && !canGrow; cx++) canGrow = canBuyChunk(cx, cy);
-  if (!canGrow) return null;
+  // Geen land meer te koop: dan is er een gebouw dat de grondstof uit het niets maakt (of de markt)
+  if (!canGrow) return backupSourceStep(gone);
   const names = andJoin(gone.map(k => RES[k].n.toLowerCase()));
   return {
     t: 'Breid je gebied uit.',
     h: `Er is geen ${names} meer in je gebied, en je hebt het nodig. Verderop ligt meer.`,
     act: expandAct(gone[0]),
   };
+}
+
+// Welk gebouw een opgeraakte grondstof toch nog levert: de steengroeve (steen), de mijnschacht (koper, tin,
+// ijzer) of de markt (alles, tegen goud). Alleen als dat gebouw er nog niet staat en al te bouwen is.
+const BACKUP: [string[], string][] = [
+  [['stone'], 'quarry'],
+  [['copper', 'tin', 'iron'], 'mineshaft'],
+];
+function backupSourceStep(gone: string[]): CoachStep | null {
+  for (const [list, bld] of BACKUP) {
+    const r = gone.find(k => list.includes(k));
+    if (!r || placed(bld) || !canMake(bld, G.age) || !ruleAllowsBuilding(bld)) continue;
+    return {
+      t: `Bouw een ${B[bld].n.toLowerCase()}.`,
+      h: `Er is geen ${RES[r].n.toLowerCase()} meer in je gebied en er is geen land meer te koop. ${B[bld].desc}`,
+      act: bAct(bld),
+    };
+  }
+  if (!placed('market') && canMake('market', G.age) && ruleAllowsBuilding('market'))
+    return {
+      t: 'Bouw een markt.',
+      h: `Er is geen ${RES[gone[0]].n.toLowerCase()} meer in je gebied. Op de markt koop je het voor goud.`,
+      act: bAct('market'),
+    };
+  return null;
 }
 
 /** Eén stap van de coach: titel, uitleg, eventueel een gebouw om aan te wijzen, een knop en alarm. */
