@@ -4,6 +4,8 @@ import type { CoachAct, Tile } from '../types';
 import type { Profile } from '../types';
 /** Alle gedeelde toestand op één plek (zie de uitleg hierboven). */
 export interface Store {
+  /** Hoeveel fouten er zijn opgevangen (zie core/errors.ts). */
+  errors?: number;
   mapVersion: number;
   placing: string | null;
   expandMode: boolean;

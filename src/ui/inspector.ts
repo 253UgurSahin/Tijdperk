@@ -1,5 +1,6 @@
-import type { Building, Stance, Unit, Villager } from '../types';
 // Selectiepaneel: info en knoppen voor wat je hebt aangeklikt.
+import type { Building, Stance, Unit, Villager } from '../types';
+import { confirmTwice, isArmed } from './confirm';
 import { store } from '../core/store';
 import { sfx } from '../audio/sound';
 import { W } from '../config';
@@ -617,16 +618,7 @@ export function insHandler(e: MouseEvent) {
   else if (t.dataset.b === 'upgrade' && b) upgrade(b);
   else if (t.dataset.g === 'tools') upgradeTools();
   else if (t.dataset.g === 'arms') upgradeArms();
-  else if (t.dataset.b === 'demolish' && b) {
-    if (store.demolishArm) demolish(b);
-    else {
-      store.demolishArm = 1;
-      setTimeout(() => {
-        store.demolishArm = 0;
-        sigs.ins = null;
-      }, 3000);
-    }
-  } else if (t.dataset.buy) {
+  else if (t.dataset.b === 'demolish' && b) armDemolish(b); else if (t.dataset.buy) {
     // Koop- en verkoopknoppen staan alleen bij een geselecteerde markt, dus b is er
     const r = t.dataset.buy,
       c = marketPrices(b as Building, r).buy;
@@ -670,4 +662,26 @@ export function demolish(b: Building) {
   if (d.wonder) refreshWonders();
   store.demolishArm = 0;
   store.uiDirty = true;
+}
+
+/**
+ * Afbreken vraagt om een tweede klik (of toets) binnen een paar seconden; een dubbelklik telt niet. Zolang de
+ * vraag openstaat, toont de knop "Zeker?" (store.demolishArm is dan het nummer van het gebouw).
+ */
+export function armDemolish(b: Building): void {
+  if (confirmTwice('demolish-' + b.id)) {
+    store.demolishArm = 0;
+    demolish(b);
+    return;
+  }
+  store.demolishArm = b.id;
+  sigs.ins = null;
+  store.uiDirty = true;
+  setTimeout(() => {
+    if (store.demolishArm === b.id && !isArmed('demolish-' + b.id)) {
+      store.demolishArm = 0;
+      sigs.ins = null;
+      store.uiDirty = true;
+    }
+  }, 5100);
 }

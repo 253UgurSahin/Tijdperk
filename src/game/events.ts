@@ -268,6 +268,7 @@ function addVillagers(n: number): void {
 function removeVillagers(n: number): void {
   for (let k = 0; k < n && G.vs.length > 3; k++) {
     const v = G.vs[(Math.random() * G.vs.length) | 0];
+    v.dead = true; // anders blijven vijanden en pijlen nog even op een "spook" mikken
     G.vs = G.vs.filter(x => x !== v);
     sel.vs.delete(v.id);
     G.stats.lost++; // telt mee voor de medailles van uitdagingen, net als in een gevecht
@@ -290,6 +291,7 @@ function sendSoldiersAway(n: number): void {
   for (const u of leaving) {
     burst(u.x, u.y, '#d8c8a8');
     sel.us.delete(u.id);
+    u.dead = true; // (zie removeVillagers)
   }
   G.us = G.us.filter(u => !leaving.includes(u));
 }

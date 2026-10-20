@@ -22,7 +22,9 @@ import {
   medalRuleText,
   type ScenarioDef,
 } from '../data/scenarios';
-import { save, wipe } from '../game/save';
+import { parkLiveGame, save, wipe } from '../game/save';
+import { slotName } from '../data/saveslots';
+import { toast } from './hud';
 import { currentChallenge } from '../game/scenario';
 import { G, newGame } from '../game/state';
 import { medalHTML, scoreText } from './achievements';
@@ -279,9 +281,11 @@ export function showChallenges(
 export function retryChallenge() {
   const def = currentChallenge();
   if (!def) return;
+  const parked = G.won ? parkLiveGame() : ''; // een gewonnen uitdaging blijft op een eigen plek bewaard
   newGame({ scenario: { k: def.k, date: def.date || '' }, people: G.people });
   save(); // meteen bewaren op de automatische plek, in plaats van het vorige spel
   closeModal();
+  if (parked) toast(`Je vorige spel staat bewaard op ${slotName(parked)}.`, 'good');
 }
 
 /** Terug naar de lijst met uitdagingen. Een gewonnen spel blijft bewaard ("Verder spelen"). */

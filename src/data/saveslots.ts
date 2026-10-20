@@ -57,13 +57,17 @@ export const slotLabel = (id: string): string => (id === AUTO_SLOT ? 'automatisc
  * Het kaartje van één opslag, met alleen nette waarden (of null als het onbruikbaar is).
  * Kaartjes van vóór de kaartgroottes hebben geen size of map: dat was altijd een gewone wereld.
  */
+// Een naam uit de opslag: alleen letters, cijfers, spaties en leestekens, hoogstens 60 tekens (geen HTML)
+const plainText = (v: unknown): string =>
+  typeof v === 'string' ? v.replace(/[<>&"'`]/g, '').slice(0, 60) : '';
 export function cleanSlotMeta(raw: unknown): SlotMeta | null {
   if (!raw || typeof raw !== 'object') return null;
   const r = raw as RawSlotMeta;
   // Na Number.isInteger of Number.isFinite is de waarde zeker een getal
   return {
-    place: typeof r.place === 'string' ? r.place : '',
-    challenge: typeof r.challenge === 'string' ? r.challenge : '',
+    // (alleen gewone tekst, kort: dit komt in de HTML van de kaartjes terecht)
+    place: plainText(r.place),
+    challenge: plainText(r.challenge),
     people: typeof r.people === 'string' && PEOPLE[r.people] ? r.people : DEFAULT_PEOPLE,
     age: Number.isInteger(r.age) && AGES[r.age as number] ? (r.age as number) : 0,
     day: Number.isInteger(r.day) && (r.day as number) > 0 ? (r.day as number) : 1,

@@ -1,5 +1,6 @@
 // Het venster Diplomatie: per rivaal de relatie, verdragen en alle acties met kans, kosten en gevolg.
 // Ook de relatie als woord en balkje (voor het paneel Leger) en het kaartje met een bericht van een rivaal.
+import { confirmTwice } from './confirm';
 import type { Rival, RivalOffer } from '../types';
 import { sfx } from '../audio/sound';
 import { AGES } from '../data/ages';
@@ -273,7 +274,7 @@ $('#modal').addEventListener('click', e => {
     return;
   }
   // Oorlog verklaren vraagt eerst om bevestiging: twee keer klikken
-  if (k === 'war' && armedWar !== r.id) {
+  if (k === 'war' && !confirmTwice('war-' + r.id)) {
     armedWar = r.id;
     redraw();
     return;

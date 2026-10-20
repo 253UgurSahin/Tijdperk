@@ -26,7 +26,8 @@ function ac() {
       return null;
     }
   }
-  if (AC.state === 'suspended') AC.resume().catch(() => {});
+  // (op iOS heet het na een telefoontje 'interrupted'; en verborgen tabblad met "stil" blijft stil)
+  if (AC.state !== 'running' && !(document.hidden && SET.muteHidden)) AC.resume().catch(() => {});
   return AC;
 }
 const sfxT: Record<string, number> = {};
@@ -284,10 +285,12 @@ document.addEventListener('visibilitychange', () => {
   if (document.hidden && SET.muteHidden) AC.suspend().catch(() => {});
   else if (!document.hidden && sndOn) AC.resume().catch(() => {});
 });
-addEventListener(
-  'pointerdown',
-  () => {
-    if (sndOn) ac();
-  },
-  { once: true },
-);
+// Browsers laten geluid pas toe na een echte aanraking of toets. Op iOS telt pas het loslaten (pointerup,
+// touchend), niet het indrukken; daarom blijven deze luisteraars staan tot het geluid echt loopt.
+function unlockAudio() {
+  if (!sndOn) return;
+  const a = ac();
+  if (a && a.state === 'running') for (const ev of UNLOCK_EVENTS) removeEventListener(ev, unlockAudio);
+}
+const UNLOCK_EVENTS = ['pointerdown', 'pointerup', 'touchend', 'keydown'] as const;
+for (const ev of UNLOCK_EVENTS) addEventListener(ev, unlockAudio, { passive: true });

@@ -125,11 +125,12 @@ function destroyBuilding(b: Building) {
   setBlk(b, false);
   for (let dy = 0; dy < d.size; dy++) for (let dx = 0; dx < d.size; dx++) bmap[(b.y + dy) * W + b.x + dx] = 0;
   G.bs = G.bs.filter(x => x !== b);
+  // Eerst wie erin schuilde naar buiten (unhide zoekt het gebouw nog op), dan pas uit de lijst
+  for (const v of G.vs) if (v.hidden && v.shelter === b.id) unhide(v);
   bById.delete(b.id);
   if (!d.wall) G.stats.lost++; // muren tellen niet: die zijn er juist om stuk te gaan
   if (sel.b === b.id) sel.b = null;
   for (let k = 0; k < 6; k++) burst(b.x + Math.random() * d.size, b.y + Math.random() * d.size, '#8a7a62');
-  for (const v of G.vs) if (v.hidden && v.shelter === b.id) unhide(v);
   if (SET.shake) store.shake = d.wall ? 0.15 : 0.5;
   sfx('boom');
   if (b.type === 'townhall') {
@@ -234,9 +235,12 @@ export function updateProj(dt: number) {
       p.done = true;
       if (p.splash) {
         // Wie in de ontploffing staat: bij een vijandelijk schot jouw mensen, anders vijanden
-        for (const e of splashVictims(p))
+        const victims = splashVictims(p);
+        for (const e of victims)
           if (!e.hidden && dist(e.x, e.y, p.lx, p.ly) <= p.splash) hit(e, p.dmg, p.by);
-        if (p.foe && !isDead(p.t) && p.t.kind === 'b') hit(p.t, p.dmg);
+        // Het doel zelf altijd raken (ook als het niet in de lijst staat, zoals een helper van een bondgenoot)
+        if (p.foe && !isDead(p.t) && (p.t.kind === 'b' || !(victims as Mobile[]).includes(p.t as Mobile)))
+          hit(p.t, p.dmg);
         if (!p.foe && !p.ally) {
           for (const c of G.camps)
             if (c.alive && dist(c.x + 1, c.y + 1, p.lx, p.ly) <= p.splash + 1) hit(c, p.dmg);
@@ -623,7 +627,8 @@ export function fUpdate(f: Foe, dt: number) {
       return;
     }
     f.rt -= dt;
-    if (f.rt <= 0 || isDead(f.tgt)) {
+    // (zonder doel wachten we ook even: anders zoekt elke bewaker zonder doel elke tik opnieuw)
+    if (f.rt <= 0 || (f.tgt && isDead(f.tgt))) {
       f.rt = 1;
       f.tgt = foeTarget(f);
       f.aggro = !!f.tgt;

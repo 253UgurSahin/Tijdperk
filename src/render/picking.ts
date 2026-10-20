@@ -26,10 +26,17 @@ export function nearScreen<T extends Clickable>(
   }
   return best;
 }
+// Is dit onderdeel echt te zien (ook alle ouders zichtbaar)?
+function visibleUp(o: T3.Object3D): boolean {
+  for (let p: T3.Object3D | null = o; p; p = p.parent) if (!p.visible) return false;
+  return true;
+}
 export function pickGroup(X: number, Y: number, grp: T3.Object3D, key: string): number | null {
   const hits = rayAt(X, Y).intersectObjects(grp.children, true);
   for (const h of hits) {
     const o = h.object;
+    // (three.js kijkt bij aanwijzen niet naar `visible`: het onzichtbare grove of fijne model slaan we over)
+    if (!visibleUp(o)) continue;
     if (o.userData[key] != null) return o.userData[key];
   }
   return null;

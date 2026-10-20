@@ -33,6 +33,7 @@ function ownUnitTip(u: Unit): string {
 }
 
 // Tooltip bij de muis
+let tipSize = { width: 0, height: 0 };
 export function updateHover() {
   const tip = $('#hovertip');
   if (!(drag && drag.mode === 'pan')) {
@@ -43,10 +44,15 @@ export function updateHover() {
   if (store.placing && mouse.in && !mouse.touch && !(drag && drag.mode === 'pan')) {
     const [gx, gy] = ghostPos(),
       err = canPlace(store.placing, gx, gy);
-    tip.className = err ? 'bad' : 'ok';
-    tip.innerHTML = err ? `<b>${err}</b>` : `<b>${B[store.placing].n}</b><span>Klik om te bouwen</span>`;
-    tip.hidden = false;
-    const r = tip.getBoundingClientRect();
+    // Alleen opnieuw opbouwen als de tekst verandert (anders elk beeldje een nieuwe opmaak)
+    const text = err ? `<b>${err}</b>` : `<b>${B[store.placing].n}</b><span>Klik om te bouwen</span>`;
+    if (tip.innerHTML !== text || tip.hidden) {
+      tip.className = err ? 'bad' : 'ok';
+      tip.innerHTML = text;
+      tip.hidden = false;
+      tipSize = tip.getBoundingClientRect();
+    }
+    const r = tipSize;
     tip.style.left = clamp(mouse.sx + 18, 8, VW - r.width - 8) + 'px';
     tip.style.top = clamp(mouse.sy + 20, 8, VH - r.height - 8) + 'px';
     return;

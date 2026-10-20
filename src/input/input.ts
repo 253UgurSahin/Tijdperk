@@ -32,9 +32,8 @@ import {
 import { cam, cv } from '../render/scene';
 import { bigMapOpen, setBigMap } from '../render/minimap';
 import { setTab } from '../ui/buildmenu';
-import { sigs } from '../ui/header';
 import { lastSpeed, setExpand, setSpeed, toast } from '../ui/hud';
-import { demolish, selCmds } from '../ui/inspector';
+import { armDemolish, selCmds } from '../ui/inspector';
 import { closeModal, openPause, showHelp } from '../ui/modals';
 import { togglePanel } from '../ui/panel';
 import { assignGroup, selectGroup } from '../ui/army';
@@ -95,6 +94,30 @@ function local(e: MouseEvent): [number, number] {
   const r = cv.getBoundingClientRect();
   return [e.clientX - r.left, e.clientY - r.top];
 }
+/**
+ * Onthoud waar de muis of vinger is, op het scherm en op de kaart. Ook bij indrukken en loslaten: een tik op
+ * een telefoon geeft vaak geen beweging, en dan moet een gebouw toch precies komen waar je tikte.
+ */
+function trackPointer(sx: number, sy: number): void {
+  mouse.sx = sx;
+  mouse.sy = sy;
+  mouse.in = true;
+  [mouse.X, mouse.Y] = s2iso(sx, sy);
+  [mouse.tx, mouse.ty] = s2t(sx, sy);
+  hoverChunk = [Math.floor(mouse.tx / CS), Math.floor(mouse.ty / CS)];
+}
+/** De camera is verschoven: dan ligt onder dezelfde muisplek een andere tegel (zie main.ts). */
+export function refreshMouseTile(): void {
+  if (!mouse.in || mouse.touch) return;
+  [mouse.tx, mouse.ty] = s2t(mouse.sx, mouse.sy);
+  hoverChunk = [Math.floor(mouse.tx / CS), Math.floor(mouse.ty / CS)];
+}
+/** Alles loslaten: na alt-tab of een verloren vinger mag er geen sleep blijven hangen. */
+function dropAll(): void {
+  drag = null;
+  ptrs.clear();
+  cv.style.cursor = CUR.def;
+}
 // Het verschil tussen twee hoeken, tussen -180° en +180°
 const angleDiff = (a: number, b: number) => ((((a - b + Math.PI) % TAU) + TAU) % TAU) - Math.PI;
 // Zo ver draait het beeld per pixel slepen met de middelste muisknop
@@ -105,6 +128,9 @@ cv.addEventListener('pointerdown', e => {
   const [sx, sy] = local(e);
   ptrs.set(e.pointerId, { x: sx, y: sy });
   mouse.touch = e.pointerType === 'touch';
+  trackPointer(sx, sy);
+  // Een derde vinger (of een vinger die we kwijt waren) mag het knijpen niet verstoren
+  if (ptrs.size > 2) return;
   if (ptrs.size === 2) {
     const [p, q] = [...ptrs.values()],
       ang = Math.atan2(q.y - p.y, q.x - p.x);
@@ -144,16 +170,16 @@ cv.addEventListener('pointerdown', e => {
 });
 cv.addEventListener('pointermove', e => {
   const [sx, sy] = local(e);
-  mouse.sx = sx;
-  mouse.sy = sy;
-  mouse.in = true;
   mouse.moved = true;
   mouse.touch = e.pointerType === 'touch';
-  [mouse.X, mouse.Y] = s2iso(sx, sy);
-  [mouse.tx, mouse.ty] = s2t(sx, sy);
-  hoverChunk = [Math.floor(mouse.tx / CS), Math.floor(mouse.ty / CS)];
+  trackPointer(sx, sy);
   if (ptrs.has(e.pointerId)) ptrs.set(e.pointerId, { x: sx, y: sy });
   if (!drag) return;
+  // Muisknop al los (bijv. losgelaten buiten het venster of na alt-tab): dan is de sleep voorbij
+  if (e.pointerType === 'mouse' && e.buttons === 0 && drag.mode !== 'pinch') {
+    dropAll();
+    return;
+  }
   if (drag.mode === 'pinch') {
     if (ptrs.size !== 2) return;
     // Zoom rond het punt tussen de vingers en schuif mee met de vingers
@@ -242,6 +268,7 @@ cv.addEventListener('pointerup', e => {
     return;
   }
   const [sx, sy] = local(e);
+  trackPointer(sx, sy);
   if (drag.mode === 'pending') {
     if (drag.btn === 0) leftClick(sx, sy, drag.shift, drag.ctrl);
     else if (drag.btn === 2) rightClick(sx, sy);
@@ -253,7 +280,13 @@ cv.addEventListener('pointerup', e => {
 cv.addEventListener('pointercancel', e => {
   ptrs.delete(e.pointerId);
   drag = null;
+  cv.style.cursor = CUR.def;
 });
+cv.addEventListener('lostpointercapture', e => {
+  ptrs.delete(e.pointerId);
+  if (!ptrs.size) dropAll();
+});
+addEventListener('blur', dropAll);
 cv.addEventListener('pointerleave', () => {
   mouse.in = false;
   $('#hovertip').hidden = true;
@@ -321,12 +354,17 @@ export function setView(v2: boolean, quiet?: boolean) {
   if (!quiet) toast(store.V2 ? 'Bovenaanzicht (2D) aan.' : `3D-aanzicht aan: ${TURN_HOW}.`);
   store.uiDirty = true;
 }
+// Welke naam (e.key) bij welke toets (e.code) hoorde bij het indrukken: met Shift verandert de naam
+// (',' wordt '<'), en dan bleef de oude naam "ingedrukt" staan
+const keyByCode = new Map<string, string>();
 addEventListener('keydown', e => {
-  if ((e.target as HTMLElement).tagName === 'INPUT') return;
+  if ((e.target as HTMLElement).closest?.('input,textarea,select,[contenteditable]')) return;
   const k = e.key.toLowerCase();
+  keyByCode.set(e.code, k);
   if ((e.metaKey || e.ctrlKey) && !/^f[1-5]$/.test(k)) return;
   if (!$('#modal').hidden) {
-    if (k === 'escape' && !G.over && !store.modalLocked) closeModal();
+    // (het eindscherm is vergrendeld; instellingen of uitleg na een verloren spel gaan gewoon dicht)
+    if (k === 'escape' && !store.modalLocked) closeModal();
     return;
   }
   if (!$('#title').hidden) return;
@@ -416,26 +454,21 @@ addEventListener('keydown', e => {
     // Het stamhuis, een af wereldwonder en een sterrenpoort die oplaadt breek je niet af
     if (b && !canDemolish(b)) toast(noDemolishText(b));
     else if (b) {
-      if (store.demolishArm === b.id) demolish(b);
-      else {
-        store.demolishArm = b.id;
-        sigs.ins = null;
-        toast(`Druk nogmaals om ${B[b.type].n.toLowerCase()} af te breken.`);
-        setTimeout(() => {
-          if (store.demolishArm === b.id) {
-            store.demolishArm = 0;
-            sigs.ins = null;
-            store.uiDirty = true;
-          }
-        }, 3000);
-      }
+      const wasArmed = store.demolishArm === b.id;
+      armDemolish(b);
+      if (!wasArmed && store.demolishArm === b.id) toast(`Druk nogmaals om ${B[b.type].n.toLowerCase()} af te breken.`);
     }
   } else if (k === '+' || k === '=') zoomTo((cam.tz ?? cam.z) * 1.25);
   else if (k === '-') zoomTo((cam.tz ?? cam.z) / 1.25);
   else if (k === 'home') $('#zHome').click();
   if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright'].includes(k)) e.preventDefault();
 });
-addEventListener('keyup', e => keys.delete(e.key.toLowerCase()));
+addEventListener('keyup', e => {
+  keys.delete(e.key.toLowerCase());
+  const was = keyByCode.get(e.code);
+  if (was) keys.delete(was);
+  keyByCode.delete(e.code);
+});
 addEventListener('blur', () => keys.clear());
 export function selectArmy() {
   clearSel();

@@ -67,6 +67,8 @@ export const LEVELS: Record<string, QualityLevel> = {
 const ORDER = ['low', 'mid', 'high'];
 const COARSE = matchMedia('(pointer:coarse)').matches; // telefoon/tablet: start een stapje lager
 
+let tooHeavy = '',
+  tooHeavyAt = 0;
 let level: string = 'high',
   frames: number = 0,
   time: number = 0,
@@ -138,6 +140,8 @@ export function setQuality(q: string) {
  */
 export function tickQuality(rdt: number) {
   if (SET.quality !== 'auto' || document.hidden) return;
+  // Eén traag beeldje na terugkomen op het tabblad (of na een hapering van de browser) zegt niets
+  if (rdt > 0.25) return;
   frames++;
   time += rdt;
   if (time < 1) return;
@@ -155,6 +159,10 @@ export function tickQuality(rdt: number) {
   // store.resScale is gezet door apply() (via initQuality bij het opstarten)
   if (slow >= 2) {
     slow = 0;
+    // Onthoud dat deze stand te zwaar was: daar gaan we de eerste anderhalve minuut niet naar terug
+    // (anders springt het elke tien seconden heen en weer, en elke wissel geeft zelf een hapering)
+    tooHeavy = level;
+    tooHeavyAt = performance.now();
     if (store.resScale! > L.scale - 0.2 + 0.01) {
       store.resScale = Math.max(0.5, store.resScale! - 0.1);
       requestResize();
@@ -168,6 +176,9 @@ export function tickQuality(rdt: number) {
     if (store.resScale! < L.scale - 0.01) {
       store.resScale = Math.min(L.scale, store.resScale! + 0.1);
       requestResize();
-    } else if (ORDER.indexOf(level) < ORDER.length - 1) apply(ORDER[ORDER.indexOf(level) + 1], true);
+    } else if (ORDER.indexOf(level) < ORDER.length - 1) {
+      const up = ORDER[ORDER.indexOf(level) + 1];
+      if (up !== tooHeavy || performance.now() - tooHeavyAt > 90000) apply(up, true);
+    }
   }
 }

@@ -1,4 +1,5 @@
 // Profielscherm: al je prestaties (ook die nog op slot zitten), je beste scores en je laatste spellen.
+import { confirmTwice } from './confirm';
 import type { GameRecord, Profile } from '../types';
 import { sfx } from '../audio/sound';
 import { getProfile, resetProfile } from '../core/profile';
@@ -185,12 +186,13 @@ $('#modal').addEventListener('click', e => {
     if (profileOptions.back) profileOptions.back();
     else closeModal();
   } else if (t.dataset.prof === 'reset') {
-    // Twee keer klikken, zodat je niet per ongeluk alles kwijtraakt
-    t.dataset.prof = 'resetok';
-    t.textContent = 'Zeker? Alles gaat weg';
-    t.classList.add('danger-t');
-  } else if (t.dataset.prof === 'resetok') {
-    resetProfile();
-    showProfile(profileOptions);
+    // Twee keer klikken (met een korte pauze ertussen), zodat je niet per ongeluk alles kwijtraakt
+    if (confirmTwice('profile-reset')) {
+      resetProfile();
+      showProfile(profileOptions);
+    } else {
+      t.textContent = 'Zeker? Alles gaat weg';
+      t.classList.add('danger-t');
+    }
   }
 });

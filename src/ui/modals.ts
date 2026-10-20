@@ -1,4 +1,5 @@
 // Schermen: titelscherm, pauze, instellingen en hulp. (Winst en verlies: zie ui/endscreen.ts.)
+import { confirmTwice } from './confirm';
 import type { NewGameOptions } from '../types';
 import { store } from '../core/store';
 import { setSound, setVolume, sfx, sndOn } from '../audio/sound';
@@ -8,8 +9,8 @@ import { MAP } from '../data/maps';
 import { DEFAULT_PEOPLE, isPeopleUnlocked } from '../data/peoples';
 import { DIFF_NAMES } from '../data/score';
 import { DAILY, SCENARIOS, goalText } from '../data/scenarios';
-import { filledCount, latestSlot, replaceWarningText, savedAtText, slotTitle } from '../data/saveslots';
-import { currentMeta, isLiveGame, liveGameAtRisk, listSlots, loadSlot, save, wipe } from '../game/save';
+import { MANUAL_SLOTS, filledCount, latestSlot, replaceWarningText, savedAtText, slotName, slotTitle } from '../data/saveslots';
+import { currentMeta, isLiveGame, liveGameAtRisk, listSlots, loadSlot, parkLiveGame, save, wipe } from '../game/save';
 import { currentChallenge } from '../game/scenario';
 import { G, newGame, placeName } from '../game/state';
 import { setView } from '../input/input';
@@ -18,7 +19,7 @@ import { dailyLine, medalCount, modsHTML, showChallenges } from './challenges';
 import { ageTimeline, fmt } from './format';
 import { ico } from './glyphs';
 import { sigs } from './header';
-import { setSpeed, toast } from './hud';
+import { setSpeed, toast, lastSpeed } from './hud';
 import { newGameDraft, showNewGame } from './newgame';
 import { peopleBarHTML, playerProfile } from './peoples';
 import { achievementCount, showProfile } from './profile';
@@ -67,7 +68,7 @@ export function closeModal() {
   if (afterClose) afterClose();
 }
 $('#modal').addEventListener('click', e => {
-  if ((e.target as HTMLElement).id === 'modal' && !G.over && !store.modalLocked) {
+  if ((e.target as HTMLElement).id === 'modal' && !store.modalLocked) {
     closeModal();
     return;
   }
@@ -92,11 +93,12 @@ $('#modal').addEventListener('click', e => {
   else if (m === 'save') showSaveScreen();
   else if (m === 'load') showLoadScreen();
   else if (m === 'new') {
-    t.dataset.m = 'newok';
-    t.querySelector('span')
-      ? (t.querySelector('span')!.textContent = 'Zeker? Klik nogmaals')
-      : (t.textContent = 'Zeker? Klik nogmaals');
-  } else if (m === 'newok') {
+    if (!confirmTwice('pause-new')) {
+      const span = t.querySelector('span');
+      if (span) span.textContent = 'Zeker? Klik nogmaals';
+      else t.textContent = 'Zeker? Klik nogmaals';
+      return;
+    }
     // Naar het nieuw-spelscherm. Een verloren spel hoeft niet bewaard; anders kun je nog terug ("Verder spelen").
     if (G.over) wipe();
     else save();
@@ -416,7 +418,7 @@ export function showTitle({ setup = false, challenges = false, focus = null }: T
   const leaveTitle = () => {
     el.hidden = true;
     document.body.classList.remove('titled');
-    setSpeed(1);
+    setSpeed(lastSpeed || 1); // het tempo van voor het menu (2× of 4×) blijft
   };
   const drawHome = () => {
     // "Verder spelen": het spel dat nu draait, anders de nieuwste opslag. Bij een uitdaging staat haar naam
@@ -464,9 +466,24 @@ export function showTitle({ setup = false, challenges = false, focus = null }: T
   const startGame = (opts: NewGameOptions) => {
     // Voor de zekerheid: nooit beginnen met een volk dat (weer) op slot zit
     if (opts.people && !isPeopleUnlocked(opts.people, playerProfile())) opts.people = DEFAULT_PEOPLE;
+    // Je spel van nu eerst op een vrije eigen plek zetten, zodat het niet stilletjes verdwijnt
+    const parked = parkLiveGame();
     newGame(opts);
     save(); // de nieuwe wereld meteen bewaren: hij komt op de automatische plek, in plaats van het vorige spel
     leaveTitle();
+    if (parked) toast(`Je vorige spel staat bewaard op ${slotName(parked)}.`, 'good');
+  };
+  // Snel spel vraagt om een tweede klik als je spel van nu anders verloren gaat (alle eigen plekken vol)
+  let quickArmedAt = 0;
+  const quickGame = () => {
+    const atRisk = liveGameAtRisk() && !MANUAL_SLOTS.some(id => !listSlots()[id]);
+    const armed = performance.now() - quickArmedAt;
+    if (atRisk && !(armed > 400 && armed < 6000)) {
+      quickArmedAt = performance.now();
+      toast(replaceWarningText(currentMeta()) + ' Klik nogmaals op Snel spel om door te gaan.', 'bad');
+      return;
+    }
+    startGame({ people: draft.people, diff: draft.diff, size: 256, victories: ['quick'], rivals: 1 });
   };
   // Staat je spel van nu alleen op de automatische plek? Dan zegt een zin onder Begin dat het daarna weg is.
   const replaceWarning = () => (liveGameAtRisk() ? replaceWarningText(currentMeta()) : '');
@@ -484,8 +501,7 @@ export function showTitle({ setup = false, challenges = false, focus = null }: T
     else if (t.dataset.t === 'profile') showProfile({ onClose: drawHome });
     else if (t.dataset.t === 'new') openSetup();
     // Snel spel: meteen beginnen met je laatste volk en moeilijkheid, een gewone kaart en één doel
-    else if (t.dataset.t === 'quick')
-      startGame({ people: draft.people, diff: draft.diff, size: 256, victories: ['quick'], rivals: 1 });
+    else if (t.dataset.t === 'quick') quickGame();
     else if (t.dataset.t === 'challenges') openChallenges();
     else if (t.dataset.t === 'daily') openChallenges(DAILY);
     else if (t.dataset.t === 'load') showLoadScreen({ onLoaded: leaveTitle, onClose: drawHome });

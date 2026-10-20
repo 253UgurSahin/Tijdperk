@@ -8,7 +8,7 @@ import { RKEYS } from '../data/resources';
 import { TK } from '../data/tech';
 import { bUpdate } from './buildings';
 import { computeAvail, computeCaches } from './caches';
-import { spawnFoe } from './entities';
+import { spawnFoe, spawnVillager, trainCost } from './entities';
 import { makeOffer, th, updateEvents } from './events';
 import { expireRivalOffer } from './diplomacy';
 import { armyUpkeep, fUpdate, isRaider, uUpdate, updateProj } from './military';
@@ -72,6 +72,7 @@ export function update(dt: number) {
       sigs.upg = null;
     }
   }
+  rescueIfStuck(dt);
   // Genezen (bijv. door Kruidenkunde): je volk krijgt elke seconde levens terug
   const heal = add('heal');
   if (heal) for (const v of G.vs) if (!v.hidden) v.hp = Math.min(v.mhp, v.hp + dt * heal);
@@ -129,6 +130,7 @@ export function update(dt: number) {
   for (const f of G.foes) if (!f.dead) fUpdate(f, dt);
   // Alleen een nieuwe lijst maken als er echt iemand gesneuveld is (scheelt elke speltik werk en geheugen)
   if (G.foes.some(f => f.dead)) G.foes = G.foes.filter(f => !f.dead);
+  if (G.spawnQ.length && G.peaceful) G.spawnQ = []; // vredig gezet terwijl er nog aanvallers aankwamen
   if (G.spawnQ.length) {
     const now = G.spawnQ.filter(s => s.at <= G.t);
     if (now.length) {
@@ -187,4 +189,18 @@ export function update(dt: number) {
     store.raidPing.t -= dt;
     if (store.raidPing.t <= 0) store.raidPing = null;
   }
+}
+
+// Niemand meer over en geen eten om iemand op te leiden: dan zat het spel muurvast (geen verlies, maar ook
+// niets te doen). Na een halve minuut sluit een zwerver zich aan, zodat je weer verder kunt.
+let strayT = 0;
+function rescueIfStuck(dt: number): void {
+  const stuck = !G.vs.length && !G.training && G.res.food < trainCost() && !G.over;
+  strayT = stuck ? strayT + dt : 0;
+  if (strayT < 30) return;
+  strayT = 0;
+  const home = th();
+  if (!home) return;
+  spawnVillager(home.x + 1, home.y + 2.4);
+  toast('Een zwerver sluit zich bij je stam aan.', 'good');
 }

@@ -13,6 +13,7 @@ import type {
 import { store } from '../core/store';
 import { sfx } from '../audio/sound';
 import { CN, CS, DAYLEN, H, W, onMapSize } from '../config';
+import { dayLength } from './events';
 import { AGES } from '../data/ages';
 import { B } from '../data/buildings';
 import { cleanDiplomacy, diplomacyStart } from '../data/diplomacy';
@@ -112,7 +113,8 @@ export const rbById = new Map<number, RivalBuilding>();
 let owner = new Uint8Array(CN * CN);
 onMapSize(() => (owner = new Uint8Array(CN * CN)));
 // Zo lang een aanval duurt (speltijd) voordat de overlevenden naar huis gaan
-const RAID_TIME = DAYLEN * 0.35;
+// (als functie: met de regel Snelle dagen zijn dagen korter, zie dayLength in events.ts)
+const RAID_TIME = () => dayLength() * 0.35;
 // Lange routes (van hun stad naar de jouwe) mogen de hele kaart doorzoeken
 const longSearch = () => W * H;
 let secondTimer = 0;
@@ -552,7 +554,7 @@ function routeTo(x: number, y: number, tx: number, ty: number): Path | null {
 function startRaid(f: Foe): void {
   // De aanval duurt RAID_TIME vanaf aankomst (niet vanaf vertrek), zodat ook traag geschut echt meevecht.
   // Het kleine verschil per soldaat zorgt dat ze niet allemaal in dezelfde tik naar huis gaan.
-  if (f.mode === 'march') f.until = G.t + RAID_TIME + (f.id % 6) * 1.5;
+  if (f.mode === 'march') f.until = G.t + RAID_TIME() + (f.id % 6) * 1.5;
   f.mode = 'raid';
   f.path = null;
   f.tgt = null;
@@ -749,7 +751,7 @@ function wonderWork(r: Rival, income: number): void {
   r.wonderPot -= price;
   const b = addBuilding(r, k, spot.x, spot.y, false);
   b.bt = rivalWonderTime(k);
-  const days = Math.max(1, Math.round(b.bt / DAYLEN));
+  const days = Math.max(1, Math.round(b.bt / dayLength()));
   store.notePos = [spot.x + 1.5, spot.y + 1.5];
   toast(
     `${RIVAL[r.k].n} ${verb(RIVAL[r.k], 'begint', 'beginnen')} aan ${theWonder(k)}. Over ongeveer ${days} ${days === 1 ? 'dag' : 'dagen'} ${wonderVerb(k, 'is het', 'zijn ze')} af. ${STOP_HINT}`,
@@ -843,7 +845,7 @@ export function launchAttack(r: Rival, group: Foe[]): void {
     f.aggro = true;
     // Bij aankomst begint de klok van de aanval (zie startRaid). Tot dan geldt een ruime grens: de mars
     // plus een hele aanval. Een gewoon getal, geen Infinity: dat kan de opslag niet bewaren.
-    f.until = G.t + marchSeconds(f) + RAID_TIME + k * 1.5;
+    f.until = G.t + marchSeconds(f) + RAID_TIME() + k * 1.5;
   });
   r.attacks++;
   r.lastAttack = G.day;
@@ -885,7 +887,7 @@ export const clockText = (hour: number): string => `${String(hour).padStart(2, '
 function maybeGift(r: Rival): void {
   if (G.day < 3 || G.day - r.giftDay < 3 || G.clock < 10 || G.clock > 11) return;
   // Alleen als je hen met rust laat en de relatie niet slecht is
-  if (G.t - r.angry < DAYLEN * 2 || r.atWar || r.rel < 0) return;
+  if (G.t - r.angry < dayLength() * 2 || r.atWar || r.rel < 0) return;
   r.giftDay = G.day;
   const gift = giftFor(r.age);
   gain(gift);

@@ -97,6 +97,7 @@ function buildModel(b: RivalBuilding, rival: Rival, key: string): RivalBuildingR
   g.add(m, coarse);
   m.visible = !buildingsFar();
   coarse.visible = buildingsFar();
+  coarse.userData.lodCoarse = 1; // (geen omlijning en geen aanwijzen voor het grove model)
   const h = Math.max(0.3, new T3.Box3().setFromObject(m).max.y);
   tintTop(m, colour, h);
   tintTop(coarse, colour, h);

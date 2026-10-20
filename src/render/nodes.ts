@@ -380,7 +380,24 @@ function applyNodeLook() {
     });
 }
 
+// Per tegel: welke vorm (variant) en welk nummer (instance) erop staat, van wat er nu getekend is
+const placedAt = new Map<number, [string, number]>();
+const GONE = new T3.Matrix4().makeScale(0, 0, 0);
+/**
+ * Eén bron is weg (boom gekapt, steen opgebruikt): alleen die ene onzichtbaar maken in plaats van alle bomen en
+ * stenen in beeld opnieuw neer te zetten. Dat gebeurde om de paar seconden en gaf een hapering.
+ */
+export function hideNode(i: number): void {
+  const at = placedAt.get(i);
+  if (!at) return; // niet in beeld: dan staat hij er ook niet
+  placedAt.delete(i);
+  for (const m of NI3[at[0]] || []) {
+    m.setMatrixAt(at[1], GONE);
+    m.instanceMatrix.needsUpdate = true;
+  }
+}
 export function rebuildNodes(full?: boolean): void {
+  placedAt.clear();
   const view = viewOnGround(),
     area = stretch(view.quad, view.cx, view.cy, 1.3, 8),
     xs = area.map(p => p[0]),
@@ -392,7 +409,11 @@ export function rebuildNodes(full?: boolean): void {
     y0 = Math.max(0, Math.floor(Math.min(...ys))),
     y1 = Math.min(H - 1, Math.ceil(Math.max(...ys)));
   if (full) {
-    for (const k in NI3) for (const m of NI3[k]) NGROUP.remove(m);
+    for (const k in NI3)
+      for (const m of NI3[k]) {
+        NGROUP.remove(m);
+        m.dispose(); // (de buffers met plekken en kleuren meteen vrijgeven, niet pas bij de garbage collector)
+      }
     NI3 = {};
     const cnt: Record<string, number> = {};
     for (let i = 0; i < W * H; i++)
@@ -449,6 +470,7 @@ export function rebuildNodes(full?: boolean): void {
         m.setMatrixAt(k, _m4);
         m.setColorAt(k, _c);
       }
+      placedAt.set(i, [v, k]);
       n[v] = k + 1;
     }
   for (const v in NI3)

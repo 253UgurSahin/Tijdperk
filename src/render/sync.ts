@@ -22,7 +22,7 @@ import {
 import { BOSS_SCALE } from '../data/bosses';
 import { aimTurrets, findTurrets, type TurretState } from './turrets';
 import { makeBuilding, makeCamp, wallMask } from './models';
-import { nodesNeedUpdate, rebuildNodes } from './nodes';
+import { hideNode, nodesNeedUpdate, rebuildNodes } from './nodes';
 import { FOEK, makeUnit, makeVillager } from './people';
 import { animEntity, clearDying, initAnim, startDeath, type Animated } from './animate';
 import { LAYER, clearParticles, emit, puff } from './particles';
@@ -294,10 +294,13 @@ function lodBuildings() {
     r.coarse.visible = far;
   }
 }
+/** Hoe lang het vorige beeldje duurde (seconden), voor bewegingen die niet van de framerate mogen afhangen. */
+let frameDt = 1 / 60;
 export function syncBuildings() {
   const seen = new Set<number>(),
     dt = lastBT ? Math.min(0.1, store.TM - lastBT) : 0;
   lastBT = store.TM;
+  frameDt = dt || 1 / 60;
   lodBuildings();
   for (const b of G.bs) {
     const d = B[b.type],
@@ -531,6 +534,8 @@ export function smoothPos(e: Moving): [number, number] {
   return [e.prevX + (e.x - e.prevX) * a, e.prevY! + (e.y - e.prevY!) * a];
 }
 
+// Het materiaal van alle selectiecirkels (één voor allemaal; de dekking pulseert voor allemaal gelijk)
+const RING_MAT = new T3.MeshBasicMaterial({ color: '#9fe28a', transparent: true, opacity: 0.95, depthWrite: false });
 // Grote eenheden (paarden, wagens, geschut) krijgen een grotere selectiecirkel
 const BIG_RING = new Set([
   'tank',
@@ -583,10 +588,7 @@ function syncEnt(e: Figure, make: () => T3.Group): EntityRec {
       statueOn: false,
       parts: [] as T3.Object3D[],
     } as EntityRec;
-    const ring = new T3.Mesh(
-      RINGG,
-      new T3.MeshBasicMaterial({ color: '#9fe28a', transparent: true, opacity: 0.95, depthWrite: false }),
-    );
+    const ring = new T3.Mesh(RINGG, RING_MAT);
     r.ringSize = e.kind === 'u' && BIG_RING.has(e.k) ? 0.42 : 0.28;
     ring.scale.setScalar(r.ringSize);
     // Gekleurde schijf onder elk figuur, zodat je in één oogopslag ziet wie wie is (getekend in drawDiscs):
@@ -616,7 +618,9 @@ function syncEnt(e: Figure, make: () => T3.Group): EntityRec {
     dx = ex - r.px,
     dy = ey - r.py,
     sp = Math.hypot(dx, dy);
-  r.mv = r.mv * 0.8 + sp * 60 * 0.2;
+  // Tempo in tegels per seconde, uitgemiddeld over ongeveer vijf beeldjes van 60 Hz (op elke framerate gelijk)
+  const k = 1 - Math.pow(0.8, frameDt * 60);
+  r.mv += (sp / frameDt - r.mv) * k;
   if (sp > 0.002) r.ang = Math.atan2(dx, dy);
   // Stilstaan: kijk naar het doel (het doel van een dorpeling heeft geen plek, dus die niet)
   else if (e.kind !== 'v' && e.tgt && e.tgt.x != null && !e.tgt.dead) {
@@ -628,7 +632,7 @@ function syncEnt(e: Figure, make: () => T3.Group): EntityRec {
   r.py = ey;
   g.position.set(ex, 0, ey);
   const da = ((r.ang - g.rotation.y + Math.PI * 3) % TAU) - Math.PI;
-  g.rotation.y += da * 0.25;
+  g.rotation.y += da * (1 - Math.pow(0.75, frameDt * 60)); // draaien: even vlot op 30 als op 144 Hz
   showAsDot(r);
   return r;
 }
@@ -703,8 +707,20 @@ export function syncEntities() {
   dotGrow = dots ? Math.max(1, DOT_PX / (0.25 * pxu())) : 1;
   for (const r of eRec.values()) r.seen = 0;
   for (const v of G.vs) {
-    if (v.hidden) continue;
+    if (v.hidden) {
+      // Binnen (slapen of schuilen): het figuur blijft bestaan maar is even onzichtbaar. Anders werden 's
+      // ochtends alle dorpelingen in één beeldje opnieuw gebouwd, en dat hapert.
+      const r = eRec.get(v.id);
+      if (r) {
+        r.seen = 1;
+        r.e = v;
+        r.g.visible = false;
+        r.ring.visible = false;
+      }
+      continue;
+    }
     const r = syncEnt(v, () => makeVillager(v.job));
+    r.g.visible = true;
     const work = (v.state === 'gather' || v.state === 'build') && r.mv < 0.3;
     // Een dorpeling heeft geen wapen: swing en cd ontbreken, dus hij valt nooit aan.
     // (Daarom de omweg via Mobile: het type Villager kent die velden niet.)
@@ -889,8 +905,19 @@ export function checkWorld() {
   const newAge = G.age !== store.nodeAge;
   let changed = newAge;
   forEachChange(node, store.nodeSnap!, i => {
+    const x = i % W,
+      y = (i / W) | 0;
+    if (!node[i]) {
+      // Alleen weg (gekapt of opgebruikt): die ene verbergen, de minikaart en schaduwkaart daar bijwerken,
+      // en verder niets opnieuw opbouwen (het gras eronder blijft zoals het is)
+      hideNode(i);
+      store.nodeSnap![i] = 0;
+      miniChanged(x, y, x, y);
+      shadeChanged(x, y, x, y);
+      return;
+    }
     changed = true;
-    changedAt(i % W, (i / W) | 0);
+    changedAt(x, y);
   });
   // In een nieuw tijdperk verschijnen overal nieuwe bronnen: de hele schaduwkaart opnieuw
   if (newAge) shadeAll();

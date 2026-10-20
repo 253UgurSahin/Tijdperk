@@ -6,11 +6,11 @@ import { G } from '../game/state';
 import { chargeFrac } from '../data/finale';
 import { isCharging } from '../game/finale';
 import { season } from '../game/time';
-import { camDist, isFar } from './camera';
+import { FAR_DIST, camDist, isFar } from './camera';
 import { GLOWS, glow } from './decals';
 import { GLASS, WIN } from './kit';
 import { FOL } from './nodes';
-import { PL, S3, cam, hemi, sun } from './scene';
+import { CAM3, PL, R3, S3, cam, hemi, sun } from './scene';
 import { TMAT } from './terrain';
 import { SNOW_COVER } from './terrainlook';
 import { setBloomDarkness } from './post';
@@ -42,8 +42,22 @@ const AGE_MOOD = (
 ).map((m): [T3.Color, T3.Color, number] | null => m && [new T3.Color(m[0]), new T3.Color(m[1]), m[2]]);
 // Zoveel lichtvlekken van lampen op de grond hooguit (de dichtstbijzijnde)
 const MAX_GLOWS = 96;
-// Hangen de lampen (PL) nu in de scène? (zie lighting)
-let lampsIn = true;
+// Hangen de lampen (PL) nu in de scène, en zijn we "ver" voor de lampen? (zie lighting)
+let lampsIn = true,
+  lampsFar = false;
+/**
+ * Lampen in of uit de scène halen betekent andere shaders (met of zonder puntlichten). Die van de nacht
+ * maken we één keer vooraf klaar, bij het eerste beeldje: anders hapert het spel bij de eerste schemering.
+ */
+export function precompileNightShaders(): void {
+  const hadLamps = lampsIn;
+  if (!hadLamps) for (const p of PL) S3.add(p);
+  try {
+    R3.compile(S3, CAM3);
+  } finally {
+    if (!hadLamps) for (const p of PL) S3.remove(p);
+  }
+}
 const moodSun = new T3.Color('#ffffff'),
   moodFog = new T3.Color('#9fb3a6'),
   wantSun = new T3.Color(),
@@ -153,7 +167,10 @@ export function lighting(dk: number) {
   const far = isFar();
   // Overdag (en van ver) halen we de lampen helemaal uit de scène: anders rekent de videokaart voor elk
   // pixel zes lampen door die toch uit staan
-  const wantLamps = dk >= 0.05 && !far;
+  // (met wat marge rond de grens van "ver", anders wisselen de lampen steeds heen en weer bij het zoomen)
+  if (camDist() > FAR_DIST * 1.15) lampsFar = true;
+  else if (camDist() < FAR_DIST * 0.95) lampsFar = false;
+  const wantLamps = dk >= 0.05 && !lampsFar;
   if (wantLamps !== lampsIn) {
     lampsIn = wantLamps;
     for (const p of PL)

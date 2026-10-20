@@ -219,9 +219,15 @@ function addChip(x: number, y: number, z: number, col: string) {
   chips.setColorAt(i, chipC.set(col));
 }
 
+let lastFxT = 0,
+  smokeT = 0; // tijd sinds het laatste rookpluimpje van een kanonskogel
 export function drawFx() {
   chipShow = pxu() > 20;
   if (chips) chips.count = 0;
+  // Hoe lang het vorige beeldje duurde; tijdens pauze staat alles stil (dan geen rook laten uitstoten)
+  const dt = lastFxT ? Math.min(0.1, store.TM - lastFxT) : 0;
+  lastFxT = store.TM;
+  smokeT += G.speed ? dt : 0;
   drawMeteor();
   drawMarks();
   for (const p of G.proj as DrawnProjectile[]) {
@@ -245,8 +251,8 @@ export function drawFx() {
     m.position.set(px, y, py);
     if (p.big) {
       m.scale.setScalar(0.08);
-      // Kanonskogels laten een sliertje rook achter
-      emit(LAYER.soft, px, y, py, 0, 0.1, 0, 0.6, 0.04, 0.12, 0xbab4aa, 0.45);
+      // Kanonskogels laten een sliertje rook achter: zestig pluimpjes per seconde, op elke framerate
+      if (smokeT >= 1 / 60) emit(LAYER.soft, px, y, py, 0, 0.1, 0, 0.6, 0.04, 0.12, 0xbab4aa, 0.45);
     } else {
       // Pijlen en kogels wijzen in de richting van hun baan
       m.rotation.order = 'YXZ';
@@ -255,6 +261,7 @@ export function drawFx() {
       m.material.color.set(p.col || '#fff3c4');
     }
   }
+  if (smokeT >= 1 / 60) smokeT = 0;
   for (const e of G.fx as DrawnFx[]) {
     if (!e.seen3) {
       e.seen3 = 1;

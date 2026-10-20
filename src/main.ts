@@ -84,7 +84,7 @@ import { RKEYS } from './data/resources';
 import { deserialize, load, save, serialize } from './game/save';
 import { G, newGame, sel } from './game/state';
 import { rememberPositions, update } from './game/update';
-import { drag, keys, mouse, setView } from './input/input';
+import { drag, keys, mouse, refreshMouseTile, setView } from './input/input';
 import { TURN_SPEED, clampCam, panScreen, s2t, turnCamera, updateCamera, updateTurn } from './render/camera';
 import { viewYaw } from './core/view';
 import { renderMini } from './render/minimap';
@@ -108,7 +108,9 @@ import { renderTopBars } from './ui/finale';
 import { rate, tickResourceNumbers } from './ui/resources';
 import { $, isCompact } from './util/dom';
 import { measure } from './core/perf';
+import { errorHooks, reportError } from './core/errors';
 import { initQuality, tickQuality } from './render/quality';
+import { precompileNightShaders } from './render/lighting';
 import { setSpeed, toast } from './ui/hud';
 import { AGES } from './data/ages';
 import { QUICK_AGE } from './data/victories';
@@ -116,6 +118,7 @@ import { QUICK_AGE } from './data/victories';
 /** De allereerste wereld: een snel spel op een gewone kaart (zie data/victories.ts). */
 const FIRST_GAME = { victories: ['quick'], size: 256 };
 
+let nightShadersReady = false;
 let lastT = performance.now(),
   acc = 0,
   uiT = 0,
@@ -134,7 +137,19 @@ document.addEventListener('mouseleave', () => {
 addEventListener('blur', () => {
   edge.x = -1;
 });
+/**
+ * Elk beeldje. Het volgende beeldje vragen we meteen aan: zo stopt de lus nooit, ook niet als er in een van de
+ * onderdelen iets misgaat (dan wordt de fout gemeld en gaat het volgende beeldje gewoon door).
+ */
 function frame(now: number) {
+  requestAnimationFrame(frame);
+  try {
+    tick(now);
+  } catch (e) {
+    reportError('de spellus', e);
+  }
+}
+function tick(now: number) {
   const realDt = (now - lastT) / 1000,
     rdt = Math.min(0.1, realDt);
   lastT = now;
@@ -186,6 +201,7 @@ function frame(now: number) {
     if (cam.z === cam.tz) cam.tz = null;
   }
   if (store.shake > 0) store.shake = Math.max(0, store.shake - rdt);
+  refreshMouseTile(); // de camera kan verschoven zijn: dan ligt er een andere tegel onder de muis
   let t0 = performance.now();
   if (G.speed && !G.over) {
     acc += rdt * G.speed;
@@ -204,6 +220,12 @@ function frame(now: number) {
   measure('sim', t0);
   t0 = performance.now();
   render();
+  if (!nightShadersReady) {
+    // Na het eerste beeldje: de nachtshaders alvast klaarmaken (één keer een korte pauze, nu, in plaats van
+    // een hapering bij de eerste schemering)
+    nightShadersReady = true;
+    precompileNightShaders();
+  }
   // Echte tijd (tot 1 s), anders lijkt een traag apparaat sneller dan het is
   const frameTime = Math.min(1, realDt);
   tickQuality(frameTime);
@@ -267,7 +289,6 @@ function frame(now: number) {
     // Niet op het titelscherm: daar ligt soms een wereld waarin je nog niet speelt
     if (!G.over && SET.autosave && $('#title').hidden) save();
   }
-  requestAnimationFrame(frame);
 }
 // Teller met beeldjes per seconde (aan te zetten in de instellingen)
 const fpsEl = Object.assign(document.createElement('div'), { id: 'fps', hidden: !SET.fps });
@@ -321,7 +342,12 @@ declare global {
     claude?: { hot?: HotReload };
   }
 }
+let started = false;
 function start(data?: HotData) {
+  if (started) return; // (de hot-reload-omgeving mag dit niet twee keer laten draaien: dan liepen er twee lussen)
+  started = true;
+  errorHooks.pause = () => setSpeed(0);
+  errorHooks.toast = msg => toast(msg, 'bad');
   initQuality(); // kiest de beeldkwaliteit en zet daarna de schermgrootte
   try {
     if (localStorage.getItem('tijdperken-view') === '2d') store.V2 = true;

@@ -16,6 +16,12 @@ import { bLight, bRate } from './upgrades';
 import { dist } from '../util/math';
 import { amt, claims, isUnl, node, nodeLists } from '../world/world';
 
+/** Een centrale gaat aan of uit: de voorraad stroom meteen bijwerken, zodat de volgende centrale dat ook ziet. */
+export const adjustPowerSup = (delta: number): void => {
+  powerSup += delta;
+  powerRatio = powerDem ? Math.min(1, powerSup / powerDem) : 1;
+};
+
 /** Lichtbronnen (plek, straal, warm of koud licht). */
 export let lights: { x: number; y: number; r: number; warm: boolean }[] = [],
   powerRatio = 1,

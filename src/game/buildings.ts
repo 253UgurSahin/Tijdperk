@@ -5,7 +5,7 @@ import { W } from '../config';
 import { B } from '../data/buildings';
 import { NI } from '../data/nodes';
 import { UNITS } from '../data/units';
-import { genPower, goal, powerDem, powerRatio, powerSup } from './caches';
+import { adjustPowerSup, genPower, goal, powerDem, powerRatio, powerSup } from './caches';
 import { gain, has, pay } from './economy';
 import { popCap, popNow, spawnUnit, spawnVillager, trainCost } from './entities';
 import { floater } from './fx';
@@ -16,6 +16,7 @@ import { bRate, lvlOf } from './upgrades';
 import { amt, node } from '../world/world';
 
 export function bUpdate(b: Building, dt: number): void {
+  if (b.flash) b.flash -= dt; // de treffer-flits loopt af (zie hit in military.ts)
   if (!b.done) return;
   const d = B[b.type],
     pr = d.power ? powerRatio : 1;
@@ -52,11 +53,15 @@ export function bUpdate(b: Building, dt: number): void {
         b.gt = 0;
         // Alleen stoken als de stroom echt nodig is: overbodige centrales staan stil en sparen brandstof
         const needed = powerSup - (b.run ? genPower(b) : 0) < powerDem;
+        const wasRunning = b.run;
         if (needed && has(d.gen.in!)) {
           pay(d.gen.in!);
           b.run = true;
           b.act = d.gen.t!;
         } else b.run = false;
+        // Meteen doorgeven: anders beslissen twee centrales in dezelfde tik allebei hetzelfde en gaan ze
+        // om de beurt samen aan en uit
+        if (b.run !== wasRunning) adjustPowerSup((b.run ? 1 : -1) * genPower(b));
       }
     }
   }

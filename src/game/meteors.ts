@@ -3,7 +3,8 @@ import type { Meteor } from '../types';
 // vooral van grondstoffen die bij jou schaars of op zijn. Zo raakt de wereld nooit helemaal leeg.
 import { store } from '../core/store';
 import { sfx } from '../audio/sound';
-import { CN, CS, CX, CY, DAYLEN, W } from '../config';
+import { CN, CS, CX, CY, W } from '../config';
+import { dayLength } from './events';
 import { SET } from '../core/settings';
 import { B } from '../data/buildings';
 import { NI, NODES } from '../data/nodes';
@@ -42,7 +43,7 @@ export function updateMeteors(dt: number): void {
   if (G.nextMeteor == null) {
     // Met de spelregel Meteorietenregen valt de eerste al op dag 1
     const firstDay = hasRule('meteorShower') ? 1 : FIRST_DAY;
-    G.nextMeteor = (firstDay - 1) * DAYLEN + DAYLEN * (0.5 + Math.random());
+    G.nextMeteor = (firstDay - 1) * dayLength() + dayLength() * (0.5 + Math.random());
   }
   // In het Sterrentijdperk is sterrenmetaal nodig: de eerste meteoriet komt dan snel
   if (G.age >= 8 && !G.starMeteor) {
@@ -70,7 +71,7 @@ function announce() {
   const wait = scarce ? 1 + Math.random() : 1.5 + Math.random() * 1.5;
   // Sterrentijdperk: vaker. Bonussen (zoals Sterrenkaarten) maken het nog vaker.
   const often = (G.age >= 8 ? 0.6 : 1) / mul('meteor.rate');
-  G.nextMeteor = G.t + DAYLEN * wait * often;
+  G.nextMeteor = G.t + dayLength() * wait * often;
   if (!spot) return;
   G.meteor = { x: spot[0] + 0.5, y: spot[1] + 0.5, t: WARNING, falling: false };
   store.notePos = [spot[0], spot[1]];

@@ -249,6 +249,10 @@ $('#offer').addEventListener('click', e => {
   }
   if (t.dataset.o === 'ok') {
     // Zonder afzender is het de reizende handelaar: die heeft altijd want, amt, give en price
+    if (!has({ [o.give!]: o.price! })) {
+      toast(`Je hebt niet genoeg ${RES[o.give!].n.toLowerCase()} meer.`, 'bad');
+      return; // (het aanbod blijft staan)
+    }
     pay({ [o.give!]: o.price! });
     G.res[o.want!] += o.amt!;
     toast(`Geruild: ${o.amt} ${RES[o.want!].n.toLowerCase()} ontvangen.`, 'good');

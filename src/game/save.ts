@@ -6,6 +6,8 @@ import { CX, CY, H, TH, TW, W, setMapSize } from '../config';
 import { ACHIEVEMENT } from '../data/achievements';
 import { BLESSING } from '../data/blessings';
 import { B } from '../data/buildings';
+import { UNITS, FOES } from '../data/units';
+import { TK } from '../data/tech';
 import { cleanDiff } from '../data/difficulty';
 import { cleanMapSize } from '../data/maps';
 import { cleanPendingBoss } from '../data/bosses';
@@ -49,6 +51,8 @@ import { cam } from '../render/scene';
 import { onAgeChange } from '../ui/age';
 import { sigs } from '../ui/header';
 import { setSpeed, toast } from '../ui/hud';
+import { rate } from '../ui/resources';
+import { bigMapOpen, setBigMap } from '../render/minimap';
 import { $ } from '../util/dom';
 import { fromBase64, packZeros, toBase64, unpackZeros } from '../util/pack';
 import { amt, bmap, buildLists, genWorld, node, road, setBlk } from '../world/world';
@@ -107,6 +111,12 @@ export function serialize(): string {
     'traderDay',
     'finale',
     'boss',
+    'regrow', // gekapte bomen die terug moeten groeien
+    'spawnQ', // aanvallers die nog komen
+    'meteor',
+    'starMeteor',
+    'training',
+    'trainT',
   ] as const)
     g[k] = G[k];
   return JSON.stringify({
@@ -157,6 +167,10 @@ export function serialize(): string {
     guards: G.foes
       .filter(f => f.camp)
       .map(f => ({ type: f.type, x: f.x, y: f.y, hp: f.hp, mhp: f.mhp, camp: f.camp })),
+    // Een aanval die bezig is (geen kampbewakers, geen soldaten van rivalen: die bewaart saveRivals)
+    raiders: G.foes
+      .filter(f => !f.camp && !f.rival && !f.dead && !f.retreat)
+      .map(f => ({ type: f.type, x: f.x, y: f.y, hp: f.hp, mhp: f.mhp, dmg: f.dmg, boss: f.boss })),
     rivals: saveRivals(), // rivalen met hun gebouwen en soldaten (zie game/rivals.ts)
     cam: { x: cam.x, y: cam.y, z: cam.z },
     cv: 2,
@@ -185,15 +199,59 @@ interface SaveData {
   us: { k: string; x: number; y: number; hp: number; st?: Stance; id?: number; kills?: number }[];
   camps: { id: number; x: number; y: number; tier: number; hp: number; mhp: number; alive: boolean }[];
   guards: { type: number; x: number; y: number; hp: number; mhp: number; camp: number }[];
+  /** Aanvallers die onderweg waren (ontbreekt in oudere opslag). */
+  raiders?: { type: number; x: number; y: number; hp: number; mhp: number; dmg: number; boss?: number }[];
   /** Rivalen met hun gebouwen en soldaten (ontbreekt in opslag van vóór de rivalen). */
   rivals?: SavedRival[];
   cam?: { x: number; y: number; z?: number };
   cv?: number;
 }
+/**
+ * Is dit een opslag die we kunnen laden? Alles wat we straks nodig hebben, controleren we hier eerst:
+ * de vorm (lijsten die er moeten zijn), de kaartgegevens (base64 die te lezen is) en de sleutels van
+ * gebouwen, eenheden en onderzoek. Pas als dit goed is, raken we het lopende spel aan.
+ */
+function checkSave(s: SaveData): string {
+  if (!s || typeof s !== 'object') return 'geen opslag';
+  if (s.v !== 4) return 'onbekende versie';
+  if (cleanMapSize(s.size) !== s.size) return 'onbekende kaartgrootte';
+  if (!s.g || typeof s.g !== 'object' || typeof s.seed !== 'number') return 'spelstand ontbreekt';
+  for (const k of ['bs', 'vs', 'us', 'camps', 'guards'] as const)
+    if (!Array.isArray(s[k])) return `lijst ${k} ontbreekt`;
+  if (typeof s.node !== 'string' || typeof s.amt !== 'string') return 'kaart ontbreekt';
+  const packed = s.pack === 1,
+    n = s.size * s.size;
+  try {
+    if (unpackArray(s.node, n, packed).length !== n) return 'kaart heeft de verkeerde maat';
+    if (unpackArray(s.amt, n * 2, packed).length !== n * 2) return 'voorraden hebben de verkeerde maat';
+    if (s.road && unpackArray(s.road, n, packed).length !== n) return 'wegen hebben de verkeerde maat';
+  } catch (e) {
+    return 'kaart is niet te lezen';
+  }
+  for (const o of s.bs) if (!o || typeof o.x !== 'number' || typeof o.y !== 'number') return 'gebouw zonder plek';
+  return '';
+}
+
+// Is het lopende spel al aangeraakt door deserialize? (zie loadSlot)
+let loadTouched = false;
+// Een nummer uit de opslag, of een vaste waarde als het er niet (goed) in staat
+const num = (v: unknown, fallback: number): number => (typeof v === 'number' && Number.isFinite(v) ? v : fallback);
+
 export function deserialize(str: string): boolean {
   const s: SaveData = JSON.parse(str);
-  // Elke opslag heeft zijn eigen kaartgrootte (oude opslag: de gewone). Een onbekende grootte laden we niet.
-  if (s.v !== 4 || cleanMapSize(s.size) !== s.size) return false;
+  const problem = checkSave(s);
+  if (problem) {
+    console.warn('Opslag niet geladen: ' + problem);
+    return false;
+  }
+  // Gebouwen, eenheden en onderzoek die niet (meer) bestaan, slaan we over in plaats van te crashen
+  s.bs = s.bs.filter(o => B[o.type]);
+  s.us = s.us.filter(o => UNITS[o.k]);
+  s.vs = s.vs.filter(o => o && typeof o.x === 'number');
+  s.camps = s.camps.filter(c => c && typeof c.x === 'number');
+  s.guards = s.guards.filter(o => FOES[o.type]);
+  // Vanaf hier raken we het lopende spel aan (zie loadSlot: gaat het alsnog mis, dan zetten we het terug)
+  loadTouched = true;
   // Eerst de kaartgrootte van deze opslag: de spelstand en de wereld hieronder hangen ervan af
   setMapSize(s.size);
   // De keuzes van het nieuw-spelscherm. Opslag van daarvóór: volk en moeilijkheid uit het spel, de rest standaard
@@ -268,7 +326,15 @@ export function deserialize(str: string): boolean {
   G.toolLvl = s.g.toolLvl || 0;
   G.armsLvl = s.g.armsLvl || 0;
   G.tech = G.tech || {};
+  if (G.research && !TK[G.research.k]) G.research = null; // onderzoek dat niet meer bestaat
   G.diff = cleanDiff(G.diff);
+  // Teruggroei, aanvallers in de wachtrij, meteoriet en training: oudere opslag heeft ze niet
+  G.regrow = Array.isArray(s.g.regrow) ? s.g.regrow.filter(r => r && Number.isFinite(r.i)) : [];
+  G.spawnQ = Array.isArray(s.g.spawnQ) ? s.g.spawnQ.filter(q => q && FOES[q.type]) : [];
+  G.meteor = s.g.meteor && typeof s.g.meteor === 'object' ? s.g.meteor : null;
+  G.starMeteor = !!s.g.starMeteor;
+  G.training = !!s.g.training;
+  G.trainT = num(s.g.trainT, 0);
   // Opslag van vóór deze teller: stond de vredige modus aan (of speel je Vredig), dan telt dat als gebruikt
   if (G.peaceful || G.diff === 0) G.stats.peaceUsed = true;
   const packed = s.pack === 1;
@@ -284,7 +350,8 @@ export function deserialize(str: string): boolean {
       kind: 'b',
       cd: 0,
       ct: 0,
-      gt: d.gen ? (d.gen.t ?? 0) : 0,
+      // Elke centrale op een ander punt in zijn stooktijd: dan beslissen ze niet allemaal in dezelfde tik
+      gt: d.gen ? Math.random() * (d.gen.t ?? 0) : 0,
       run: false,
       qt: 0,
       act: 0,
@@ -319,6 +386,16 @@ export function deserialize(str: string): boolean {
     f.mhp = o.mhp;
     f.hx = c.x + 1 + (Math.random() - 0.5) * 3;
     f.hy = c.y + 1 + (Math.random() - 0.5) * 3;
+  }
+  // Een aanval die bezig was, gaat gewoon door (anders telde hij straks ten onrechte als doorstaan)
+  for (const o of s.raiders || []) {
+    if (!FOES[o.type]) continue;
+    const f = spawnFoe(o.type, o.x, o.y, 1);
+    f.hp = num(o.hp, f.hp);
+    f.mhp = num(o.mhp, f.mhp);
+    f.dmg = num(o.dmg, f.dmg);
+    if (o.boss) f.boss = o.boss;
+    f.aggro = true;
   }
   // Rivalen: opslag van daarvóór heeft er geen. Het gekozen aantal is wat er in het spel zit.
   loadRivals(s.rivals);
@@ -451,27 +528,85 @@ export function liveGameAtRisk(): boolean {
   return !MANUAL_SLOTS.some(id => sameGame(index[id], now));
 }
 
+/**
+ * Het spel dat nu draait veiligstellen voordat er iets anders op de automatische plek komt (nieuwe wereld,
+ * snel spel, nog een keer): het gaat naar een vrije eigen plek. Geeft die plek, of '' als er niets te
+ * bewaren valt of als alle eigen plekken vol zijn (dan moet de speler zelf kiezen).
+ */
+export function parkLiveGame(): string {
+  if (!liveGameAtRisk()) return '';
+  const free = MANUAL_SLOTS.find(id => !readIndex()[id]);
+  if (!free) return '';
+  return saveToSlot(free) === '' ? free : '';
+}
+
 /** Het spel op een plek bewaren. Geeft '' als het lukte, anders 'quota' (de opslag is vol) of 'blocked'. */
 export function saveToSlot(id: string): string {
   liveGame = G;
+  if (id !== AUTO_SLOT) {
+    // Zelf opslaan: dit tabblad neemt het spel weer over
+    otherTab = false;
+    claimTab();
+  }
   try {
-    const index = readIndex();
-    localStorage.setItem(slotKey(id), serialize());
+    const index = readIndex(),
+      key = slotKey(id),
+      before = localStorage.getItem(key);
+    localStorage.setItem(key, serialize());
     index[id] = currentMeta();
-    writeIndex(index);
+    try {
+      writeIndex(index);
+    } catch (e) {
+      // De lijst past er niet meer bij: dan ook de opslag zelf terugdraaien, anders klopt het kaartje niet
+      if (before) localStorage.setItem(key, before);
+      else localStorage.removeItem(key);
+      throw e;
+    }
     return '';
   } catch (e) {
     return isQuotaError(e) ? 'quota' : 'blocked';
   }
 }
 
-/** Het spel van een plek laden. Lukt het niet (leeg of kapot), dan blijft het huidige spel staan. */
+/**
+ * Het spel van een plek laden. Lukt het niet (leeg of kapot), dan blijft het huidige spel staan: gaat het
+ * halverwege mis, dan zetten we het spel van daarvoor terug. Een kapotte opslag krijgt een eigen sleutel
+ * (`-kapot`), zodat het automatisch opslaan er niet overheen schrijft en er niets verloren gaat.
+ */
 export function loadSlot(id: string): boolean {
+  let text: string | null = null;
   try {
-    const text = localStorage.getItem(slotKey(id));
-    return !!text && deserialize(text);
+    text = localStorage.getItem(slotKey(id));
   } catch (e) {
     return false;
+  }
+  if (!text) return false;
+  const backup = G ? serialize() : null;
+  loadTouched = false;
+  try {
+    if (deserialize(text)) return true;
+  } catch (e) {
+    console.error('Laden mislukt', e);
+    if (backup && loadTouched)
+      try {
+        deserialize(backup);
+      } catch (e2) {
+        console.error('Terugzetten mislukt', e2);
+      }
+  }
+  keepBroken(id, text);
+  return false;
+}
+// Een opslag die niet te laden is, bewaren we apart en halen we van de plek af
+function keepBroken(id: string, text: string): void {
+  try {
+    localStorage.setItem(slotKey(id) + '-kapot', text);
+    localStorage.removeItem(slotKey(id));
+    const index = readIndex();
+    index[id] = null;
+    writeIndex(index);
+  } catch (e) {
+    // Opslag vol of geblokkeerd: dan blijft hij staan
   }
 }
 
@@ -487,10 +622,31 @@ export function deleteSlot(id: string): void {
   }
 }
 
+// Twee tabbladen met hetzelfde spel zouden elkaars opslag overschrijven. Elk tabblad heeft daarom een eigen
+// nummer; wie het laatst opslaat, is de baas. Ziet een tabblad dat een ander tabblad opslaat, dan stopt het
+// zelf met automatisch opslaan (zelf opslaan op een plek kan nog wel).
+const OWNER_KEY = 'tijdperken-tab';
+const tabId = Math.random().toString(36).slice(2);
+let otherTab = false;
+addEventListener('storage', e => {
+  if (e.key !== OWNER_KEY || !e.newValue || e.newValue === tabId || otherTab) return;
+  otherTab = true;
+  toast('Dit spel is ook in een ander tabblad open. Hier wordt niet meer automatisch opgeslagen.', 'bad');
+});
+function claimTab(): void {
+  try {
+    localStorage.setItem(OWNER_KEY, tabId);
+  } catch (e) {
+    // (geen opslag: dan is er ook niets te overschrijven)
+  }
+}
+
 // Een volle opslag melden we één keer, niet elke minuut opnieuw (tot opslaan weer lukt)
 let autoSaveWarned = false;
 /** Automatisch opslaan: elke minuut, als je het tabblad verlaat, en voor je naar het hoofdmenu gaat. */
 export function save(): boolean {
+  if (otherTab) return false;
+  claimTab();
   const error = saveToSlot(AUTO_SLOT);
   const line = $('#saved').lastChild!; // de tekst achter het bolletje (zie index.html)
   if (!error) {
@@ -504,10 +660,15 @@ export function save(): boolean {
   autoSaveWarned = true;
   return false;
 }
-/** De nieuwste opslag laden (bij het opstarten). */
+/** De nieuwste opslag laden (bij het opstarten). Is die kapot, dan de volgende; zo raak je nooit alles kwijt. */
 export function load(): boolean {
-  const id = latestSlot(readIndex());
-  return !!id && loadSlot(id);
+  for (let tries = 0; tries < SLOTS.length; tries++) {
+    const id = latestSlot(readIndex());
+    if (!id) return false;
+    if (loadSlot(id)) return true;
+    // (loadSlot heeft de kapotte plek apart gezet, dus de volgende ronde kiest een andere)
+  }
+  return false;
 }
 /**
  * Dit spel is voorbij: de automatische opslag weg, zodat "Verder spelen" er niet naar teruggaat.
@@ -523,7 +684,23 @@ export function afterLoad(): void {
   setSpeed(1);
   setZoom(cam.z);
   for (const k in sigs) sigs[k] = null;
+  resetUiState();
   store.uiDirty = true;
+}
+/** Wat er van het vorige spel in de UI kan blijven hangen (plaatsmodus, bevelen, pings, tempo's): allemaal weg. */
+function resetUiState(): void {
+  store.placing = null;
+  store.expandMode = false;
+  store.cmdMode = null;
+  store.demoMode = false;
+  store.demolishArm = 0;
+  store.raidPing = null;
+  store.notePos = null;
+  store.rateSnap = null;
+  store.rateT = 0;
+  for (const k in rate) delete rate[k]; // oude tempo's zouden grondstoffen ten onrechte rood kleuren
+  if (bigMapOpen()) setBigMap(false);
+  $('#resPop').hidden = true;
 }
 // Je verlaat het tabblad: bewaren (alleen tijdens het spelen, niet op het titelscherm)
 addEventListener('visibilitychange', () => {

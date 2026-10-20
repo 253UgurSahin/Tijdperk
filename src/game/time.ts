@@ -114,15 +114,12 @@ function ledBy(): string {
   return boss && !liveBoss() ? `, geleid door ${bossName(boss)}` : '';
 }
 export function hoursUntilRaid(): number | null {
-  let day = G.day,
-    h = G.clock;
-  let hours = 0;
+  // De dag begint om 6 uur (dan gaat G.day omhoog); een aanval komt om 21 uur, dus 15 uur na het begin van
+  // zijn dag. Tussen middernacht en 6 uur is de aanval van "deze dag" dus al geweest.
+  const sinceDayStart = (G.clock - 6 + 24) % 24;
   for (let k = 0; k < 6; k++) {
-    if (raidNight(day) && (k > 0 || h < 21)) return hours + (21 - h);
-    hours += 24 - h;
-    h = 0;
-    day++;
-    if (k === 0) hours -= 0;
+    const until = 15 + 24 * k - sinceDayStart;
+    if (until > 0 && raidNight(G.day + k)) return until;
   }
   return null;
 }

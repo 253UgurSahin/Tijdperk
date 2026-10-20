@@ -791,7 +791,11 @@ export function answerRivalOffer(yes: boolean): void {
     return;
   }
   // (een bericht met `give` heeft ook altijd een `price`, en met `want` een `amt`: zie makeRivalOffer)
-  if (o.give && !has({ [o.give]: o.price! })) return;
+  // Niet genoeg om te betalen: dan telt het als nee (met de gevolgen van dien)
+  if (o.give && !has({ [o.give]: o.price! })) {
+    refuse(r, o);
+    return;
+  }
   if (o.give) pay({ [o.give]: o.price! });
   if (o.want) gain({ [o.want]: o.amt! });
   if (o.kind === 'ally') makeAlly(r);

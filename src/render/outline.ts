@@ -35,15 +35,21 @@ export const setOutlineEnabled = (on: boolean) => (enabled = on);
 // Hang aan elk zichtbaar onderdeel een schil; die beweegt vanzelf mee (ook armen en benen)
 function attach(o: T3.Object3D, m: T3.ShaderMaterial): T3.Mesh[] {
   const pairs: [T3.Mesh, T3.Mesh][] = [];
-  o.traverse(part => {
-    if (!isMesh(part) || part.userData.hull || !part.visible) return;
-    if ((part as T3.InstancedMesh).isInstancedMesh) return;
-    const hull = new T3.Mesh(hullGeometry(part.geometry), m);
-    hull.userData.hull = 1;
-    hull.castShadow = hull.receiveShadow = false;
-    hull.raycast = () => {}; // niet aanklikbaar (de vorm eronder wel)
-    pairs.push([part, hull]);
-  });
+  // Ook onzichtbare onderdelen krijgen een schil: een figuur wisselt tussen bewegende delen en een vast
+  // beeldje, en dan hoort de schil er al te hangen. Het grove gebouwmodel (van ver) slaan we wel over:
+  // van ver is er geen omlijning.
+  const walk = (part: T3.Object3D) => {
+    if (part.userData.lodCoarse || part.userData.hull) return;
+    if (isMesh(part) && !(part as T3.InstancedMesh).isInstancedMesh) {
+      const hull = new T3.Mesh(hullGeometry(part.geometry), m);
+      hull.userData.hull = 1;
+      hull.castShadow = hull.receiveShadow = false;
+      hull.raycast = () => {}; // niet aanklikbaar (de vorm eronder wel)
+      pairs.push([part, hull]);
+    }
+    for (const c of part.children) walk(c);
+  };
+  walk(o);
   // (pas na het doorlopen toevoegen: dezelfde plek en maat als het onderdeel zelf)
   for (const [part, hull] of pairs) part.add(hull);
   return pairs.map(p => p[1]);

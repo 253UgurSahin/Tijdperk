@@ -69,7 +69,19 @@ export function resize() {
   CAM3.aspect = VW / VH;
   CAM3.updateProjectionMatrix();
 }
-addEventListener('resize', resize);
+// Bij een nieuwe venstergrootte pas vlak vóór het volgende beeldje (zie requestResize): zo gebeurt het ook met de
+// ResizeObserver hieronder maar één keer, en nooit midden in een beeldje
+addEventListener('resize', () => requestResize());
+// Ook als het venster naar een scherm met een andere pixeldichtheid gaat
+try {
+  const watchDpr = () => {
+    requestResize();
+    matchMedia(`(resolution: ${window.devicePixelRatio}dppx)`).addEventListener('change', watchDpr, { once: true });
+  };
+  matchMedia(`(resolution: ${window.devicePixelRatio}dppx)`).addEventListener('change', watchDpr, { once: true });
+} catch (e) {
+  // (oude browser zonder matchMedia-events: dan alleen bij een gewone resize)
+}
 // Vraag om een nieuwe grootte die pas vlak vóór het volgende beeldje ingaat (zie quality.ts)
 let resizeWanted = false;
 export const requestResize = () => (resizeWanted = true);

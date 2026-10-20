@@ -275,6 +275,7 @@ function foeNear(x: number, y: number, r: number): Foe | null {
 }
 export function vUpdate(v: Villager, dt: number) {
   v.anim += dt;
+  if (v.flash) v.flash -= dt; // de treffer-flits loopt af, anders zie je alleen de eerste treffer
   if (v.hidden) {
     v.hp = Math.min(v.mhp, v.hp + dt * 2);
     if (v.state === 'sleep') {

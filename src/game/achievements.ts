@@ -1,4 +1,5 @@
 // Prestaties tijdens het spel: kijkt om de paar tellen wat je bereikt hebt, en rekent aan het eind je score uit.
+import { wipe } from './save';
 import type { GameRecord, GameResult } from '../types';
 import {
   addAchievement,
@@ -180,7 +181,12 @@ function celebrateWin(): void {
 export function endGame(won: boolean, delay = 800): void {
   finishGame();
   if (won) celebrateWin();
-  setTimeout(() => showEndScreen(won), won ? Math.max(delay, WIN_SCREEN_DELAY) : delay);
+  // Verloren: de automatische opslag meteen weg, anders kun je na herladen verder van vlak vóór de nederlaag
+  else wipe();
+  const game = G; // (is er intussen een nieuw spel begonnen, dan hoort het eindscherm daar niet in)
+  setTimeout(() => {
+    if (G === game) showEndScreen(won);
+  }, won ? Math.max(delay, WIN_SCREEN_DELAY) : delay);
 }
 
 /**

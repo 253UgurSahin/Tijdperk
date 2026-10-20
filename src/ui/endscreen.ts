@@ -9,7 +9,9 @@ import { DIFF_NAMES, MEDALS } from '../data/score';
 import type { ScenarioDef } from '../data/scenarios';
 import { VICTORY } from '../data/victories';
 import { finishGame } from '../game/achievements';
-import { save, wipe } from '../game/save';
+import { parkLiveGame, save, wipe } from '../game/save';
+import { slotName } from '../data/saveslots';
+import { toast } from './hud';
 import { currentChallenge } from '../game/scenario';
 import { G, newGame, placeName } from '../game/state';
 import { victoryFacts } from '../game/victory';
@@ -167,7 +169,7 @@ export function showEndScreen(won: boolean) {
     ${newAchievementsHTML()}
     ${chartHTML(keys)}
     <div class="row">${buttons}<button class="quiet" data-end="profile">${ico('★')}Alle prestaties</button></div>`,
-    { cls: 'endsheet' },
+    { cls: 'endsheet', locked: true }, // (niet weg te klikken: de knoppen bepalen hoe het verdergaat)
   );
   const canvas = $<HTMLCanvasElement>('#sheet .endchart');
   if (canvas) drawChart(canvas, G.hist, keys);
@@ -180,10 +182,13 @@ export function showEndScreen(won: boolean) {
  */
 function playAgain() {
   const { people, diff, map, size, victories, rivals } = G.opts;
-  if (G.won) save();
-  else wipe();
+  // Een gewonnen spel gaat naar een vrije eigen plek (de automatische plek krijgt zo de nieuwe wereld)
+  const parked = G.won ? parkLiveGame() : '';
+  if (G.won && !parked) save();
+  else if (!G.won) wipe();
   newGame({ people, diff, map, size, victories, rivals });
   closeModalAndPlay();
+  if (parked) toast(`Je gewonnen spel staat bewaard op ${slotName(parked)}.`, 'good');
 }
 
 // Knoppen op het eindscherm die niet in modals.ts staan
