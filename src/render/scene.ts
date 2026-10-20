@@ -76,9 +76,13 @@ addEventListener('resize', () => requestResize());
 try {
   const watchDpr = () => {
     requestResize();
-    matchMedia(`(resolution: ${window.devicePixelRatio}dppx)`).addEventListener('change', watchDpr, { once: true });
+    matchMedia(`(resolution: ${window.devicePixelRatio}dppx)`).addEventListener('change', watchDpr, {
+      once: true,
+    });
   };
-  matchMedia(`(resolution: ${window.devicePixelRatio}dppx)`).addEventListener('change', watchDpr, { once: true });
+  matchMedia(`(resolution: ${window.devicePixelRatio}dppx)`).addEventListener('change', watchDpr, {
+    once: true,
+  });
 } catch (e) {
   // (oude browser zonder matchMedia-events: dan alleen bij een gewone resize)
 }

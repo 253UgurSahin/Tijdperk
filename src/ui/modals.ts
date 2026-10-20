@@ -11,8 +11,25 @@ import { MAP } from '../data/maps';
 import { DEFAULT_PEOPLE, isPeopleUnlocked } from '../data/peoples';
 import { DIFF_NAMES } from '../data/score';
 import { DAILY, SCENARIOS, goalText } from '../data/scenarios';
-import { MANUAL_SLOTS, filledCount, latestSlot, replaceWarningText, savedAtText, slotName, slotTitle } from '../data/saveslots';
-import { currentMeta, isLiveGame, liveGameAtRisk, listSlots, loadSlot, parkLiveGame, save, wipe } from '../game/save';
+import {
+  MANUAL_SLOTS,
+  filledCount,
+  latestSlot,
+  replaceWarningText,
+  savedAtText,
+  slotName,
+  slotTitle,
+} from '../data/saveslots';
+import {
+  currentMeta,
+  isLiveGame,
+  liveGameAtRisk,
+  listSlots,
+  loadSlot,
+  parkLiveGame,
+  save,
+  wipe,
+} from '../game/save';
 import { currentChallenge } from '../game/scenario';
 import { G, newGame, placeName } from '../game/state';
 import { setView } from '../input/input';
@@ -325,8 +342,16 @@ function showSettings() {
         : '') +
       tog('V2', 'Bovenaanzicht (2D)', 'Camera recht van boven. Uit: 3D, dat je rond kunt draaien', store.V2) +
       tog('shake', 'Schermschudden', 'Bij inslagen en instortende gebouwen') +
-      tog('flash', 'Lichtflitsen', 'Flits bij een treffer op het stamhuis, een nieuw tijdperk en de finale. Uit: rustiger voor de ogen') +
-      tog('colorblind', 'Kleurenblindvriendelijk', 'Vijanden oranje in plaats van rood, zodat ze ook tegen groen opvallen') +
+      tog(
+        'flash',
+        'Lichtflitsen',
+        'Flits bij een treffer op het stamhuis, een nieuw tijdperk en de finale. Uit: rustiger voor de ogen',
+      ) +
+      tog(
+        'colorblind',
+        'Kleurenblindvriendelijk',
+        'Vijanden oranje in plaats van rood, zodat ze ook tegen groen opvallen',
+      ) +
       tog(
         'motion',
         'Animaties',
@@ -354,7 +379,7 @@ function showSettings() {
         Math.round(SET.vol * 100),
         Math.round(SET.vol * 100) + '%',
       ) +
-      tog('music', 'Muziek', 'Zachte achtergrondmuziek, overdag licht en \'s nachts rustig') +
+      tog('music', 'Muziek', "Zachte achtergrondmuziek, overdag licht en 's nachts rustig") +
       slider(
         'musicVol',
         'Volume muziek',

@@ -115,7 +115,9 @@ function finaleSky() {
     fogNow.lerp(VIOLET_FOG, k * 0.7);
   }
   // (met lichtflitsen uit blijft de flits van de finale een zacht oplichten)
-  const flash = store.finaleFlash ? (1 - (performance.now() - store.finaleFlash) / 1600) * (SET.flash ? 1 : 0.25) : 0;
+  const flash = store.finaleFlash
+    ? (1 - (performance.now() - store.finaleFlash) / 1600) * (SET.flash ? 1 : 0.25)
+    : 0;
   if (flash > 0) {
     hemi.intensity += flash * 1.2;
     sun.intensity += flash * 0.6;

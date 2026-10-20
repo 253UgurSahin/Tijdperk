@@ -539,7 +539,12 @@ export function smoothPos(e: Moving): [number, number] {
 }
 
 // Het materiaal van alle selectiecirkels (één voor allemaal; de dekking pulseert voor allemaal gelijk)
-const RING_MAT = new T3.MeshBasicMaterial({ color: '#9fe28a', transparent: true, opacity: 0.95, depthWrite: false });
+const RING_MAT = new T3.MeshBasicMaterial({
+  color: '#9fe28a',
+  transparent: true,
+  opacity: 0.95,
+  depthWrite: false,
+});
 // Grote eenheden (paarden, wagens, geschut) krijgen een grotere selectiecirkel
 const BIG_RING = new Set([
   'tank',
@@ -598,7 +603,13 @@ function syncEnt(e: Figure, make: () => T3.Group): EntityRec {
     // Gekleurde schijf onder elk figuur, zodat je in één oogopslag ziet wie wie is (getekend in drawDiscs):
     // licht = dorpeling, blauw = jouw leger, rood = vijand, eigen kleur = soldaat van een rivaal
     r.disc = new T3.Color(
-      e.rival ? rivalColour(e.rival) : e.kind === 'v' ? '#f1e6c4' : e.kind === 'u' ? '#3d8bff' : paint.foeBright,
+      e.rival
+        ? rivalColour(e.rival)
+        : e.kind === 'v'
+          ? '#f1e6c4'
+          : e.kind === 'u'
+            ? '#3d8bff'
+            : paint.foeBright,
     );
     r.discV = e.kind === 'v';
     r.dotR = e.kind === 'v' ? 0.18 : e.kind === 'u' && (e.k === 'tank' || e.k === 'knight') ? 0.4 : 0.25;

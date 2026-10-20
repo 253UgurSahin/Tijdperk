@@ -240,8 +240,7 @@ export function updateProj(dt: number) {
       if (p.splash) {
         // Wie in de ontploffing staat: bij een vijandelijk schot jouw mensen, anders vijanden
         const victims = splashVictims(p);
-        for (const e of victims)
-          if (!e.hidden && dist(e.x, e.y, p.lx, p.ly) <= p.splash) hit(e, p.dmg, p.by);
+        for (const e of victims) if (!e.hidden && dist(e.x, e.y, p.lx, p.ly) <= p.splash) hit(e, p.dmg, p.by);
         // Het doel zelf altijd raken (ook als het niet in de lijst staat, zoals een helper van een bondgenoot)
         if (p.foe && !isDead(p.t) && (p.t.kind === 'b' || !(victims as Mobile[]).includes(p.t as Mobile)))
           hit(p.t, p.dmg);

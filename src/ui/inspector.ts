@@ -618,7 +618,8 @@ export function insHandler(e: MouseEvent) {
   else if (t.dataset.b === 'upgrade' && b) upgrade(b);
   else if (t.dataset.g === 'tools') upgradeTools();
   else if (t.dataset.g === 'arms') upgradeArms();
-  else if (t.dataset.b === 'demolish' && b) armDemolish(b); else if (t.dataset.buy) {
+  else if (t.dataset.b === 'demolish' && b) armDemolish(b);
+  else if (t.dataset.buy) {
     // Koop- en verkoopknoppen staan alleen bij een geselecteerde markt, dus b is er
     const r = t.dataset.buy,
       c = marketPrices(b as Building, r).buy;

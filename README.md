@@ -63,7 +63,11 @@ Een real-time strategiespel in de browser: leid je stam van de **steentijd** naa
 - RTS-interface: grondstoffen met dorpelingen per taak, selectiepaneel, knoppenraster en minikaart
 - Bouwen, verzamelen, gebied uitbreiden, onderzoek, een leger trainen en kampen veroveren
 - Het spel wijst zelf de volgende stap aan; geen uitleg nodig
-- Voortgang wordt in de browser bewaard (localStorage)
+- Zachte achtergrondmuziek, ter plekke gemaakt (geen geluidsbestanden); uit te zetten
+- Voortgang wordt in de browser bewaard (localStorage): elke minuut en elke ochtend automatisch, plus drie
+  eigen plekken. Een kapotte opslag wordt nooit overschreven; een nieuw spel zet je lopende spel eerst op een
+  vrije plek
+- Deel je score vanaf het eindscherm (met de zaadcode van je wereld)
 
 ## Zelf ontwikkelen
 
@@ -83,6 +87,12 @@ npm run format     # code netjes opmaken (Prettier)
 Bij elke push naar `main` draait de CI (lint, tests, build) en wordt `dist/` naar GitHub Pages gepubliceerd
 (_Settings → Pages → Source: GitHub Actions_).
 
+Testen gebeurt op twee manieren: `npm test` draait de unittests (speldata, wereldgeneratie, hulpfuncties); de
+spelstand, invoer en weergave worden in een echte browser gecontroleerd (Playwright-scripts, niet in de repo).
+In de ontwikkelserver staan hulpjes op `window.__tp` (bijv. `__tp.rich(1000)`, `__tp.setAge(4)`).
+
+Wat er per ronde veranderd is, staat in [CHANGELOG.md](CHANGELOG.md).
+
 ## Projectstructuur
 
 ```
@@ -91,13 +101,13 @@ src/
   main.ts             opstarten en de spellus (frame)
   types.ts            gedeelde types: gebouwen, dorpelingen, soldaten, de spelstand
   config.ts           kaartgrootte en vaste getallen
-  core/               gedeelde mutabele toestand (store) en instellingen
+  core/               gedeelde mutabele toestand (store), instellingen, profiel en foutafhandeling
   data/               pure speldata: grondstoffen, gebouwen, eenheden, tijdperken, techniek
   world/              kaartgeneratie, terreinlagen en padvinding
   game/               spelregels: toestand, dorpelingen, leger, gebeurtenissen, opslaan
   render/             three.js-wereld: camera, modellen, terrein, effecten, minikaart
   input/              muis, toetsenbord, selectie en opdrachten
-  audio/              geluidseffecten (Web Audio)
+  audio/              geluidseffecten en muziek (Web Audio, zonder bestanden)
   ui/                 HUD-panelen, menu's, coach en tooltips
   styles/             CSS per HUD-onderdeel
 tests/                Vitest-tests voor data, wereldgeneratie en hulpfuncties
@@ -111,8 +121,9 @@ tests/                Vitest-tests voor data, wereldgeneratie en hulpfuncties
 - **Instellingen** (Menu → Instellingen), in vier tabbladen:
   - _Spel:_ tutorial aan/uit, uitleg bij de muis, levensbalken, automatisch opslaan, vredige modus
   - _Beeld:_ kwaliteit (ook "Eigen": resolutie, schaduwen, gloed en omlijning los), bovenaanzicht,
-    schermschudden, animaties, grootte van de interface (S–XL), teller met beeldjes per seconde
-  - _Geluid:_ aan/uit, volume, meldingen, klikgeluiden, stil op de achtergrond
+    schermschudden, lichtflitsen, kleurenblindvriendelijk, animaties, grootte van de interface (S–XL), teller
+    met beeldjes per seconde
+  - _Geluid:_ aan/uit, volume, muziek (met eigen volume), meldingen, klikgeluiden, stil op de achtergrond
   - _Besturing:_ slepen = selecteren, randscrollen, camerasnelheid, zoomen omkeren
 - **2D en 3D:** kies op de minikaart (of met V) tussen het bovenaanzicht (2D) en het 3D-aanzicht. In 3D kun je
   het beeld helemaal rond draaien: met de middelste muisknop, met `,` en `.`, met de draaiknoppen op de minikaart

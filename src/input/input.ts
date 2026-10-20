@@ -456,7 +456,8 @@ addEventListener('keydown', e => {
     else if (b) {
       const wasArmed = store.demolishArm === b.id;
       armDemolish(b);
-      if (!wasArmed && store.demolishArm === b.id) toast(`Druk nogmaals om ${B[b.type].n.toLowerCase()} af te breken.`);
+      if (!wasArmed && store.demolishArm === b.id)
+        toast(`Druk nogmaals om ${B[b.type].n.toLowerCase()} af te breken.`);
     }
   } else if (k === '+' || k === '=') zoomTo((cam.tz ?? cam.z) * 1.25);
   else if (k === '-') zoomTo((cam.tz ?? cam.z) / 1.25);

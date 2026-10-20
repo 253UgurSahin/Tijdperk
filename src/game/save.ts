@@ -228,14 +228,16 @@ function checkSave(s: SaveData): string {
   } catch (e) {
     return 'kaart is niet te lezen';
   }
-  for (const o of s.bs) if (!o || typeof o.x !== 'number' || typeof o.y !== 'number') return 'gebouw zonder plek';
+  for (const o of s.bs)
+    if (!o || typeof o.x !== 'number' || typeof o.y !== 'number') return 'gebouw zonder plek';
   return '';
 }
 
 // Is het lopende spel al aangeraakt door deserialize? (zie loadSlot)
 let loadTouched = false;
 // Een nummer uit de opslag, of een vaste waarde als het er niet (goed) in staat
-const num = (v: unknown, fallback: number): number => (typeof v === 'number' && Number.isFinite(v) ? v : fallback);
+const num = (v: unknown, fallback: number): number =>
+  typeof v === 'number' && Number.isFinite(v) ? v : fallback;
 
 export function deserialize(str: string): boolean {
   const s: SaveData = JSON.parse(str);

@@ -184,9 +184,12 @@ export function endGame(won: boolean, delay = 800): void {
   // Verloren: de automatische opslag meteen weg, anders kun je na herladen verder van vlak vóór de nederlaag
   else wipe();
   const game = G; // (is er intussen een nieuw spel begonnen, dan hoort het eindscherm daar niet in)
-  setTimeout(() => {
-    if (G === game) showEndScreen(won);
-  }, won ? Math.max(delay, WIN_SCREEN_DELAY) : delay);
+  setTimeout(
+    () => {
+      if (G === game) showEndScreen(won);
+    },
+    won ? Math.max(delay, WIN_SCREEN_DELAY) : delay,
+  );
 }
 
 /**
