@@ -1,6 +1,7 @@
 // Zon, maan, seizoenen en lampen bij nacht.
 import * as T3 from 'three';
 import { store } from '../core/store';
+import { SET } from '../core/settings';
 import { lights } from '../game/caches';
 import { G } from '../game/state';
 import { chargeFrac } from '../data/finale';
@@ -113,7 +114,8 @@ function finaleSky() {
     hemi.color.lerp(VIOLET, k);
     fogNow.lerp(VIOLET_FOG, k * 0.7);
   }
-  const flash = store.finaleFlash ? 1 - (performance.now() - store.finaleFlash) / 1600 : 0;
+  // (met lichtflitsen uit blijft de flits van de finale een zacht oplichten)
+  const flash = store.finaleFlash ? (1 - (performance.now() - store.finaleFlash) / 1600) * (SET.flash ? 1 : 0.25) : 0;
   if (flash > 0) {
     hemi.intensity += flash * 1.2;
     sun.intensity += flash * 0.6;

@@ -109,6 +109,10 @@ import { rate, tickResourceNumbers } from './ui/resources';
 import { $, isCompact } from './util/dom';
 import { measure } from './core/perf';
 import { errorHooks, reportError } from './core/errors';
+import { tickMusic } from './audio/music';
+import { darkness } from './game/time';
+import { isRaider } from './game/military';
+import { setColorBlind } from './render/kit';
 import { initQuality, tickQuality } from './render/quality';
 import { precompileNightShaders } from './render/lighting';
 import { setSpeed, toast } from './ui/hud';
@@ -227,6 +231,8 @@ function tick(now: number) {
   measure('sim', t0);
   t0 = performance.now();
   render();
+  // Muziek: overdag licht, 's nachts rustig, donkerder tijdens een aanval (niet op het titelscherm)
+  tickMusic(titleEl.hidden ? darkness() : 0.5, titleEl.hidden && G.foes.some(isRaider));
   if (!nightShadersReady) {
     // Na het eerste beeldje: de nachtshaders alvast klaarmaken (één keer een korte pauze, nu, in plaats van
     // een hapering bij de eerste schemering)
@@ -354,6 +360,7 @@ function start(data?: HotData) {
   if (started) return; // (de hot-reload-omgeving mag dit niet twee keer laten draaien: dan liepen er twee lussen)
   started = true;
   errorHooks.pause = () => setSpeed(0);
+  setColorBlind(!!SET.colorblind);
   errorHooks.toast = msg => toast(msg, 'bad');
   initQuality(); // kiest de beeldkwaliteit en zet daarna de schermgrootte
   try {

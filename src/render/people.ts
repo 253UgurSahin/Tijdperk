@@ -1,7 +1,7 @@
 // 3D-figuurtjes voor dorpelingen, soldaten en vijanden.
 import * as T3 from 'three';
 import { RES } from '../data/resources';
-import { C, CYANM, FOE, GB, TEAM, TEAMD, VIOLETM, bx, cn, cy, gIco, mat, mk, sp } from './kit';
+import { C, CYANM, GB, TEAM, TEAMD, VIOLETM, bx, cn, cy, gIco, mat, mk, paint, sp } from './kit';
 
 const SKIN = ['#e2b48c', '#c99470', '#a8754f', '#f0c8a0'];
 const BOOT = '#3a2e22'; // laarzen en riem
@@ -229,7 +229,7 @@ function faceForward(g: T3.Group): T3.Group {
  */
 export function makeUnit(k: string, foe: boolean, colour?: string): T3.Group {
   const g = new T3.Group(),
-    T = colour || (foe ? FOE : TEAM),
+    T = colour || (foe ? paint.foe : TEAM),
     TD = colour ? darker(colour) : foe ? '#7a2a24' : TEAMD;
   if (k === 'tank') {
     bx(g, 0.7, 0.22, 0.44, foe ? '#5a3a32' : '#5b6644', 0, 0.06, 0);
@@ -270,7 +270,7 @@ export function makeUnit(k: string, foe: boolean, colour?: string): T3.Group {
       const r = cy(b, 0.09, 0.01, '#cfd6da', x, 0.05, z, 8);
       r.userData.rotor = 1;
     }
-    mk(gIco(0), foe ? mat('#ff4a3a', { e: '#ff4a3a' }) : CYANM, b, 0, -0.03, 0, 0.04, 0.04, 0.04);
+    mk(gIco(0), foe ? mat(paint.foeBright, { e: paint.foeBright }) : CYANM, b, 0, -0.03, 0, 0.04, 0.04, 0.04);
     g.add(b);
     g.userData.fly = b;
     return g;
@@ -291,12 +291,12 @@ export function makeUnit(k: string, foe: boolean, colour?: string): T3.Group {
     p.position.y = 0.28;
     person(p, {
       shirt: '#7a3434',
-      tabard: FOE,
-      crest: FOE,
+      tabard: paint.foe,
+      crest: paint.foe,
       hat: 'helmet',
       hatc: '#5d5f63',
       tool: 'sword',
-      shield: FOE,
+      shield: paint.foe,
     });
     g.add(p);
     return g;
@@ -427,7 +427,7 @@ export function makeUnit(k: string, foe: boolean, colour?: string): T3.Group {
     // Mech: lopende robot. De benen en armen heten net als bij een mens, zodat ze meebewegen.
     const metal = foe ? '#4a2e2a' : '#5b6670',
       dark = '#2a2c34',
-      glow = foe ? mat('#ff4a3a', { e: '#ff4a3a' }) : VIOLETM;
+      glow = foe ? mat(paint.foeBright, { e: paint.foeBright }) : VIOLETM;
     const lL = new T3.Group(),
       lR = new T3.Group(),
       aL = new T3.Group(),
@@ -492,7 +492,7 @@ export function makeUnit(k: string, foe: boolean, colour?: string): T3.Group {
     spacepirate: {
       shirt: '#2a2c32',
       tool: 'blaster',
-      glow: mat('#ff4a3a', { e: '#ff4a3a' }),
+      glow: mat(paint.foeBright, { e: paint.foeBright }),
       hat: 'visor',
       hatc: '#1e2026',
       visor: mat('#ff3a3a', { e: '#ff3a3a' }),

@@ -7,7 +7,6 @@ import { bById } from '../game/state';
 import {
   C,
   CYANM,
-  FOE,
   GLASS,
   GLOWM,
   PINKM,
@@ -1219,7 +1218,7 @@ export function makeCamp(g: T3.Group, tier: number) {
   bx(g, 0.04, 0.4, 0.04, C.woodd, -0.2, 0, -0.95); // wapenrek
   bx(g, 0.5, 0.04, 0.04, C.woodd, 0, 0.32, -0.95);
   for (let k = 0; k < 3; k++) cy(g, 0.012, 0.45, '#7d6a52', -0.1 + k * 0.12, 0, -0.93, 4);
-  flagpole(g, 0, 0, 0, 1.2, FOE);
+  flagpole(g, 0, 0, 0, 1.2, paint.foe);
   if (tier >= 3) bx(g, 0.5, 0.4, 0.4, C.dmetal, 0.6, 0, 0.5);
   if (tier >= 5) {
     // Latere kampen: een wachttoren van ijzer met een rode lamp

@@ -57,6 +57,8 @@ const PATHS: Record<string, string> = {
   '✈': '<path d="M12 3v18M4 13l8-4 8 4M9 20l3-2 3 2"/>',
   // pijltjes in een rondje: vanzelf
   '↻': '<path d="M19 12a7 7 0 1 1-2.1-5"/><path d="M19 4v4h-4"/>',
+  // delen: een pijl uit een doos
+  '↗': '<path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7"/><path d="M12 15V4"/><path d="M8 8l4-4 4 4"/>',
   // zon: niets te doen
   '☉': '<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="1.8" fill="currentColor"/>',
 

@@ -18,6 +18,7 @@ import {
   mergeStatic,
   mergeWhole,
   mk,
+  paint,
 } from './kit';
 import { BOSS_SCALE } from '../data/bosses';
 import { aimTurrets, findTurrets, type TurretState } from './turrets';
@@ -434,9 +435,10 @@ export function syncBuildings() {
     }
 }
 function entKey(e: Figure): string {
-  if (e.rival) return 'r' + e.rival + e.uk; // soldaat van een rivaal
+  // (paint.version: na het omzetten van de kleuren worden alle figuren opnieuw gemaakt)
+  if (e.rival) return 'r' + e.rival + e.uk + paint.version; // soldaat van een rivaal
   if (e.boss) return 'boss' + e.type; // een kampioen ziet er anders uit (zie bossLook)
-  return e.kind === 'v' ? 'v' + e.job : e.kind === 'u' ? 'u' + e.k : 'f' + e.type;
+  return (e.kind === 'v' ? 'v' + e.job : e.kind === 'u' ? 'u' + e.k : 'f' + e.type) + paint.version;
 }
 // Een kampioen: veel groter, met een gouden kroon boven zijn hoofd en een gouden schijf eronder
 const GOLD = mat('#e2b92c', { m: 0.6, r: 0.35 });
@@ -596,7 +598,7 @@ function syncEnt(e: Figure, make: () => T3.Group): EntityRec {
     // Gekleurde schijf onder elk figuur, zodat je in één oogopslag ziet wie wie is (getekend in drawDiscs):
     // licht = dorpeling, blauw = jouw leger, rood = vijand, eigen kleur = soldaat van een rivaal
     r.disc = new T3.Color(
-      e.rival ? rivalColour(e.rival) : e.kind === 'v' ? '#f1e6c4' : e.kind === 'u' ? '#3d8bff' : '#ff4a3a',
+      e.rival ? rivalColour(e.rival) : e.kind === 'v' ? '#f1e6c4' : e.kind === 'u' ? '#3d8bff' : paint.foeBright,
     );
     r.discV = e.kind === 'v';
     r.dotR = e.kind === 'v' ? 0.18 : e.kind === 'u' && (e.k === 'tank' || e.k === 'knight') ? 0.4 : 0.25;

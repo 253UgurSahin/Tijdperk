@@ -7,10 +7,14 @@ export const DEFAULTS = {
   alerts: true, // alarm bij aanvallen en meldingen
   uiSounds: true, // klikjes van knoppen
   muteHidden: true, // stil als je naar een ander tabblad gaat
+  music: true, // achtergrondmuziek (ter plekke gemaakt, zie audio/music.ts)
+  musicVol: 0.5, // volume van de muziek, los van het hoofdvolume
   // beeld
   quality: 'auto', // 'auto' | 'low' | 'mid' | 'high' | 'custom'
   gfx: { scale: 1, shadows: true, bloom: true, outline: true, particles: true },
   shake: true,
+  flash: true, // lichtflitsen (treffer op het stamhuis, nieuw tijdperk, finale); uit = rustiger voor de ogen
+  colorblind: false, // vijanden oranje in plaats van rood (rood en groen zijn voor veel mensen lastig)
   motion: true, // animaties: bewegende knoppen, camerazwaai, meetellende getallen (uit = rustiger)
   fps: false, // beeldjes per seconde tonen
   // besturing
@@ -56,6 +60,7 @@ export function resetSet() {
 /** Instellingen die direct de pagina raken: indeling, grootte, animaties en hulp. */
 export function applyLayoutSettings() {
   const body = document.body.classList;
+  body.toggle('noflash', !SET.flash);
   body.toggle('hudwide', !!SET.hudWide);
   body.toggle('nocoach', !SET.coach);
   body.toggle('calm', !SET.motion);

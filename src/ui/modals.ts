@@ -3,6 +3,8 @@ import { confirmTwice } from './confirm';
 import type { NewGameOptions } from '../types';
 import { store } from '../core/store';
 import { setSound, setVolume, sfx, sndOn } from '../audio/sound';
+import { setMusic, setMusicVolume } from '../audio/music';
+import { setColorBlind } from '../render/kit';
 import { SET, applyLayoutSettings, resetSet, saveSet } from '../core/settings';
 import { AGES } from '../data/ages';
 import { MAP } from '../data/maps';
@@ -92,8 +94,9 @@ $('#modal').addEventListener('click', e => {
   if (m === 'close') closeModal();
   else if (m === 'save') showSaveScreen();
   else if (m === 'load') showLoadScreen();
-  else if (m === 'new') {
-    if (!confirmTwice('pause-new')) {
+  else if (m === 'new' || m === 'newok') {
+    // In het pauzemenu ('new') eerst een tweede klik; op het eindscherm ('newok') meteen
+    if (m === 'new' && !confirmTwice('pause-new')) {
       const span = t.querySelector('span');
       if (span) span.textContent = 'Zeker? Klik nogmaals';
       else t.textContent = 'Zeker? Klik nogmaals';
@@ -137,6 +140,8 @@ $('#modal').addEventListener('input', e => {
   if (k === 'vol') {
     setVolume(pct / 100);
     sfx('tick', 0.1);
+  } else if (k === 'musicVol') {
+    setMusicVolume(pct / 100);
   } else if (k === 'camSpeed') {
     SET.camSpeed = pct / 100;
     saveSet();
@@ -320,6 +325,8 @@ function showSettings() {
         : '') +
       tog('V2', 'Bovenaanzicht (2D)', 'Camera recht van boven. Uit: 3D, dat je rond kunt draaien', store.V2) +
       tog('shake', 'Schermschudden', 'Bij inslagen en instortende gebouwen') +
+      tog('flash', 'Lichtflitsen', 'Flits bij een treffer op het stamhuis, een nieuw tijdperk en de finale. Uit: rustiger voor de ogen') +
+      tog('colorblind', 'Kleurenblindvriendelijk', 'Vijanden oranje in plaats van rood, zodat ze ook tegen groen opvallen') +
       tog(
         'motion',
         'Animaties',
@@ -346,6 +353,17 @@ function showSettings() {
         5,
         Math.round(SET.vol * 100),
         Math.round(SET.vol * 100) + '%',
+      ) +
+      tog('music', 'Muziek', 'Zachte achtergrondmuziek, overdag licht en \'s nachts rustig') +
+      slider(
+        'musicVol',
+        'Volume muziek',
+        'Los van het hoofdvolume',
+        0,
+        100,
+        5,
+        Math.round(SET.musicVol * 100),
+        Math.round(SET.musicVol * 100) + '%',
       ) +
       tog('alerts', 'Meldingen', 'Alarm bij aanvallen en vallende meteorieten') +
       tog('uiSounds', 'Klikgeluiden', 'Tikjes bij knoppen en selecteren') +
@@ -374,6 +392,12 @@ function showSettings() {
 /** Een instelling omzetten of kiezen, en meteen laten werken. */
 function changeSetting(k: string, v?: string | number) {
   if (k === 'sound') return setSound(!sndOn);
+  if (k === 'music') return setMusic(!SET.music);
+  if (k === 'colorblind') {
+    SET.colorblind = !SET.colorblind;
+    saveSet();
+    return setColorBlind(SET.colorblind); // (figuren worden vanzelf opnieuw gemaakt, zie entKey in render/sync.ts)
+  }
   if (k === 'V2') return setView(!store.V2, true);
   if (k === 'peaceful') return setPeaceful(!G.peaceful);
   // Bij Beeldkwaliteit is v altijd een woord, zoals 'auto' of 'high'

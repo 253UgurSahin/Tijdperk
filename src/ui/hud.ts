@@ -124,6 +124,7 @@ type ScreenEffect = 'age' | 'win' | 'hurt';
  * (rode rand als je stamhuis geraakt wordt).
  */
 export function screenEffect(kind: ScreenEffect) {
+  if (!SET.flash) return; // lichtflitsen uitgezet in de instellingen
   const el = $('#screenfx');
   el.className = '';
   void el.offsetWidth; // zo begint de animatie opnieuw, ook als dezelfde net nog liep

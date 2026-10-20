@@ -11,6 +11,8 @@ import { VICTORY } from '../data/victories';
 import { finishGame } from '../game/achievements';
 import { parkLiveGame, save, wipe } from '../game/save';
 import { slotName } from '../data/saveslots';
+import { PEOPLE } from '../data/peoples';
+import { codeFromSeed } from '../util/seedcode';
 import { toast } from './hud';
 import { currentChallenge } from '../game/scenario';
 import { G, newGame, placeName } from '../game/state';
@@ -168,7 +170,7 @@ export function showEndScreen(won: boolean) {
     <div class="sect">Nieuwe prestaties <span>${G.achieved.length}</span></div>
     ${newAchievementsHTML()}
     ${chartHTML(keys)}
-    <div class="row">${buttons}<button class="quiet" data-end="profile">${ico('★')}Alle prestaties</button></div>`,
+    <div class="row">${buttons}<button class="quiet" data-end="share">${ico('↗')}Deel je score</button><button class="quiet" data-end="profile">${ico('★')}Alle prestaties</button></div>`,
     { cls: 'endsheet', locked: true }, // (niet weg te klikken: de knoppen bepalen hoe het verdergaat)
   );
   const canvas = $<HTMLCanvasElement>('#sheet .endchart');
@@ -199,6 +201,7 @@ $('#modal').addEventListener('click', e => {
   else if (t.dataset.end === 'retry') retryChallenge();
   else if (t.dataset.end === 'again') playAgain();
   else if (t.dataset.end === 'challenges') openChallengeList();
+  else if (t.dataset.end === 'share') shareScore(t);
   else if (t.dataset.end === 'menu') {
     // Dit spel is voorbij: niet bewaren, zodat "Verder spelen" niet terugkomt naar een gevallen stad
     wipe();
@@ -206,3 +209,25 @@ $('#modal').addEventListener('click', e => {
     showTitle();
   }
 });
+
+/**
+ * Je score delen: via het deelmenu van het apparaat (telefoon), anders naar het klembord. De tekst heeft de
+ * zaadcode erin, zodat een ander dezelfde wereld kan proberen.
+ */
+async function shareScore(btn: HTMLElement) {
+  const r = G.result;
+  const score = r ? fmt(r.sum) + ' punten' : 'gespeeld';
+  const text =
+    `Tijdperken: ${score} in ${placeName()} (${PEOPLE[G.people].n}, ${AGES[G.age].n}, dag ${G.day}` +
+    `, wereld ${codeFromSeed(G.seed)}). Probeer dezelfde wereld: ${location.href.split('#')[0]}`;
+  try {
+    if (navigator.share) await navigator.share({ title: 'Tijdperken', text });
+    else {
+      await navigator.clipboard.writeText(text);
+      btn.textContent = 'Gekopieerd!';
+    }
+  } catch (e) {
+    // (gestopt door de speler, of geen klembord: dan de tekst gewoon laten zien)
+    toast(text);
+  }
+}

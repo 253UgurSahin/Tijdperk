@@ -468,8 +468,18 @@ const FIREM = new T3.MeshBasicMaterial({ color: '#ff9d3a' }),
 export const TEAM = '#2f6fd6',
   TEAMD = '#204c96',
   FOE = '#b8352c';
-// De kleur van vlaggen en banieren op gebouwen. Voor een rivaal zet render/rivals3d.ts hem even op zijn kleur.
-export const paint = { team: TEAM };
+/**
+ * De kleur van vlaggen en banieren op gebouwen (team; voor een rivaal zet render/rivals3d.ts hem even op zijn
+ * kleur) en van vijanden (foe). Met de kleurenblindvriendelijke stand worden vijanden oranje in plaats van
+ * rood: rood en groen (bos, gras) zijn voor veel mensen lastig uit elkaar te houden, oranje en blauw niet.
+ * `version` telt mee in de sleutel van elk figuur, zodat ze bij het omzetten opnieuw gemaakt worden.
+ */
+export const paint = { team: TEAM, foe: FOE, foeBright: '#ff4a3a', version: 0 };
+export function setColorBlind(on: boolean): void {
+  paint.foe = on ? '#d8821e' : FOE;
+  paint.foeBright = on ? '#ffb13a' : '#ff4a3a';
+  paint.version++;
+}
 export const GB = new T3.BoxGeometry(1, 1, 1);
 GB.translate(0, 0.5, 0);
 const GC: Record<string, T3.BufferGeometry> = {};

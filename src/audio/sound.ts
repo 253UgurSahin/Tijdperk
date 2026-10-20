@@ -30,6 +30,10 @@ function ac() {
   if (AC.state !== 'running' && !(document.hidden && SET.muteHidden)) AC.resume().catch(() => {});
   return AC;
 }
+/** Zorg dat de audio draait (na een aanraking of toets): ook de muziek hangt eraan. */
+export function ensureAudio(): void {
+  if (sndOn && ac()) out();
+}
 const sfxT: Record<string, number> = {};
 function tone(f0: number, f1: number, dur: number, type: OscillatorType, vol: number, delay = 0) {
   const a = ac();
@@ -290,6 +294,7 @@ document.addEventListener('visibilitychange', () => {
 function unlockAudio() {
   if (!sndOn) return;
   const a = ac();
+  if (a) out(); // (ook de hoofduitgang alvast, zodat de muziek meteen kan)
   if (a && a.state === 'running') for (const ev of UNLOCK_EVENTS) removeEventListener(ev, unlockAudio);
 }
 const UNLOCK_EVENTS = ['pointerdown', 'pointerup', 'touchend', 'keydown'] as const;
