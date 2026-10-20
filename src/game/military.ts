@@ -151,7 +151,11 @@ function destroyBuilding(b: Building) {
 function campDestroyed(c: Camp) {
   c.alive = false;
   G.stats.camps++;
-  const L: Cost = { food: 250, wood: 200, stone: 150 },
+  store.hitStop = 0.25; // een korte "klap" (zie main.ts)
+  if (SET.shake) store.shake = Math.max(store.shake, 0.4);
+  // Het eerste kamp was meer waard dan je hele economie van dat moment: de buit begint lager en groeit per
+  // kamp-niveau harder, zodat verder weg veroveren echt loont
+  const L: Cost = { food: 160, wood: 130, stone: 100 },
     tier = c.tier;
   if (tier >= 1) {
     L.copper = 80;
@@ -174,7 +178,7 @@ function campDestroyed(c: Camp) {
     L.chips = 40;
     L.battery = 40;
   }
-  for (const k in L) L[k] = Math.round(L[k] * (1 + tier * 0.6) * mul('loot'));
+  for (const k in L) L[k] = Math.round(L[k] * (1 + tier * 0.8) * mul('loot'));
   gain(L);
   const ci = ((c.y + 1) >> 4) * CN + ((c.x + 1) >> 4);
   let extra = '';

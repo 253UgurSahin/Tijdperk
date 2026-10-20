@@ -6,6 +6,8 @@ import type { Profile } from '../types';
 export interface Store {
   /** Hoeveel fouten er zijn opgevangen (zie core/errors.ts). */
   errors?: number;
+  /** "Hit-stop": zoveel seconden loopt de tijd heel even bijna stil, na een grote klap (zie main.ts). */
+  hitStop: number;
   mapVersion: number;
   placing: string | null;
   expandMode: boolean;
@@ -56,6 +58,7 @@ export interface Store {
 export const store: Store = {
   mapVersion: 0, // telt op als er iets op de kaart verandert (voor de minikaart)
   placing: null,
+  hitStop: 0,
   expandMode: false,
   demolishArm: 0,
   cmdMode: null,

@@ -207,7 +207,11 @@ function tick(now: number) {
   refreshMouseTile(); // de camera kan verschoven zijn: dan ligt er een andere tegel onder de muis
   let t0 = performance.now();
   if (G.speed && !G.over) {
-    acc += rdt * G.speed;
+    // Hit-stop: na een grote klap (kampioen verslagen, kamp veroverd) loopt de tijd heel even bijna stil.
+    // Dat geeft gewicht aan het moment; het spel zelf rekent gewoon door, alleen langzamer.
+    const slow = store.hitStop > 0 ? 0.12 : 1;
+    if (store.hitStop > 0) store.hitStop -= rdt;
+    acc += rdt * G.speed * slow;
     let n = 0;
     while (acc >= 1 / 30 && n < 16) {
       rememberPositions();

@@ -1,5 +1,7 @@
 // Diplomatie in het spel: relaties met rivalen, verdragen, oorlog en vrede, berichten en hulp van bondgenoten.
 // De getallen (kansen, kosten, grenzen) staan in data/diplomacy.ts.
+import { towerDamage } from './buildings';
+import { bMaxHp } from './upgrades';
 import { weightedPick } from '../util/random';
 import type { AttackTarget, Cost, Foe, OfferKind, Rival, RivalMode, RivalOffer, Target } from '../types';
 import { store } from '../core/store';
@@ -119,7 +121,11 @@ export function yourPower(): number {
     dmg: UNITS[u.k].dmg * armsMul() * veteranMul(u),
     rate: UNITS[u.k].rate,
   }));
-  const towers = G.bs.filter(b => b.done && B[b.type].def).map(b => towerStats(b.type, B[b.type].hp));
+  // Torens tellen met hun echte sterkte (niveau, verbeteringen): anders bleven verbeterde torens
+  // onzichtbaar voor de aanvallen, en was torens verbeteren de enige verdediging die loonde
+  const towers = G.bs
+    .filter(b => b.done && B[b.type].def)
+    .map(b => ({ hp: bMaxHp(b), dmg: towerDamage(b), rate: B[b.type].def!.rate }));
   return armyPower(army) + armyPower(towers);
 }
 /** Hoeveel keer zo sterk jij bent als deze rivaal (1 = even sterk). */
