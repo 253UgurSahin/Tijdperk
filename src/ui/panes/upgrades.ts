@@ -27,7 +27,14 @@ import {
   upgradeTools,
   roadTier,
 } from '../../game/upgrades';
-import { oldRoadCount, renewBuilding, renewCost, renewRoads, renewTarget, roadRenewCost } from '../../game/renew';
+import {
+  oldRoadCount,
+  renewBuilding,
+  renewCost,
+  renewRoads,
+  renewTarget,
+  roadRenewCost,
+} from '../../game/renew';
 import { repairBuildings, repairCost } from '../../game/repair';
 import { blessingListHTML } from '../blessings';
 import { compareText, costHTML, esc, fmtShort } from '../format';
@@ -322,12 +329,18 @@ $('#upgrades').addEventListener('click', e => {
     // Alle verouderde gebouwen van deze soort vernieuwen die je kunt betalen
     let n = 0;
     for (const b of G.bs.filter(x => x.type === t.dataset.renew)) if (renewBuilding(b)) n++;
-    toast(n ? `${n} × ${B[t.dataset.renew].n.toLowerCase()} vernieuwd.` : 'Te weinig grondstoffen.', n ? 'good' : 'bad');
+    toast(
+      n ? `${n} × ${B[t.dataset.renew].n.toLowerCase()} vernieuwd.` : 'Te weinig grondstoffen.',
+      n ? 'good' : 'bad',
+    );
     if (n) sfx('upgrade');
   } else if (t.dataset.g === 'renewall') {
     let n = 0;
     for (const b of renewList()) if (renewBuilding(b)) n++;
-    toast(n ? `${n} ${n === 1 ? 'gebouw' : 'gebouwen'} vernieuwd.` : 'Te weinig grondstoffen.', n ? 'good' : 'bad');
+    toast(
+      n ? `${n} ${n === 1 ? 'gebouw' : 'gebouwen'} vernieuwd.` : 'Te weinig grondstoffen.',
+      n ? 'good' : 'bad',
+    );
     if (n) sfx('upgrade');
   } else if (t.dataset.g === 'roads') {
     const n = renewRoads();

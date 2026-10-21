@@ -1,0 +1,16 @@
+
+> tijdperken@0.2.0 build:artifact
+> vite build --config vite.artifact.config.ts && node scripts/artifact-html.mjs
+
+[36mvite v7.3.7 [32mbuilding client environment for production...[36m[39m
+transforming...
+[32m✓[39m 158 modules transformed.
+rendering chunks...
+[plugin vite:singlefile] 
+
+[plugin vite:singlefile] Inlining: index-BqY8FBpk.js
+[plugin vite:singlefile] Inlining: style-CFWhvOaD.css
+computing gzip size...
+[2mdist-artifact/[22m[32mindex.html  [39m[1m[2m1,150.35 kB[22m[1m[22m[2m │ gzip: 361.33 kB[22m
+[32m✓ built in 2.10s[39m
+dist-artifact/tijdperken.html 1122 kB
