@@ -5,6 +5,11 @@ taal. Per bug: wat er misging, hoe het is opgelost en hoe dat is gecontroleerd. 
 
 ## Daarna
 
+- **Vernieuwen in het paneel Verbeteren:** een verouderd gebouw (hut, wachttoren, kampvuur, ...) staat niet meer
+  bij Verbeteren maar bij Vernieuwen: met één klik wordt het op dezelfde plek zijn opvolger van nu (hut → stenen
+  huis, wachttoren → kasteeltoren), voor 70% van de nieuwprijs, heel en op niveau 1. Ook **Wegen vernieuwen** (alle
+  oude wegtegels in één keer naar klinkers of asfalt) en **Alles herstellen** staan daar nu.
+
 - **Wegen worden echt gebruikt:** de padvinding rekent een stap over een weg goedkoper (pad ×0,75, klinkers
   ×0,68, asfalt ×0,63), zodat dorpelingen en soldaten vanzelf de weg kiezen als die (ook met een kleine omweg)
   sneller is. Eerder liepen ze rechtdoor en kwamen ze alleen toevallig op een weg.

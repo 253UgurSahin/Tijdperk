@@ -25,7 +25,10 @@ import {
   upgrade,
   upgradeArms,
   upgradeTools,
+  roadTier,
 } from '../../game/upgrades';
+import { oldRoadCount, renewBuilding, renewCost, renewRoads, renewTarget, roadRenewCost } from '../../game/renew';
+import { repairBuildings, repairCost } from '../../game/repair';
 import { blessingListHTML } from '../blessings';
 import { compareText, costHTML, esc, fmtShort } from '../format';
 import { iconFor } from '../../render/icons';
@@ -111,9 +114,20 @@ function shortfall(c: Cost): Cost {
   return out;
 }
 
+/** Verouderde gebouwen die in hun opvolger vernieuwd kunnen worden, per opvolger. */
+function renewList(): Building[] {
+  return G.bs.filter(b => renewTarget(b) !== null);
+}
+
 export function renderUpgrades() {
-  const up = G.bs.filter(canUpg),
-    aff = up.filter(b => has(upgCost(b)));
+  // Een verouderd gebouw dat vernieuwd kan worden, staat bij Vernieuwen (niet meer bij Verbeteren)
+  const renew = renewList(),
+    renewSet = new Set(renew),
+    up = G.bs.filter(b => canUpg(b) && !renewSet.has(b)),
+    aff = up.filter(b => has(upgCost(b))),
+    renewAff = renew.filter(b => has(renewCost(renewTarget(b)!))),
+    roadCost = roadRenewCost(),
+    fixCost = repairCost();
   const sig = JSON.stringify([
     G.age,
     G.toolLvl,
@@ -123,6 +137,10 @@ export function renderUpgrades() {
     up.map(b => b.id + ':' + lvlOf(b)),
     aff.length,
     Object.values(shortfall(totalUpgradeCost(up))),
+    renew.map(b => b.id),
+    renewAff.length,
+    roadCost && [Object.values(roadCost), has(roadCost)],
+    fixCost && [Object.values(fixCost), has(fixCost)],
     Object.keys(G.tech),
     G.research && [G.research.k, Math.floor(G.research.t / 2)],
     TECH.map(T => (has(T.cost) ? 1 : 0)).join(''),
@@ -183,6 +201,57 @@ export function renderUpgrades() {
         })
         .join('')}</div>`;
     }
+
+    // 2b. Vernieuwen: verouderde gebouwen naar hun opvolger, oude wegen naar de wegsoort van nu, en herstel
+    h += `<div class="usub">Vernieuwen${
+      renew.length > 1
+        ? `<button class="quiet" data-g="renewall" ${renewAff.length ? '' : 'disabled'} title="Vernieuw alle verouderde gebouwen die je kunt betalen">Alles vernieuwen (${renewAff.length}/${renew.length})</button>`
+        : ''
+    }</div><div class="ulist">`;
+    const byNext: Record<string, Building[]> = {};
+    for (const b of renew) {
+      const next = renewTarget(b)!;
+      (byNext[b.type + '>' + next] = byNext[b.type + '>' + next] || []).push(b);
+    }
+    for (const [key, list] of Object.entries(byNext)) {
+      const [from, next] = key.split('>'),
+        cost = renewCost(next);
+      h += row({
+        data: `data-renew="${from}"`,
+        pic: `<img src="${iconFor(next)}" alt="">`,
+        name: `${B[from].n} → ${B[next].n}` + (list.length > 1 ? ` ×${list.length}` : ''),
+        sub: 'Verouderd: op dezelfde plek vervangen',
+        right: costHTML(cost, true),
+        can: has(cost),
+        tip: `${B[from].n} wordt ${B[next].n.toLowerCase()} (niveau 1, helemaal heel). ${B[next].desc || ''} Kost 70% van nieuw bouwen.`,
+      });
+    }
+    if (roadCost) {
+      const n = oldRoadCount(),
+        tier = roadTier();
+      h += row({
+        data: 'data-g="roads"',
+        pic: `<img src="${iconFor('road')}" alt="">`,
+        name: `Wegen vernieuwen ×${n}`,
+        sub: tier >= 3 ? 'Naar asfalt' : 'Naar klinkers',
+        right: costHTML(roadCost, true),
+        can: has(roadCost),
+        tip: `Alle ${n} oude wegtegels in één keer naar de wegsoort van nu: sneller lopen voor iedereen.`,
+      });
+    }
+    if (fixCost)
+      h += row({
+        data: 'data-g="repair"',
+        pic: `<span class="ug">${ico('✚')}</span>`,
+        name: 'Alles herstellen',
+        sub: 'Beschadigde gebouwen weer heel',
+        right: costHTML(fixCost, true),
+        can: has(fixCost),
+        tip: 'Herstel alle beschadigde gebouwen in één keer (hout en steen per ontbrekend levenspunt).',
+      });
+    if (!renew.length && !roadCost && !fixCost)
+      h += `<p class="small">Niets verouderd en niets beschadigd.</p>`;
+    h += '</div>';
 
     // 3. Uitvindingen: eerst wat nu kan, dan een blik vooruit en wat al klaar is
     const now = TECH.filter(T => T.age <= G.age && !hasT(T.k)),
@@ -249,6 +318,24 @@ $('#upgrades').addEventListener('click', e => {
       n ? `${n} × ${B[t.dataset.ut].n.toLowerCase()} verbeterd.` : 'Te weinig grondstoffen.',
       n ? 'good' : 'bad',
     );
+  } else if (t.dataset.renew) {
+    // Alle verouderde gebouwen van deze soort vernieuwen die je kunt betalen
+    let n = 0;
+    for (const b of G.bs.filter(x => x.type === t.dataset.renew)) if (renewBuilding(b)) n++;
+    toast(n ? `${n} × ${B[t.dataset.renew].n.toLowerCase()} vernieuwd.` : 'Te weinig grondstoffen.', n ? 'good' : 'bad');
+    if (n) sfx('upgrade');
+  } else if (t.dataset.g === 'renewall') {
+    let n = 0;
+    for (const b of renewList()) if (renewBuilding(b)) n++;
+    toast(n ? `${n} ${n === 1 ? 'gebouw' : 'gebouwen'} vernieuwd.` : 'Te weinig grondstoffen.', n ? 'good' : 'bad');
+    if (n) sfx('upgrade');
+  } else if (t.dataset.g === 'roads') {
+    const n = renewRoads();
+    toast(n ? `${n} wegtegels vernieuwd.` : 'Te weinig grondstoffen.', n ? 'good' : 'bad');
+    if (n) sfx('upgrade');
+  } else if (t.dataset.g === 'repair') {
+    const ok = repairBuildings();
+    toast(ok ? 'Alle gebouwen hersteld.' : 'Te weinig grondstoffen.', ok ? 'good' : 'bad');
   } else if (t.dataset.g === 'tools') upgradeTools();
   else if (t.dataset.g === 'arms') upgradeArms();
   else if (t.dataset.g === 'all') {
