@@ -62,6 +62,9 @@ Een real-time strategiespel in de browser: leid je stam van de **steentijd** naa
 - 3D-wereld in WebGL ([three.js](https://threejs.org) r149), met dag/nacht, seizoenen, regen en schaduwen
 - RTS-interface: grondstoffen met dorpelingen per taak, selectiepaneel, knoppenraster en minikaart
 - Bouwen, verzamelen, gebied uitbreiden, onderzoek, een leger trainen en kampen veroveren
+- Paneel Verbeteren: werktuigen en wapens, gebouwen een niveau omhoog (ook alles tegelijk, met de totale kosten),
+  verouderde gebouwen op dezelfde plek vernieuwen naar hun opvolger, oude wegen in één keer vernieuwen en alle
+  gebouwen herstellen
 - Raakt een delfstof op? De steengroeve (steentijd) hakt langzaam steen uit de grond, de mijnschacht (IJzertijd)
   haalt wat koper, tin en ijzer uit de diepte, en op de markt (Middeleeuwen) koop je alles voor goud; de coach
   wijst ze aan als er geen land meer te koop is
