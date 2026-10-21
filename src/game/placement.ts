@@ -10,16 +10,17 @@ import { computeAvail } from './caches';
 import { has, pay } from './economy';
 import { placeBuilding } from './entities';
 import { fxRing } from './fx';
-import { G } from './state';
+import { G, bById } from './state';
 import { mul } from './bonus';
 import { ruleAllowsBuilding } from './mods';
 import { roadTier } from './upgrades';
 import { landOwner } from './rivals';
-import { wonderBlocked } from './wonders';
+import { canDemolish, wonderBlocked } from './wonders';
 import { mouse } from '../input/input';
 import { resetV, selVills } from '../input/selection';
 import { fmt } from '../ui/format';
 import { toast } from '../ui/hud';
+import { demolish } from '../ui/inspector';
 import { TER, bmap, inb, isUnl, node, nodeVis, road, ter } from '../world/world';
 import { SUCCESSOR, canMake } from '../data/succession';
 
@@ -197,4 +198,27 @@ export function tryPlace(keep?: boolean) {
   toast(`${B[store.placing!].n} uitgezet. Dorpelingen komen het bouwen.`);
   if (!keep) store.placing = null;
   store.uiDirty = true;
+}
+
+/**
+ * Sloopmodus: alle paden en muren op de lijn van tegel a naar tegel b weghalen (gebouwen niet: die breek je
+ * met een klik af, zodat je er niet per ongeluk een meesleept). Geeft hoeveel er weg is.
+ */
+export function demolishLine(a: Tile, b: Tile): number {
+  let n = 0;
+  for (const [x, y] of lineTiles(a, b)) {
+    const i = y * W + x;
+    if (road[i]) {
+      road[i] = 0;
+      n++;
+      continue;
+    }
+    const bld = bById.get(bmap[i]);
+    if (bld && B[bld.type].wall && canDemolish(bld)) {
+      demolish(bld);
+      n++;
+    }
+  }
+  if (n) sfx('boom');
+  return n;
 }

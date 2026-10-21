@@ -862,6 +862,22 @@ body.v2 #bigMap #mapBig {
     inset 0 -3px 0 var(--acc),
     0 1px 0 var(--paper-edge);
 }
+/* Afbreken: rechts, los van de tabjes, rood als het aan staat */
+.cats button.demo {
+  flex: 0 0 auto;
+  margin-left: 4px;
+  color: var(--bad);
+}
+.cats button.demo.on,
+.cats button.demo.on:hover:not(:disabled) {
+  flex: 0 0 auto;
+  background: var(--bad);
+  color: #fff;
+  box-shadow: 0 1px 0 var(--paper-edge);
+}
+.cats button.demo.on .lbl {
+  display: inline;
+}
 .cats button.hint:not(.on)::after {
   content: '';
   position: absolute;

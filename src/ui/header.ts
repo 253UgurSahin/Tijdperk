@@ -137,7 +137,7 @@ export function updateWorldTop() {
     cls = 'army';
   } else if (store.demoMode) {
     txt = 'Sloopmodus';
-    hint = 'Klik op een gebouw, muur of weg om het af te breken.';
+    hint = 'Klik op een gebouw, of sleep over paden en muren om ze weg te halen.';
     cls = 'army';
   } else if (sel.us.size) {
     txt = `${sel.us.size} ${sel.us.size === 1 ? 'eenheid' : 'eenheden'}`;

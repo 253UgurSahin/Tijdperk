@@ -5,6 +5,10 @@ taal. Per bug: wat er misging, hoe het is opgelost en hoe dat is gecontroleerd. 
 
 ## Daarna
 
+- **Paden (en muren) weghalen:** een knop **Afbreken** in de bouwbalk (eerder alleen de toets Delete, dus op een
+  telefoon onmogelijk). In sloopmodus haalt een klik een gebouw, pad of muur weg, en een sleep een hele strook
+  paden en muren (gebouwen niet, zodat je er niet per ongeluk een meesleept).
+
 - **Opgeraakte delfstoffen:** nieuwe gebouwen Steengroeve (steen, steentijd) en Mijnschacht (koper, tin en
   ijzer, IJzertijd) maken langzaam grondstoffen uit het niets; de markt verhandelt nu ook tin, zand en lithium;
   de coach wijst deze uitwegen aan als een grondstof op is en er geen land meer te koop is.

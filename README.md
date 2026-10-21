@@ -158,6 +158,7 @@ uitleg.
 | Pauze / sneller / langzamer             | Spatie · `]` · `[`                          |
 | Bouwcategorie                           | Z · X · C · B, daarna 1–9                   |
 | Gebied uitbreiden                       | E                                           |
+| Afbreken (gebouw, pad, muur)            | Knop ✕ in de bouwbalk of Delete; sleep over paden en muren voor een hele strook |
 | Hele leger · dorpelingen zonder werk    | Q · I                                       |
 | Bovenaanzicht (2D) of 3D                | V, of de knop op de minikaart               |
 | 3D-beeld draaien                        | Middelste muisknop slepen · `,` en `.`      |

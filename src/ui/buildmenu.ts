@@ -97,14 +97,28 @@ const CATKEY: Record<string, string> = { home: 'Z', eco: 'X', light: 'C', mil: '
 const CAT_ICON: Record<string, string> = { home: '⌂', eco: '⚙', light: '✹', mil: '⚔', wonder: '★' };
 function renderCats() {
   const hc = store.coachTile && B[store.coachTile].cat;
-  setHTML($('#cats'), 'cats', 'b' + store.tab + hc, () =>
-    Object.keys(CATS)
-      .map(
-        k =>
-          `<button role="tab" aria-selected="${k === store.tab}" aria-label="${CATS[k]}" data-t="${k}" class="${k === store.tab ? 'on' : ''} ${k === hc ? 'hint' : ''}" title="${CATS[k]} (sneltoets ${CATKEY[k]})">${ico(CAT_ICON[k])}<span class="lbl">${CATS[k]}</span></button>`,
-      )
-      .join(''),
+  setHTML(
+    $('#cats'),
+    'cats',
+    'b' + store.tab + hc + (store.demoMode ? 'D' : ''),
+    () =>
+      Object.keys(CATS)
+        .map(
+          k =>
+            `<button role="tab" aria-selected="${k === store.tab}" aria-label="${CATS[k]}" data-t="${k}" class="${k === store.tab ? 'on' : ''} ${k === hc ? 'hint' : ''}" title="${CATS[k]} (sneltoets ${CATKEY[k]})">${ico(CAT_ICON[k])}<span class="lbl">${CATS[k]}</span></button>`,
+        )
+        .join('') +
+      // Afbreken: klik (of sleep over paden en muren) om weg te halen. Sneltoets Delete.
+      `<button class="demo ${store.demoMode ? 'on' : ''}" aria-pressed="${store.demoMode}" aria-label="Afbreken" data-demo="1" title="Afbreken: klik op een gebouw, of sleep over paden en muren (Delete)">${ico('✕')}<span class="lbl">Afbreken</span></button>`,
   );
+}
+/** Sloopmodus aan of uit (de knop in de bouwbalk en de toets Delete). */
+export function toggleDemolishMode() {
+  store.demoMode = !store.demoMode;
+  store.placing = null;
+  store.cmdMode = null;
+  sigs.cats = null;
+  store.uiDirty = true;
 }
 export function setTab(k: string) {
   store.tab = k;
@@ -113,6 +127,12 @@ export function setTab(k: string) {
   renderCmd();
 }
 $('#cats').addEventListener('click', e => {
+  const demo = (e.target as HTMLElement).closest<HTMLElement>('button[data-demo]');
+  if (demo) {
+    sfx('tick');
+    toggleDemolishMode();
+    return;
+  }
   const b = (e.target as HTMLElement).closest<HTMLElement>('button[data-t]');
   if (!b) return;
   sfx('tick');

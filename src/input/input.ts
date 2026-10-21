@@ -4,7 +4,7 @@ import { store } from '../core/store';
 import { setSound, sfx, sndOn } from '../audio/sound';
 import { CS, TAU } from '../config';
 import { B } from '../data/buildings';
-import { placeLine } from '../game/placement';
+import { demolishLine, placeLine } from '../game/placement';
 import { G, bById, sel } from '../game/state';
 import { canDemolish, noDemolishText } from '../game/wonders';
 import { CUR } from './cursors';
@@ -31,7 +31,7 @@ import {
 } from '../render/camera';
 import { cam, cv } from '../render/scene';
 import { bigMapOpen, setBigMap } from '../render/minimap';
-import { setTab } from '../ui/buildmenu';
+import { setTab, toggleDemolishMode } from '../ui/buildmenu';
 import { lastSpeed, setExpand, setSpeed, toast } from '../ui/hud';
 import { armDemolish, selCmds } from '../ui/inspector';
 import { closeModal, openPause, showHelp } from '../ui/modals';
@@ -161,8 +161,9 @@ cv.addEventListener('pointerdown', e => {
   // Middelste muisknop: in 3D draaien, in het bovenaanzicht schuiven
   if (e.button === 1) drag.mode = store.V2 ? 'pan' : 'turn';
   if (e.button === 0 && e.shiftKey && !store.placing && !store.expandMode) drag.mode = 'box';
-  // Muur of weg trekken: t0 is dan de begintegel in plaats van de begintijd.
-  if (e.button === 0 && store.placing && (B[store.placing].wall || B[store.placing].road)) {
+  // Muur of weg trekken (of in sloopmodus: een strook weghalen): t0 is dan de begintegel in plaats van de begintijd.
+  const lineTool = store.demoMode || (store.placing && (B[store.placing].wall || B[store.placing].road));
+  if (e.button === 0 && lineTool) {
     const t = s2t(sx, sy),
       t0: Tile = [Math.floor(t[0]), Math.floor(t[1])];
     drag = { ...drag, mode: 'line', t0, t1: t0 };
@@ -273,7 +274,11 @@ cv.addEventListener('pointerup', e => {
     if (drag.btn === 0) leftClick(sx, sy, drag.shift, drag.ctrl);
     else if (drag.btn === 2) rightClick(sx, sy);
   } else if (drag.mode === 'box') boxSelect(drag.sx, drag.sy, sx, sy, drag.shift);
-  else if (drag.mode === 'line' && store.placing) placeLine(drag.t0, drag.t1);
+  else if (drag.mode === 'line' && store.demoMode) {
+    // Eén tegel: gewoon een klik (gebouw, muur of weg); een strook: alle paden en muren erlangs weg
+    if (drag.t0[0] === drag.t1[0] && drag.t0[1] === drag.t1[1]) leftClick(sx, sy, drag.shift, drag.ctrl);
+    else demolishLine(drag.t0, drag.t1);
+  } else if (drag.mode === 'line' && store.placing) placeLine(drag.t0, drag.t1);
   drag = null;
   cv.style.cursor = CUR.def;
 });
@@ -401,11 +406,8 @@ addEventListener('keydown', e => {
   } else if (k === 'r' && sel.us.size) {
     store.cmdMode = 'patrol';
     store.uiDirty = true;
-  } else if (k === 'delete' && !sel.b) {
-    store.demoMode = !store.demoMode;
-    store.placing = null;
-    store.uiDirty = true;
-  } else if (k === ' ') {
+  } else if (k === 'delete' && !sel.b) toggleDemolishMode();
+  else if (k === ' ') {
     e.preventDefault();
     setSpeed(G.speed ? 0 : lastSpeed);
   } else if (k === ']') {
