@@ -123,10 +123,14 @@ export function findPath(
   if (fromPart && toPart && fromPart !== toPart) return null;
   stamp++;
   heapN = 0;
+  // Wat een stap kost per soort weg (0 = geen weg): sneller lopen = goedkoper (één keer uitgerekend)
+  const costByTier = [1, 1 / roadBoost(1), 1 / roadBoost(2), 1 / roadBoost(3)];
+  // De schatting naar het doel telt iets lichter (×0,7), omdat een stap over een weg ook minder kost: zo blijft
+  // het zoeken een omweg via een weg overwegen in plaats van altijd rechtstreeks te gaan
   const hz = (x: number, y: number) => {
     const dx = Math.abs(x - tx),
       dy = Math.abs(y - ty);
-    return dx + dy - 0.586 * Math.min(dx, dy);
+    return (dx + dy - 0.586 * Math.min(dx, dy)) * H_SCALE;
   };
   const st = sy * W + sx,
     goal = ty * W + tx;
@@ -158,8 +162,9 @@ export function findPath(
           ny = cy + dy;
         if (!ok(nx, ny)) continue;
         if (dx && dy && (!ok(cx + dx, cy) || !ok(cx, cy + dy))) continue;
+        // Een stap over een weg kost minder: zo kiezen dorpelingen en soldaten vanzelf de weg als die er ligt
         const ni = ny * W + nx,
-          ng = gS[c] + (dx && dy ? 1.414 : 1);
+          ng = gS[c] + (dx && dy ? 1.414 : 1) * costByTier[road[ni]];
         if (stp[ni] !== stamp || ng < gS[ni]) {
           stp[ni] = stamp;
           gS[ni] = ng;
@@ -170,10 +175,12 @@ export function findPath(
   }
   return null;
 }
+/** Hoeveel sneller je over een weg van soort rt loopt (als factor boven 1): pad +34%, klinkers +46%, asfalt +58%. */
+export const roadBoost = (rt: number): number => (rt ? 1 + (0.22 + rt * 0.12) * mul('road') : 1);
+const H_SCALE = 0.7;
 export function follow(e: Mobile, dt: number, spd: number): boolean {
   if (!e.path || !e.path.length) return true;
-  const rt = road[(e.y | 0) * W + (e.x | 0)];
-  if (rt) spd *= 1 + (0.22 + rt * 0.12) * mul('road');
+  spd *= roadBoost(road[(e.y | 0) * W + (e.x | 0)]);
   const p = e.path[0],
     tx = p[0] + 0.5,
     ty = p[1] + 0.5,

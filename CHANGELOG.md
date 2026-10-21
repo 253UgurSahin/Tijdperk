@@ -5,6 +5,10 @@ taal. Per bug: wat er misging, hoe het is opgelost en hoe dat is gecontroleerd. 
 
 ## Daarna
 
+- **Wegen worden echt gebruikt:** de padvinding rekent een stap over een weg goedkoper (pad ×0,75, klinkers
+  ×0,68, asfalt ×0,63), zodat dorpelingen en soldaten vanzelf de weg kiezen als die (ook met een kleine omweg)
+  sneller is. Eerder liepen ze rechtdoor en kwamen ze alleen toevallig op een weg.
+
 - **Paden door bos:** een weg mag nu over bomen, struiken, losse stenen en zand; wat in de weg staat gaat weg
   (een boom levert 5 hout op, een struik 2 voedsel). Ertsaders blijven in de weg staan.
 

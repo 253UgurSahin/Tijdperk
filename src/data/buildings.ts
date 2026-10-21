@@ -580,7 +580,7 @@ export const B: Record<string, BuildingDef> = {
     road: 1,
     cost: { stone: 2 },
     h: 0,
-    desc: 'Dorpelingen en soldaten lopen sneller over wegen. Sleep om aan te leggen.',
+    desc: 'Dorpelingen en soldaten kiezen vanzelf de weg en lopen er sneller over. Sleep om aan te leggen.',
   },
 
   /*
