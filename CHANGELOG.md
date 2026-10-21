@@ -5,6 +5,9 @@ taal. Per bug: wat er misging, hoe het is opgelost en hoe dat is gecontroleerd. 
 
 ## Daarna
 
+- **Paden door bos:** een weg mag nu over bomen, struiken, losse stenen en zand; wat in de weg staat gaat weg
+  (een boom levert 5 hout op, een struik 2 voedsel). Ertsaders blijven in de weg staan.
+
 - **Paden (en muren) weghalen:** een knop **Afbreken** in de bouwbalk (eerder alleen de toets Delete, dus op een
   telefoon onmogelijk). In sloopmodus haalt een klik een gebouw, pad of muur weg, en een sleep een hele strook
   paden en muren (gebouwen niet, zodat je er niet per ongeluk een meesleept).

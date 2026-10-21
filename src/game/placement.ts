@@ -21,7 +21,7 @@ import { resetV, selVills } from '../input/selection';
 import { fmt } from '../ui/format';
 import { toast } from '../ui/hud';
 import { demolish } from '../ui/inspector';
-import { TER, bmap, inb, isUnl, node, nodeVis, road, ter } from '../world/world';
+import { TER, amt, bmap, inb, isUnl, node, nodeVis, road, ter } from '../world/world';
 import { SUCCESSOR, canMake } from '../data/succession';
 
 /** Wat een gebouw nu kost. Muren en poorten worden goedkoper door bonussen (zoals 'wall.cost'). */
@@ -103,7 +103,8 @@ export function canPlace(type: string, x: number, y: number, skipCost?: boolean)
     if (ter[i] === TER.WATER) return 'Hier is water';
     if (ter[i] === TER.ROCK) return 'Hier zijn bergen';
     if (bmap[i]) return 'Hier staat al iets';
-    if (nodeVis(i)) return NODES[node[i]].n + ' in de weg';
+    // Bomen, struiken, losse stenen en zand gaan weg voor een weg (zie placeLine); ertsaders niet
+    if (nodeVis(i) && !CLEAR.has(NODES[node[i]].k)) return NODES[node[i]].n + ' in de weg';
     if (road[i] >= roadTier()) return 'Hier ligt al een weg';
     if (!skipCost && !has(buildCost(type))) return 'Nog ' + lackText(buildCost(type)) + ' nodig';
     return null;
@@ -154,7 +155,17 @@ export function placeLine(a: Tile, b: Tile) {
     pay(buildCost(store.placing!));
     n++;
     if (d.road) {
-      road[y * W + x] = roadTier();
+      const i = y * W + x;
+      // Een boom of struik in de weg wordt gekapt (en levert wat hout op), een steen of zand geruimd
+      if (node[i] && CLEAR.has(NODES[node[i]].k)) {
+        const k = NODES[node[i]].k;
+        if (k === 'tree') G.res.wood += 5;
+        else if (k === 'bush') G.res.food += 2;
+        node[i] = 0;
+        amt[i] = 0;
+        fxRing(x + 0.5, y + 0.5, '#9c6b3c');
+      }
+      road[i] = roadTier();
     } else {
       const nb = placeBuilding(store.placing!, x, y, false);
       first = first || nb;
